@@ -3,17 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Explorador de Calles - Cobertura Comercial</title>
+  <title>Rastreador Comercial - Cobertura Automática</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
     :root {
-      --bg-glass: rgba(15, 23, 42, 0.92);
-      --border-glass: rgba(255, 255, 255, 0.15);
-      --accent-neon: #00ff87;
-      --accent-blue: #38bdf8;
+      --bg-panel: rgba(18, 24, 38, 0.92);
+      --border-panel: rgba(255, 255, 255, 0.15);
+      --primary-color: #2563eb;
+      --accent-green: #10b981;
+      --accent-orange: #f59e0b;
+      --accent-red: #ef4444;
     }
 
     * {
@@ -28,7 +30,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #0f172a;
+      background: #e5e7eb;
     }
 
     #map {
@@ -38,70 +40,75 @@
       top: 0;
       left: 0;
       z-index: 1;
-      background: #0f172a;
+      background: #f3f4f6;
     }
 
-    /* HUD Superior de Cobertura */
+    /* HUD Superior de Estado */
     .hud-header {
       position: absolute;
       top: 14px;
       left: 14px;
       right: 14px;
       z-index: 1000;
-      background: var(--bg-glass);
+      background: var(--bg-panel);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--border-glass);
+      border: 1px solid var(--border-panel);
       border-radius: 16px;
-      padding: 14px 18px;
-      color: #fff;
+      padding: 12px 18px;
+      color: #ffffff;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
     }
 
-    .hud-title {
+    .hud-status {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .status-pulse {
+    .dot {
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #ef4444;
+      background: var(--accent-red);
       transition: background 0.3s ease;
     }
 
-    .status-pulse.active {
-      background: var(--accent-neon);
-      box-shadow: 0 0 12px var(--accent-neon);
+    .dot.active {
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
       animation: pulse 1.8s infinite;
     }
 
     @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 135, 0.7); }
-      70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(0, 255, 135, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 135, 0); }
+      0% { transform: scale(0.95); }
+      70% { transform: scale(1.15); }
+      100% { transform: scale(0.95); }
+    }
+
+    .hud-info {
+      display: flex;
+      flex-direction: column;
     }
 
     .hud-label {
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #94a3b8;
+      letter-spacing: 0.8px;
+      color: #9ca3af;
       font-weight: 700;
     }
 
     .hud-value {
-      font-size: 18px;
-      font-weight: 800;
+      font-size: 15px;
+      font-weight: 700;
       color: #ffffff;
     }
 
-    /* Panel Flotante Inferior */
+    /* Panel de Controles Inferior */
     .controls-panel {
       position: absolute;
       bottom: 24px;
@@ -120,15 +127,14 @@
       border-radius: 14px;
       font-size: 15px;
       font-weight: 800;
-      letter-spacing: 0.5px;
-      color: #090d16;
-      background: var(--accent-neon);
+      color: #ffffff;
+      background: var(--primary-color);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      box-shadow: 0 6px 20px rgba(0, 255, 135, 0.35);
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
       transition: all 0.2s ease;
     }
 
@@ -137,9 +143,8 @@
     }
 
     .btn-main.tracking {
-      background: #f59e0b;
-      color: #ffffff;
-      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+      background: var(--accent-orange);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
     }
 
     .secondary-bar {
@@ -149,32 +154,34 @@
 
     .btn-sec {
       flex: 1;
-      padding: 12px;
-      border: 1px solid var(--border-glass);
+      padding: 12px 8px;
+      border: 1px solid var(--border-panel);
       border-radius: 12px;
-      background: var(--bg-glass);
+      background: var(--bg-panel);
       backdrop-filter: blur(12px);
-      color: #f8fafc;
-      font-size: 13px;
+      -webkit-backdrop-filter: blur(12px);
+      color: #ffffff;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     .btn-sec:active {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.2);
     }
 
-    .user-location-marker {
-      width: 20px;
-      height: 20px;
-      background: #38bdf8;
+    /* Indicador GPS del Usuario */
+    .user-marker {
+      width: 18px;
+      height: 18px;
+      background: #2563eb;
       border: 3px solid #ffffff;
       border-radius: 50%;
-      box-shadow: 0 0 15px #38bdf8;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.8);
     }
   </style>
 </head>
@@ -182,77 +189,76 @@
 
   <div id="map"></div>
 
-  <!-- HUD Superior -->
+  <!-- Panel Superior -->
   <div class="hud-header">
-    <div class="hud-title">
-      <div id="statusDot" class="status-pulse"></div>
-      <div>
-        <div class="hud-label">Estado GPS</div>
-        <div id="statusText" class="hud-value" style="font-size:14px;">Standby</div>
+    <div class="hud-status">
+      <div id="statusDot" class="dot"></div>
+      <div class="hud-info">
+        <span class="hud-label">GPS</span>
+        <span id="statusText" class="hud-value">Inactivo</span>
       </div>
     </div>
-    <div style="text-align: right;">
-      <div class="hud-label">Recorrido</div>
-      <div id="distText" class="hud-value">0.00 km</div>
+    <div class="hud-info" style="text-align: right;">
+      <span class="hud-label">Recorrido</span>
+      <span id="distText" class="hud-value">0.00 km</span>
     </div>
   </div>
 
-  <!-- Panel de Controles -->
+  <!-- Panel Inferior -->
   <div class="controls-panel">
-    <button id="toggleBtn" class="btn-main" onclick="toggleAutoCoverage()">
-      <span>🚀</span> ACTIVAR ESCANEO DE CALLES
+    <button id="toggleBtn" class="btn-main" onclick="toggleTracking()">
+      <span>🚀</span> INICIAR ESCANEO AUTOMÁTICO
     </button>
     <div class="secondary-bar">
       <button class="btn-sec" onclick="recenterMap()">🎯 Mi Posición</button>
-      <button class="btn-sec" onclick="changeColor('#00ff87')">🟢 Verde</button>
-      <button class="btn-sec" onclick="changeColor('#38bdf8')">🔵 Azul</button>
-      <button class="btn-sec" onclick="clearData()" style="color:#ef4444;">🗑️ Borrar</button>
+      <button class="btn-sec" onclick="setHighlightColor('#2563eb')">🔵 Azul</button>
+      <button class="btn-sec" onclick="setHighlightColor('#10b981')">🟢 Verde</button>
+      <button class="btn-sec" onclick="clearPath()" style="color: #ef4444;">🗑️ Limpiar</button>
     </div>
   </div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
+
   <script>
     let map;
     let watchId = null;
-    let rawCoordinates = JSON.parse(localStorage.getItem('commercial_auto_coords') || '[]');
-    let activeColor = localStorage.getItem('commercial_active_color') || '#00ff87';
-    
-    let glowPolyline;
-    let corePolyline;
-    let currentMarker;
+    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_map_path') || '[]');
+    let strokeColor = localStorage.getItem('comercial_stroke_color') || '#2563eb';
+
+    let coveragePolyline;
+    let centerLine;
+    let userMarker;
     let totalMeters = 0;
 
-    function initApp() {
-      const defaultCenter = [42.8125, -1.6458];
-      const lastPoint = rawCoordinates.length > 0 
-        ? rawCoordinates[rawCoordinates.length - 1] 
-        : defaultCenter;
+    function initMap() {
+      // Ubicación inicial por defecto o última conocida
+      const initialPos = pathCoordinates.length > 0 
+        ? pathCoordinates[pathCoordinates.length - 1] 
+        : [42.8125, -1.6458];
 
       map = L.map('map', { 
         zoomControl: false, 
         attributionControl: false 
-      }).setView(lastPoint, 17);
+      }).setView(initialPos, 17);
 
-      // Servidor Esri World Dark Gray Base (Nativamente oscuro, sin APIs ni filtros CSS)
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        maxNativeZoom: 16
+      // OpenStreetMap Estándar: Mapa claro con alto detalle de edificios y portales
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
       }).addTo(map);
 
-      // Trazo de cobertura fluorescente
-      glowPolyline = L.polyline(rawCoordinates, {
-        color: activeColor,
-        weight: 32,
-        opacity: 0.65,
+      // Capa de resaltado ancho (Subrayador de Calle - 28px de grosor)
+      coveragePolyline = L.polyline(pathCoordinates, {
+        color: strokeColor,
+        weight: 28,
+        opacity: 0.45,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      // Guía central fina
-      corePolyline = L.polyline(rawCoordinates, {
-        color: '#ffffff',
+      // Guía central fina para definir la dirección exacta
+      centerLine = L.polyline(pathCoordinates, {
+        color: strokeColor,
         weight: 3,
         opacity: 0.9,
         lineCap: 'round',
@@ -261,45 +267,47 @@
 
       calculateMetrics();
 
-      if (rawCoordinates.length > 0) {
-        updatePositionMarker(rawCoordinates[rawCoordinates.length - 1]);
+      if (pathCoordinates.length > 0) {
+        updateUserMarker(pathCoordinates[pathCoordinates.length - 1]);
       } else {
         map.locate({ setView: true, maxZoom: 17 });
       }
 
-      // Solución para renderizado inmediato en Safari
+      // Asegurar que Safari renderice la pantalla completa sin marcas en negro
       setTimeout(() => {
         map.invalidateSize();
       }, 300);
     }
 
-    function toggleAutoCoverage() {
+    function toggleTracking() {
       const btn = document.getElementById('toggleBtn');
       const statusDot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
 
       if (watchId !== null) {
+        // Detener rastreo
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        
+
         btn.classList.remove('tracking');
-        btn.innerHTML = '<span>🚀</span> ACTIVAR ESCANEO DE CALLES';
+        btn.innerHTML = '<span>🚀</span> INICIAR ESCANEO AUTOMÁTICO';
         statusDot.classList.remove('active');
         statusText.innerText = 'Pausado';
       } else {
+        // Activar rastreo continuo
         if (!("geolocation" in navigator)) {
-          alert("Tu dispositivo no soporta geolocalización.");
+          alert("Tu dispositivo no soporta geolocalización GPS.");
           return;
         }
 
         btn.classList.add('tracking');
         btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
         statusDot.classList.add('active');
-        statusText.innerText = 'Escaneando...';
+        statusText.innerText = 'Rastreando...';
 
         watchId = navigator.geolocation.watchPosition(
-          handleGpsPosition,
-          handleGpsError,
+          onGpsSuccess,
+          onGpsError,
           {
             enableHighAccuracy: true,
             timeout: 10000,
@@ -309,83 +317,85 @@
       }
     }
 
-    function handleGpsPosition(position) {
+    function onGpsSuccess(position) {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const newPos = [lat, lng];
 
-      if (rawCoordinates.length > 0) {
-        const lastPos = rawCoordinates[rawCoordinates.length - 1];
+      // Filtrar movimientos insignificantes (< 3 metros) para no saturar si estás parado
+      if (pathCoordinates.length > 0) {
+        const lastPos = pathCoordinates[pathCoordinates.length - 1];
         const dist = map.distance(lastPos, newPos);
         if (dist < 3) return;
       }
 
-      rawCoordinates.push(newPos);
-      glowPolyline.setLatLngs(rawCoordinates);
-      corePolyline.setLatLngs(rawCoordinates);
+      pathCoordinates.push(newPos);
+      coveragePolyline.setLatLngs(pathCoordinates);
+      centerLine.setLatLngs(pathCoordinates);
 
-      localStorage.setItem('commercial_auto_coords', JSON.stringify(rawCoordinates));
+      localStorage.setItem('comercial_map_path', JSON.stringify(pathCoordinates));
 
-      updatePositionMarker(newPos);
+      updateUserMarker(newPos);
       calculateMetrics();
 
       map.panTo(newPos, { animate: true, duration: 0.8 });
     }
 
-    function handleGpsError(err) {
+    function onGpsError(err) {
       console.warn("Error GPS: " + err.message);
     }
 
-    function updatePositionMarker(pos) {
-      if (!currentMarker) {
+    function updateUserMarker(pos) {
+      if (!userMarker) {
         const customIcon = L.divIcon({
-          className: 'user-location-marker',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
+          className: 'user-marker',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
         });
-        currentMarker = L.marker(pos, { icon: customIcon }).addTo(map);
+        userMarker = L.marker(pos, { icon: customIcon }).addTo(map);
       } else {
-        currentMarker.setLatLng(pos);
+        userMarker.setLatLng(pos);
       }
     }
 
     function recenterMap() {
-      if (rawCoordinates.length > 0) {
-        map.setView(rawCoordinates[rawCoordinates.length - 1], 18);
+      if (pathCoordinates.length > 0) {
+        map.setView(pathCoordinates[pathCoordinates.length - 1], 18);
       } else {
         map.locate({ setView: true, maxZoom: 18 });
       }
       map.invalidateSize();
     }
 
-    function changeColor(hexColor) {
-      activeColor = hexColor;
-      glowPolyline.setStyle({ color: activeColor });
-      localStorage.setItem('commercial_active_color', activeColor);
+    function setHighlightColor(colorHex) {
+      strokeColor = colorHex;
+      coveragePolyline.setStyle({ color: strokeColor });
+      centerLine.setStyle({ color: strokeColor });
+      localStorage.setItem('comercial_stroke_color', strokeColor);
     }
 
     function calculateMetrics() {
       totalMeters = 0;
-      for (let i = 1; i < rawCoordinates.length; i++) {
-        totalMeters += map.distance(rawCoordinates[i - 1], rawCoordinates[i]);
+      for (let i = 1; i < pathCoordinates.length; i++) {
+        totalMeters += map.distance(pathCoordinates[i - 1], pathCoordinates[i]);
       }
       const km = (totalMeters / 1000).toFixed(2);
       document.getElementById('distText').innerText = `${km} km`;
     }
 
-    function clearData() {
-      if (confirm('¿Quieres limpiar todo el mapa y empezar un nuevo turno de cero?')) {
-        rawCoordinates = [];
-        localStorage.removeItem('commercial_auto_coords');
-        glowPolyline.setLatLngs([]);
-        corePolyline.setLatLngs([]);
-        if (currentMarker) map.removeLayer(currentMarker);
-        currentMarker = null;
+    function clearPath() {
+      if (confirm('¿Quieres borrar las calles pintadas y empezar una nueva ruta?')) {
+        pathCoordinates = [];
+        localStorage.removeItem('comercial_map_path');
+        coveragePolyline.setLatLngs([]);
+        centerLine.setLatLngs([]);
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = null;
         calculateMetrics();
       }
     }
 
-    window.onload = initApp;
+    window.onload = initMap;
   </script>
 </body>
 </html>
