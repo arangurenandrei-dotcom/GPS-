@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rastreador Comercial GPS - Modo Bolsillo</title>
+  <title>Rastreador Comercial GPS - Auto Manzanas</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -97,7 +97,7 @@
       color: #ffffff;
     }
 
-    /* Panel de Controles Inferior */
+    /* Controles Inferiores */
     .controls-panel {
       position: absolute;
       bottom: 24px;
@@ -138,24 +138,25 @@
 
     .secondary-bar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .btn-sec {
       flex: 1;
-      padding: 12px 8px;
+      padding: 12px 6px;
       border: 1px solid var(--border-panel);
       border-radius: 12px;
       background: var(--bg-panel);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       color: #ffffff;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 4px;
     }
 
     .user-marker {
@@ -167,7 +168,7 @@
       box-shadow: 0 0 12px rgba(37, 99, 235, 0.8);
     }
 
-    /* OVERLAY MODO BOLSILLO (Pantalla Negra Anti-Toques) */
+    /* OVERLAY MODO BOLSILLO */
     #pocketOverlay {
       display: none;
       position: fixed;
@@ -217,11 +218,11 @@
 
   <div id="map"></div>
 
-  <!-- Overlay de Protección de Bolsillo -->
+  <!-- Pantalla Negra Anti-Toques -->
   <div id="pocketOverlay">
     <div class="pocket-icon">🔒</div>
-    <div class="pocket-text">Modo Bolsillo Activo</div>
-    <button class="btn-unlock" onclick="exitPocketMode()">Mantén o Pulsa para Desbloquear</button>
+    <div class="pocket-text">Escaneando Manzanas...</div>
+    <button class="btn-unlock" onclick="exitPocketMode()">Pulsa para Desbloquear</button>
   </div>
 
   <div class="hud-header">
@@ -243,7 +244,8 @@
       <span>🚀</span> INICIAR ESCANEO
     </button>
     <div class="secondary-bar">
-      <button class="btn-sec" onclick="enterPocketMode()" style="background: #0f172a; border-color: #3b82f6;">🔒 Modo Bolsillo</button>
+      <button class="btn-sec" onclick="enterPocketMode()" style="background: #0f172a; border-color: #3b82f6;">🔒 Bolsillo</button>
+      <button class="btn-sec" onclick="fillManualPolygon()" style="background: #1e3a8a; border-color: #60a5fa;">🔷 Rellenar Manzana</button>
       <button class="btn-sec" onclick="recenterMap()">🎯 Posición</button>
       <button class="btn-sec" onclick="clearPath()" style="color: #ef4444;">🗑️ Limpiar</button>
     </div>
@@ -255,12 +257,15 @@
     let map;
     let watchId = null;
     let wakeLock = null;
-    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_pocket_path') || '[]');
+    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_polygon_path') || '[]');
+    let savedPolygonsData = JSON.parse(localStorage.getItem('comercial_polygons') || '[]');
+    let lastLoopIndex = 0;
+    
     let strokeColor = '#2563eb';
-
     let coveragePolyline;
     let centerLine;
     let userMarker;
+    let renderedPolygons = [];
     let totalMeters = 0;
 
     function initMap() {
@@ -277,9 +282,14 @@
         maxZoom: 19
       }).addTo(map);
 
+      // Renderizar polígonos (manzanas rellenadas) guardados previamente
+      savedPolygonsData.forEach(polyCoords => {
+        renderPolygon(polyCoords);
+      });
+
       coveragePolyline = L.polyline(pathCoordinates, {
         color: strokeColor,
-        weight: 30,
+        weight: 24,
         opacity: 0.45,
         lineCap: 'round',
         lineJoin: 'round'
@@ -329,7 +339,7 @@
         btn.classList.add('tracking');
         btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
         statusDot.classList.add('active');
-        statusText.innerText = 'Rastreando...';
+        statusText.innerText = 'Escaneando...';
 
         watchId = navigator.geolocation.watchPosition(
           onGpsSuccess,
@@ -341,6 +351,81 @@
           }
         );
       }
+    }
+
+    function onGpsSuccess(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const newPos = [lat, lng];
+
+      if (pathCoordinates.length > 0) {
+        const lastPos = pathCoordinates[pathCoordinates.length - 1];
+        const dist = map.distance(lastPos, newPos);
+        if (dist < 3) return; // Filtrar paradas
+      }
+
+      pathCoordinates.push(newPos);
+      coveragePolyline.setLatLngs(pathCoordinates);
+      centerLine.setLatLngs(pathCoordinates);
+
+      localStorage.setItem('comercial_polygon_path', JSON.stringify(pathCoordinates));
+
+      // Algoritmo de detección automática de bucle/manzana
+      detectAndFillLoop(newPos);
+
+      updateUserMarker(newPos);
+      calculateMetrics();
+
+      map.panTo(newPos, { animate: true, duration: 0.8 });
+    }
+
+    // Detecta cuando la ruta actual se cruza/vuelve a pasar cerca de un punto antiguo
+    function detectAndFillLoop(currentPos) {
+      const totalPoints = pathCoordinates.length;
+      if (totalPoints < 15) return; // Se necesitan al menos 15 puntos para una manzana
+
+      // Buscar si el punto actual está a menos de 22 metros de un punto viejo (descartando los últimos 12 puntos)
+      for (let i = lastLoopIndex; i < totalPoints - 12; i++) {
+        const oldPos = pathCoordinates[i];
+        const dist = map.distance(currentPos, oldPos);
+
+        if (dist <= 22) { // Cruce de calle / Manzana completada
+          const loopCoords = pathCoordinates.slice(i, totalPoints);
+          if (loopCoords.length >= 4) {
+            saveAndRenderPolygon(loopCoords);
+            lastLoopIndex = totalPoints - 1; // Evitar disparos duplicados seguidos
+            break;
+          }
+        }
+      }
+    }
+
+    // Fuerza el rellenado de la última sección caminada como una manzana
+    function fillManualPolygon() {
+      if (pathCoordinates.length < 4) {
+        alert("Camina un poco más alrededor de la manzana para poder rellenarla.");
+        return;
+      }
+      const sliceStart = Math.max(0, pathCoordinates.length - 30);
+      const loopCoords = pathCoordinates.slice(sliceStart);
+      saveAndRenderPolygon(loopCoords);
+    }
+
+    function saveAndRenderPolygon(coords) {
+      savedPolygonsData.push(coords);
+      localStorage.setItem('comercial_polygons', JSON.stringify(savedPolygonsData));
+      renderPolygon(coords);
+    }
+
+    function renderPolygon(coords) {
+      const poly = L.polygon(coords, {
+        color: '#2563eb',
+        weight: 2,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.35 // Sombra interior de la manzana
+      }).addTo(map);
+      
+      renderedPolygons.push(poly);
     }
 
     async function requestWakeLock() {
@@ -367,29 +452,6 @@
 
     function exitPocketMode() {
       document.getElementById('pocketOverlay').classList.remove('active');
-    }
-
-    function onGpsSuccess(position) {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const newPos = [lat, lng];
-
-      if (pathCoordinates.length > 0) {
-        const lastPos = pathCoordinates[pathCoordinates.length - 1];
-        const dist = map.distance(lastPos, newPos);
-        if (dist < 3) return;
-      }
-
-      pathCoordinates.push(newPos);
-      coveragePolyline.setLatLngs(pathCoordinates);
-      centerLine.setLatLngs(pathCoordinates);
-
-      localStorage.setItem('comercial_pocket_path', JSON.stringify(pathCoordinates));
-
-      updateUserMarker(newPos);
-      calculateMetrics();
-
-      map.panTo(newPos, { animate: true, duration: 0.8 });
     }
 
     function onGpsError(err) {
@@ -428,11 +490,18 @@
     }
 
     function clearPath() {
-      if (confirm('¿Quieres limpiar el mapa?')) {
+      if (confirm('¿Quieres limpiar las rutas y todas las manzanas pintadas del mapa?')) {
         pathCoordinates = [];
-        localStorage.removeItem('comercial_pocket_path');
+        savedPolygonsData = [];
+        lastLoopIndex = 0;
+        localStorage.removeItem('comercial_polygon_path');
+        localStorage.removeItem('comercial_polygons');
+        
         coveragePolyline.setLatLngs([]);
         centerLine.setLatLngs([]);
+        renderedPolygons.forEach(p => map.removeLayer(p));
+        renderedPolygons = [];
+
         if (userMarker) map.removeLayer(userMarker);
         userMarker = null;
         calculateMetrics();
