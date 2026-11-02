@@ -3,129 +3,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rastreador Comercial GPS</title>
+  <title>Explorador de Calles - Cobertura Comercial</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
+    :root {
+      --bg-glass: rgba(15, 23, 42, 0.88);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --accent-neon: #00ff87;
+      --accent-blue: #60a5fa;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
+
     html, body, #map {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #111;
+      background: #090d16;
     }
-    
-    /* Panel Superior de Estado */
-    .top-panel {
+
+    /* HUD Superior de Cobertura */
+    .hud-header {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      right: 12px;
+      top: 14px;
+      left: 14px;
+      right: 14px;
       z-index: 1000;
-      background: rgba(18, 24, 38, 0.92);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 14px;
-      padding: 12px 16px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      padding: 14px 18px;
       color: #fff;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    }
-    .status-indicator {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #ef4444;
-    }
-    .dot.active {
-      background: #10b981;
-      box-shadow: 0 0 8px #10b981;
-    }
-    .stats {
-      font-size: 12px;
-      color: #9ca3af;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
-    /* Botones de Control Flotantes */
-    .controls {
+    .hud-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-pulse {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ef4444;
+      transition: background 0.3s ease;
+    }
+
+    .status-pulse.active {
+      background: var(--accent-neon);
+      box-shadow: 0 0 12px var(--accent-neon);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 135, 0.7); }
+      70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(0, 255, 135, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 135, 0); }
+    }
+
+    .hud-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    .hud-value {
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    /* Panel Flotante Inferior */
+    .controls-panel {
       position: absolute;
       bottom: 24px;
-      left: 12px;
-      right: 12px;
+      left: 14px;
+      right: 14px;
       z-index: 1000;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    .btn-group {
+
+    .btn-main {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #090d16;
+      background: var(--accent-neon);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 6px 20px rgba(0, 255, 135, 0.35);
+      transition: all 0.2s ease;
+    }
+
+    .btn-main:active {
+      transform: scale(0.97);
+    }
+
+    .btn-main.tracking {
+      background: #f59e0b;
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+    }
+
+    .secondary-bar {
       display: flex;
       gap: 8px;
     }
-    .btn {
+
+    .btn-sec {
       flex: 1;
-      padding: 14px 10px;
-      border: none;
+      padding: 12px;
+      border: 1px solid var(--border-glass);
       border-radius: 12px;
-      font-size: 14px;
-      font-weight: 700;
-      color: white;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      color: #f8fafc;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-      transition: all 0.2s ease;
     }
-    .btn:active {
-      transform: scale(0.96);
+
+    .btn-sec:active {
+      background: rgba(255, 255, 255, 0.15);
     }
-    .btn-primary { background: #2563eb; }
-    .btn-danger { background: #dc2626; }
-    .btn-success { background: #059669; }
-    .btn-warning { background: #d97706; }
-    .btn-secondary { background: #4b5563; }
-    
-    /* Popups del Mapa */
-    .leaflet-popup-content-wrapper {
-      background: #1e293b;
-      color: #fff;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .leaflet-popup-tip {
-      background: #1e293b;
-    }
-    .popup-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-top: 8px;
-    }
-    .popup-btn {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
+
+    /* Personalización de los cursores y Popups */
+    .user-location-marker {
+      width: 20px;
+      height: 20px;
+      background: #38bdf8;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #38bdf8;
     }
   </style>
 </head>
@@ -133,33 +173,31 @@
 
   <div id="map"></div>
 
-  <!-- Panel Superior -->
-  <div class="top-panel">
-    <div class="status-indicator">
-      <div id="statusDot" class="dot"></div>
-      <span id="statusText">GPS Inactivo</span>
+  <!-- HUD Superior -->
+  <div class="hud-header">
+    <div class="hud-title">
+      <div id="statusDot" class="status-pulse"></div>
+      <div>
+        <div class="hud-label">Estado GPS</div>
+        <div id="statusText" class="hud-value" style="font-size:14px;">Standby</div>
+      </div>
     </div>
-    <div class="stats" id="statsText">0 puntos | 0.00 km</div>
+    <div style="text-align: right;">
+      <div class="hud-label">Recorrido</div>
+      <div id="distText" class="hud-value">0.00 km</div>
+    </div>
   </div>
 
-  <!-- Panel Botones Inferiores -->
-  <div class="controls">
-    <div class="btn-group">
-      <button id="toggleGpsBtn" class="btn btn-primary" onclick="toggleGPS()">
-        📍 Iniciar Rastreo GPS
-      </button>
-      <button class="btn btn-secondary" style="flex: 0 0 50px;" onclick="centerMap()">
-        🎯
-      </button>
-    </div>
-    <div class="btn-group">
-      <button class="btn btn-success" onclick="addQuickMarker('Visitado')">✅ Visitado</button>
-      <button class="btn btn-warning" onclick="addQuickMarker('Ausente')">⏳ Ausente</button>
-      <button class="btn btn-danger" onclick="addQuickMarker('No Interesa')">❌ Rechazado</button>
-    </div>
-    <div class="btn-group">
-      <button class="btn btn-secondary" style="font-size:11px; padding: 8px;" onclick="clearPath()">🧹 Limpiar Ruta</button>
-      <button class="btn btn-secondary" style="font-size:11px; padding: 8px;" onclick="clearMarkers()">🗑️ Borrar Marcas</button>
+  <!-- Panel de Controles -->
+  <div class="controls-panel">
+    <button id="toggleBtn" class="btn-main" onclick="toggleAutoCoverage()">
+      <span>🚀</span> ACTIVAR ESCANEO DE CALLES
+    </button>
+    <div class="secondary-bar">
+      <button class="btn-sec" onclick="recenterMap()">🎯 Mi Posición</button>
+      <button class="btn-sec" onclick="changeColor('#00ff87')">🟢 Verde</button>
+      <button class="btn-sec" onclick="changeColor('#38bdf8')">🔵 Azul</button>
+      <button class="btn-sec" onclick="clearData()" style="color:#ef4444;">🗑️ Borrar</button>
     </div>
   </div>
 
@@ -167,208 +205,180 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
   <script>
-    let map, polyline, currentPosMarker;
+    let map;
     let watchId = null;
-    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_path') || '[]');
-    let savedMarkers = JSON.parse(localStorage.getItem('comercial_markers') || '[]');
-    let totalDistance = 0;
+    let rawCoordinates = JSON.parse(localStorage.getItem('commercial_auto_coords') || '[]');
+    let activeColor = localStorage.getItem('commercial_active_color') || '#00ff87';
+    
+    // Capas de renderizado: Halo ancho (rotulador) + Línea central guía
+    let glowPolyline;
+    let corePolyline;
+    let currentMarker;
+    let totalMeters = 0;
 
-    // Inicializar Mapa
-    function initMap() {
-      // Vista inicial por defecto (España / Pamplona)
-      const initialCoords = pathCoordinates.length > 0 
-        ? pathCoordinates[pathCoordinates.length - 1] 
+    function initApp() {
+      // Coordenadas iniciales (Si hay datos de sesión anterior, usa la última)
+      const lastPoint = rawCoordinates.length > 0 
+        ? rawCoordinates[rawCoordinates.length - 1] 
         : [42.8125, -1.6458];
 
-      map = L.map('map', { zoomControl: false }).setView(initialCoords, 17);
+      // Inicializar mapa Leaflet
+      map = L.map('map', { 
+        zoomControl: false, 
+        attributionControl: false 
+      }).setView(lastPoint, 17);
 
-      // Capa de mapa (OpenStreetMap Carto Dark o Standard)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // Mapa Base Nocturno / Dark Matter (resalta los colores neón automáticamente)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
-        attribution: '© OpenStreetMap'
+        subdomains: 'abcd'
       }).addTo(map);
 
-      // Trazo de la ruta caminada (Azul fluorescente)
-      polyline = L.polyline(pathCoordinates, {
-        color: '#3b82f6',
-        weight: 6,
-        opacity: 0.85,
+      // CAPA 1: Capa de cobertura ancha (Efecto Rotulador / Cobertura de Calle completa)
+      glowPolyline = L.polyline(rawCoordinates, {
+        color: activeColor,
+        weight: 34,         // Ancho masivo que cubre toda la calle/acera
+        opacity: 0.45,       // Translucidez tipo subrayador
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      // Cargar marcadores guardados
-      savedMarkers.forEach(m => renderMarker(m));
+      // CAPA 2: Eje central brillante para mantener nitidez de la trayectoria
+      corePolyline = L.polyline(rawCoordinates, {
+        color: '#ffffff',
+        weight: 3,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
 
-      // Calcular distancia guardada
-      calculateDistance();
+      calculateMetrics();
 
-      // Permitir marcar puntos haciendo tap directo en el mapa
-      map.on('click', function(e) {
-        showCustomMarkerPrompt(e.latlng.lat, e.latlng.lng);
-      });
+      // Si ya existían coordenadas guardadas, dibujar marcador en el último punto
+      if (rawCoordinates.length > 0) {
+        updatePositionMarker(rawCoordinates[rawCoordinates.length - 1]);
+      }
     }
 
-    // Iniciar / Pausar GPS
-    function toggleGPS() {
-      const btn = document.getElementById('toggleGpsBtn');
+    function toggleAutoCoverage() {
+      const btn = document.getElementById('toggleBtn');
       const statusDot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
 
       if (watchId !== null) {
-        // Detener GPS
+        // Detener rastreo
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        btn.innerHTML = '📍 Iniciar Rastreo GPS';
-        btn.className = 'btn btn-primary';
+        
+        btn.classList.remove('tracking');
+        btn.innerHTML = '<span>🚀</span> ACTIVAR ESCANEO DE CALLES';
         statusDot.classList.remove('active');
-        statusText.innerText = 'GPS Pausado';
+        statusText.innerText = 'Pausado';
       } else {
-        // Activar GPS
-        if (!navigator.geolocation) {
-          alert('Tu navegador no soporta geolocalización GPS.');
+        // Activar rastreo GPS de alta frecuencia
+        if (!("geolocation" in navigator)) {
+          alert("Tu dispositivo o navegador no soporta geolocalización.");
           return;
         }
 
-        btn.innerHTML = '⏸️ Pausar Rastreo GPS';
-        btn.className = 'btn btn-warning';
+        btn.classList.add('tracking');
+        btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
         statusDot.classList.add('active');
-        statusText.innerText = 'Rastreando...';
+        statusText.innerText = 'Escaneando...';
 
         watchId = navigator.geolocation.watchPosition(
-          onGpsSuccess,
-          onGpsError,
+          handleGpsPosition,
+          handleGpsError,
           {
-            enableHighAccuracy: true,
-            timeout: 15000,
+            enableHighAccuracy: true, // Forzar uso de chip GPS dedicado del teléfono
+            timeout: 10000,
             maximumAge: 0
           }
         );
       }
     }
 
-    // Actualización de posición GPS
-    function onGpsSuccess(position) {
+    function handleGpsPosition(position) {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const newPos = [lat, lng];
 
-      // Evitar registrar puntos repetidos si el comercial está parado (umbral 4 metros)
-      if (pathCoordinates.length > 0) {
-        const lastPos = pathCoordinates[pathCoordinates.length - 1];
+      if (rawCoordinates.length > 0) {
+        const lastPos = rawCoordinates[rawCoordinates.length - 1];
         const dist = map.distance(lastPos, newPos);
-        if (dist < 4) return; 
+        
+        // Descartar pequeñas fluctuaciones del GPS si el comercial está parado (< 3 metros)
+        if (dist < 3) return;
       }
 
-      pathCoordinates.push(newPos);
-      polyline.setLatLngs(pathCoordinates);
-      localStorage.setItem('comercial_path', JSON.stringify(pathCoordinates));
+      // Registrar punto y actualizar las líneas en pantalla de forma fluida
+      rawCoordinates.push(newPos);
+      glowPolyline.setLatLngs(rawCoordinates);
+      corePolyline.setLatLngs(rawCoordinates);
 
-      // Actualizar marcador de posición actual del usuario
-      if (!currentPosMarker) {
-        currentPosMarker = L.circleMarker(newPos, {
-          radius: 9,
-          fillColor: '#60a5fa',
-          color: '#ffffff',
-          weight: 3,
-          fillOpacity: 1
-        }).addTo(map);
-        map.setView(newPos, 18);
+      // Guardado automático persistente
+      localStorage.setItem('commercial_auto_coords', JSON.stringify(rawCoordinates));
+
+      updatePositionMarker(newPos);
+      calculateMetrics();
+
+      // Centrado suave sobre el usuario
+      map.panTo(newPos, { animate: true, duration: 0.8 });
+    }
+
+    function handleGpsError(err) {
+      console.warn("GPS Error code: " + err.code + " - " + err.message);
+    }
+
+    function updatePositionMarker(pos) {
+      if (!currentMarker) {
+        const customIcon = L.divIcon({
+          className: 'user-location-marker',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+        currentMarker = L.marker(pos, { icon: customIcon }).addTo(map);
       } else {
-        currentPosMarker.setLatLng(newPos);
+        currentMarker.setLatLng(pos);
       }
-
-      calculateDistance();
     }
 
-    function onGpsError(err) {
-      console.warn('Error GPS:', err.message);
-    }
-
-    // Centrar vista en la ubicación actual
-    function centerMap() {
-      if (pathCoordinates.length > 0) {
-        map.setView(pathCoordinates[pathCoordinates.length - 1], 18);
+    function recenterMap() {
+      if (rawCoordinates.length > 0) {
+        map.setView(rawCoordinates[rawCoordinates.length - 1], 18);
       } else {
         map.locate({ setView: true, maxZoom: 18 });
       }
     }
 
-    // Añadir marca rápida en la posición actual
-    function addQuickMarker(estado) {
-      if (pathCoordinates.length === 0) {
-        alert('Inicia primero el GPS para detectar tu posición actual.');
-        return;
+    function changeColor(hexColor) {
+      activeColor = hexColor;
+      glowPolyline.setStyle({ color: activeColor });
+      localStorage.setItem('commercial_active_color', activeColor);
+    }
+
+    function calculateMetrics() {
+      totalMeters = 0;
+      for (let i = 1; i < rawCoordinates.length; i++) {
+        totalMeters += map.distance(rawCoordinates[i - 1], rawCoordinates[i]);
       }
-      const lastPos = pathCoordinates[pathCoordinates.length - 1];
-      saveAndRenderMarker(lastPos[0], lastPos[1], estado);
+      const km = (totalMeters / 1000).toFixed(2);
+      document.getElementById('distText').innerText = `${km} km`;
     }
 
-    function showCustomMarkerPrompt(lat, lng) {
-      const estado = prompt('Estado del portal/calle (Ej: Visitado, Ausente, Rechazado):', 'Visitado');
-      if (estado) {
-        saveAndRenderMarker(lat, lng, estado);
-      }
-    }
-
-    function saveAndRenderMarker(lat, lng, estado) {
-      const markerData = { id: Date.now(), lat, lng, estado };
-      savedMarkers.push(markerData);
-      localStorage.setItem('comercial_markers', JSON.stringify(savedMarkers));
-      renderMarker(markerData);
-    }
-
-    function renderMarker(m) {
-      let color = '#2563eb'; // Azul por defecto
-      if (m.estado.toLowerCase().includes('visitado')) color = '#10b981'; // Verde
-      if (m.estado.toLowerCase().includes('ausente')) color = '#f59e0b';  // Naranja
-      if (m.estado.toLowerCase().includes('rechazado') || m.estado.toLowerCase().includes('no')) color = '#ef4444'; // Rojo
-
-      const marker = L.circleMarker([m.lat, m.lng], {
-        radius: 7,
-        fillColor: color,
-        color: '#ffffff',
-        weight: 2,
-        fillOpacity: 0.9
-      }).addTo(map);
-
-      marker.bindPopup(`
-        <div style="text-align:center;">
-          <strong>${m.estado}</strong><br>
-          <small>${new Date(m.id).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
-        </div>
-      `);
-    }
-
-    // Cálculo de km recorridos
-    function calculateDistance() {
-      totalDistance = 0;
-      for (let i = 1; i < pathCoordinates.length; i++) {
-        totalDistance += map.distance(pathCoordinates[i - 1], pathCoordinates[i]);
-      }
-      const km = (totalDistance / 1000).toFixed(2);
-      document.getElementById('statsText').innerText = `${pathCoordinates.length} puntos | ${km} km`;
-    }
-
-    // Limpieza de datos
-    function clearPath() {
-      if (confirm('¿Quieres borrar la línea trazada en el mapa?')) {
-        pathCoordinates = [];
-        polyline.setLatLngs([]);
-        localStorage.removeItem('comercial_path');
-        calculateDistance();
+    function clearData() {
+      if (confirm('¿Quieres limpiar todo el mapa y empezar un nuevo turno/zona de cero?')) {
+        rawCoordinates = [];
+        localStorage.removeItem('commercial_auto_coords');
+        glowPolyline.setLatLngs([]);
+        corePolyline.setLatLngs([]);
+        if (currentMarker) map.removeLayer(currentMarker);
+        currentMarker = null;
+        calculateMetrics();
       }
     }
 
-    function clearMarkers() {
-      if (confirm('¿Quieres eliminar todas las marcas de portales/casas de la pantalla?')) {
-        savedMarkers = [];
-        localStorage.removeItem('comercial_markers');
-        location.reload();
-      }
-    }
-
-    window.onload = initMap;
+    window.onload = initApp;
   </script>
 </body>
 </html>
