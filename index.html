@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rastreador Comercial - Cobertura Automática</title>
+  <title>Rastreador Comercial GPS</title>
   
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
     :root {
-      --bg-panel: rgba(18, 24, 38, 0.92);
+      --bg-panel: rgba(18, 24, 38, 0.94);
       --border-panel: rgba(255, 255, 255, 0.15);
-      --primary-color: #2563eb;
+      --primary: #2563eb;
       --accent-green: #10b981;
       --accent-orange: #f59e0b;
       --accent-red: #ef4444;
@@ -22,28 +21,17 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
+    html, body, #map {
       width: 100%;
       height: 100%;
       overflow: hidden;
       background: #e5e7eb;
     }
 
-    #map {
-      width: 100vw;
-      height: 100vh;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-      background: #f3f4f6;
-    }
-
-    /* HUD Superior de Estado */
     .hud-header {
       position: absolute;
       top: 14px;
@@ -60,7 +48,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     }
 
     .hud-status {
@@ -108,7 +96,6 @@
       color: #ffffff;
     }
 
-    /* Panel de Controles Inferior */
     .controls-panel {
       position: absolute;
       bottom: 24px;
@@ -128,7 +115,7 @@
       font-size: 15px;
       font-weight: 800;
       color: #ffffff;
-      background: var(--primary-color);
+      background: var(--primary);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -167,14 +154,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
     }
 
-    .btn-sec:active {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    /* Indicador GPS del Usuario */
     .user-marker {
       width: 18px;
       height: 18px;
@@ -189,12 +170,16 @@
 
   <div id="map"></div>
 
-  <!-- Panel Superior -->
+  <!-- Audio Silencioso para mantener vivo el GPS en segundo plano -->
+  <audio id="bgAudio" loop preload="auto">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav">
+  </audio>
+
   <div class="hud-header">
     <div class="hud-status">
       <div id="statusDot" class="dot"></div>
       <div class="hud-info">
-        <span class="hud-label">GPS</span>
+        <span class="hud-label">GPS 2º Plano</span>
         <span id="statusText" class="hud-value">Inactivo</span>
       </div>
     </div>
@@ -204,10 +189,9 @@
     </div>
   </div>
 
-  <!-- Panel Inferior -->
   <div class="controls-panel">
     <button id="toggleBtn" class="btn-main" onclick="toggleTracking()">
-      <span>🚀</span> INICIAR ESCANEO AUTOMÁTICO
+      <span>🚀</span> ACTIVAR ESCANEO CONTINUO
     </button>
     <div class="secondary-bar">
       <button class="btn-sec" onclick="recenterMap()">🎯 Mi Posición</button>
@@ -217,14 +201,13 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
     let map;
     let watchId = null;
-    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_map_path') || '[]');
-    let strokeColor = localStorage.getItem('comercial_stroke_color') || '#2563eb';
+    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_bg_path') || '[]');
+    let strokeColor = localStorage.getItem('comercial_bg_color') || '#2563eb';
 
     let coveragePolyline;
     let centerLine;
@@ -232,7 +215,6 @@
     let totalMeters = 0;
 
     function initMap() {
-      // Ubicación inicial por defecto o última conocida
       const initialPos = pathCoordinates.length > 0 
         ? pathCoordinates[pathCoordinates.length - 1] 
         : [42.8125, -1.6458];
@@ -242,21 +224,18 @@
         attributionControl: false 
       }).setView(initialPos, 17);
 
-      // OpenStreetMap Estándar: Mapa claro con alto detalle de edificios y portales
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(map);
 
-      // Capa de resaltado ancho (Subrayador de Calle - 28px de grosor)
       coveragePolyline = L.polyline(pathCoordinates, {
         color: strokeColor,
-        weight: 28,
+        weight: 30,
         opacity: 0.45,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      // Guía central fina para definir la dirección exacta
       centerLine = L.polyline(pathCoordinates, {
         color: strokeColor,
         weight: 3,
@@ -273,44 +252,45 @@
         map.locate({ setView: true, maxZoom: 17 });
       }
 
-      // Asegurar que Safari renderice la pantalla completa sin marcas en negro
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 300);
+      setTimeout(() => map.invalidateSize(), 300);
     }
 
     function toggleTracking() {
       const btn = document.getElementById('toggleBtn');
       const statusDot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
+      const bgAudio = document.getElementById('bgAudio');
 
       if (watchId !== null) {
-        // Detener rastreo
+        // Detener GPS y Audio
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
+        bgAudio.pause();
 
         btn.classList.remove('tracking');
-        btn.innerHTML = '<span>🚀</span> INICIAR ESCANEO AUTOMÁTICO';
+        btn.innerHTML = '<span>🚀</span> ACTIVAR ESCANEO CONTINUO';
         statusDot.classList.remove('active');
         statusText.innerText = 'Pausado';
       } else {
-        // Activar rastreo continuo
         if (!("geolocation" in navigator)) {
-          alert("Tu dispositivo no soporta geolocalización GPS.");
+          alert("Tu dispositivo no soporta GPS.");
           return;
         }
+
+        // Activar el motor de audio en silencio (evita que iOS duerma Safari)
+        bgAudio.play().catch(() => {});
 
         btn.classList.add('tracking');
         btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
         statusDot.classList.add('active');
-        statusText.innerText = 'Rastreando...';
+        statusText.innerText = 'Escaneando...';
 
         watchId = navigator.geolocation.watchPosition(
           onGpsSuccess,
           onGpsError,
           {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: 15000,
             maximumAge: 0
           }
         );
@@ -322,7 +302,6 @@
       const lng = position.coords.longitude;
       const newPos = [lat, lng];
 
-      // Filtrar movimientos insignificantes (< 3 metros) para no saturar si estás parado
       if (pathCoordinates.length > 0) {
         const lastPos = pathCoordinates[pathCoordinates.length - 1];
         const dist = map.distance(lastPos, newPos);
@@ -333,7 +312,7 @@
       coveragePolyline.setLatLngs(pathCoordinates);
       centerLine.setLatLngs(pathCoordinates);
 
-      localStorage.setItem('comercial_map_path', JSON.stringify(pathCoordinates));
+      localStorage.setItem('comercial_bg_path', JSON.stringify(pathCoordinates));
 
       updateUserMarker(newPos);
       calculateMetrics();
@@ -342,7 +321,7 @@
     }
 
     function onGpsError(err) {
-      console.warn("Error GPS: " + err.message);
+      console.warn("GPS:", err.message);
     }
 
     function updateUserMarker(pos) {
@@ -371,7 +350,7 @@
       strokeColor = colorHex;
       coveragePolyline.setStyle({ color: strokeColor });
       centerLine.setStyle({ color: strokeColor });
-      localStorage.setItem('comercial_stroke_color', strokeColor);
+      localStorage.setItem('comercial_bg_color', strokeColor);
     }
 
     function calculateMetrics() {
@@ -384,9 +363,9 @@
     }
 
     function clearPath() {
-      if (confirm('¿Quieres borrar las calles pintadas y empezar una nueva ruta?')) {
+      if (confirm('¿Quieres limpiar el mapa?')) {
         pathCoordinates = [];
-        localStorage.removeItem('comercial_map_path');
+        localStorage.removeItem('comercial_bg_path');
         coveragePolyline.setLatLngs([]);
         centerLine.setLatLngs([]);
         if (userMarker) map.removeLayer(userMarker);
