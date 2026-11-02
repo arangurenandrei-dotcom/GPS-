@@ -10,10 +10,10 @@
   
   <style>
     :root {
-      --bg-glass: rgba(15, 23, 42, 0.88);
-      --border-glass: rgba(255, 255, 255, 0.12);
+      --bg-glass: rgba(15, 23, 42, 0.92);
+      --border-glass: rgba(255, 255, 255, 0.15);
       --accent-neon: #00ff87;
-      --accent-blue: #60a5fa;
+      --accent-blue: #38bdf8;
     }
 
     * {
@@ -24,16 +24,21 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body, #map {
+    html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #090d16;
+      background: #0f172a;
     }
 
-    /* Filtro CSS para convertir OpenStreetMap en Modo Oscuro Neón sin API Key */
-    .leaflet-tile-container img {
-      filter: invert(100%) hue-rotate(180deg) brightness(75%) contrast(150%);
+    #map {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      background: #0f172a;
     }
 
     /* HUD Superior de Cobertura */
@@ -220,30 +225,32 @@
     let totalMeters = 0;
 
     function initApp() {
+      const defaultCenter = [42.8125, -1.6458];
       const lastPoint = rawCoordinates.length > 0 
         ? rawCoordinates[rawCoordinates.length - 1] 
-        : [42.8125, -1.6458];
+        : defaultCenter;
 
       map = L.map('map', { 
         zoomControl: false, 
         attributionControl: false 
       }).setView(lastPoint, 17);
 
-      // Servidor OpenStreetMap 100% público e ilimitado
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
+      // Servidor Esri World Dark Gray Base (Nativamente oscuro, sin APIs ni filtros CSS)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        maxNativeZoom: 16
       }).addTo(map);
 
-      // Trazo de Cobertura Ancha
+      // Trazo de cobertura fluorescente
       glowPolyline = L.polyline(rawCoordinates, {
         color: activeColor,
-        weight: 34,
-        opacity: 0.5,
+        weight: 32,
+        opacity: 0.65,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      // Guía central
+      // Guía central fina
       corePolyline = L.polyline(rawCoordinates, {
         color: '#ffffff',
         weight: 3,
@@ -256,7 +263,14 @@
 
       if (rawCoordinates.length > 0) {
         updatePositionMarker(rawCoordinates[rawCoordinates.length - 1]);
+      } else {
+        map.locate({ setView: true, maxZoom: 17 });
       }
+
+      // Solución para renderizado inmediato en Safari
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 300);
     }
 
     function toggleAutoCoverage() {
@@ -270,4 +284,108 @@
         
         btn.classList.remove('tracking');
         btn.innerHTML = '<span>🚀</span> ACTIVAR ESCANEO DE CALLES';
-        status
+        statusDot.classList.remove('active');
+        statusText.innerText = 'Pausado';
+      } else {
+        if (!("geolocation" in navigator)) {
+          alert("Tu dispositivo no soporta geolocalización.");
+          return;
+        }
+
+        btn.classList.add('tracking');
+        btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
+        statusDot.classList.add('active');
+        statusText.innerText = 'Escaneando...';
+
+        watchId = navigator.geolocation.watchPosition(
+          handleGpsPosition,
+          handleGpsError,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      }
+    }
+
+    function handleGpsPosition(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const newPos = [lat, lng];
+
+      if (rawCoordinates.length > 0) {
+        const lastPos = rawCoordinates[rawCoordinates.length - 1];
+        const dist = map.distance(lastPos, newPos);
+        if (dist < 3) return;
+      }
+
+      rawCoordinates.push(newPos);
+      glowPolyline.setLatLngs(rawCoordinates);
+      corePolyline.setLatLngs(rawCoordinates);
+
+      localStorage.setItem('commercial_auto_coords', JSON.stringify(rawCoordinates));
+
+      updatePositionMarker(newPos);
+      calculateMetrics();
+
+      map.panTo(newPos, { animate: true, duration: 0.8 });
+    }
+
+    function handleGpsError(err) {
+      console.warn("Error GPS: " + err.message);
+    }
+
+    function updatePositionMarker(pos) {
+      if (!currentMarker) {
+        const customIcon = L.divIcon({
+          className: 'user-location-marker',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+        currentMarker = L.marker(pos, { icon: customIcon }).addTo(map);
+      } else {
+        currentMarker.setLatLng(pos);
+      }
+    }
+
+    function recenterMap() {
+      if (rawCoordinates.length > 0) {
+        map.setView(rawCoordinates[rawCoordinates.length - 1], 18);
+      } else {
+        map.locate({ setView: true, maxZoom: 18 });
+      }
+      map.invalidateSize();
+    }
+
+    function changeColor(hexColor) {
+      activeColor = hexColor;
+      glowPolyline.setStyle({ color: activeColor });
+      localStorage.setItem('commercial_active_color', activeColor);
+    }
+
+    function calculateMetrics() {
+      totalMeters = 0;
+      for (let i = 1; i < rawCoordinates.length; i++) {
+        totalMeters += map.distance(rawCoordinates[i - 1], rawCoordinates[i]);
+      }
+      const km = (totalMeters / 1000).toFixed(2);
+      document.getElementById('distText').innerText = `${km} km`;
+    }
+
+    function clearData() {
+      if (confirm('¿Quieres limpiar todo el mapa y empezar un nuevo turno de cero?')) {
+        rawCoordinates = [];
+        localStorage.removeItem('commercial_auto_coords');
+        glowPolyline.setLatLngs([]);
+        corePolyline.setLatLngs([]);
+        if (currentMarker) map.removeLayer(currentMarker);
+        currentMarker = null;
+        calculateMetrics();
+      }
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
