@@ -31,6 +31,11 @@
       background: #090d16;
     }
 
+    /* Filtro CSS para convertir OpenStreetMap en Modo Oscuro Neón sin API Key */
+    .leaflet-tile-container img {
+      filter: invert(100%) hue-rotate(180deg) brightness(75%) contrast(150%);
+    }
+
     /* HUD Superior de Cobertura */
     .hud-header {
       position: absolute;
@@ -158,7 +163,6 @@
       background: rgba(255, 255, 255, 0.15);
     }
 
-    /* Personalización de los cursores y Popups */
     .user-location-marker {
       width: 20px;
       height: 20px;
@@ -210,40 +214,36 @@
     let rawCoordinates = JSON.parse(localStorage.getItem('commercial_auto_coords') || '[]');
     let activeColor = localStorage.getItem('commercial_active_color') || '#00ff87';
     
-    // Capas de renderizado: Halo ancho (rotulador) + Línea central guía
     let glowPolyline;
     let corePolyline;
     let currentMarker;
     let totalMeters = 0;
 
     function initApp() {
-      // Coordenadas iniciales (Si hay datos de sesión anterior, usa la última)
       const lastPoint = rawCoordinates.length > 0 
         ? rawCoordinates[rawCoordinates.length - 1] 
         : [42.8125, -1.6458];
 
-      // Inicializar mapa Leaflet
       map = L.map('map', { 
         zoomControl: false, 
         attributionControl: false 
       }).setView(lastPoint, 17);
 
-      // Mapa Base Nocturno / Dark Matter (resalta los colores neón automáticamente)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd'
+      // Servidor OpenStreetMap 100% público e ilimitado
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
       }).addTo(map);
 
-      // CAPA 1: Capa de cobertura ancha (Efecto Rotulador / Cobertura de Calle completa)
+      // Trazo de Cobertura Ancha
       glowPolyline = L.polyline(rawCoordinates, {
         color: activeColor,
-        weight: 34,         // Ancho masivo que cubre toda la calle/acera
-        opacity: 0.45,       // Translucidez tipo subrayador
+        weight: 34,
+        opacity: 0.5,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      // CAPA 2: Eje central brillante para mantener nitidez de la trayectoria
+      // Guía central
       corePolyline = L.polyline(rawCoordinates, {
         color: '#ffffff',
         weight: 3,
@@ -254,7 +254,6 @@
 
       calculateMetrics();
 
-      // Si ya existían coordenadas guardadas, dibujar marcador en el último punto
       if (rawCoordinates.length > 0) {
         updatePositionMarker(rawCoordinates[rawCoordinates.length - 1]);
       }
@@ -266,119 +265,9 @@
       const statusText = document.getElementById('statusText');
 
       if (watchId !== null) {
-        // Detener rastreo
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
         
         btn.classList.remove('tracking');
         btn.innerHTML = '<span>🚀</span> ACTIVAR ESCANEO DE CALLES';
-        statusDot.classList.remove('active');
-        statusText.innerText = 'Pausado';
-      } else {
-        // Activar rastreo GPS de alta frecuencia
-        if (!("geolocation" in navigator)) {
-          alert("Tu dispositivo o navegador no soporta geolocalización.");
-          return;
-        }
-
-        btn.classList.add('tracking');
-        btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
-        statusDot.classList.add('active');
-        statusText.innerText = 'Escaneando...';
-
-        watchId = navigator.geolocation.watchPosition(
-          handleGpsPosition,
-          handleGpsError,
-          {
-            enableHighAccuracy: true, // Forzar uso de chip GPS dedicado del teléfono
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      }
-    }
-
-    function handleGpsPosition(position) {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const newPos = [lat, lng];
-
-      if (rawCoordinates.length > 0) {
-        const lastPos = rawCoordinates[rawCoordinates.length - 1];
-        const dist = map.distance(lastPos, newPos);
-        
-        // Descartar pequeñas fluctuaciones del GPS si el comercial está parado (< 3 metros)
-        if (dist < 3) return;
-      }
-
-      // Registrar punto y actualizar las líneas en pantalla de forma fluida
-      rawCoordinates.push(newPos);
-      glowPolyline.setLatLngs(rawCoordinates);
-      corePolyline.setLatLngs(rawCoordinates);
-
-      // Guardado automático persistente
-      localStorage.setItem('commercial_auto_coords', JSON.stringify(rawCoordinates));
-
-      updatePositionMarker(newPos);
-      calculateMetrics();
-
-      // Centrado suave sobre el usuario
-      map.panTo(newPos, { animate: true, duration: 0.8 });
-    }
-
-    function handleGpsError(err) {
-      console.warn("GPS Error code: " + err.code + " - " + err.message);
-    }
-
-    function updatePositionMarker(pos) {
-      if (!currentMarker) {
-        const customIcon = L.divIcon({
-          className: 'user-location-marker',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        });
-        currentMarker = L.marker(pos, { icon: customIcon }).addTo(map);
-      } else {
-        currentMarker.setLatLng(pos);
-      }
-    }
-
-    function recenterMap() {
-      if (rawCoordinates.length > 0) {
-        map.setView(rawCoordinates[rawCoordinates.length - 1], 18);
-      } else {
-        map.locate({ setView: true, maxZoom: 18 });
-      }
-    }
-
-    function changeColor(hexColor) {
-      activeColor = hexColor;
-      glowPolyline.setStyle({ color: activeColor });
-      localStorage.setItem('commercial_active_color', activeColor);
-    }
-
-    function calculateMetrics() {
-      totalMeters = 0;
-      for (let i = 1; i < rawCoordinates.length; i++) {
-        totalMeters += map.distance(rawCoordinates[i - 1], rawCoordinates[i]);
-      }
-      const km = (totalMeters / 1000).toFixed(2);
-      document.getElementById('distText').innerText = `${km} km`;
-    }
-
-    function clearData() {
-      if (confirm('¿Quieres limpiar todo el mapa y empezar un nuevo turno/zona de cero?')) {
-        rawCoordinates = [];
-        localStorage.removeItem('commercial_auto_coords');
-        glowPolyline.setLatLngs([]);
-        corePolyline.setLatLngs([]);
-        if (currentMarker) map.removeLayer(currentMarker);
-        currentMarker = null;
-        calculateMetrics();
-      }
-    }
-
-    window.onload = initApp;
-  </script>
-</body>
-</html>
+        status
