@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rastreador Comercial GPS - Auto Manzanas</title>
+  <title>Rastreador Comercial Profesional</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
     :root {
-      --bg-panel: rgba(18, 24, 38, 0.94);
-      --border-panel: rgba(255, 255, 255, 0.15);
+      --bg-panel: rgba(15, 23, 42, 0.94);
+      --border-panel: rgba(255, 255, 255, 0.12);
       --primary: #2563eb;
       --accent-green: #10b981;
       --accent-orange: #f59e0b;
       --accent-red: #ef4444;
+      --accent-gray: #64748b;
     }
 
     * {
@@ -29,7 +30,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #e5e7eb;
+      background: #f8fafc;
     }
 
     /* HUD Superior */
@@ -49,7 +50,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
     }
 
     .hud-status {
@@ -87,7 +88,7 @@
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      color: #9ca3af;
+      color: #94a3b8;
       font-weight: 700;
     }
 
@@ -97,7 +98,29 @@
       color: #ffffff;
     }
 
-    /* Controles Inferiores */
+    /* Indicador del Modo Pincel Manual */
+    .brush-banner {
+      display: none;
+      position: absolute;
+      top: 80px;
+      left: 14px;
+      right: 14px;
+      z-index: 1000;
+      background: rgba(37, 99, 235, 0.95);
+      border-radius: 12px;
+      padding: 10px;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .brush-banner.active {
+      display: block;
+    }
+
+    /* Panel de Controles Inferior */
     .controls-panel {
       position: absolute;
       bottom: 24px;
@@ -106,15 +129,15 @@
       z-index: 1000;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .btn-main {
       width: 100%;
-      padding: 16px;
+      padding: 15px;
       border: none;
       border-radius: 14px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: #ffffff;
       background: var(--primary);
@@ -123,7 +146,7 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
       transition: all 0.2s ease;
     }
 
@@ -133,7 +156,12 @@
 
     .btn-main.tracking {
       background: var(--accent-orange);
-      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+    }
+
+    .btn-main.brush-active {
+      background: #8b5cf6;
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
     }
 
     .secondary-bar {
@@ -143,7 +171,7 @@
 
     .btn-sec {
       flex: 1;
-      padding: 12px 6px;
+      padding: 11px 4px;
       border: 1px solid var(--border-panel);
       border-radius: 12px;
       background: var(--bg-panel);
@@ -160,12 +188,12 @@
     }
 
     .user-marker {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       background: #2563eb;
       border: 3px solid #ffffff;
       border-radius: 50%;
-      box-shadow: 0 0 12px rgba(37, 99, 235, 0.8);
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.8);
     }
 
     /* OVERLAY MODO BOLSILLO */
@@ -194,7 +222,7 @@
     }
 
     .pocket-text {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       letter-spacing: 1px;
       text-transform: uppercase;
@@ -210,7 +238,6 @@
       color: #888888;
       font-size: 13px;
       font-weight: 700;
-      cursor: pointer;
     }
   </style>
 </head>
@@ -218,19 +245,25 @@
 
   <div id="map"></div>
 
+  <!-- Banner Informativo del Modo Pincel -->
+  <div id="brushBanner" class="brush-banner">
+    ✏️ Modo Pincel: Toca el INICIO y FIN de una calle para pintarla limpia.
+  </div>
+
   <!-- Pantalla Negra Anti-Toques -->
   <div id="pocketOverlay">
     <div class="pocket-icon">🔒</div>
-    <div class="pocket-text">Escaneando Manzanas...</div>
+    <div class="pocket-text">Rastreando Calles...</div>
     <button class="btn-unlock" onclick="exitPocketMode()">Pulsa para Desbloquear</button>
   </div>
 
+  <!-- HUD Superior -->
   <div class="hud-header">
     <div class="hud-status">
       <div id="statusDot" class="dot"></div>
       <div class="hud-info">
         <span class="hud-label">GPS</span>
-        <span id="statusText" class="hud-value">Inactivo</span>
+        <span id="statusText" class="hud-value">Standby</span>
       </div>
     </div>
     <div class="hud-info" style="text-align: right;">
@@ -239,15 +272,25 @@
     </div>
   </div>
 
+  <!-- Panel Inferior -->
   <div class="controls-panel">
     <button id="toggleBtn" class="btn-main" onclick="toggleTracking()">
-      <span>🚀</span> INICIAR ESCANEO
+      <span>🚀</span> INICIAR ESCANEO GPS
     </button>
+    
     <div class="secondary-bar">
-      <button class="btn-sec" onclick="enterPocketMode()" style="background: #0f172a; border-color: #3b82f6;">🔒 Bolsillo</button>
-      <button class="btn-sec" onclick="fillManualPolygon()" style="background: #1e3a8a; border-color: #60a5fa;">🔷 Rellenar Manzana</button>
-      <button class="btn-sec" onclick="recenterMap()">🎯 Posición</button>
-      <button class="btn-sec" onclick="clearPath()" style="color: #ef4444;">🗑️ Limpiar</button>
+      <button id="brushBtn" class="btn-sec" onclick="toggleBrushMode()" style="background: #1e1b4b; border-color: #6366f1;">
+        🖊️ Marcar Calle
+      </button>
+      <button class="btn-sec" onclick="enterPocketMode()" style="background: #0f172a;">
+        🔒 Bolsillo
+      </button>
+      <button class="btn-sec" onclick="recenterMap()">
+        🎯 Posición
+      </button>
+      <button class="btn-sec" onclick="clearPath()" style="color: #ef4444;">
+        🗑️ Limpiar
+      </button>
     </div>
   </div>
 
@@ -257,15 +300,15 @@
     let map;
     let watchId = null;
     let wakeLock = null;
-    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_polygon_path') || '[]');
-    let savedPolygonsData = JSON.parse(localStorage.getItem('comercial_polygons') || '[]');
-    let lastLoopIndex = 0;
-    
-    let strokeColor = '#2563eb';
+    let isBrushMode = false;
+    let manualPoints = [];
+
+    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_clean_path') || '[]');
+    let manualStreets = JSON.parse(localStorage.getItem('comercial_manual_streets') || '[]');
+
     let coveragePolyline;
     let centerLine;
     let userMarker;
-    let renderedPolygons = [];
     let totalMeters = 0;
 
     function initMap() {
@@ -278,30 +321,32 @@
         attributionControl: false 
       }).setView(initialPos, 17);
 
+      // Mapbox / OpenStreetMap limpio
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(map);
 
-      // Renderizar polígonos (manzanas rellenadas) guardados previamente
-      savedPolygonsData.forEach(polyCoords => {
-        renderPolygon(polyCoords);
-      });
-
+      // Trazo de Cobertura GPS Suavizado
       coveragePolyline = L.polyline(pathCoordinates, {
-        color: strokeColor,
-        weight: 24,
-        opacity: 0.45,
+        color: '#2563eb',
+        weight: 22,
+        opacity: 0.4,
         lineCap: 'round',
-        lineJoin: 'round'
+        lineJoin: 'round',
+        smoothFactor: 3.0 // Suaviza las aristas del GPS
       }).addTo(map);
 
       centerLine = L.polyline(pathCoordinates, {
-        color: strokeColor,
+        color: '#1d4ed8',
         weight: 3,
-        opacity: 0.9,
+        opacity: 0.85,
         lineCap: 'round',
-        lineJoin: 'round'
+        lineJoin: 'round',
+        smoothFactor: 3.0
       }).addTo(map);
+
+      // Cargar calles marcadas manualmente
+      manualStreets.forEach(street => renderManualStreet(street));
 
       calculateMetrics();
 
@@ -311,10 +356,13 @@
         map.locate({ setView: true, maxZoom: 17 });
       }
 
+      // Listener para el marcado manual con clics/taps en el mapa
+      map.on('click', handleMapClick);
+
       setTimeout(() => map.invalidateSize(), 300);
     }
 
-    async function toggleTracking() {
+    function toggleTracking() {
       const btn = document.getElementById('toggleBtn');
       const statusDot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
@@ -325,7 +373,7 @@
         releaseWakeLock();
 
         btn.classList.remove('tracking');
-        btn.innerHTML = '<span>🚀</span> INICIAR ESCANEO';
+        btn.innerHTML = '<span>🚀</span> INICIAR ESCANEO GPS';
         statusDot.classList.remove('active');
         statusText.innerText = 'Pausado';
       } else {
@@ -334,7 +382,7 @@
           return;
         }
 
-        await requestWakeLock();
+        requestWakeLock();
 
         btn.classList.add('tracking');
         btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
@@ -346,7 +394,7 @@
           onGpsError,
           {
             enableHighAccuracy: true,
-            timeout: 15000,
+            timeout: 10000,
             maximumAge: 0
           }
         );
@@ -354,24 +402,25 @@
     }
 
     function onGpsSuccess(position) {
+      // FILTRO 1: Descartar mediciones con baja precisión (>25m de margen de error)
+      if (position.coords.accuracy > 25) return;
+
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const newPos = [lat, lng];
 
+      // FILTRO 2: Descartar saltos mínimos de menos de 8 metros para evitar dientes de sierra
       if (pathCoordinates.length > 0) {
         const lastPos = pathCoordinates[pathCoordinates.length - 1];
         const dist = map.distance(lastPos, newPos);
-        if (dist < 3) return; // Filtrar paradas
+        if (dist < 8) return; 
       }
 
       pathCoordinates.push(newPos);
       coveragePolyline.setLatLngs(pathCoordinates);
       centerLine.setLatLngs(pathCoordinates);
 
-      localStorage.setItem('comercial_polygon_path', JSON.stringify(pathCoordinates));
-
-      // Algoritmo de detección automática de bucle/manzana
-      detectAndFillLoop(newPos);
+      localStorage.setItem('comercial_clean_path', JSON.stringify(pathCoordinates));
 
       updateUserMarker(newPos);
       calculateMetrics();
@@ -379,55 +428,76 @@
       map.panTo(newPos, { animate: true, duration: 0.8 });
     }
 
-    // Detecta cuando la ruta actual se cruza/vuelve a pasar cerca de un punto antiguo
-    function detectAndFillLoop(currentPos) {
-      const totalPoints = pathCoordinates.length;
-      if (totalPoints < 15) return; // Se necesitan al menos 15 puntos para una manzana
+    // --- MODO PINCEL / MARCAR CALLE MANUALMENTE ---
+    function toggleBrushMode() {
+      isBrushMode = !isBrushMode;
+      const brushBtn = document.getElementById('brushBtn');
+      const banner = document.getElementById('brushBanner');
 
-      // Buscar si el punto actual está a menos de 22 metros de un punto viejo (descartando los últimos 12 puntos)
-      for (let i = lastLoopIndex; i < totalPoints - 12; i++) {
-        const oldPos = pathCoordinates[i];
-        const dist = map.distance(currentPos, oldPos);
-
-        if (dist <= 22) { // Cruce de calle / Manzana completada
-          const loopCoords = pathCoordinates.slice(i, totalPoints);
-          if (loopCoords.length >= 4) {
-            saveAndRenderPolygon(loopCoords);
-            lastLoopIndex = totalPoints - 1; // Evitar disparos duplicados seguidos
-            break;
-          }
-        }
+      if (isBrushMode) {
+        manualPoints = [];
+        brushBtn.style.background = '#8b5cf6';
+        brushBtn.innerText = '❌ Cancelar Pincel';
+        banner.classList.add('active');
+      } else {
+        manualPoints = [];
+        brushBtn.style.background = '#1e1b4b';
+        brushBtn.innerText = '🖊️ Marcar Calle';
+        banner.classList.remove('active');
       }
     }
 
-    // Fuerza el rellenado de la última sección caminada como una manzana
-    function fillManualPolygon() {
-      if (pathCoordinates.length < 4) {
-        alert("Camina un poco más alrededor de la manzana para poder rellenarla.");
-        return;
+    function handleMapClick(e) {
+      if (!isBrushMode) return;
+
+      manualPoints.push([e.latlng.lat, e.latlng.lng]);
+
+      if (manualPoints.length === 1) {
+        // Primer toque: Marcar punto de inicio
+        L.circleMarker(manualPoints[0], { radius: 5, color: '#8b5cf6' }).addTo(map);
+      } else if (manualPoints.length === 2) {
+        // Segundo toque: Trazar la calle recta
+        const tipo = confirm("¿Es una calle completada (Aceptar = Azul) o una calle de Garajes/Sin portales (Cancelar = Gris)?") 
+          ? 'completada' 
+          : 'garaje';
+
+        const streetData = {
+          coords: [manualPoints[0], manualPoints[1]],
+          tipo: tipo
+        };
+
+        manualStreets.push(streetData);
+        localStorage.setItem('comercial_manual_streets', JSON.stringify(manualStreets));
+        renderManualStreet(streetData);
+
+        // Resetear modo pincel
+        toggleBrushMode();
       }
-      const sliceStart = Math.max(0, pathCoordinates.length - 30);
-      const loopCoords = pathCoordinates.slice(sliceStart);
-      saveAndRenderPolygon(loopCoords);
     }
 
-    function saveAndRenderPolygon(coords) {
-      savedPolygonsData.push(coords);
-      localStorage.setItem('comercial_polygons', JSON.stringify(savedPolygonsData));
-      renderPolygon(coords);
-    }
+    function renderManualStreet(street) {
+      const isGarage = street.tipo === 'garaje';
+      const strokeColor = isGarage ? '#64748b' : '#2563eb';
+      const dashPattern = isGarage ? '8, 8' : null;
 
-    function renderPolygon(coords) {
-      const poly = L.polygon(coords, {
-        color: '#2563eb',
-        weight: 2,
-        fillColor: '#3b82f6',
-        fillOpacity: 0.35 // Sombra interior de la manzana
+      // Trazo ancho limpio de calle trazada a mano
+      L.polyline(street.coords, {
+        color: strokeColor,
+        weight: isGarage ? 18 : 22,
+        opacity: isGarage ? 0.5 : 0.6,
+        dashArray: dashPattern,
+        lineCap: 'round'
       }).addTo(map);
-      
-      renderedPolygons.push(poly);
+
+      // Eje central
+      L.polyline(street.coords, {
+        color: isGarage ? '#475569' : '#1d4ed8',
+        weight: 3,
+        opacity: 0.9
+      }).addTo(map);
     }
 
+    // --- MODO BOLSILLO & AUXILIARES ---
     async function requestWakeLock() {
       try {
         if ('wakeLock' in navigator) {
@@ -462,8 +532,8 @@
       if (!userMarker) {
         const customIcon = L.divIcon({
           className: 'user-marker',
-          iconSize: [18, 18],
-          iconAnchor: [9, 9]
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
         });
         userMarker = L.marker(pos, { icon: customIcon }).addTo(map);
       } else {
@@ -490,21 +560,12 @@
     }
 
     function clearPath() {
-      if (confirm('¿Quieres limpiar las rutas y todas las manzanas pintadas del mapa?')) {
+      if (confirm('¿Quieres limpiar todas las calles del mapa para empezar una nueva zona?')) {
         pathCoordinates = [];
-        savedPolygonsData = [];
-        lastLoopIndex = 0;
-        localStorage.removeItem('comercial_polygon_path');
-        localStorage.removeItem('comercial_polygons');
-        
-        coveragePolyline.setLatLngs([]);
-        centerLine.setLatLngs([]);
-        renderedPolygons.forEach(p => map.removeLayer(p));
-        renderedPolygons = [];
-
-        if (userMarker) map.removeLayer(userMarker);
-        userMarker = null;
-        calculateMetrics();
+        manualStreets = [];
+        localStorage.removeItem('comercial_clean_path');
+        localStorage.removeItem('comercial_manual_streets');
+        location.reload();
       }
     }
 
