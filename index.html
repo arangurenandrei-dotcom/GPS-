@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rastreador Comercial - Rellenado de Manzanas</title>
+  <title>Rastreador Comercial GPS</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
     :root {
       --bg-panel: rgba(15, 23, 42, 0.94);
-      --border-panel: rgba(255, 255, 255, 0.12);
+      --border-panel: rgba(255, 255, 255, 0.15);
       --primary: #2563eb;
       --accent-green: #10b981;
       --accent-orange: #f59e0b;
@@ -25,11 +25,21 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body, #map {
+    html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
       background: #f8fafc;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      background: #e2e8f0;
     }
 
     /* HUD Superior */
@@ -38,7 +48,7 @@
       top: 14px;
       left: 14px;
       right: 14px;
-      z-index: 1000;
+      z-index: 2000;
       background: var(--bg-panel);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
@@ -50,6 +60,7 @@
       justify-content: space-between;
       align-items: center;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+      pointer-events: auto;
     }
 
     .hud-status {
@@ -97,14 +108,14 @@
       color: #ffffff;
     }
 
-    /* Banner de Instrucciones */
+    /* Banner de Modo */
     .mode-banner {
       display: none;
       position: absolute;
       top: 76px;
       left: 14px;
       right: 14px;
-      z-index: 1000;
+      z-index: 2000;
       background: rgba(37, 99, 235, 0.95);
       border-radius: 12px;
       padding: 10px 14px;
@@ -114,6 +125,7 @@
       align-items: center;
       justify-content: space-between;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      pointer-events: auto;
     }
 
     .mode-banner.active {
@@ -137,10 +149,11 @@
       bottom: 24px;
       left: 14px;
       right: 14px;
-      z-index: 1000;
+      z-index: 2000;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      pointer-events: auto;
     }
 
     .btn-main {
@@ -307,23 +320,41 @@
     let map;
     let watchId = null;
     let wakeLock = null;
-    let currentMode = null; // 'block' | 'street' | null
+    let currentMode = null;
     let tempPoints = [];
     let tempMarkers = [];
 
-    let pathCoordinates = JSON.parse(localStorage.getItem('comercial_gps_path') || '[]');
-    let savedBlocks = JSON.parse(localStorage.getItem('comercial_blocks') || '[]');
-    let savedStreets = JSON.parse(localStorage.getItem('comercial_streets') || '[]');
+    let pathCoordinates = [];
+    let savedBlocks = [];
+    let savedStreets = [];
 
     let coveragePolyline;
     let centerLine;
     let userMarker;
 
+    // LECTURA SEGURA DE LOCALSTORAGE (Previene cuelgues)
+    function safeLoadStorage(key) {
+      try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : [];
+      } catch (e) {
+        console.warn("Dato corrupto limpiado:", key);
+        localStorage.removeItem(key);
+        return [];
+      }
+    }
+
     function initMap() {
+      // Cargar datos con protección anti-errores
+      pathCoordinates = safeLoadStorage('comercial_gps_path');
+      savedBlocks = safeLoadStorage('comercial_blocks');
+      savedStreets = safeLoadStorage('comercial_streets');
+
       const initialPos = pathCoordinates.length > 0 
         ? pathCoordinates[pathCoordinates.length - 1] 
         : [42.8125, -1.6458];
 
+      // Inicialización del mapa
       map = L.map('map', { 
         zoomControl: false, 
         attributionControl: false 
@@ -333,7 +364,7 @@
         maxZoom: 19
       }).addTo(map);
 
-      // Trazo de Cobertura GPS Suavizado
+      // Líneas de trayecto
       coveragePolyline = L.polyline(pathCoordinates, {
         color: '#2563eb',
         weight: 22,
@@ -352,9 +383,18 @@
         smoothFactor: 2.5
       }).addTo(map);
 
-      // Renderizar Manzanas Rellenas y Calles Guardadas
-      savedBlocks.forEach(coords => renderBlockPolygon(coords));
-      savedStreets.forEach(street => renderStreetLine(street));
+      // Renderizar datos guardados sin bloquear el hilo JS
+      if (Array.isArray(savedBlocks)) {
+        savedBlocks.forEach(coords => {
+          if (coords && coords.length > 0) renderBlockPolygon(coords);
+        });
+      }
+
+      if (Array.isArray(savedStreets)) {
+        savedStreets.forEach(street => {
+          if (street && street.length > 0) renderStreetLine(street);
+        });
+      }
 
       calculateMetrics();
 
@@ -366,7 +406,10 @@
 
       map.on('click', handleMapClick);
 
-      setTimeout(() => map.invalidateSize(), 300);
+      // Refresco de renderizado para iOS Safari
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 300);
     }
 
     function toggleTracking() {
@@ -425,7 +468,9 @@
       coveragePolyline.setLatLngs(pathCoordinates);
       centerLine.setLatLngs(pathCoordinates);
 
-      localStorage.setItem('comercial_gps_path', JSON.stringify(pathCoordinates));
+      try {
+        localStorage.setItem('comercial_gps_path', JSON.stringify(pathCoordinates));
+      } catch(e){}
 
       updateUserMarker(newPos);
       calculateMetrics();
@@ -433,12 +478,11 @@
       map.panTo(newPos, { animate: true, duration: 0.8 });
     }
 
-    // --- MODOS DE SELECCIÓN MANUAL ---
     function startBlockFillMode() {
       resetModes();
       currentMode = 'block';
       document.getElementById('modeBanner').classList.add('active');
-      document.getElementById('bannerText').innerText = '🔷 Toca las 4 esquinas de la manzana...';
+      document.getElementById('bannerText').innerText = '🔷 Toca las esquinas de la manzana...';
       document.getElementById('btnBannerAction').style.display = 'inline-block';
     }
 
@@ -469,7 +513,9 @@
 
       if (currentMode === 'street' && tempPoints.length === 2) {
         savedStreets.push(tempPoints);
-        localStorage.setItem('comercial_streets', JSON.stringify(savedStreets));
+        try {
+          localStorage.setItem('comercial_streets', JSON.stringify(savedStreets));
+        } catch(e){}
         renderStreetLine(tempPoints);
         resetModes();
       }
@@ -478,17 +524,18 @@
     function confirmAction() {
       if (currentMode === 'block') {
         if (tempPoints.length < 3) {
-          alert("Toca al menos 3 o 4 esquinas en el mapa para delimitar la manzana que quieres rellenar.");
+          alert("Toca al menos 3 esquinas en el mapa para delimitar la manzana que quieres rellenar.");
           return;
         }
         savedBlocks.push(tempPoints);
-        localStorage.setItem('comercial_blocks', JSON.stringify(savedBlocks));
+        try {
+          localStorage.setItem('comercial_blocks', JSON.stringify(savedBlocks));
+        } catch(e){}
         renderBlockPolygon(tempPoints);
         resetModes();
       }
     }
 
-    // Dibujar Manzana Rellena (Polígono azul sólido translucido)
     function renderBlockPolygon(coords) {
       L.polygon(coords, {
         color: '#1d4ed8',
@@ -498,7 +545,6 @@
       }).addTo(map);
     }
 
-    // Dibujar Calle Manual
     function renderStreetLine(coords) {
       L.polyline(coords, {
         color: '#2563eb',
@@ -514,15 +560,12 @@
       }).addTo(map);
     }
 
-    // --- MODO BOLSILLO ---
     async function requestWakeLock() {
       try {
         if ('wakeLock' in navigator) {
           wakeLock = await navigator.wakeLock.request('screen');
         }
-      } catch (err) {
-        console.warn('Wake Lock no disponible:', err);
-      }
+      } catch (err) {}
     }
 
     function releaseWakeLock() {
@@ -564,4 +607,26 @@
       } else {
         map.locate({ setView: true, maxZoom: 18 });
       }
-      map.invalidate
+      if (map) map.invalidateSize();
+    }
+
+    function calculateMetrics() {
+      let totalMeters = 0;
+      for (let i = 1; i < pathCoordinates.length; i++) {
+        totalMeters += map.distance(pathCoordinates[i - 1], pathCoordinates[i]);
+      }
+      const km = (totalMeters / 1000).toFixed(2);
+      document.getElementById('distText').innerText = `${km} km`;
+    }
+
+    function clearPath() {
+      if (confirm('¿Quieres limpiar todo el mapa y borrar los datos acumulados?')) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
