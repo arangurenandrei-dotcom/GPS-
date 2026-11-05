@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Marcador de Zonas</title>
+  <title>Mapas Comerciales - Gestión de Zonas y Métricas</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -39,7 +39,7 @@
       background: #e2e8f0;
     }
 
-    /* HUD Superior de Estado */
+    /* HUD Superior */
     .hud-header {
       position: absolute;
       top: 14px;
@@ -93,7 +93,7 @@
       cursor: pointer;
     }
 
-    /* Banner Superior al Marcar Puntos */
+    /* Banner de Marcado */
     .banner-marking {
       display: none;
       position: absolute;
@@ -164,12 +164,11 @@
       transform: scale(0.96);
     }
 
-    /* Colores Específicos de Categoría */
-    .cat-buena { background: #059669; }       /* Verde */
-    .cat-regular { background: #d97706; }     /* Amarillo / Naranja */
-    .cat-mala { background: #dc2626; }        /* Rojo */
-    .cat-unifamiliar { background: #0284c7; } /* Azul turquesa */
-    .cat-comunidad { background: #7c3aed; }   /* Morado */
+    .cat-buena { background: #059669; }
+    .cat-regular { background: #d97706; }
+    .cat-mala { background: #dc2626; }
+    .cat-unifamiliar { background: #0284c7; }
+    .cat-comunidad { background: #7c3aed; }
 
     .bottom-bar {
       display: flex;
@@ -192,7 +191,6 @@
       justify-content: center;
     }
 
-    /* Marcador de Posición Actual del Usuario */
     .user-position-dot {
       width: 18px;
       height: 18px;
@@ -200,6 +198,142 @@
       border: 3px solid #ffffff;
       border-radius: 50%;
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
+    }
+
+    /* ETIQUETA SOBRE EL MAPA (CARD ENCIMA DE LA MANZANA) */
+    .zone-badge-container {
+      background: rgba(15, 23, 42, 0.92);
+      border: 1.5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      padding: 6px 10px;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      white-space: nowrap;
+      pointer-events: auto;
+      transform: translate(-50%, -50%);
+      line-height: 1.35;
+      text-align: left;
+    }
+
+    .zone-badge-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin-bottom: 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 2px;
+    }
+
+    .zone-badge-row {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    /* MODAL FLOTANTE DE EDICIÓN DE DATOS */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 340px;
+      background: #0f172a;
+      border: 1px solid var(--border-panel);
+      border-radius: 20px;
+      padding: 20px;
+      color: #ffffff;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+
+    .modal-header {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .input-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
+
+    .input-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .input-field {
+      width: 65px;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      padding: 6px;
+      outline: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-modal-save {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn-modal-delete {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -216,7 +350,7 @@
     <button class="btn-icon" onclick="centerOnUser()">🎯 Mi Posición</button>
   </div>
 
-  <!-- Banner de Selección Activa -->
+  <!-- Banner de Selección -->
   <div id="markingBanner" class="banner-marking">
     <span id="bannerTitle">Toca las esquinas de la manzana...</span>
     <div style="display: flex; gap: 6px;">
@@ -227,8 +361,6 @@
 
   <!-- Panel Inferior -->
   <div class="controls-panel">
-    
-    <!-- Cuadrícula de Selección de Trabajo -->
     <div class="categories-grid">
       <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
         🏠 HACER YO (Unifamiliar)
@@ -252,7 +384,44 @@
         🗑️ Limpiar Todo
       </button>
     </div>
+  </div>
 
+  <!-- MODAL FLOTANTE DE EDICIÓN -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modalZoneTitle">Editar Manzana</span>
+        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal()">✕</button>
+      </div>
+      
+      <div class="modal-grid">
+        <div class="input-group">
+          <span class="input-label">📊 Total</span>
+          <input type="number" id="inputTotal" class="input-field" value="0">
+        </div>
+        <div class="input-group">
+          <span class="input-label">❌ No</span>
+          <input type="number" id="inputNo" class="input-field" value="0">
+        </div>
+        <div class="input-group">
+          <span class="input-label">⏳ Ausente</span>
+          <input type="number" id="inputAusente" class="input-field" value="0">
+        </div>
+        <div class="input-group">
+          <span class="input-label">📄 Papelito</span>
+          <input type="number" id="inputPapelito" class="input-field" value="0">
+        </div>
+        <div class="input-group">
+          <span class="input-label">✅ Sí</span>
+          <input type="number" id="inputSi" class="input-field" value="0">
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-modal-save" onclick="saveModalData()">💾 Guardar Resultados</button>
+        <button class="btn-modal-delete" onclick="deleteActiveZone()">🗑️ Eliminar Zona</button>
+      </div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -265,13 +434,15 @@
     let tempPoints = [];
     let tempMarkers = [];
 
-    // Diccionario de Estilos por Categoría
+    let editingZoneIndex = null;
+    let loadedMapLayers = []; // Almacena polígonos y marcadores renderizados
+
     const CATEGORY_STYLES = {
-      unifamiliar: { label: '🏠 HACER YO (Unifamiliar)', color: '#0284c7', fill: '#38bdf8', opacity: 0.5 },
-      comunidad:   { label: '🏢 HACER YO (Comunidad)',   color: '#7c3aed', fill: '#a78bfa', opacity: 0.5 },
-      buena:       { label: '🟢 Zona Buena',             color: '#059669', fill: '#34d399', opacity: 0.45 },
-      regular:     { label: '🟡 Zona Sin Más',           color: '#d97706', fill: '#fbbf24', opacity: 0.45 },
-      mala:        { label: '🔴 Zona Mala',              color: '#dc2626', fill: '#f87171', opacity: 0.45 }
+      unifamiliar: { label: 'Unifamiliar', color: '#0284c7', fill: '#38bdf8', opacity: 0.5 },
+      comunidad:   { label: 'Comunidad',   color: '#7c3aed', fill: '#a78bfa', opacity: 0.5 },
+      buena:       { label: 'Zona Buena',  color: '#059669', fill: '#34d399', opacity: 0.45 },
+      regular:     { label: 'Zona Sin Más',color: '#d97706', fill: '#fbbf24', opacity: 0.45 },
+      mala:        { label: 'Zona Mala',   color: '#dc2626', fill: '#f87171', opacity: 0.45 }
     };
 
     let savedZones = safeLoadStorage('comercial_custom_zones');
@@ -287,7 +458,6 @@
     }
 
     function initMap() {
-      // Coordenadas iniciales por defecto (Peralta / Pamplona)
       const defaultPos = [42.3486, -1.8011];
 
       map = L.map('map', { 
@@ -295,23 +465,17 @@
         attributionControl: false 
       }).setView(defaultPos, 17);
 
-      // Mapa base limpio de OpenStreetMap
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(map);
 
-      // Cargar Zonas Guardadas
-      savedZones.forEach((zone, index) => renderZoneOnMap(zone, index));
-
-      // Iniciar lectura de posición actual (sin dibujar líneas)
+      renderAllSavedZones();
       startGpsLocation();
 
       map.on('click', handleMapClick);
-
       setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // --- RASTREO EXCLUSIVO DE POSICIÓN (SIN LÍNEAS) ---
     function startGpsLocation() {
       if (!("geolocation" in navigator)) return;
 
@@ -339,7 +503,7 @@
             userMarker.setLatLng(currentPos);
           }
         },
-        (error) => {
+        () => {
           statusDot.classList.remove('active');
           statusText.innerText = 'GPS Sin Señal';
         },
@@ -355,7 +519,6 @@
       }
     }
 
-    // --- MODOS DE MARCADO DE ZONAS Y MANZANAS ---
     function startMarkingMode(catKey) {
       cancelMarking();
       activeCategory = catKey;
@@ -365,7 +528,7 @@
       const bannerTitle = document.getElementById('bannerTitle');
 
       banner.style.background = style.color;
-      bannerTitle.innerText = `Toca esquinas para: ${style.label}`;
+      bannerTitle.innerText = `Esquinas para: ${style.label}`;
       banner.classList.add('active');
     }
 
@@ -393,36 +556,126 @@
       }
 
       const zoneData = {
+        id: Date.now(),
         category: activeCategory,
-        points: tempPoints
+        points: tempPoints,
+        stats: { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 }
       };
 
       savedZones.push(zoneData);
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
       
-      renderZoneOnMap(zoneData, savedZones.length - 1);
+      const newIndex = savedZones.length - 1;
       cancelMarking();
+      renderAllSavedZones();
+
+      // Abrir modal inmediatamente para meter datos iniciales
+      openEditModal(newIndex);
     }
 
-    function renderZoneOnMap(zone, index) {
-      const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
+    function renderAllSavedZones() {
+      // Limpiar capas previas del mapa
+      loadedMapLayers.forEach(layer => map.removeLayer(layer));
+      loadedMapLayers = [];
 
-      const polygon = L.polygon(zone.points, {
-        color: style.color,
-        weight: 3,
-        fillColor: style.fill,
-        fillOpacity: style.opacity
-      }).addTo(map);
+      savedZones.forEach((zone, index) => {
+        const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
 
-      // Tocar una manzana rellenada permite eliminarla
-      polygon.on('click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        if (confirm(`¿Quieres borrar esta zona de tipo "${style.label}"?`)) {
-          map.removeLayer(polygon);
-          savedZones.splice(index, 1);
-          localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
-        }
+        // 1. Polígono de la Zona
+        const polygon = L.polygon(zone.points, {
+          color: style.color,
+          weight: 3,
+          fillColor: style.fill,
+          fillOpacity: style.opacity
+        }).addTo(map);
+
+        // 2. Calcular Centroide para poner la etiqueta flotante
+        const bounds = polygon.getBounds();
+        const center = bounds.getCenter();
+
+        const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
+
+        // HTML de la etiqueta escrita sobre el mapa
+        const badgeHtml = `
+          <div class="zone-badge-container" style="border-color:${style.color}">
+            <div class="zone-badge-title">${style.label}</div>
+            <div><strong>total / ${stats.total || 0}</strong></div>
+            <div class="zone-badge-row"><span>No / ${stats.no || 0}</span> <span>Ausente / ${stats.ausente || 0}</span></div>
+            <div class="zone-badge-row"><span>Papelito / ${stats.papelito || 0}</span> <span style="color:#34d399">Si / ${stats.si || 0}</span></div>
+          </div>
+        `;
+
+        const badgeIcon = L.divIcon({
+          className: '',
+          html: badgeHtml,
+          iconSize: [0, 0]
+        });
+
+        const labelMarker = L.marker(center, { icon: badgeIcon }).addTo(map);
+
+        // Eventos para abrir el editor al pulsar en el polígono o la etiqueta
+        polygon.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          openEditModal(index);
+        });
+
+        labelMarker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          openEditModal(index);
+        });
+
+        loadedMapLayers.push(polygon);
+        loadedMapLayers.push(labelMarker);
       });
+    }
+
+    // --- MODAL Y EDITOR DE DATOS ---
+    function openEditModal(index) {
+      editingZoneIndex = index;
+      const zone = savedZones[index];
+      if (!zone) return;
+
+      const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
+      const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
+
+      document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
+      document.getElementById('inputTotal').value = stats.total || 0;
+      document.getElementById('inputNo').value = stats.no || 0;
+      document.getElementById('inputAusente').value = stats.ausente || 0;
+      document.getElementById('inputPapelito').value = stats.papelito || 0;
+      document.getElementById('inputSi').value = stats.si || 0;
+
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function saveModalData() {
+      if (editingZoneIndex === null || !savedZones[editingZoneIndex]) return;
+
+      savedZones[editingZoneIndex].stats = {
+        total: parseInt(document.getElementById('inputTotal').value) || 0,
+        no: parseInt(document.getElementById('inputNo').value) || 0,
+        ausente: parseInt(document.getElementById('inputAusente').value) || 0,
+        papelito: parseInt(document.getElementById('inputPapelito').value) || 0,
+        si: parseInt(document.getElementById('inputSi').value) || 0
+      };
+
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      closeModal();
+      renderAllSavedZones();
+    }
+
+    function deleteActiveZone() {
+      if (editingZoneIndex !== null && confirm("¿Quieres eliminar esta manzana del mapa?")) {
+        savedZones.splice(editingZoneIndex, 1);
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        closeModal();
+        renderAllSavedZones();
+      }
+    }
+
+    function closeModal() {
+      editingZoneIndex = null;
+      document.getElementById('editModal').classList.remove('active');
     }
 
     function cancelMarking() {
@@ -434,9 +687,10 @@
     }
 
     function clearAllData() {
-      if (confirm('¿Seguro que quieres borrar TODAS las manzanas y zonas marcadas del mapa?')) {
+      if (confirm('¿Seguro que quieres borrar TODAS las manzanas y datos del mapa?')) {
         localStorage.removeItem('comercial_custom_zones');
-        location.reload();
+        savedZones = [];
+        renderAllSavedZones();
       }
     }
 
