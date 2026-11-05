@@ -3,18 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Rastreador Comercial GPS</title>
+  <title>Mapas Comerciales - Marcador de Zonas</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
     :root {
-      --bg-panel: rgba(15, 23, 42, 0.94);
+      --bg-panel: rgba(15, 23, 42, 0.95);
       --border-panel: rgba(255, 255, 255, 0.15);
       --primary: #2563eb;
-      --accent-green: #10b981;
-      --accent-orange: #f59e0b;
-      --accent-red: #ef4444;
     }
 
     * {
@@ -42,25 +39,24 @@
       background: #e2e8f0;
     }
 
-    /* HUD Superior */
+    /* HUD Superior de Estado */
     .hud-header {
       position: absolute;
       top: 14px;
       left: 14px;
       right: 14px;
-      z-index: 2000;
+      z-index: 1000;
       background: var(--bg-panel);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-panel);
       border-radius: 16px;
-      padding: 12px 18px;
+      padding: 12px 16px;
       color: #ffffff;
       display: flex;
       justify-content: space-between;
       align-items: center;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-      pointer-events: auto;
     }
 
     .hud-status {
@@ -70,193 +66,140 @@
     }
 
     .dot {
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
-      background: var(--accent-red);
-      transition: background 0.3s ease;
+      background: #ef4444;
     }
 
     .dot.active {
-      background: var(--accent-green);
-      box-shadow: 0 0 10px var(--accent-green);
-      animation: pulse 1.8s infinite;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
     }
 
-    @keyframes pulse {
-      0% { transform: scale(0.95); }
-      70% { transform: scale(1.15); }
-      100% { transform: scale(0.95); }
-    }
-
-    .hud-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .hud-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #94a3b8;
+    .hud-title {
+      font-size: 13px;
       font-weight: 700;
     }
 
-    .hud-value {
-      font-size: 15px;
+    .btn-icon {
+      padding: 8px 14px;
+      border: 1px solid var(--border-panel);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 12px;
       font-weight: 700;
-      color: #ffffff;
+      cursor: pointer;
     }
 
-    /* Banner de Modo */
-    .mode-banner {
+    /* Banner Superior al Marcar Puntos */
+    .banner-marking {
       display: none;
       position: absolute;
-      top: 76px;
+      top: 74px;
       left: 14px;
       right: 14px;
-      z-index: 2000;
-      background: rgba(37, 99, 235, 0.95);
-      border-radius: 12px;
-      padding: 10px 14px;
+      z-index: 1000;
+      border-radius: 14px;
+      padding: 12px 14px;
       color: white;
       font-size: 12px;
       font-weight: 700;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-      pointer-events: auto;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
     }
 
-    .mode-banner.active {
+    .banner-marking.active {
       display: flex;
     }
 
-    .btn-action-banner {
-      padding: 6px 12px;
+    .btn-banner-action {
+      padding: 6px 14px;
       border: none;
       border-radius: 8px;
       background: #ffffff;
-      color: #2563eb;
+      color: #0f172a;
       font-size: 11px;
       font-weight: 800;
       cursor: pointer;
     }
 
-    /* Panel de Controles Inferior */
+    /* Panel Flotante Inferior de Categorías */
     .controls-panel {
       position: absolute;
-      bottom: 24px;
-      left: 14px;
-      right: 14px;
-      z-index: 2000;
+      bottom: 20px;
+      left: 12px;
+      right: 12px;
+      z-index: 1000;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      pointer-events: auto;
     }
 
-    .btn-main {
-      width: 100%;
-      padding: 15px;
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .btn-cat {
+      padding: 12px 8px;
       border: none;
-      border-radius: 14px;
-      font-size: 14px;
-      font-weight: 800;
+      border-radius: 12px;
       color: #ffffff;
-      background: var(--primary);
+      font-size: 11px;
+      font-weight: 800;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
-      transition: all 0.2s ease;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      transition: transform 0.1s ease;
     }
 
-    .btn-main:active {
-      transform: scale(0.97);
+    .btn-cat:active {
+      transform: scale(0.96);
     }
 
-    .btn-main.tracking {
-      background: var(--accent-orange);
-      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
-    }
+    /* Colores Específicos de Categoría */
+    .cat-buena { background: #059669; }       /* Verde */
+    .cat-regular { background: #d97706; }     /* Amarillo / Naranja */
+    .cat-mala { background: #dc2626; }        /* Rojo */
+    .cat-unifamiliar { background: #0284c7; } /* Azul turquesa */
+    .cat-comunidad { background: #7c3aed; }   /* Morado */
 
-    .secondary-bar {
+    .bottom-bar {
       display: flex;
       gap: 6px;
     }
 
     .btn-sec {
       flex: 1;
-      padding: 11px 4px;
+      padding: 11px;
       border: 1px solid var(--border-panel);
       border-radius: 12px;
       background: var(--bg-panel);
       backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       color: #ffffff;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
     }
 
-    .user-marker {
-      width: 16px;
-      height: 16px;
+    /* Marcador de Posición Actual del Usuario */
+    .user-position-dot {
+      width: 18px;
+      height: 18px;
       background: #2563eb;
       border: 3px solid #ffffff;
       border-radius: 50%;
-      box-shadow: 0 0 10px rgba(37, 99, 235, 0.8);
-    }
-
-    /* Pantalla Negra Bolsillo */
-    #pocketOverlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #000000;
-      z-index: 99999;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #333333;
-      user-select: none;
-      touch-action: none;
-    }
-
-    #pocketOverlay.active {
-      display: flex;
-    }
-
-    .pocket-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-      opacity: 0.3;
-    }
-
-    .pocket-text {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: #444444;
-      margin-bottom: 24px;
-    }
-
-    .btn-unlock {
-      padding: 14px 28px;
-      border: 1px solid #333333;
-      border-radius: 30px;
-      background: #111111;
-      color: #888888;
-      font-size: 13px;
-      font-weight: 700;
+      box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
   </style>
 </head>
@@ -264,364 +207,235 @@
 
   <div id="map"></div>
 
-  <!-- Banner Informativo -->
-  <div id="modeBanner" class="mode-banner">
-    <span id="bannerText">🔷 Toca las 4 esquinas de la manzana...</span>
-    <button id="btnBannerAction" class="btn-action-banner" onclick="confirmAction()">RELLENAR</button>
-  </div>
-
-  <!-- Pantalla Negra Bolsillo -->
-  <div id="pocketOverlay">
-    <div class="pocket-icon">🔒</div>
-    <div class="pocket-text">Rastreando Manzanas...</div>
-    <button class="btn-unlock" onclick="exitPocketMode()">Pulsa para Desbloquear</button>
-  </div>
-
   <!-- HUD Superior -->
   <div class="hud-header">
     <div class="hud-status">
       <div id="statusDot" class="dot"></div>
-      <div class="hud-info">
-        <span class="hud-label">GPS</span>
-        <span id="statusText" class="hud-value">Standby</span>
-      </div>
+      <span id="statusText" class="hud-title">Ubicación GPS</span>
     </div>
-    <div class="hud-info" style="text-align: right;">
-      <span class="hud-label">Recorrido</span>
-      <span id="distText" class="hud-value">0.00 km</span>
+    <button class="btn-icon" onclick="centerOnUser()">🎯 Mi Posición</button>
+  </div>
+
+  <!-- Banner de Selección Activa -->
+  <div id="markingBanner" class="banner-marking">
+    <span id="bannerTitle">Toca las esquinas de la manzana...</span>
+    <div style="display: flex; gap: 6px;">
+      <button class="btn-banner-action" onclick="saveActiveZone()">GUARDAR</button>
+      <button class="btn-banner-action" style="background: rgba(255,255,255,0.2); color:#fff;" onclick="cancelMarking()">✕</button>
     </div>
   </div>
 
   <!-- Panel Inferior -->
   <div class="controls-panel">
-    <button id="toggleBtn" class="btn-main" onclick="toggleTracking()">
-      <span>🚀</span> INICIAR ESCANEO GPS
-    </button>
     
-    <div class="secondary-bar">
-      <button id="btnFill" class="btn-sec" onclick="startBlockFillMode()" style="background: #1e3a8a; border-color: #3b82f6;">
-        🔷 Rellenar Manzana
+    <!-- Cuadrícula de Selección de Trabajo -->
+    <div class="categories-grid">
+      <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
+        🏠 HACER YO (Unifamiliar)
       </button>
-      <button id="btnStreet" class="btn-sec" onclick="startStreetMode()" style="background: #1e1b4b; border-color: #6366f1;">
-        🖊️ Marcar Calle
+      <button class="btn-cat cat-comunidad" onclick="startMarkingMode('comunidad')">
+        🏢 HACER YO (Comunidad)
       </button>
-      <button class="btn-sec" onclick="enterPocketMode()" style="background: #0f172a;">
-        🔒 Bolsillo
+      <button class="btn-cat cat-buena" onclick="startMarkingMode('buena')">
+        🟢 Zona Buena
       </button>
-      <button class="btn-sec" onclick="clearPath()" style="color: #ef4444;">
-        🗑️ Limpiar
+      <button class="btn-cat cat-regular" onclick="startMarkingMode('regular')">
+        🟡 Zona Sin Más
       </button>
     </div>
+
+    <div class="bottom-bar">
+      <button class="btn-cat cat-mala" style="flex: 2;" onclick="startMarkingMode('mala')">
+        🔴 Zona Mala
+      </button>
+      <button class="btn-sec" style="color: #ef4444;" onclick="clearAllData()">
+        🗑️ Limpiar Todo
+      </button>
+    </div>
+
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
     let map;
+    let userMarker = null;
     let watchId = null;
-    let wakeLock = null;
-    let currentMode = null;
+    let activeCategory = null;
     let tempPoints = [];
     let tempMarkers = [];
 
-    let pathCoordinates = [];
-    let savedBlocks = [];
-    let savedStreets = [];
+    // Diccionario de Estilos por Categoría
+    const CATEGORY_STYLES = {
+      unifamiliar: { label: '🏠 HACER YO (Unifamiliar)', color: '#0284c7', fill: '#38bdf8', opacity: 0.5 },
+      comunidad:   { label: '🏢 HACER YO (Comunidad)',   color: '#7c3aed', fill: '#a78bfa', opacity: 0.5 },
+      buena:       { label: '🟢 Zona Buena',             color: '#059669', fill: '#34d399', opacity: 0.45 },
+      regular:     { label: '🟡 Zona Sin Más',           color: '#d97706', fill: '#fbbf24', opacity: 0.45 },
+      mala:        { label: '🔴 Zona Mala',              color: '#dc2626', fill: '#f87171', opacity: 0.45 }
+    };
 
-    let coveragePolyline;
-    let centerLine;
-    let userMarker;
+    let savedZones = safeLoadStorage('comercial_custom_zones');
 
-    // LECTURA SEGURA DE LOCALSTORAGE (Previene cuelgues)
     function safeLoadStorage(key) {
       try {
         const item = localStorage.getItem(key);
         return item ? JSON.parse(item) : [];
       } catch (e) {
-        console.warn("Dato corrupto limpiado:", key);
         localStorage.removeItem(key);
         return [];
       }
     }
 
     function initMap() {
-      // Cargar datos con protección anti-errores
-      pathCoordinates = safeLoadStorage('comercial_gps_path');
-      savedBlocks = safeLoadStorage('comercial_blocks');
-      savedStreets = safeLoadStorage('comercial_streets');
+      // Coordenadas iniciales por defecto (Peralta / Pamplona)
+      const defaultPos = [42.3486, -1.8011];
 
-      const initialPos = pathCoordinates.length > 0 
-        ? pathCoordinates[pathCoordinates.length - 1] 
-        : [42.8125, -1.6458];
-
-      // Inicialización del mapa
       map = L.map('map', { 
         zoomControl: false, 
         attributionControl: false 
-      }).setView(initialPos, 17);
+      }).setView(defaultPos, 17);
 
+      // Mapa base limpio de OpenStreetMap
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(map);
 
-      // Líneas de trayecto
-      coveragePolyline = L.polyline(pathCoordinates, {
-        color: '#2563eb',
-        weight: 22,
-        opacity: 0.45,
-        lineCap: 'round',
-        lineJoin: 'round',
-        smoothFactor: 2.5
-      }).addTo(map);
+      // Cargar Zonas Guardadas
+      savedZones.forEach((zone, index) => renderZoneOnMap(zone, index));
 
-      centerLine = L.polyline(pathCoordinates, {
-        color: '#1d4ed8',
-        weight: 3,
-        opacity: 0.85,
-        lineCap: 'round',
-        lineJoin: 'round',
-        smoothFactor: 2.5
-      }).addTo(map);
-
-      // Renderizar datos guardados sin bloquear el hilo JS
-      if (Array.isArray(savedBlocks)) {
-        savedBlocks.forEach(coords => {
-          if (coords && coords.length > 0) renderBlockPolygon(coords);
-        });
-      }
-
-      if (Array.isArray(savedStreets)) {
-        savedStreets.forEach(street => {
-          if (street && street.length > 0) renderStreetLine(street);
-        });
-      }
-
-      calculateMetrics();
-
-      if (pathCoordinates.length > 0) {
-        updateUserMarker(pathCoordinates[pathCoordinates.length - 1]);
-      } else {
-        map.locate({ setView: true, maxZoom: 17 });
-      }
+      // Iniciar lectura de posición actual (sin dibujar líneas)
+      startGpsLocation();
 
       map.on('click', handleMapClick);
 
-      // Refresco de renderizado para iOS Safari
-      setTimeout(() => {
-        if (map) map.invalidateSize();
-      }, 300);
+      setTimeout(() => map.invalidateSize(), 300);
     }
 
-    function toggleTracking() {
-      const btn = document.getElementById('toggleBtn');
+    // --- RASTREO EXCLUSIVO DE POSICIÓN (SIN LÍNEAS) ---
+    function startGpsLocation() {
+      if (!("geolocation" in navigator)) return;
+
       const statusDot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
 
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-        releaseWakeLock();
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const currentPos = [lat, lng];
 
-        btn.classList.remove('tracking');
-        btn.innerHTML = '<span>🚀</span> INICIAR ESCANEO GPS';
-        statusDot.classList.remove('active');
-        statusText.innerText = 'Pausado';
-      } else {
-        if (!("geolocation" in navigator)) {
-          alert("Tu dispositivo no soporta GPS.");
-          return;
-        }
+          statusDot.classList.add('active');
+          statusText.innerText = 'GPS Activo';
 
-        requestWakeLock();
-
-        btn.classList.add('tracking');
-        btn.innerHTML = '<span>⏸️</span> PAUSAR ESCANEO';
-        statusDot.classList.add('active');
-        statusText.innerText = 'Escaneando...';
-
-        watchId = navigator.geolocation.watchPosition(
-          onGpsSuccess,
-          onGpsError,
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
+          if (!userMarker) {
+            const icon = L.divIcon({
+              className: 'user-position-dot',
+              iconSize: [18, 18],
+              iconAnchor: [9, 9]
+            });
+            userMarker = L.marker(currentPos, { icon }).addTo(map);
+            map.setView(currentPos, 17);
+          } else {
+            userMarker.setLatLng(currentPos);
           }
-        );
+        },
+        (error) => {
+          statusDot.classList.remove('active');
+          statusText.innerText = 'GPS Sin Señal';
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    function centerOnUser() {
+      if (userMarker) {
+        map.setView(userMarker.getLatLng(), 18);
+      } else {
+        map.locate({ setView: true, maxZoom: 18 });
       }
     }
 
-    function onGpsSuccess(position) {
-      if (position.coords.accuracy > 25) return;
+    // --- MODOS DE MARCADO DE ZONAS Y MANZANAS ---
+    function startMarkingMode(catKey) {
+      cancelMarking();
+      activeCategory = catKey;
+      const style = CATEGORY_STYLES[catKey];
 
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const newPos = [lat, lng];
+      const banner = document.getElementById('markingBanner');
+      const bannerTitle = document.getElementById('bannerTitle');
 
-      if (pathCoordinates.length > 0) {
-        const lastPos = pathCoordinates[pathCoordinates.length - 1];
-        const dist = map.distance(lastPos, newPos);
-        if (dist < 6) return; 
-      }
-
-      pathCoordinates.push(newPos);
-      coveragePolyline.setLatLngs(pathCoordinates);
-      centerLine.setLatLngs(pathCoordinates);
-
-      try {
-        localStorage.setItem('comercial_gps_path', JSON.stringify(pathCoordinates));
-      } catch(e){}
-
-      updateUserMarker(newPos);
-      calculateMetrics();
-
-      map.panTo(newPos, { animate: true, duration: 0.8 });
-    }
-
-    function startBlockFillMode() {
-      resetModes();
-      currentMode = 'block';
-      document.getElementById('modeBanner').classList.add('active');
-      document.getElementById('bannerText').innerText = '🔷 Toca las esquinas de la manzana...';
-      document.getElementById('btnBannerAction').style.display = 'inline-block';
-    }
-
-    function startStreetMode() {
-      resetModes();
-      currentMode = 'street';
-      document.getElementById('modeBanner').classList.add('active');
-      document.getElementById('bannerText').innerText = '🖊️ Toca inicio y fin de la calle...';
-      document.getElementById('btnBannerAction').style.display = 'none';
-    }
-
-    function resetModes() {
-      currentMode = null;
-      tempPoints = [];
-      tempMarkers.forEach(m => map.removeLayer(m));
-      tempMarkers = [];
-      document.getElementById('modeBanner').classList.remove('active');
+      banner.style.background = style.color;
+      bannerTitle.innerText = `Toca esquinas para: ${style.label}`;
+      banner.classList.add('active');
     }
 
     function handleMapClick(e) {
-      if (!currentMode) return;
+      if (!activeCategory) return;
 
       const point = [e.latlng.lat, e.latlng.lng];
       tempPoints.push(point);
 
-      const marker = L.circleMarker(point, { radius: 6, color: '#2563eb', fillColor: '#ffffff', fillOpacity: 1 }).addTo(map);
+      const marker = L.circleMarker(point, {
+        radius: 6,
+        color: '#ffffff',
+        fillColor: CATEGORY_STYLES[activeCategory].color,
+        fillOpacity: 1,
+        weight: 2
+      }).addTo(map);
+
       tempMarkers.push(marker);
-
-      if (currentMode === 'street' && tempPoints.length === 2) {
-        savedStreets.push(tempPoints);
-        try {
-          localStorage.setItem('comercial_streets', JSON.stringify(savedStreets));
-        } catch(e){}
-        renderStreetLine(tempPoints);
-        resetModes();
-      }
     }
 
-    function confirmAction() {
-      if (currentMode === 'block') {
-        if (tempPoints.length < 3) {
-          alert("Toca al menos 3 esquinas en el mapa para delimitar la manzana que quieres rellenar.");
-          return;
-        }
-        savedBlocks.push(tempPoints);
-        try {
-          localStorage.setItem('comercial_blocks', JSON.stringify(savedBlocks));
-        } catch(e){}
-        renderBlockPolygon(tempPoints);
-        resetModes();
+    function saveActiveZone() {
+      if (tempPoints.length < 3) {
+        alert("Toca al menos 3 esquinas en el mapa para cerrar el área de la manzana.");
+        return;
       }
+
+      const zoneData = {
+        category: activeCategory,
+        points: tempPoints
+      };
+
+      savedZones.push(zoneData);
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      
+      renderZoneOnMap(zoneData, savedZones.length - 1);
+      cancelMarking();
     }
 
-    function renderBlockPolygon(coords) {
-      L.polygon(coords, {
-        color: '#1d4ed8',
+    function renderZoneOnMap(zone, index) {
+      const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
+
+      const polygon = L.polygon(zone.points, {
+        color: style.color,
         weight: 3,
-        fillColor: '#3b82f6',
-        fillOpacity: 0.45
-      }).addTo(map);
-    }
-
-    function renderStreetLine(coords) {
-      L.polyline(coords, {
-        color: '#2563eb',
-        weight: 22,
-        opacity: 0.45,
-        lineCap: 'round'
+        fillColor: style.fill,
+        fillOpacity: style.opacity
       }).addTo(map);
 
-      L.polyline(coords, {
-        color: '#1d4ed8',
-        weight: 3,
-        opacity: 0.9
-      }).addTo(map);
-    }
-
-    async function requestWakeLock() {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await navigator.wakeLock.request('screen');
+      // Tocar una manzana rellenada permite eliminarla
+      polygon.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        if (confirm(`¿Quieres borrar esta zona de tipo "${style.label}"?`)) {
+          map.removeLayer(polygon);
+          savedZones.splice(index, 1);
+          localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
         }
-      } catch (err) {}
+      });
     }
 
-    function releaseWakeLock() {
-      if (wakeLock !== null) {
-        wakeLock.release();
-        wakeLock = null;
-      }
+    function cancelMarking() {
+      activeCategory = null;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      document.getElementById('markingBanner').classList.remove('active');
     }
 
-    function enterPocketMode() {
-      requestWakeLock();
-      document.getElementById('pocketOverlay').classList.add('active');
-    }
-
-    function exitPocketMode() {
-      document.getElementById('pocketOverlay').classList.remove('active');
-    }
-
-    function onGpsError(err) {
-      console.warn("GPS:", err.message);
-    }
-
-    function updateUserMarker(pos) {
-      if (!userMarker) {
-        const customIcon = L.divIcon({
-          className: 'user-marker',
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
-        });
-        userMarker = L.marker(pos, { icon: customIcon }).addTo(map);
-      } else {
-        userMarker.setLatLng(pos);
-      }
-    }
-
-    function recenterMap() {
-      if (pathCoordinates.length > 0) {
-        map.setView(pathCoordinates[pathCoordinates.length - 1], 18);
-      } else {
-        map.locate({ setView: true, maxZoom: 18 });
-      }
-      if (map) map.invalidateSize();
-    }
-
-    function calculateMetrics() {
-      let totalMeters = 0;
-      for (let i = 1; i < pathCoordinates.length; i++) {
-        totalMeters += map.distance(pathCoordinates[i - 1], pathCoordinates[i]);
-      }
-      const km = (totalMeters / 1000).toFixed(2);
-      document.getElementById('distText').innerText = `${km} km`;
-    }
-
-    function clearPath() {
-      if (confirm('¿Quieres limpiar todo el mapa y borrar los datos acumulados?')) {
-        localStorage.clear();
+    function clearAllData() {
+      if (confirm('¿Seguro que quieres borrar TODAS las manzanas y zonas marcadas del mapa?')) {
+        localStorage.removeItem('comercial_custom_zones');
         location.reload();
       }
     }
