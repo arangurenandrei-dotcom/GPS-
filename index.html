@@ -239,17 +239,18 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* ETIQUETA VERTICAL EN EL MAPA (ALTO CONTRASTE Y LECTURA RÁPIDA) */
+    /* ETIQUETA TRANSPARENTE INTEGRADA EN LA ZONA CON ALTO CONTRASTE */
     .zone-badge-container {
-      background: rgba(15, 23, 42, 0.96);
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       border-radius: 10px;
-      padding: 8px 12px;
+      padding: 6px 10px;
       color: #ffffff;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
       pointer-events: auto;
       transform: translate(-50%, -50%);
-      min-width: 115px;
+      min-width: 105px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
     }
 
     .zone-badge-header {
@@ -258,38 +259,37 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #ffffff;
-      margin-bottom: 6px;
-      padding-bottom: 4px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      margin-bottom: 4px;
+      padding-bottom: 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
     }
 
     .zone-badge-list {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
     }
 
     .zone-badge-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 11px;
-      color: #cbd5e1;
-      font-weight: 600;
+      font-size: 10px;
+      color: #ffffff;
+      font-weight: 700;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
     }
 
     .zone-badge-item strong {
       color: #ffffff;
-      font-size: 12px;
-      margin-left: 8px;
+      font-size: 11px;
+      margin-left: 6px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
     }
 
-    .zone-badge-item.highlight {
-      color: #34d399;
-    }
-
-    .zone-badge-item.highlight strong {
-      color: #34d399;
+    .zone-badge-item.highlight, .zone-badge-item.highlight strong {
+      color: #6ee7b7;
     }
 
     /* MODAL FLOTANTE DE EDICIÓN */
@@ -503,11 +503,11 @@
     let loadedMapLayers = [];
 
     const CATEGORY_STYLES = {
-      unifamiliar: { label: 'Unifamiliar', color: '#0284c7', fill: '#38bdf8', opacity: 0.5 },
-      comunidad:   { label: 'Comunidad',   color: '#7c3aed', fill: '#a78bfa', opacity: 0.5 },
-      buena:       { label: 'Zona Buena',  color: '#059669', fill: '#34d399', opacity: 0.45 },
-      regular:     { label: 'Zona Sin Más',color: '#d97706', fill: '#fbbf24', opacity: 0.45 },
-      mala:        { label: 'Zona Mala',   color: '#dc2626', fill: '#f87171', opacity: 0.45 }
+      unifamiliar: { label: 'Unifamiliar', color: '#0284c7', fill: '#38bdf8', opacity: 0.45 },
+      comunidad:   { label: 'Comunidad',   color: '#7c3aed', fill: '#a78bfa', opacity: 0.45 },
+      buena:       { label: 'Zona Buena',  color: '#059669', fill: '#34d399', opacity: 0.4 },
+      regular:     { label: 'Zona Sin Más',color: '#d97706', fill: '#fbbf24', opacity: 0.4 },
+      mala:        { label: 'Zona Mala',   color: '#dc2626', fill: '#f87171', opacity: 0.4 }
     };
 
     let savedZones = safeLoadStorage('comercial_custom_zones');
@@ -541,7 +541,6 @@
       setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // --- NAVEGADOR Y BÚSQUEDA DE PUEBLOS/DIRECCIONES ---
     async function searchLocation() {
       const query = document.getElementById('searchInput').value.trim();
       if (!query) return;
@@ -555,10 +554,10 @@
           const lon = parseFloat(results[0].lon);
           map.setView([lat, lon], 16, { animate: true });
         } else {
-          alert("No se encontró el pueblo o dirección. Prueba indicando también la provincia (ej: 'Cintruénigo Navarra').");
+          alert("No se encontró la ubicación.");
         }
       } catch (e) {
-        alert("Error de conexión al buscar la ubicación.");
+        alert("Error al buscar la ubicación.");
       }
     }
 
@@ -667,7 +666,7 @@
 
         const polygon = L.polygon(zone.points, {
           color: style.color,
-          weight: 3,
+          weight: 2.5,
           fillColor: style.fill,
           fillOpacity: style.opacity
         }).addTo(map);
@@ -676,9 +675,9 @@
         const center = bounds.getCenter();
         const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
 
-        // ETIQUETA EN FORMATO LISTA VERTICAL DE ARRIBA A ABAJO Y CAPITALIZADA
+        // ETIQUETA CON FONDO TRANSLÚCIDO DEL COLOR DE LA ZONA Y SOMBRA DE TEXTO
         const badgeHtml = `
-          <div class="zone-badge-container" style="border-left: 4px solid ${style.color};">
+          <div class="zone-badge-container" style="background: ${style.color}55; border: 1.5px solid ${style.color};">
             <div class="zone-badge-header">${style.label}</div>
             <div class="zone-badge-list">
               <div class="zone-badge-item"><span>Total /</span> <strong>${stats.total || 0}</strong></div>
@@ -713,7 +712,6 @@
       });
     }
 
-    // --- FORMULARIO Y EDICIÓN ---
     function openEditModal(index) {
       editingZoneIndex = index;
       const zone = savedZones[index];
@@ -724,7 +722,6 @@
 
       document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
       
-      // Pasar valores directamente (al tocar la casilla se seleccionan automáticamente)
       document.getElementById('inputTotal').value = stats.total || 0;
       document.getElementById('inputNo').value = stats.no || 0;
       document.getElementById('inputAusente').value = stats.ausente || 0;
