@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Gestión de Zonas y Métricas</title>
+  <title>Mapas Comerciales - Gestión de Zonas y Navegador</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -39,30 +39,36 @@
       background: #e2e8f0;
     }
 
-    /* HUD Superior */
+    /* HUD Superior de Navegación */
     .hud-header {
       position: absolute;
-      top: 14px;
-      left: 14px;
-      right: 14px;
+      top: 12px;
+      left: 12px;
+      right: 12px;
       z-index: 1000;
       background: var(--bg-panel);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-panel);
       border-radius: 16px;
-      padding: 12px 16px;
+      padding: 10px 14px;
       color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .hud-top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
     }
 
     .hud-status {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .dot {
@@ -83,13 +89,46 @@
     }
 
     .btn-icon {
-      padding: 8px 14px;
+      padding: 6px 12px;
       border: 1px solid var(--border-panel);
-      border-radius: 10px;
+      border-radius: 8px;
       background: rgba(255, 255, 255, 0.1);
       color: #fff;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Barra del Navegador / Buscador de Pueblos */
+    .search-bar {
+      display: flex;
+      gap: 6px;
+    }
+
+    .search-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+
+    .btn-search {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 800;
       cursor: pointer;
     }
 
@@ -97,12 +136,12 @@
     .banner-marking {
       display: none;
       position: absolute;
-      top: 74px;
-      left: 14px;
-      right: 14px;
+      top: 110px;
+      left: 12px;
+      right: 12px;
       z-index: 1000;
       border-radius: 14px;
-      padding: 12px 14px;
+      padding: 10px 14px;
       color: white;
       font-size: 12px;
       font-weight: 700;
@@ -200,40 +239,60 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* ETIQUETA SOBRE EL MAPA (CARD ENCIMA DE LA MANZANA) */
+    /* ETIQUETA VERTICAL EN EL MAPA (ALTO CONTRASTE Y LECTURA RÁPIDA) */
     .zone-badge-container {
-      background: rgba(15, 23, 42, 0.92);
-      border: 1.5px solid rgba(255, 255, 255, 0.3);
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       border-radius: 10px;
-      padding: 6px 10px;
+      padding: 8px 12px;
       color: #ffffff;
-      font-size: 11px;
-      font-weight: 700;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-      white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
       pointer-events: auto;
       transform: translate(-50%, -50%);
-      line-height: 1.35;
-      text-align: left;
+      min-width: 115px;
     }
 
-    .zone-badge-title {
+    .zone-badge-header {
       font-size: 10px;
+      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #94a3b8;
-      margin-bottom: 2px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding-bottom: 2px;
+      color: #ffffff;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
 
-    .zone-badge-row {
+    .zone-badge-list {
       display: flex;
-      gap: 8px;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 3px;
     }
 
-    /* MODAL FLOTANTE DE EDICIÓN DE DATOS */
+    .zone-badge-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+
+    .zone-badge-item strong {
+      color: #ffffff;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+
+    .zone-badge-item.highlight {
+      color: #34d399;
+    }
+
+    .zone-badge-item.highlight strong {
+      color: #34d399;
+    }
+
+    /* MODAL FLOTANTE DE EDICIÓN */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -263,7 +322,7 @@
     }
 
     .modal-header {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
       margin-bottom: 14px;
       display: flex;
@@ -294,13 +353,13 @@
     }
 
     .input-field {
-      width: 65px;
+      width: 75px;
       background: #1e293b;
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
       color: #ffffff;
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 15px;
+      font-weight: 800;
       text-align: center;
       padding: 6px;
       outline: none;
@@ -341,13 +400,19 @@
 
   <div id="map"></div>
 
-  <!-- HUD Superior -->
+  <!-- HUD Superior con Navegador de Ciudades/Pueblos -->
   <div class="hud-header">
-    <div class="hud-status">
-      <div id="statusDot" class="dot"></div>
-      <span id="statusText" class="hud-title">Ubicación GPS</span>
+    <div class="hud-top-row">
+      <div class="hud-status">
+        <div id="statusDot" class="dot"></div>
+        <span id="statusText" class="hud-title">Ubicación GPS</span>
+      </div>
+      <button class="btn-icon" onclick="centerOnUser()">🎯 Mi Posición</button>
     </div>
-    <button class="btn-icon" onclick="centerOnUser()">🎯 Mi Posición</button>
+    <div class="search-bar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar pueblo (ej. Cintruénigo, Peralta)..." onkeypress="if(event.key==='Enter') searchLocation()">
+      <button class="btn-search" onclick="searchLocation()">Ir</button>
+    </div>
   </div>
 
   <!-- Banner de Selección -->
@@ -359,7 +424,7 @@
     </div>
   </div>
 
-  <!-- Panel Inferior -->
+  <!-- Panel Inferior de Categorías -->
   <div class="controls-panel">
     <div class="categories-grid">
       <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
@@ -386,7 +451,7 @@
     </div>
   </div>
 
-  <!-- MODAL FLOTANTE DE EDICIÓN -->
+  <!-- MODAL DE EDICIÓN CON AUTO-SELECCIÓN DE TEXTO -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -397,23 +462,23 @@
       <div class="modal-grid">
         <div class="input-group">
           <span class="input-label">📊 Total</span>
-          <input type="number" id="inputTotal" class="input-field" value="0">
+          <input type="number" id="inputTotal" class="input-field" inputmode="numeric" onfocus="this.select()">
         </div>
         <div class="input-group">
           <span class="input-label">❌ No</span>
-          <input type="number" id="inputNo" class="input-field" value="0">
+          <input type="number" id="inputNo" class="input-field" inputmode="numeric" onfocus="this.select()">
         </div>
         <div class="input-group">
           <span class="input-label">⏳ Ausente</span>
-          <input type="number" id="inputAusente" class="input-field" value="0">
+          <input type="number" id="inputAusente" class="input-field" inputmode="numeric" onfocus="this.select()">
         </div>
         <div class="input-group">
           <span class="input-label">📄 Papelito</span>
-          <input type="number" id="inputPapelito" class="input-field" value="0">
+          <input type="number" id="inputPapelito" class="input-field" inputmode="numeric" onfocus="this.select()">
         </div>
         <div class="input-group">
-          <span class="input-label">✅ Sí</span>
-          <input type="number" id="inputSi" class="input-field" value="0">
+          <span class="input-label">✅ Si</span>
+          <input type="number" id="inputSi" class="input-field" inputmode="numeric" onfocus="this.select()">
         </div>
       </div>
 
@@ -435,7 +500,7 @@
     let tempMarkers = [];
 
     let editingZoneIndex = null;
-    let loadedMapLayers = []; // Almacena polígonos y marcadores renderizados
+    let loadedMapLayers = [];
 
     const CATEGORY_STYLES = {
       unifamiliar: { label: 'Unifamiliar', color: '#0284c7', fill: '#38bdf8', opacity: 0.5 },
@@ -474,6 +539,27 @@
 
       map.on('click', handleMapClick);
       setTimeout(() => map.invalidateSize(), 300);
+    }
+
+    // --- NAVEGADOR Y BÚSQUEDA DE PUEBLOS/DIRECCIONES ---
+    async function searchLocation() {
+      const query = document.getElementById('searchInput').value.trim();
+      if (!query) return;
+
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          map.setView([lat, lon], 16, { animate: true });
+        } else {
+          alert("No se encontró el pueblo o dirección. Prueba indicando también la provincia (ej: 'Cintruénigo Navarra').");
+        }
+      } catch (e) {
+        alert("Error de conexión al buscar la ubicación.");
+      }
     }
 
     function startGpsLocation() {
@@ -569,19 +655,16 @@
       cancelMarking();
       renderAllSavedZones();
 
-      // Abrir modal inmediatamente para meter datos iniciales
       openEditModal(newIndex);
     }
 
     function renderAllSavedZones() {
-      // Limpiar capas previas del mapa
       loadedMapLayers.forEach(layer => map.removeLayer(layer));
       loadedMapLayers = [];
 
       savedZones.forEach((zone, index) => {
         const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
 
-        // 1. Polígono de la Zona
         const polygon = L.polygon(zone.points, {
           color: style.color,
           weight: 3,
@@ -589,19 +672,21 @@
           fillOpacity: style.opacity
         }).addTo(map);
 
-        // 2. Calcular Centroide para poner la etiqueta flotante
         const bounds = polygon.getBounds();
         const center = bounds.getCenter();
-
         const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
 
-        // HTML de la etiqueta escrita sobre el mapa
+        // ETIQUETA EN FORMATO LISTA VERTICAL DE ARRIBA A ABAJO Y CAPITALIZADA
         const badgeHtml = `
-          <div class="zone-badge-container" style="border-color:${style.color}">
-            <div class="zone-badge-title">${style.label}</div>
-            <div><strong>total / ${stats.total || 0}</strong></div>
-            <div class="zone-badge-row"><span>No / ${stats.no || 0}</span> <span>Ausente / ${stats.ausente || 0}</span></div>
-            <div class="zone-badge-row"><span>Papelito / ${stats.papelito || 0}</span> <span style="color:#34d399">Si / ${stats.si || 0}</span></div>
+          <div class="zone-badge-container" style="border-left: 4px solid ${style.color};">
+            <div class="zone-badge-header">${style.label}</div>
+            <div class="zone-badge-list">
+              <div class="zone-badge-item"><span>Total /</span> <strong>${stats.total || 0}</strong></div>
+              <div class="zone-badge-item"><span>No /</span> <strong>${stats.no || 0}</strong></div>
+              <div class="zone-badge-item"><span>Ausente /</span> <strong>${stats.ausente || 0}</strong></div>
+              <div class="zone-badge-item"><span>Papelito /</span> <strong>${stats.papelito || 0}</strong></div>
+              <div class="zone-badge-item highlight"><span>Si /</span> <strong>${stats.si || 0}</strong></div>
+            </div>
           </div>
         `;
 
@@ -613,7 +698,6 @@
 
         const labelMarker = L.marker(center, { icon: badgeIcon }).addTo(map);
 
-        // Eventos para abrir el editor al pulsar en el polígono o la etiqueta
         polygon.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
           openEditModal(index);
@@ -629,7 +713,7 @@
       });
     }
 
-    // --- MODAL Y EDITOR DE DATOS ---
+    // --- FORMULARIO Y EDICIÓN ---
     function openEditModal(index) {
       editingZoneIndex = index;
       const zone = savedZones[index];
@@ -639,6 +723,8 @@
       const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
 
       document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
+      
+      // Pasar valores directamente (al tocar la casilla se seleccionan automáticamente)
       document.getElementById('inputTotal').value = stats.total || 0;
       document.getElementById('inputNo').value = stats.no || 0;
       document.getElementById('inputAusente').value = stats.ausente || 0;
