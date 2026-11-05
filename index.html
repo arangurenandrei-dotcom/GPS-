@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Gestión de Zonas y Navegador</title>
+  <title>Mapas Comerciales - Marcado de Zonas</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -99,7 +99,7 @@
       cursor: pointer;
     }
 
-    /* Barra del Navegador / Buscador de Pueblos */
+    /* Barra del Navegador / Buscador */
     .search-bar {
       display: flex;
       gap: 6px;
@@ -165,7 +165,7 @@
       cursor: pointer;
     }
 
-    /* Panel Flotante Inferior de Categorías */
+    /* Panel Flotante Inferior */
     .controls-panel {
       position: absolute;
       bottom: 20px;
@@ -239,57 +239,75 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* ETIQUETA TRANSPARENTE INTEGRADA EN LA ZONA CON ALTO CONTRASTE */
+    /* TEXTO PINTADO DIRECTAMENTE SOBRE EL MAPA (SIN RECUADROS NI FONDOS) */
     .zone-badge-container {
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      border-radius: 10px;
-      padding: 6px 10px;
-      color: #ffffff;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
       pointer-events: auto;
       transform: translate(-50%, -50%);
-      min-width: 105px;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+      text-align: center;
+      user-select: none;
     }
 
     .zone-badge-header {
-      font-size: 10px;
-      font-weight: 800;
+      font-size: 11px;
+      font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       color: #ffffff;
-      margin-bottom: 4px;
-      padding-bottom: 2px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.35);
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+      margin-bottom: 2px;
+      text-shadow: 
+        0 1px 3px #000000, 
+        0 0 5px #000000,
+        -1px -1px 0 #000,  
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000;
     }
 
     .zone-badge-list {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
+      align-items: center;
     }
 
     .zone-badge-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 10px;
+      font-size: 11px;
       color: #ffffff;
-      font-weight: 700;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+      font-weight: 800;
+      white-space: nowrap;
+      text-shadow: 
+        0 1px 3px #000000, 
+        0 0 4px #000000,
+        -1px -1px 0 #000,  
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000;
     }
 
     .zone-badge-item strong {
       color: #ffffff;
-      font-size: 11px;
-      margin-left: 6px;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+      font-size: 12px;
+      font-weight: 900;
+      margin-left: 2px;
+      text-shadow: 
+        0 1px 3px #000000, 
+        0 0 4px #000000,
+        -1px -1px 0 #000,  
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000;
     }
 
-    .zone-badge-item.highlight, .zone-badge-item.highlight strong {
-      color: #6ee7b7;
+    .zone-badge-item.highlight, 
+    .zone-badge-item.highlight strong {
+      color: #4ade80 !important; /* Verde Neón para resaltar el 'Si' */
     }
 
     /* MODAL FLOTANTE DE EDICIÓN */
@@ -400,7 +418,7 @@
 
   <div id="map"></div>
 
-  <!-- HUD Superior con Navegador de Ciudades/Pueblos -->
+  <!-- HUD Superior -->
   <div class="hud-header">
     <div class="hud-top-row">
       <div class="hud-status">
@@ -424,7 +442,7 @@
     </div>
   </div>
 
-  <!-- Panel Inferior de Categorías -->
+  <!-- Panel Inferior -->
   <div class="controls-panel">
     <div class="categories-grid">
       <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
@@ -451,7 +469,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN CON AUTO-SELECCIÓN DE TEXTO -->
+  <!-- MODAL DE EDICIÓN -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -503,11 +521,11 @@
     let loadedMapLayers = [];
 
     const CATEGORY_STYLES = {
-      unifamiliar: { label: 'Unifamiliar', color: '#0284c7', fill: '#38bdf8', opacity: 0.45 },
-      comunidad:   { label: 'Comunidad',   color: '#7c3aed', fill: '#a78bfa', opacity: 0.45 },
-      buena:       { label: 'Zona Buena',  color: '#059669', fill: '#34d399', opacity: 0.4 },
-      regular:     { label: 'Zona Sin Más',color: '#d97706', fill: '#fbbf24', opacity: 0.4 },
-      mala:        { label: 'Zona Mala',   color: '#dc2626', fill: '#f87171', opacity: 0.4 }
+      unifamiliar: { label: 'UNIFAMILIAR', color: '#0284c7', fill: '#0284c7', opacity: 0.55 },
+      comunidad:   { label: 'COMUNIDAD',   color: '#7c3aed', fill: '#7c3aed', opacity: 0.55 },
+      buena:       { label: 'ZONA BUENA',  color: '#059669', fill: '#059669', opacity: 0.50 },
+      regular:     { label: 'ZONA SIN MÁS',color: '#d97706', fill: '#d97706', opacity: 0.50 },
+      mala:        { label: 'ZONA MALA',   color: '#dc2626', fill: '#dc2626', opacity: 0.50 }
     };
 
     let savedZones = safeLoadStorage('comercial_custom_zones');
@@ -666,7 +684,7 @@
 
         const polygon = L.polygon(zone.points, {
           color: style.color,
-          weight: 2.5,
+          weight: 3,
           fillColor: style.fill,
           fillOpacity: style.opacity
         }).addTo(map);
@@ -675,9 +693,9 @@
         const center = bounds.getCenter();
         const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
 
-        // ETIQUETA CON FONDO TRANSLÚCIDO DEL COLOR DE LA ZONA Y SOMBRA DE TEXTO
+        // ETIQUETA DE TEXTO PURO (SIN CARD NI MARCO RECTANGULAR)
         const badgeHtml = `
-          <div class="zone-badge-container" style="background: ${style.color}55; border: 1.5px solid ${style.color};">
+          <div class="zone-badge-container">
             <div class="zone-badge-header">${style.label}</div>
             <div class="zone-badge-list">
               <div class="zone-badge-item"><span>Total /</span> <strong>${stats.total || 0}</strong></div>
