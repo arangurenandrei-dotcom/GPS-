@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Gestión por Pueblos</title>
+  <title>Mapas Comerciales - Gestión de Zonas y Urgencia</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -252,7 +252,7 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* TEXTO INTEGRADO EN EL MAPA */
+    /* TEXTO INTEGRADO EN EL MAPA CON ETIQUETAS DE PINTA Y ESTADO */
     .zone-badge-container {
       background: transparent !important;
       border: none !important;
@@ -287,6 +287,14 @@
          1px -1px 0 #000,
         -1px  1px 0 #000,
          1px  1px 0 #000;
+    }
+
+    .zone-badge-subhead {
+      font-size: 9px;
+      font-weight: 800;
+      color: #facc15;
+      margin-bottom: 3px;
+      text-shadow: 0 1px 3px #000, -1px -1px 0 #000, 1px 1px 0 #000;
     }
 
     .zone-badge-list {
@@ -327,7 +335,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       z-index: 9999;
@@ -342,8 +350,8 @@
 
     .modal-card {
       width: 100%;
-      max-width: 380px;
-      max-height: 85vh;
+      max-width: 390px;
+      max-height: 88vh;
       background: #0f172a;
       border: 1px solid var(--border-panel);
       border-radius: 20px;
@@ -362,6 +370,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+
+    .modal-section-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin: 10px 0 6px 0;
     }
 
     .modal-grid {
@@ -409,6 +426,17 @@
       outline: none;
     }
 
+    .select-field {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 8px;
+      outline: none;
+    }
+
     .input-field.town-input {
       width: 140px;
       text-align: right;
@@ -451,7 +479,7 @@
       cursor: pointer;
     }
 
-    /* DASHBOARD POR PUEBLOS */
+    /* DASHBOARD POR PUEBLOS Y URGENCIA */
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -578,8 +606,8 @@
 
     .subzone-item {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 4px;
       background: rgba(255, 255, 255, 0.03);
       padding: 8px 10px;
       border-radius: 8px;
@@ -590,6 +618,28 @@
 
     .subzone-item:active {
       background: rgba(37, 99, 235, 0.2);
+    }
+
+    .subzone-row-1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .subzone-row-2 {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    .tag-pill {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      color: #cbd5e1;
     }
   </style>
 </head>
@@ -624,7 +674,7 @@
     </div>
   </div>
 
-  <!-- Panel Inferior de Categorías -->
+  <!-- Panel Inferior -->
   <div class="controls-panel">
     <div class="categories-grid">
       <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
@@ -651,7 +701,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN CON CASILLA DE PUEBLO Y AUTO-SUMA TOTAL -->
+  <!-- MODAL DE EDICIÓN CON PINTA, ESTADO VISTO Y URGENCIA -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -664,8 +714,40 @@
           <span class="input-label" style="color:#34d399;">📍 Pueblo</span>
           <input type="text" id="inputTown" class="input-field town-input" placeholder="Ej: Peralta" onfocus="this.select()">
         </div>
+
+        <div class="modal-section-title">🔍 Prospección y Prioridad</div>
+
+        <div class="input-group">
+          <span class="input-label">👀 Estado Prospección</span>
+          <select id="inputEstado" class="select-field">
+            <option value="pendiente">⏳ Pendiente</option>
+            <option value="visto">👁️ Visto (Calle / Coche)</option>
+            <option value="catastro">🏛️ Catastro (Apto)</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <span class="input-label">🌟 Potencial (Pinta)</span>
+          <select id="inputPinta" class="select-field">
+            <option value="alta">🔥 Muy Buena Pinta</option>
+            <option value="media">⚡ Pinta Media</option>
+            <option value="baja">❄️ Baja Pinta</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <span class="input-label">🚨 Urgencia de Ataque</span>
+          <select id="inputUrgencia" class="select-field">
+            <option value="alta">🔴 Alta (Rentable / Urg.)</option>
+            <option value="media">🟡 Media</option>
+            <option value="baja">🟢 Baja</option>
+          </select>
+        </div>
+
+        <div class="modal-section-title">📊 Registro de Puertas</div>
+
         <div class="input-group total-auto">
-          <span class="input-label" style="color:#60a5fa;">📊 Total (Automático)</span>
+          <span class="input-label" style="color:#60a5fa;">Total Puertas (Automático)</span>
           <input type="number" id="inputTotal" class="input-field" readonly>
         </div>
         <div class="input-group">
@@ -693,11 +775,11 @@
     </div>
   </div>
 
-  <!-- MODAL DE ANÁLISIS POR PUEBLOS -->
+  <!-- MODAL DE ANÁLISIS Y RANKING -->
   <div id="statsModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>🏆 Ranking de Pueblos</span>
+        <span>🏆 Ranking de Pueblos y Prioridad</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeStatsModal()">✕</button>
       </div>
 
@@ -713,12 +795,10 @@
       </div>
 
       <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 0.5px;">
-        Clasificación por Municipios (Pulsa para abrir)
+        Clasificación por Municipios
       </div>
 
-      <div id="townsAccordionList" class="town-accordion">
-        <!-- Render dinámico desde JS -->
-      </div>
+      <div id="townsAccordionList" class="town-accordion"></div>
     </div>
   </div>
 
@@ -742,6 +822,24 @@
       buena:       { label: 'ZONA BUENA',  color: '#059669', fill: '#059669', opacity: 0.50 },
       regular:     { label: 'ZONA SIN MÁS',color: '#d97706', fill: '#d97706', opacity: 0.50 },
       mala:        { label: 'ZONA MALA',   color: '#dc2626', fill: '#dc2626', opacity: 0.50 }
+    };
+
+    const ESTADO_LABELS = {
+      pendiente: '⏳ Pendiente',
+      visto: '👁️ Visto',
+      catastro: '🏛️ Apto Catastro'
+    };
+
+    const PINTA_LABELS = {
+      alta: '🔥 Muy Buena',
+      media: '⚡ Media',
+      baja: '❄️ Baja'
+    };
+
+    const URGENCIA_LABELS = {
+      alta: '🔴 Urgente',
+      media: '🟡 Media',
+      baja: '🟢 Baja'
     };
 
     let savedZones = safeLoadStorage('comercial_custom_zones');
@@ -904,6 +1002,9 @@
         id: Date.now(),
         category: activeCategory,
         town: lastUsedTown,
+        estado: 'visto',
+        pinta: 'alta',
+        urgencia: 'alta',
         points: tempPoints,
         stats: { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 }
       };
@@ -935,10 +1036,14 @@
         const bounds = polygon.getBounds();
         const center = bounds.getCenter();
         const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
+        
+        const estTag = ESTADO_LABELS[zone.estado || 'pendiente'];
+        const urgTag = URGENCIA_LABELS[zone.urgencia || 'media'];
 
         const badgeHtml = `
           <div class="zone-badge-container">
             <div class="zone-badge-header">${style.label}</div>
+            <div class="zone-badge-subhead">${estTag} | ${urgTag}</div>
             <div class="zone-badge-list">
               <div class="zone-badge-item"><span>Total /</span> <strong>${stats.total || 0}</strong></div>
               <div class="zone-badge-item"><span>No /</span> <strong>${stats.no || 0}</strong></div>
@@ -985,6 +1090,10 @@
       document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
       document.getElementById('inputTown').value = zone.town || lastUsedTown;
 
+      document.getElementById('inputEstado').value = zone.estado || 'visto';
+      document.getElementById('inputPinta').value = zone.pinta || 'alta';
+      document.getElementById('inputUrgencia').value = zone.urgencia || 'alta';
+
       document.getElementById('inputNo').value = stats.no || 0;
       document.getElementById('inputAusente').value = stats.ausente || 0;
       document.getElementById('inputPapelito').value = stats.papelito || 0;
@@ -1002,6 +1111,10 @@
       lastUsedTown = townName;
       localStorage.setItem('comercial_last_town', lastUsedTown);
 
+      const estado = document.getElementById('inputEstado').value;
+      const pinta = document.getElementById('inputPinta').value;
+      const urgencia = document.getElementById('inputUrgencia').value;
+
       const no = parseInt(document.getElementById('inputNo').value) || 0;
       const ausente = parseInt(document.getElementById('inputAusente').value) || 0;
       const papelito = parseInt(document.getElementById('inputPapelito').value) || 0;
@@ -1009,6 +1122,9 @@
       const total = no + ausente + papelito + si;
 
       savedZones[editingZoneIndex].town = townName;
+      savedZones[editingZoneIndex].estado = estado;
+      savedZones[editingZoneIndex].pinta = pinta;
+      savedZones[editingZoneIndex].urgencia = urgencia;
       savedZones[editingZoneIndex].stats = { total, no, ausente, papelito, si };
 
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
@@ -1030,7 +1146,7 @@
       document.getElementById('editModal').classList.remove('active');
     }
 
-    // --- ANÁLISIS DE RENTABILIDAD Y CLASIFICACIÓN POR PUEBLOS ---
+    // --- ANÁLISIS RENTABILIDAD Y RANKING DE PUEBLOS ---
     function computeProfitabilityRatio(si, papelito, no) {
       const touched = si + papelito + no;
       if (touched === 0) return 0;
@@ -1064,7 +1180,6 @@
         return;
       }
 
-      // 1. Agrupar datos por nombre de Pueblo manual
       const townsMap = {};
 
       savedZones.forEach((zone, index) => {
@@ -1096,13 +1211,11 @@
         grandNo += (st.no || 0);
       });
 
-      // 2. Convertir a Array y ordenar por rentabilidad
       const townsArray = Object.values(townsMap).map(town => {
         const ratio = computeProfitabilityRatio(town.si, town.papelito, town.no);
         return { ...town, ratio };
       }).sort((a, b) => b.ratio - a.ratio);
 
-      // 3. Renderizar Lista TOP por Pueblos
       townsArray.forEach((town, rankIdx) => {
         const meta = getProfitabilityMeta(town.ratio);
         const cardId = `town_card_${rankIdx}`;
@@ -1115,11 +1228,20 @@
           const st = zone.stats || {};
           const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
           const zRatio = computeProfitabilityRatio(st.si || 0, st.papelito || 0, st.no || 0);
-          
+          const estLabel = ESTADO_LABELS[zone.estado || 'pendiente'];
+          const pintaLabel = PINTA_LABELS[zone.pinta || 'alta'];
+          const urgLabel = URGENCIA_LABELS[zone.urgencia || 'alta'];
+
           subzonesHtml += `
             <div class="subzone-item" onclick="closeStatsModal(); openEditModal(${index});">
-              <span style="color:${style.color}; font-weight:800;">• ${style.label}</span>
-              <span>Sí: <strong>${st.si||0}</strong> | Info: <strong>${st.papelito||0}</strong> | No: <strong>${st.no||0}</strong> (${zRatio}%)</span>
+              <div class="subzone-row-1">
+                <span style="color:${style.color}; font-weight:800;">• ${style.label}</span>
+                <span style="color:#60a5fa; font-weight:800;">${zRatio}% Rend.</span>
+              </div>
+              <div class="subzone-row-2">
+                <span><strong class="tag-pill">${estLabel}</strong> <strong class="tag-pill">${pintaLabel}</strong> <strong class="tag-pill">${urgLabel}</strong></span>
+                <span>Sí: ${st.si||0} | Info: ${st.papelito||0} | No: ${st.no||0}</span>
+              </div>
             </div>
           `;
         });
