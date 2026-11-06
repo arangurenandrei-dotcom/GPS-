@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Gestión de Zonas y Urgencia</title>
+  <title>Mapas Comerciales - Flujo Dinámico de Prospección</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -220,7 +220,7 @@
     .cat-buena { background: #059669; }
     .cat-regular { background: #d97706; }
     .cat-mala { background: #dc2626; }
-    .cat-noapto { background: #111827; border: 1px solid rgba(255, 255, 255, 0.25); }
+    .cat-noapto { background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.25); }
     .cat-unifamiliar { background: #0284c7; }
     .cat-comunidad { background: #7c3aed; }
 
@@ -397,6 +397,7 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 10px;
       padding: 8px 12px;
+      transition: all 0.2s ease;
     }
 
     .input-group.town-group {
@@ -480,7 +481,7 @@
       cursor: pointer;
     }
 
-    /* DASHBOARD POR PUEBLOS Y URGENCIA */
+    /* DASHBOARD POR PUEBLOS */
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -705,7 +706,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN CON PINTA, ESTADO VISTO Y URGENCIA -->
+  <!-- MODAL DE EDICIÓN CON FLUJO DINÁMICO DE PROSPECCIÓN -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -721,16 +722,27 @@
 
         <div class="modal-section-title">🔍 Prospección y Prioridad</div>
 
+        <!-- 1. ESTADO DE PROSPECCIÓN -->
         <div class="input-group">
           <span class="input-label">👀 Estado Prospección</span>
-          <select id="inputEstado" class="select-field">
+          <select id="inputEstado" class="select-field" onchange="updateProspectingFlow()">
             <option value="pendiente">⏳ Pendiente</option>
             <option value="visto">👁️ Visto (Calle / Coche)</option>
-            <option value="catastro">🏛️ Catastro (Apto)</option>
           </select>
         </div>
 
-        <div class="input-group">
+        <!-- 2. CATASTRO (Se activa solo si es Visto) -->
+        <div class="input-group" id="groupCatastro" style="display:none;">
+          <span class="input-label">🏛️ Estado Catastro</span>
+          <select id="inputCatastro" class="select-field" onchange="updateProspectingFlow()">
+            <option value="mirar">🔍 Por Mirar</option>
+            <option value="apto">✅ Apto</option>
+            <option value="no_apto">🚫 No Apto</option>
+          </select>
+        </div>
+
+        <!-- 3. POTENCIAL (Se activa si Catastro es Por Mirar o Apto) -->
+        <div class="input-group" id="groupPinta" style="display:none;">
           <span class="input-label">🌟 Potencial (Pinta)</span>
           <select id="inputPinta" class="select-field">
             <option value="alta">🔥 Muy Buena Pinta</option>
@@ -739,10 +751,11 @@
           </select>
         </div>
 
-        <div class="input-group">
+        <!-- 4. URGENCIA (Se activa SOLO si Catastro es Apto) -->
+        <div class="input-group" id="groupUrgencia" style="display:none;">
           <span class="input-label">🚨 Urgencia de Ataque</span>
           <select id="inputUrgencia" class="select-field">
-            <option value="alta">🔴 Alta (Rentable / Urg.)</option>
+            <option value="alta">🔴 Alta (Rentable / Urgente)</option>
             <option value="media">🟡 Media</option>
             <option value="baja">🟢 Baja</option>
           </select>
@@ -826,13 +839,13 @@
       buena:       { label: 'ZONA BUENA',  color: '#059669', fill: '#059669', opacity: 0.50 },
       regular:     { label: 'ZONA SIN MÁS',color: '#d97706', fill: '#d97706', opacity: 0.50 },
       mala:        { label: 'ZONA MALA',   color: '#dc2626', fill: '#dc2626', opacity: 0.50 },
-      noapto:      { label: 'NO APTO',     color: '#0f172a', fill: '#1e293b', opacity: 0.75 }
+      noapto:      { label: 'NO APTO',     color: '#0f172a', fill: '#1e293b', opacity: 0.85 }
     };
 
-    const ESTADO_LABELS = {
-      pendiente: '⏳ Pendiente',
-      visto: '👁️ Visto',
-      catastro: '🏛️ Apto Catastro'
+    const CATASTRO_LABELS = {
+      mirar: '🔍 Por Mirar',
+      apto: '✅ Apto Catastro',
+      no_apto: '🚫 No Apto'
     };
 
     const PINTA_LABELS = {
@@ -878,6 +891,35 @@
       map.on('zoomend moveend', updateLabelsVisibility);
 
       setTimeout(() => map.invalidateSize(), 300);
+    }
+
+    // CONTROL DEL FLUJO DE PROSPECCIÓN EN TIEMPO REAL
+    function updateProspectingFlow() {
+      const estado = document.getElementById('inputEstado').value;
+      const catastro = document.getElementById('inputCatastro').value;
+
+      const groupCatastro = document.getElementById('groupCatastro');
+      const groupPinta = document.getElementById('groupPinta');
+      const groupUrgencia = document.getElementById('groupUrgencia');
+
+      if (estado === 'visto') {
+        groupCatastro.style.display = 'flex';
+
+        if (catastro === 'mirar') {
+          groupPinta.style.display = 'flex';
+          groupUrgencia.style.display = 'none';
+        } else if (catastro === 'no_apto') {
+          groupPinta.style.display = 'none';
+          groupUrgencia.style.display = 'none';
+        } else if (catastro === 'apto') {
+          groupPinta.style.display = 'flex';
+          groupUrgencia.style.display = 'flex';
+        }
+      } else {
+        groupCatastro.style.display = 'none';
+        groupPinta.style.display = 'none';
+        groupUrgencia.style.display = 'none';
+      }
     }
 
     function autoCalculateTotal() {
@@ -1008,6 +1050,7 @@
         category: activeCategory,
         town: lastUsedTown,
         estado: 'visto',
+        catastro: 'mirar',
         pinta: 'alta',
         urgencia: 'alta',
         points: tempPoints,
@@ -1042,13 +1085,21 @@
         const center = bounds.getCenter();
         const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
         
-        const estTag = ESTADO_LABELS[zone.estado || 'pendiente'];
-        const urgTag = URGENCIA_LABELS[zone.urgencia || 'media'];
+        let prospectTag = '⏳ Pendiente';
+        if (zone.estado === 'visto') {
+          if (zone.catastro === 'no_apto') {
+            prospectTag = '🚫 NO APTO';
+          } else if (zone.catastro === 'apto') {
+            prospectTag = `🏛️ Apto | ${URGENCIA_LABELS[zone.urgencia || 'alta']}`;
+          } else {
+            prospectTag = '👁️ Visto (Por Mirar)';
+          }
+        }
 
         const badgeHtml = `
           <div class="zone-badge-container">
             <div class="zone-badge-header">${style.label}</div>
-            <div class="zone-badge-subhead">${estTag} | ${urgTag}</div>
+            <div class="zone-badge-subhead">${prospectTag}</div>
             <div class="zone-badge-list">
               <div class="zone-badge-item"><span>Total /</span> <strong>${stats.total || 0}</strong></div>
               <div class="zone-badge-item"><span>No /</span> <strong>${stats.no || 0}</strong></div>
@@ -1096,6 +1147,7 @@
       document.getElementById('inputTown').value = zone.town || lastUsedTown;
 
       document.getElementById('inputEstado').value = zone.estado || 'visto';
+      document.getElementById('inputCatastro').value = zone.catastro || 'mirar';
       document.getElementById('inputPinta').value = zone.pinta || 'alta';
       document.getElementById('inputUrgencia').value = zone.urgencia || 'alta';
 
@@ -1104,6 +1156,7 @@
       document.getElementById('inputPapelito').value = stats.papelito || 0;
       document.getElementById('inputSi').value = stats.si || 0;
 
+      updateProspectingFlow();
       autoCalculateTotal();
 
       document.getElementById('editModal').classList.add('active');
@@ -1117,6 +1170,7 @@
       localStorage.setItem('comercial_last_town', lastUsedTown);
 
       const estado = document.getElementById('inputEstado').value;
+      const catastro = document.getElementById('inputCatastro').value;
       const pinta = document.getElementById('inputPinta').value;
       const urgencia = document.getElementById('inputUrgencia').value;
 
@@ -1128,9 +1182,15 @@
 
       savedZones[editingZoneIndex].town = townName;
       savedZones[editingZoneIndex].estado = estado;
+      savedZones[editingZoneIndex].catastro = catastro;
       savedZones[editingZoneIndex].pinta = pinta;
       savedZones[editingZoneIndex].urgencia = urgencia;
       savedZones[editingZoneIndex].stats = { total, no, ausente, papelito, si };
+
+      // SI CATASTRO ES NO APTO -> CAMBIAR AUTOMÁTICAMENTE A CATEGORÍA NEGRA (NO APTO)
+      if (estado === 'visto' && catastro === 'no_apto') {
+        savedZones[editingZoneIndex].category = 'noapto';
+      }
 
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
       closeModal();
@@ -1233,7 +1293,8 @@
           const st = zone.stats || {};
           const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
           const zRatio = computeProfitabilityRatio(st.si || 0, st.papelito || 0, st.no || 0);
-          const estLabel = ESTADO_LABELS[zone.estado || 'pendiente'];
+          
+          let estText = zone.estado === 'visto' ? (CATASTRO_LABELS[zone.catastro || 'mirar']) : '⏳ Pendiente';
           const pintaLabel = PINTA_LABELS[zone.pinta || 'alta'];
           const urgLabel = URGENCIA_LABELS[zone.urgencia || 'alta'];
 
@@ -1244,7 +1305,7 @@
                 <span style="color:#60a5fa; font-weight:800;">${zRatio}% Rend.</span>
               </div>
               <div class="subzone-row-2">
-                <span><strong class="tag-pill">${estLabel}</strong> <strong class="tag-pill">${pintaLabel}</strong> <strong class="tag-pill">${urgLabel}</strong></span>
+                <span><strong class="tag-pill">${estText}</strong> <strong class="tag-pill">${pintaLabel}</strong> ${zone.catastro === 'apto' ? `<strong class="tag-pill">${urgLabel}</strong>` : ''}</span>
                 <span>Sí: ${st.si||0} | Info: ${st.papelito||0} | No: ${st.no||0}</span>
               </div>
             </div>
