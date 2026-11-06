@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Marcado y Análisis de Rentabilidad</title>
+  <title>Mapas Comerciales - Análisis por Pueblos</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -252,7 +252,7 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* TEXTO INTEGRADO EN EL MAPA (SIN CAJA) */
+    /* TEXTO INTEGRADO EN EL MAPA */
     .zone-badge-container {
       background: transparent !important;
       border: none !important;
@@ -342,7 +342,7 @@
 
     .modal-card {
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
       max-height: 85vh;
       background: #0f172a;
       border: 1px solid var(--border-panel);
@@ -439,7 +439,7 @@
       cursor: pointer;
     }
 
-    /* ESTILOS DEL DASHBOARD DE RENTABILIDAD */
+    /* ESTILOS DEL DASHBOARD AGRUPADO POR PUEBLOS */
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -470,30 +470,51 @@
       color: #ffffff;
     }
 
-    .profit-list {
+    .town-accordion {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .profit-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
+    .town-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .town-card-header {
       padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
       display: flex;
       flex-direction: column;
       gap: 6px;
+      cursor: pointer;
+      user-select: none;
     }
 
-    .profit-card-header {
+    .town-card-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .profit-zone-name {
-      font-size: 12px;
+    .town-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rank-tag {
+      background: rgba(37, 99, 235, 0.3);
+      color: #60a5fa;
+      border: 1px solid rgba(37, 99, 235, 0.5);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 10px;
       font-weight: 800;
     }
 
@@ -509,11 +530,11 @@
     .badge-semi { background: rgba(217, 119, 6, 0.2); color: #fbbf24; border: 1px solid #d97706; }
     .badge-poco { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #dc2626; }
 
-    .profit-metrics {
+    .town-stats-summary {
       display: flex;
       justify-content: space-between;
       font-size: 11px;
-      color: #cbd5e1;
+      color: #94a3b8;
     }
 
     .progress-bar-bg {
@@ -522,7 +543,6 @@
       background: rgba(255, 255, 255, 0.1);
       border-radius: 4px;
       overflow: hidden;
-      margin-top: 2px;
     }
 
     .progress-bar-fill {
@@ -530,13 +550,43 @@
       border-radius: 4px;
       transition: width 0.3s ease;
     }
+
+    /* Sublista desplegable de manzanas dentro del pueblo */
+    .town-zones-body {
+      display: none;
+      padding: 10px 12px 12px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.2);
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .town-zones-body.open {
+      display: flex;
+    }
+
+    .subzone-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+    }
+
+    .subzone-item:active {
+      background: rgba(37, 99, 235, 0.2);
+    }
   </style>
 </head>
 <body>
 
   <div id="map"></div>
 
-  <!-- HUD Superior con Navegador y Botón de Estadísticas -->
+  <!-- HUD Superior con Navegador y Botón de Rentabilidad -->
   <div class="hud-header">
     <div class="hud-top-row">
       <div class="hud-status">
@@ -628,11 +678,11 @@
     </div>
   </div>
 
-  <!-- MODAL DE ANÁLISIS DE RENTABILIDAD -->
+  <!-- MODAL DE ANÁLISIS DE RENTABILIDAD POR PUEBLOS -->
   <div id="statsModal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 420px;">
+    <div class="modal-card">
       <div class="modal-header">
-        <span>📈 Análisis de Rentabilidad</span>
+        <span>🏆 Ranking de Pueblos</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeStatsModal()">✕</button>
       </div>
 
@@ -649,11 +699,11 @@
       </div>
 
       <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 0.5px;">
-        Desglose por Manzanas
+        Clasificación por Municipios (Pulsa para abrir)
       </div>
 
-      <!-- Lista de Zonas Analizadas -->
-      <div id="profitabilityList" class="profit-list">
+      <!-- Lista de Pueblos (Acordeón) -->
+      <div id="townsAccordionList" class="town-accordion">
         <!-- Render dinámico desde JS -->
       </div>
     </div>
@@ -713,7 +763,18 @@
       setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // CÁLCULO AUTOMÁTICO DE TOTAL EN EL MODAL DE EDICIÓN
+    // OBTENER NOMBRE DEL PUEBLO MEDIANTE GEOLOCALIZACIÓN INVERSA
+    async function getTownFromCoords(lat, lon) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        const data = await res.json();
+        if (data && data.address) {
+          return data.address.town || data.address.village || data.address.city || data.address.municipality || data.address.county || 'Zona General';
+        }
+      } catch(e) {}
+      return 'Zona General';
+    }
+
     function autoCalculateTotal() {
       const no = parseInt(document.getElementById('inputNo').value) || 0;
       const ausente = parseInt(document.getElementById('inputAusente').value) || 0;
@@ -724,7 +785,6 @@
       document.getElementById('inputTotal').value = total;
     }
 
-    // VISIBILIDAD DE ETIQUETAS SEGÚN NIVEL DE ZOOM
     function updateLabelsVisibility() {
       if (!map) return;
       const currentZoom = map.getZoom();
@@ -832,15 +892,24 @@
       tempMarkers.push(marker);
     }
 
-    function saveActiveZone() {
+    async function saveActiveZone() {
       if (tempPoints.length < 3) {
         alert("Toca al menos 3 esquinas en el mapa para cerrar el área de la manzana.");
         return;
       }
 
+      // Calcular centroide para detectar el pueblo automáticamente
+      let sumLat = 0, sumLng = 0;
+      tempPoints.forEach(p => { sumLat += p[0]; sumLng += p[1]; });
+      const centerLat = sumLat / tempPoints.length;
+      const centerLng = sumLng / tempPoints.length;
+
+      const townName = await getTownFromCoords(centerLat, centerLng);
+
       const zoneData = {
         id: Date.now(),
         category: activeCategory,
+        town: townName,
         points: tempPoints,
         stats: { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 }
       };
@@ -919,7 +988,7 @@
       const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
       const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
 
-      document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
+      document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label} (${zone.town || 'Pueblo'})`;
       
       document.getElementById('inputNo').value = stats.no || 0;
       document.getElementById('inputAusente').value = stats.ausente || 0;
@@ -961,29 +1030,25 @@
       document.getElementById('editModal').classList.remove('active');
     }
 
-    // --- CÁLCULOS Y MODAL DE RENTABILIDAD ---
-    function computeProfitability(stats) {
-      const si = stats.si || 0;
-      const papelito = stats.papelito || 0;
-      const no = stats.no || 0;
+    // --- ANÁLISIS RENTABILIDAD Y CLASIFICACIÓN POR PUEBLOS ---
+    function computeProfitabilityRatio(si, papelito, no) {
       const touched = si + papelito + no;
+      if (touched === 0) return 0;
+      return Math.round(((si * 1.0 + papelito * 0.5) / touched) * 100);
+    }
 
-      if (touched === 0) return { ratio: 0, label: 'Sin datos', badgeClass: 'badge-semi', color: '#94a3b8' };
-
-      // Fórmula: (Sí*1.0 + Papelito*0.5) / Atendidas
-      const ratio = Math.round(((si * 1.0 + papelito * 0.5) / touched) * 100);
-
+    function getProfitabilityMeta(ratio) {
       if (ratio >= 50) {
-        return { ratio, label: '🟢 Rentable', badgeClass: 'badge-rentable', color: '#34d399' };
+        return { label: '🟢 Rentable', badgeClass: 'badge-rentable', color: '#34d399' };
       } else if (ratio >= 25) {
-        return { ratio, label: '🟡 Semi-rentable', badgeClass: 'badge-semi', color: '#fbbf24' };
+        return { label: '🟡 Semi-rentable', badgeClass: 'badge-semi', color: '#fbbf24' };
       } else {
-        return { ratio, label: '🔴 Poco Rentable', badgeClass: 'badge-poco', color: '#f87171' };
+        return { label: '🔴 Poco Rentable', badgeClass: 'badge-poco', color: '#f87171' };
       }
     }
 
     function openStatsModal() {
-      const container = document.getElementById('profitabilityList');
+      const container = document.getElementById('townsAccordionList');
       container.innerHTML = '';
 
       let grandTotalPuertas = 0;
@@ -993,47 +1058,110 @@
 
       if (savedZones.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:12px; padding:20px;">No hay manzanas marcadas todavía.</div>`;
-      } else {
-        savedZones.forEach((zone, i) => {
-          const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
-          const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
-          const prof = computeProfitability(stats);
-
-          grandTotalPuertas += stats.total || 0;
-          grandSi += stats.si || 0;
-          grandPapelito += stats.papelito || 0;
-          grandNo += stats.no || 0;
-
-          const card = document.createElement('div');
-          card.className = 'profit-card';
-          card.innerHTML = `
-            <div class="profit-card-header">
-              <span class="profit-zone-name" style="color:${style.color};">Manzana #${i+1} (${style.label})</span>
-              <span class="profit-badge ${prof.badgeClass}">${prof.label}</span>
-            </div>
-            <div class="profit-metrics">
-              <span>Sí: <strong>${stats.si || 0}</strong> | Info: <strong>${stats.papelito || 0}</strong> | No: <strong>${stats.no || 0}</strong></span>
-              <strong>${prof.ratio}% Rend.</strong>
-            </div>
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill" style="width: ${prof.ratio}%; background: ${prof.color};"></div>
-            </div>
-          `;
-          container.appendChild(card);
-        });
+        document.getElementById('kpiTotalPuertas').innerText = '0';
+        document.getElementById('kpiRentabilidadGlobal').innerText = '0%';
+        document.getElementById('statsModal').classList.add('active');
+        return;
       }
 
-      // KPIs generales
+      // 1. Agrupar datos por nombre de Pueblo
+      const townsMap = {};
+
+      savedZones.forEach((zone, index) => {
+        const townName = zone.town || 'Pueblo No Especificado';
+        if (!townsMap[townName]) {
+          townsMap[townName] = {
+            name: townName,
+            totalPuertas: 0,
+            si: 0,
+            papelito: 0,
+            no: 0,
+            ausente: 0,
+            zones: []
+          };
+        }
+
+        const st = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
+        townsMap[townName].totalPuertas += (st.total || 0);
+        townsMap[townName].si += (st.si || 0);
+        townsMap[townName].papelito += (st.papelito || 0);
+        townsMap[townName].no += (st.no || 0);
+        townsMap[townName].ausente += (st.ausente || 0);
+
+        townsMap[townName].zones.push({ zone, index });
+
+        grandTotalPuertas += (st.total || 0);
+        grandSi += (st.si || 0);
+        grandPapelito += (st.papelito || 0);
+        grandNo += (st.no || 0);
+      });
+
+      // 2. Convertir a Array y calcular % de cada pueblo para ordenar el TOP
+      const townsArray = Object.values(townsMap).map(town => {
+        const ratio = computeProfitabilityRatio(town.si, town.papelito, town.no);
+        return { ...town, ratio };
+      }).sort((a, b) => b.ratio - a.ratio); // Ordenar de mayor a menor rentabilidad
+
+      // 3. Renderizar Lista TOP por Pueblos
+      townsArray.forEach((town, rankIdx) => {
+        const meta = getProfitabilityMeta(town.ratio);
+        const cardId = `town_card_${rankIdx}`;
+
+        const townCard = document.createElement('div');
+        townCard.className = 'town-card';
+
+        // Renderizar sublista de manzanas dentro del pueblo
+        let subzonesHtml = '';
+        town.zones.forEach(({ zone, index }) => {
+          const st = zone.stats || {};
+          const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
+          const zRatio = computeProfitabilityRatio(st.si || 0, st.papelito || 0, st.no || 0);
+          
+          subzonesHtml += `
+            <div class="subzone-item" onclick="closeStatsModal(); openEditModal(${index});">
+              <span style="color:${style.color}; font-weight:800;">• ${style.label}</span>
+              <span>Sí: <strong>${st.si||0}</strong> | Info: <strong>${st.papelito||0}</strong> | No: <strong>${st.no||0}</strong> (${zRatio}%)</span>
+            </div>
+          `;
+        });
+
+        townCard.innerHTML = `
+          <div class="town-card-header" onclick="toggleTownAccordion('${cardId}')">
+            <div class="town-card-top">
+              <span class="town-name">
+                <span class="rank-tag">TOP ${rankIdx + 1}</span> ${town.name}
+              </span>
+              <span class="profit-badge ${meta.badgeClass}">${meta.label} (${town.ratio}%)</span>
+            </div>
+            <div class="town-stats-summary">
+              <span>Sí: <strong>${town.si}</strong> | Info: <strong>${town.papelito}</strong> | No: <strong>${town.no}</strong></span>
+              <span>Total: <strong>${town.totalPuertas} ptas</strong> ▾</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${town.ratio}%; background: ${meta.color};"></div>
+            </div>
+          </div>
+          <div id="${cardId}" class="town-zones-body">
+            ${subzonesHtml}
+          </div>
+        `;
+
+        container.appendChild(townCard);
+      });
+
+      // KPIs generales acumulados
       document.getElementById('kpiTotalPuertas').innerText = grandTotalPuertas;
-      
-      const grandTouched = grandSi + grandPapelito + grandNo;
-      const globalRatio = grandTouched > 0 
-        ? Math.round(((grandSi * 1.0 + grandPapelito * 0.5) / grandTouched) * 100)
-        : 0;
-        
+      const globalRatio = computeProfitabilityRatio(grandSi, grandPapelito, grandNo);
       document.getElementById('kpiRentabilidadGlobal').innerText = `${globalRatio}%`;
 
       document.getElementById('statsModal').classList.add('active');
+    }
+
+    function toggleTownAccordion(cardId) {
+      const body = document.getElementById(cardId);
+      if (body) {
+        body.classList.toggle('open');
+      }
     }
 
     function closeStatsModal() {
