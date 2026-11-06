@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Marcado de Zonas</title>
+  <title>Mapas Comerciales - Marcado y Análisis de Rentabilidad</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -12,6 +12,9 @@
       --bg-panel: rgba(15, 23, 42, 0.95);
       --border-panel: rgba(255, 255, 255, 0.15);
       --primary: #2563eb;
+      --accent-green: #059669;
+      --accent-yellow: #d97706;
+      --accent-red: #dc2626;
     }
 
     * {
@@ -39,7 +42,7 @@
       background: #e2e8f0;
     }
 
-    /* HUD Superior de Navegación */
+    /* HUD Superior */
     .hud-header {
       position: absolute;
       top: 12px;
@@ -71,6 +74,11 @@
       gap: 8px;
     }
 
+    .hud-actions {
+      display: flex;
+      gap: 6px;
+    }
+
     .dot {
       width: 10px;
       height: 10px;
@@ -99,7 +107,12 @@
       cursor: pointer;
     }
 
-    /* Barra del Navegador / Buscador */
+    .btn-icon.stats-btn {
+      background: #2563eb;
+      border-color: #60a5fa;
+    }
+
+    /* Buscador */
     .search-bar {
       display: flex;
       gap: 6px;
@@ -239,7 +252,7 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* TEXTO ADAPTATIVO CON VISIBILIDAD DINÁMICA SEGÚN ZOOM */
+    /* TEXTO INTEGRADO EN EL MAPA (SIN CAJA) */
     .zone-badge-container {
       background: transparent !important;
       border: none !important;
@@ -253,7 +266,7 @@
       text-align: center;
       user-select: none;
       transition: opacity 0.25s ease-in-out;
-      opacity: 0; /* Oculto por defecto hasta hacer zoom cercano */
+      opacity: 0;
     }
 
     .zone-badge-container.visible {
@@ -302,13 +315,6 @@
       font-size: 12px;
       font-weight: 900;
       margin-left: 2px;
-      text-shadow: 
-        0 1px 3px #000000, 
-        0 0 4px #000000,
-        -1px -1px 0 #000,  
-         1px -1px 0 #000,
-        -1px  1px 0 #000,
-         1px  1px 0 #000;
     }
 
     .zone-badge-item.highlight, 
@@ -316,18 +322,18 @@
       color: #4ade80 !important;
     }
 
-    /* MODAL FLOTANTE DE EDICIÓN */
+    /* MODALES FLOTANTES */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 9999;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 16px;
     }
 
     .modal-overlay.active {
@@ -336,13 +342,17 @@
 
     .modal-card {
       width: 100%;
-      max-width: 340px;
+      max-width: 360px;
+      max-height: 85vh;
       background: #0f172a;
       border: 1px solid var(--border-panel);
       border-radius: 20px;
       padding: 20px;
       color: #ffffff;
       box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
     }
 
     .modal-header {
@@ -371,6 +381,11 @@
       padding: 8px 12px;
     }
 
+    .input-group.total-auto {
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.4);
+    }
+
     .input-label {
       font-size: 13px;
       font-weight: 600;
@@ -387,6 +402,11 @@
       text-align: center;
       padding: 6px;
       outline: none;
+    }
+
+    .input-field[readonly] {
+      background: rgba(255, 255, 255, 0.1);
+      color: #60a5fa;
     }
 
     .modal-actions {
@@ -418,20 +438,115 @@
       font-weight: 700;
       cursor: pointer;
     }
+
+    /* ESTILOS DEL DASHBOARD DE RENTABILIDAD */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .kpi-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    .kpi-val {
+      font-size: 18px;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .profit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .profit-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .profit-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .profit-zone-name {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .profit-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    .badge-rentable { background: rgba(5, 150, 105, 0.2); color: #34d399; border: 1px solid #059669; }
+    .badge-semi { background: rgba(217, 119, 6, 0.2); color: #fbbf24; border: 1px solid #d97706; }
+    .badge-poco { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #dc2626; }
+
+    .profit-metrics {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #cbd5e1;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
   </style>
 </head>
 <body>
 
   <div id="map"></div>
 
-  <!-- HUD Superior -->
+  <!-- HUD Superior con Navegador y Botón de Estadísticas -->
   <div class="hud-header">
     <div class="hud-top-row">
       <div class="hud-status">
         <div id="statusDot" class="dot"></div>
         <span id="statusText" class="hud-title">Ubicación GPS</span>
       </div>
-      <button class="btn-icon" onclick="centerOnUser()">🎯 Mi Posición</button>
+      <div class="hud-actions">
+        <button class="btn-icon stats-btn" onclick="openStatsModal()">📊 Rentabilidad</button>
+        <button class="btn-icon" onclick="centerOnUser()">🎯 Mi Posición</button>
+      </div>
     </div>
     <div class="search-bar">
       <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar pueblo (ej. Cintruénigo, Peralta)..." onkeypress="if(event.key==='Enter') searchLocation()">
@@ -448,7 +563,7 @@
     </div>
   </div>
 
-  <!-- Panel Inferior -->
+  <!-- Panel Inferior de Categorías -->
   <div class="controls-panel">
     <div class="categories-grid">
       <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
@@ -475,7 +590,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN -->
+  <!-- MODAL DE EDICIÓN CON CÁLCULO AUTOMÁTICO DE TOTAL -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -484,31 +599,62 @@
       </div>
       
       <div class="modal-grid">
-        <div class="input-group">
-          <span class="input-label">📊 Total</span>
-          <input type="number" id="inputTotal" class="input-field" inputmode="numeric" onfocus="this.select()">
+        <div class="input-group total-auto">
+          <span class="input-label" style="color:#60a5fa;">📊 Total (Automático)</span>
+          <input type="number" id="inputTotal" class="input-field" readonly>
         </div>
         <div class="input-group">
           <span class="input-label">❌ No</span>
-          <input type="number" id="inputNo" class="input-field" inputmode="numeric" onfocus="this.select()">
+          <input type="number" id="inputNo" class="input-field" inputmode="numeric" onfocus="this.select()" oninput="autoCalculateTotal()">
         </div>
         <div class="input-group">
           <span class="input-label">⏳ Ausente</span>
-          <input type="number" id="inputAusente" class="input-field" inputmode="numeric" onfocus="this.select()">
+          <input type="number" id="inputAusente" class="input-field" inputmode="numeric" onfocus="this.select()" oninput="autoCalculateTotal()">
         </div>
         <div class="input-group">
           <span class="input-label">📄 Papelito</span>
-          <input type="number" id="inputPapelito" class="input-field" inputmode="numeric" onfocus="this.select()">
+          <input type="number" id="inputPapelito" class="input-field" inputmode="numeric" onfocus="this.select()" oninput="autoCalculateTotal()">
         </div>
         <div class="input-group">
           <span class="input-label">✅ Si</span>
-          <input type="number" id="inputSi" class="input-field" inputmode="numeric" onfocus="this.select()">
+          <input type="number" id="inputSi" class="input-field" inputmode="numeric" onfocus="this.select()" oninput="autoCalculateTotal()">
         </div>
       </div>
 
       <div class="modal-actions">
         <button class="btn-modal-save" onclick="saveModalData()">💾 Guardar Resultados</button>
         <button class="btn-modal-delete" onclick="deleteActiveZone()">🗑️ Eliminar Zona</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE ANÁLISIS DE RENTABILIDAD -->
+  <div id="statsModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header">
+        <span>📈 Análisis de Rentabilidad</span>
+        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeStatsModal()">✕</button>
+      </div>
+
+      <!-- Resumen General KPI -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <span class="kpi-title">Puertas Totales</span>
+          <span id="kpiTotalPuertas" class="kpi-val">0</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Rentabilidad Global</span>
+          <span id="kpiRentabilidadGlobal" class="kpi-val" style="color:#34d399;">0%</span>
+        </div>
+      </div>
+
+      <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 0.5px;">
+        Desglose por Manzanas
+      </div>
+
+      <!-- Lista de Zonas Analizadas -->
+      <div id="profitabilityList" class="profit-list">
+        <!-- Render dinámico desde JS -->
       </div>
     </div>
   </div>
@@ -562,14 +708,23 @@
       startGpsLocation();
 
       map.on('click', handleMapClick);
-      
-      // Control de visibilidad de textos al hacer zoom
       map.on('zoomend moveend', updateLabelsVisibility);
 
       setTimeout(() => map.invalidateSize(), 300);
     }
 
-    // Muestra los textos SOLO si estás cerca (Zoom >= 16.5)
+    // CÁLCULO AUTOMÁTICO DE TOTAL EN EL MODAL DE EDICIÓN
+    function autoCalculateTotal() {
+      const no = parseInt(document.getElementById('inputNo').value) || 0;
+      const ausente = parseInt(document.getElementById('inputAusente').value) || 0;
+      const papelito = parseInt(document.getElementById('inputPapelito').value) || 0;
+      const si = parseInt(document.getElementById('inputSi').value) || 0;
+
+      const total = no + ausente + papelito + si;
+      document.getElementById('inputTotal').value = total;
+    }
+
+    // VISIBILIDAD DE ETIQUETAS SEGÚN NIVEL DE ZOOM
     function updateLabelsVisibility() {
       if (!map) return;
       const currentZoom = map.getZoom();
@@ -753,7 +908,6 @@
         loadedMapLayers.push(labelMarker);
       });
 
-      // Evaluar la visibilidad según el zoom actual
       setTimeout(updateLabelsVisibility, 100);
     }
 
@@ -767,11 +921,12 @@
 
       document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
       
-      document.getElementById('inputTotal').value = stats.total || 0;
       document.getElementById('inputNo').value = stats.no || 0;
       document.getElementById('inputAusente').value = stats.ausente || 0;
       document.getElementById('inputPapelito').value = stats.papelito || 0;
       document.getElementById('inputSi').value = stats.si || 0;
+
+      autoCalculateTotal();
 
       document.getElementById('editModal').classList.add('active');
     }
@@ -779,13 +934,13 @@
     function saveModalData() {
       if (editingZoneIndex === null || !savedZones[editingZoneIndex]) return;
 
-      savedZones[editingZoneIndex].stats = {
-        total: parseInt(document.getElementById('inputTotal').value) || 0,
-        no: parseInt(document.getElementById('inputNo').value) || 0,
-        ausente: parseInt(document.getElementById('inputAusente').value) || 0,
-        papelito: parseInt(document.getElementById('inputPapelito').value) || 0,
-        si: parseInt(document.getElementById('inputSi').value) || 0
-      };
+      const no = parseInt(document.getElementById('inputNo').value) || 0;
+      const ausente = parseInt(document.getElementById('inputAusente').value) || 0;
+      const papelito = parseInt(document.getElementById('inputPapelito').value) || 0;
+      const si = parseInt(document.getElementById('inputSi').value) || 0;
+      const total = no + ausente + papelito + si;
+
+      savedZones[editingZoneIndex].stats = { total, no, ausente, papelito, si };
 
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
       closeModal();
@@ -804,6 +959,85 @@
     function closeModal() {
       editingZoneIndex = null;
       document.getElementById('editModal').classList.remove('active');
+    }
+
+    // --- CÁLCULOS Y MODAL DE RENTABILIDAD ---
+    function computeProfitability(stats) {
+      const si = stats.si || 0;
+      const papelito = stats.papelito || 0;
+      const no = stats.no || 0;
+      const touched = si + papelito + no;
+
+      if (touched === 0) return { ratio: 0, label: 'Sin datos', badgeClass: 'badge-semi', color: '#94a3b8' };
+
+      // Fórmula: (Sí*1.0 + Papelito*0.5) / Atendidas
+      const ratio = Math.round(((si * 1.0 + papelito * 0.5) / touched) * 100);
+
+      if (ratio >= 50) {
+        return { ratio, label: '🟢 Rentable', badgeClass: 'badge-rentable', color: '#34d399' };
+      } else if (ratio >= 25) {
+        return { ratio, label: '🟡 Semi-rentable', badgeClass: 'badge-semi', color: '#fbbf24' };
+      } else {
+        return { ratio, label: '🔴 Poco Rentable', badgeClass: 'badge-poco', color: '#f87171' };
+      }
+    }
+
+    function openStatsModal() {
+      const container = document.getElementById('profitabilityList');
+      container.innerHTML = '';
+
+      let grandTotalPuertas = 0;
+      let grandSi = 0;
+      let grandPapelito = 0;
+      let grandNo = 0;
+
+      if (savedZones.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:12px; padding:20px;">No hay manzanas marcadas todavía.</div>`;
+      } else {
+        savedZones.forEach((zone, i) => {
+          const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
+          const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
+          const prof = computeProfitability(stats);
+
+          grandTotalPuertas += stats.total || 0;
+          grandSi += stats.si || 0;
+          grandPapelito += stats.papelito || 0;
+          grandNo += stats.no || 0;
+
+          const card = document.createElement('div');
+          card.className = 'profit-card';
+          card.innerHTML = `
+            <div class="profit-card-header">
+              <span class="profit-zone-name" style="color:${style.color};">Manzana #${i+1} (${style.label})</span>
+              <span class="profit-badge ${prof.badgeClass}">${prof.label}</span>
+            </div>
+            <div class="profit-metrics">
+              <span>Sí: <strong>${stats.si || 0}</strong> | Info: <strong>${stats.papelito || 0}</strong> | No: <strong>${stats.no || 0}</strong></span>
+              <strong>${prof.ratio}% Rend.</strong>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${prof.ratio}%; background: ${prof.color};"></div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      // KPIs generales
+      document.getElementById('kpiTotalPuertas').innerText = grandTotalPuertas;
+      
+      const grandTouched = grandSi + grandPapelito + grandNo;
+      const globalRatio = grandTouched > 0 
+        ? Math.round(((grandSi * 1.0 + grandPapelito * 0.5) / grandTouched) * 100)
+        : 0;
+        
+      document.getElementById('kpiRentabilidadGlobal').innerText = `${globalRatio}%`;
+
+      document.getElementById('statsModal').classList.add('active');
+    }
+
+    function closeStatsModal() {
+      document.getElementById('statsModal').classList.remove('active');
     }
 
     function cancelMarking() {
