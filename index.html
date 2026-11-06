@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mapas Comerciales - Análisis por Pueblos</title>
+  <title>Mapas Comerciales - Gestión por Pueblos</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
@@ -381,6 +381,11 @@
       padding: 8px 12px;
     }
 
+    .input-group.town-group {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
     .input-group.total-auto {
       background: rgba(37, 99, 235, 0.15);
       border-color: rgba(37, 99, 235, 0.4);
@@ -402,6 +407,13 @@
       text-align: center;
       padding: 6px;
       outline: none;
+    }
+
+    .input-field.town-input {
+      width: 140px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .input-field[readonly] {
@@ -439,7 +451,7 @@
       cursor: pointer;
     }
 
-    /* ESTILOS DEL DASHBOARD AGRUPADO POR PUEBLOS */
+    /* DASHBOARD POR PUEBLOS */
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -551,7 +563,6 @@
       transition: width 0.3s ease;
     }
 
-    /* Sublista desplegable de manzanas dentro del pueblo */
     .town-zones-body {
       display: none;
       padding: 10px 12px 12px 12px;
@@ -586,7 +597,7 @@
 
   <div id="map"></div>
 
-  <!-- HUD Superior con Navegador y Botón de Rentabilidad -->
+  <!-- HUD Superior -->
   <div class="hud-header">
     <div class="hud-top-row">
       <div class="hud-status">
@@ -640,7 +651,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN CON CÁLCULO AUTOMÁTICO DE TOTAL -->
+  <!-- MODAL DE EDICIÓN CON CASILLA DE PUEBLO Y AUTO-SUMA TOTAL -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -649,6 +660,10 @@
       </div>
       
       <div class="modal-grid">
+        <div class="input-group town-group">
+          <span class="input-label" style="color:#34d399;">📍 Pueblo</span>
+          <input type="text" id="inputTown" class="input-field town-input" placeholder="Ej: Peralta" onfocus="this.select()">
+        </div>
         <div class="input-group total-auto">
           <span class="input-label" style="color:#60a5fa;">📊 Total (Automático)</span>
           <input type="number" id="inputTotal" class="input-field" readonly>
@@ -678,7 +693,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE ANÁLISIS DE RENTABILIDAD POR PUEBLOS -->
+  <!-- MODAL DE ANÁLISIS POR PUEBLOS -->
   <div id="statsModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -686,7 +701,6 @@
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeStatsModal()">✕</button>
       </div>
 
-      <!-- Resumen General KPI -->
       <div class="kpi-row">
         <div class="kpi-card">
           <span class="kpi-title">Puertas Totales</span>
@@ -702,7 +716,6 @@
         Clasificación por Municipios (Pulsa para abrir)
       </div>
 
-      <!-- Lista de Pueblos (Acordeón) -->
       <div id="townsAccordionList" class="town-accordion">
         <!-- Render dinámico desde JS -->
       </div>
@@ -721,6 +734,7 @@
 
     let editingZoneIndex = null;
     let loadedMapLayers = [];
+    let lastUsedTown = localStorage.getItem('comercial_last_town') || 'Peralta';
 
     const CATEGORY_STYLES = {
       unifamiliar: { label: 'UNIFAMILIAR', color: '#0284c7', fill: '#0284c7', opacity: 0.55 },
@@ -761,18 +775,6 @@
       map.on('zoomend moveend', updateLabelsVisibility);
 
       setTimeout(() => map.invalidateSize(), 300);
-    }
-
-    // OBTENER NOMBRE DEL PUEBLO MEDIANTE GEOLOCALIZACIÓN INVERSA
-    async function getTownFromCoords(lat, lon) {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-        const data = await res.json();
-        if (data && data.address) {
-          return data.address.town || data.address.village || data.address.city || data.address.municipality || data.address.county || 'Zona General';
-        }
-      } catch(e) {}
-      return 'Zona General';
     }
 
     function autoCalculateTotal() {
@@ -892,24 +894,16 @@
       tempMarkers.push(marker);
     }
 
-    async function saveActiveZone() {
+    function saveActiveZone() {
       if (tempPoints.length < 3) {
         alert("Toca al menos 3 esquinas en el mapa para cerrar el área de la manzana.");
         return;
       }
 
-      // Calcular centroide para detectar el pueblo automáticamente
-      let sumLat = 0, sumLng = 0;
-      tempPoints.forEach(p => { sumLat += p[0]; sumLng += p[1]; });
-      const centerLat = sumLat / tempPoints.length;
-      const centerLng = sumLng / tempPoints.length;
-
-      const townName = await getTownFromCoords(centerLat, centerLng);
-
       const zoneData = {
         id: Date.now(),
         category: activeCategory,
-        town: townName,
+        town: lastUsedTown,
         points: tempPoints,
         stats: { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 }
       };
@@ -988,8 +982,9 @@
       const style = CATEGORY_STYLES[zone.category] || CATEGORY_STYLES.buena;
       const stats = zone.stats || { total: 0, no: 0, ausente: 0, papelito: 0, si: 0 };
 
-      document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label} (${zone.town || 'Pueblo'})`;
-      
+      document.getElementById('modalZoneTitle').innerText = `Valores: ${style.label}`;
+      document.getElementById('inputTown').value = zone.town || lastUsedTown;
+
       document.getElementById('inputNo').value = stats.no || 0;
       document.getElementById('inputAusente').value = stats.ausente || 0;
       document.getElementById('inputPapelito').value = stats.papelito || 0;
@@ -1003,12 +998,17 @@
     function saveModalData() {
       if (editingZoneIndex === null || !savedZones[editingZoneIndex]) return;
 
+      const townName = document.getElementById('inputTown').value.trim() || 'Pueblo No Especificado';
+      lastUsedTown = townName;
+      localStorage.setItem('comercial_last_town', lastUsedTown);
+
       const no = parseInt(document.getElementById('inputNo').value) || 0;
       const ausente = parseInt(document.getElementById('inputAusente').value) || 0;
       const papelito = parseInt(document.getElementById('inputPapelito').value) || 0;
       const si = parseInt(document.getElementById('inputSi').value) || 0;
       const total = no + ausente + papelito + si;
 
+      savedZones[editingZoneIndex].town = townName;
       savedZones[editingZoneIndex].stats = { total, no, ausente, papelito, si };
 
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
@@ -1030,7 +1030,7 @@
       document.getElementById('editModal').classList.remove('active');
     }
 
-    // --- ANÁLISIS RENTABILIDAD Y CLASIFICACIÓN POR PUEBLOS ---
+    // --- ANÁLISIS DE RENTABILIDAD Y CLASIFICACIÓN POR PUEBLOS ---
     function computeProfitabilityRatio(si, papelito, no) {
       const touched = si + papelito + no;
       if (touched === 0) return 0;
@@ -1064,7 +1064,7 @@
         return;
       }
 
-      // 1. Agrupar datos por nombre de Pueblo
+      // 1. Agrupar datos por nombre de Pueblo manual
       const townsMap = {};
 
       savedZones.forEach((zone, index) => {
@@ -1096,11 +1096,11 @@
         grandNo += (st.no || 0);
       });
 
-      // 2. Convertir a Array y calcular % de cada pueblo para ordenar el TOP
+      // 2. Convertir a Array y ordenar por rentabilidad
       const townsArray = Object.values(townsMap).map(town => {
         const ratio = computeProfitabilityRatio(town.si, town.papelito, town.no);
         return { ...town, ratio };
-      }).sort((a, b) => b.ratio - a.ratio); // Ordenar de mayor a menor rentabilidad
+      }).sort((a, b) => b.ratio - a.ratio);
 
       // 3. Renderizar Lista TOP por Pueblos
       townsArray.forEach((town, rankIdx) => {
@@ -1110,7 +1110,6 @@
         const townCard = document.createElement('div');
         townCard.className = 'town-card';
 
-        // Renderizar sublista de manzanas dentro del pueblo
         let subzonesHtml = '';
         town.zones.forEach(({ zone, index }) => {
           const st = zone.stats || {};
@@ -1149,7 +1148,6 @@
         container.appendChild(townCard);
       });
 
-      // KPIs generales acumulados
       document.getElementById('kpiTotalPuertas').innerText = grandTotalPuertas;
       const globalRatio = computeProfitabilityRatio(grandSi, grandPapelito, grandNo);
       document.getElementById('kpiRentabilidadGlobal').innerText = `${globalRatio}%`;
