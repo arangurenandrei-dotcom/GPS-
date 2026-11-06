@@ -15,6 +15,7 @@
       --accent-green: #059669;
       --accent-yellow: #d97706;
       --accent-red: #dc2626;
+      --accent-black: #0f172a;
     }
 
     * {
@@ -219,6 +220,7 @@
     .cat-buena { background: #059669; }
     .cat-regular { background: #d97706; }
     .cat-mala { background: #dc2626; }
+    .cat-noapto { background: #111827; border: 1px solid rgba(255, 255, 255, 0.25); }
     .cat-unifamiliar { background: #0284c7; }
     .cat-comunidad { background: #7c3aed; }
 
@@ -228,7 +230,6 @@
     }
 
     .btn-sec {
-      flex: 1;
       padding: 11px;
       border: 1px solid var(--border-panel);
       border-radius: 12px;
@@ -252,7 +253,7 @@
       box-shadow: 0 0 14px rgba(37, 99, 235, 0.9);
     }
 
-    /* TEXTO INTEGRADO EN EL MAPA CON ETIQUETAS DE PINTA Y ESTADO */
+    /* TEXTO INTEGRADO EN EL MAPA */
     .zone-badge-container {
       background: transparent !important;
       border: none !important;
@@ -674,7 +675,7 @@
     </div>
   </div>
 
-  <!-- Panel Inferior -->
+  <!-- Panel Inferior de Categorías -->
   <div class="controls-panel">
     <div class="categories-grid">
       <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">
@@ -692,11 +693,14 @@
     </div>
 
     <div class="bottom-bar">
-      <button class="btn-cat cat-mala" style="flex: 2;" onclick="startMarkingMode('mala')">
+      <button class="btn-cat cat-mala" style="flex: 1;" onclick="startMarkingMode('mala')">
         🔴 Zona Mala
       </button>
+      <button class="btn-cat cat-noapto" style="flex: 1;" onclick="startMarkingMode('noapto')">
+        ⬛ NO APTO
+      </button>
       <button class="btn-sec" style="color: #ef4444;" onclick="clearAllData()">
-        🗑️ Limpiar Todo
+        🗑️
       </button>
     </div>
   </div>
@@ -821,7 +825,8 @@
       comunidad:   { label: 'COMUNIDAD',   color: '#7c3aed', fill: '#7c3aed', opacity: 0.55 },
       buena:       { label: 'ZONA BUENA',  color: '#059669', fill: '#059669', opacity: 0.50 },
       regular:     { label: 'ZONA SIN MÁS',color: '#d97706', fill: '#d97706', opacity: 0.50 },
-      mala:        { label: 'ZONA MALA',   color: '#dc2626', fill: '#dc2626', opacity: 0.50 }
+      mala:        { label: 'ZONA MALA',   color: '#dc2626', fill: '#dc2626', opacity: 0.50 },
+      noapto:      { label: 'NO APTO',     color: '#0f172a', fill: '#1e293b', opacity: 0.75 }
     };
 
     const ESTADO_LABELS = {
