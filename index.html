@@ -597,8 +597,7 @@
             <div class="priority-card p1">
               <span style="font-size:10px; font-weight:900; color:#d97706; text-transform:uppercase;">🚨 PRIORIDAD 1: TERMINAR ZONA DE AYER</span>
               <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
-              <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
-              ${z.pendingNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">✏️ <strong>Pendiente anotado por ti:</strong> "${z.pendingNote}"</div>` : ''}
+              <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>${z.pendingNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">✏️ <strong>Pendiente anotado por ti:</strong> "${z.pendingNote}"</div>` : ''}
               ${z.bossNote ? `<div style="font-size:11px; color:#a78bfa; margin-top:2px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
             </div>
           `;
@@ -611,8 +610,7 @@
             <div class="priority-card p2">
               <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">🔵 PRIORIDAD 2: NUEVA ZONA DE HOY</span>
               <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
-              <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
-              ${z.bossNote ? `<div style="font-size:11px; color:#a78bfa; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
+              <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>${z.bossNote ? `<div style="font-size:11px; color:#a78bfa; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
             </div>
           `;
         });
@@ -660,77 +658,7 @@
         btnLunch.innerText = '▶️ Reanudar';
         btnEnd.style.display = 'inline-block';
       } else if (shift.status === 'finished') {
-        statusLbl.innerHTML = `🏁 Jornada Cerrada (${shift.startTime} - ${shift.endTime})`;
-        btnStart.style.display = 'none';
-        btnLunch.style.display = 'none';
-        btnEnd.style.display = 'none';
-      }
-    }
-
-    function handleShiftAction(action) {
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      let shift = getTodayShift(currentUserName);
-
-      if (action === 'start') {
-        if (!shift) {
-          shift = {
-            id: Date.now(),
-            user: currentUserName,
-            date: now.toISOString(),
-            status: 'working',
-            startTime: timeStr,
-            lunchStart: null,
-            lunchEnd: null,
-            endTime: null,
-            lunchMinutes: 0
-          };
-          savedShifts.push(shift);
-        }
-      } else if (action === 'lunch') {
-        if (shift.status === 'working') {
-          shift.status = 'lunch';
-          shift.lunchStart = timeStr;
-          shift._lunchStartMs = Date.now();
-        } else if (shift.status === 'lunch') {
-          shift.status = 'working';
-          shift.lunchEnd = timeStr;
-          if (shift._lunchStartMs) {
-            const diffMin = Math.round((Date.now() - shift._lunchStartMs) / 60000);
-            shift.lunchMinutes = (shift.lunchMinutes || 0) + diffMin;
-          }
-        }
-      } else if (action === 'end') {
-        if (confirm("¿Seguro que quieres finalizar la jornada de hoy?")) {
-          shift.status = 'finished';
-          shift.endTime = timeStr;
-        }
-      }
-
-      localStorage.setItem('comercial_shifts', JSON.stringify(savedShifts));
-      updateShiftUI();
-    }
-
-    function initMap() {
-      if (map) return;
-      map = L.map('map', { zoomControl: false, attributionControl: false }).setView([42.3486, -1.8011], 16);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-      const todayIso = new Date().toISOString().split('T')[0];
-      document.getElementById('assignDate').value = todayIso;
-      document.getElementById('dumpDate').value = todayIso;
-      document.getElementById('auditDateSelect').value = todayIso;
-
-      renderAllSavedZones();
-      map.on('click', handleMapClick);
-    }
-
-    async function searchLocation() {
-      const query = document.getElementById('searchInput').value.trim();
-      if (!query) return;
-
-      try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Navarra, España')}`);
+        statusLbl.innerHTML = `🏁 Jornada Cerrada (${shift.startTime} - ${shift.endTime})`; btnStart.style.display = 'none'; btnLunch.style.display = 'none'; btnEnd.style.display = 'none'; } }  function handleShiftAction(action) { const now = new Date(); const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); let shift = getTodayShift(currentUserName);  if (action === 'start') { if (!shift) { shift = { id: Date.now(), user: currentUserName, date: now.toISOString(), status: 'working', startTime: timeStr, lunchStart: null, lunchEnd: null, endTime: null, lunchMinutes: 0 }; savedShifts.push(shift); } } else if (action === 'lunch') { if (shift.status === 'working') { shift.status = 'lunch'; shift.lunchStart = timeStr; shift._lunchStartMs = Date.now(); } else if (shift.status === 'lunch') { shift.status = 'working'; shift.lunchEnd = timeStr; if (shift._lunchStartMs) { const diffMin = Math.round((Date.now() - shift._lunchStartMs) / 60000); shift.lunchMinutes = (shift.lunchMinutes \vert{}\vert{} 0) + diffMin; } } } else if (action === 'end') { if (confirm("¿Seguro que quieres finalizar la jornada de hoy?")) { shift.status = 'finished'; shift.endTime = timeStr; } }  localStorage.setItem('comercial_shifts', JSON.stringify(savedShifts)); updateShiftUI(); }  function initMap() { if (map) return; map = L.map('map', { zoomControl: false, attributionControl: false }).setView([42.3486, -1.8011], 16); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);  const todayIso = new Date().toISOString().split('T')[0]; document.getElementById('assignDate').value = todayIso; document.getElementById('dumpDate').value = todayIso; document.getElementById('auditDateSelect').value = todayIso;  renderAllSavedZones(); map.on('click', handleMapClick); }  async function searchLocation() { const query = document.getElementById('searchInput').value.trim(); if (!query) return;  try { const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Navarra, España')}`);
         const results = await response.json();
 
         if (results && results.length > 0) {
@@ -855,8 +783,7 @@
         const badgeHtml = `
           <div class="zone-badge-container">
             <div class="badge-title">${displayName}</div>
-            <div class="badge-sub">👤 ${displayComercial} | 📅 ${displayDate}</div>
-            ${z.pendingNote ? `<div class="badge-pending-note">✏️ ${z.pendingNote}</div>` : ''}
+            <div class="badge-sub">👤 ${displayComercial} | 📅 ${displayDate}</div>${z.pendingNote ? `<div class="badge-pending-note">✏️ ${z.pendingNote}</div>` : ''}
           </div>
         `;
 
@@ -874,37 +801,7 @@
     function formatDate(dateStr) {
       if (!dateStr) return '';
       const parts = dateStr.split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-      return dateStr;
-    }
-
-    function openSelectZoneToDumpModal() {
-      const myZones = savedZones.filter(z => (currentUserRole === 'jefe' || z.comercial === currentUserName));
-      if (myZones.length === 0) {
-        alert("No hay ningún sector trazado en el mapa. Primero debes pulsar en '➕ ASIGNAR SECTOR / ZONA'.");
-        return;
-      }
-
-      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && z.status !== 'completada' && z.status !== 'no_apto_sector');
-      openDumpModal(firstPendingIdx !== -1 ? firstPendingIdx : savedZones.length - 1);
-    }
-
-    function togglePendingNoteVisibility() {
-      const st = document.getElementById('dumpProgressState').value;
-      const noteGroup = document.getElementById('pendingNoteGroup');
-      if (st === 'en_proceso') {
-        noteGroup.style.display = 'flex';
-      } else {
-        noteGroup.style.display = 'none';
-      }
-    }
-
-    function openDumpModal(idx) {
-      selectedZoneIndexToDump = idx;
-      const z = savedZones[idx];
-      const displayName = z.sectorName || z.town || 'Sector Comercial';
-
-      document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`; return dateStr; }  function openSelectZoneToDumpModal() { const myZones = savedZones.filter(z => (currentUserRole === 'jefe' \vert{}\vert{} z.comercial === currentUserName)); if (myZones.length === 0) { alert("No hay ningún sector trazado en el mapa. Primero debes pulsar en '➕ ASIGNAR SECTOR / ZONA'."); return; }  const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' \vert{}\vert{} z.comercial === currentUserName) && z.status !== 'completada' && z.status !== 'no_apto_sector'); openDumpModal(firstPendingIdx !== -1 ? firstPendingIdx : savedZones.length - 1); }  function togglePendingNoteVisibility() { const st = document.getElementById('dumpProgressState').value; const noteGroup = document.getElementById('pendingNoteGroup'); if (st === 'en_proceso') { noteGroup.style.display = 'flex'; } else { noteGroup.style.display = 'none'; } }  function openDumpModal(idx) { selectedZoneIndexToDump = idx; const z = savedZones[idx]; const displayName = z.sectorName \vert{}\vert{} z.town \vert{}\vert{} 'Sector Comercial';  document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
       document.getElementById('dumpDate').value = z.dumpDate || z.date || new Date().toISOString().split('T')[0];
       document.getElementById('dumpNo').value = z.stats?.no || 0;
       document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
@@ -1139,8 +1036,7 @@
     function switchAuditTab(tab) {
       activeAuditTab = tab;
       document.getElementById('tabBtnObras').className = `tab-btn ${tab==='obras'?'active':''}`;
-      document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`;
-      document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
+      document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`; document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
 
       document.getElementById('dateSelectorGroup').style.display = (tab === 'comerciales') ? 'flex' : 'none';
       renderCurrentAuditView();
@@ -1214,7 +1110,7 @@
         <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalOpportunityM2} m² Listos (${totalOpportunityM2 * 1.0} €)</div>
         <div style="font-size:11px; color:#ecfdf5;">
           • Total Viviendas Captadas: <strong>${totalReadyClients} casas</strong><br>
-          • Prioridad automática por concentración geográfica y volumen de $\text{m}^2$.
+          • Prioridad automática por concentración geográfica y volumen de m².
         </div>
       `;
       container.appendChild(headerBox);
@@ -1239,7 +1135,7 @@
         item.clients.forEach(c => {
           housesHtml += `
             <div style="font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between;">
-              <span>🏡 <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
+              <span>🏡 <strong>${c.name \vert{}\vert{} 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
               <span style="color:#34d399; font-weight:800;">${c.m2Val} m²</span>
             </div>
           `;
@@ -1248,7 +1144,7 @@
         card.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; font-weight:900; color:#ffffff;">
-              #${index + 1} 📍 ${item.town} - ${item.streetName}
+              #${index + 1} 📍 ${item.town} -${item.streetName}
             </span>
             <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px;">
               ${item.totalM2} m² (${clusterEuros} €)
@@ -1327,8 +1223,7 @@
         if (userShift) {
           const inicio = userShift.startTime || 'N/D';
           const fin = userShift.endTime || (userShift.status === 'working' ? 'En Curso' : 'N/D');
-          const comida = userShift.lunchStart ? `${userShift.lunchStart} (${userShift.lunchMinutes || 0} min)` : 'Sin pausa';
-          shiftTimelineHtml = `▶️ Inicio: <strong>${inicio}</strong> | ⏸️ Comida: <strong>${comida}</strong> | ⏹️ Fin: <strong>${fin}</strong>`;
+          const comida = userShift.lunchStart ? `${userShift.lunchStart} (${userShift.lunchMinutes \vert{}\vert{} 0} min)` : 'Sin pausa'; shiftTimelineHtml = `▶️ Inicio: <strong>${inicio}</strong> | ⏸️ Comida: <strong>${comida}</strong> \vert{} ⏹️ Fin: <strong>${fin}</strong>`;
           puertasPorHora = Math.round(s.tocadas / 6);
         }
 
@@ -1356,7 +1251,7 @@
 
                 clientRows += `
                   <div class="client-detail-row">
-                    <span><strong>${cItem.name || 'Cliente'}</strong> (${cItem.street || 'N/D'})</span>
+                    <span><strong>${cItem.name \vert{}\vert{} 'Cliente'}</strong> (${cItem.street || 'N/D'})</span>
                     <span>${badgeStatus} (${cItem.m2||'60-80'} m²)</span>
                   </div>
                 `;
@@ -1399,11 +1294,11 @@
           </div>
 
           <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
-            🚪 Puertas: <strong>${s.tocadas}</strong> | Ritmo: <strong>~${puertasPorHora} puertas/h</strong> | Eficiencia: <strong>${ratioConversion}% Sí</strong>
+            🚪 Puertas: <strong>${s.tocadas}</strong> | Ritmo: <strong>~${puertasPorHora} puertas/h</strong> \vert{} Eficiencia: <strong>${ratioConversion}% Sí</strong>
           </div>
 
           <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:2px;">
-            <span>📅 Citas: <strong>${s.obrasPuestas}</strong> | ✅ Hechas: <strong>${s.obrasRealizadas}</strong></span>
+            <span>📅 Citas: <strong>${s.obrasPuestas}</strong> \vert{} ✅ Hechas: <strong>${s.obrasRealizadas}</strong></span>
             <span style="color:#fca5a5;">🚫 Caídas: <strong>${s.obrasNoAptas}</strong></span>
           </div>
 
@@ -1511,7 +1406,7 @@
 
       summaryCard.innerHTML = `
         <div style="font-size:11px; font-weight:800; color:#cff4fc; text-transform:uppercase;">🏘️ PROGRESO GENERAL DE NAVARRA</div>
-        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${completedCount} / ${townKeys.length} Pueblos Finalizados</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${completedCount} /${townKeys.length} Pueblos Finalizados</div>
         <div style="font-size:11px; color:#e0f2fe;">
           Estado acumulado histórico por municipio.
         </div>
@@ -1537,62 +1432,4 @@
           </div>
 
           <div style="font-size:11px; color:#cbd5e1; margin-top:6px;">
-            🚪 Puertas Totales: <strong>${tm.tocadas}</strong> (Sí: ${tm.si} | Info: ${tm.papelito} | Ausente: ${tm.ausente} | No: ${tm.no})
-          </div>
-
-          <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:4px;">
-            <span>Efectividad: <strong>${conversionRatio}% Sí</strong></span>
-            <span>📅 Citas: <strong>${tm.obrasPuestas}</strong> | ✅ Hechas: <strong>${tm.obrasRealizadas}</strong></span>
-          </div>
-
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px; font-size:11px;">
-            <span style="color:#fca5a5;">🚫 Caídas Técnicas: <strong>${tm.obrasNoAptas}</strong></span>
-            <span style="color:#34d399; font-weight:900;">Facturado: ${totalFacturadoPueblo} € (${tm.m2Ejecutados} m²)</span>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function toggleTownCompletion(townName) {
-      if (currentUserRole !== 'jefe') return;
-
-      const idx = completedTowns.indexOf(townName);
-      if (idx === -1) {
-        completedTowns.push(townName);
-      } else {
-        completedTowns.splice(idx, 1);
-      }
-
-      localStorage.setItem('comercial_completed_towns', JSON.stringify(completedTowns));
-      renderPueblosAudit();
-    }
-
-    function toggleDetailPanel(panelId) {
-      const el = document.getElementById(panelId);
-      if (el) el.classList.toggle('open');
-    }
-
-    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-    function centerOnUser() { map.locate({ setView: true, maxZoom: 18 }); }
-
-    window.onload = () => {
-      const savedRole = sessionStorage.getItem('auth_role');
-      const savedName = sessionStorage.getItem('auth_name');
-      if (savedRole && savedName) {
-        currentUserRole = savedRole;
-        currentUserName = savedName;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'block';
-        setupRoleInterface();
-        updateShiftUI();
-        initMap();
-
-        if (currentUserRole === 'comercial') {
-          showCommercialBriefing();
-        }
-      }
-    };
-  </script>
-</body>
-</html>
+            🚪 Puertas Totales: <strong>${tm.tocadas}</strong> (Sí: ${tm.si} | Info: ${tm.papelito} \vert{} Ausente:${tm.aus
