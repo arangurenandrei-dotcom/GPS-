@@ -142,10 +142,11 @@
     .zone-badge-container {
       background: rgba(15, 23, 42, 0.95) !important; border: 1px solid rgba(255,255,255,0.2) !important;
       border-radius: 10px; padding: 6px 10px !important; color: #fff; transform: translate(-50%, -50%);
-      text-align: center; pointer-events: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      text-align: center; pointer-events: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.5); max-width: 220px;
     }
     .badge-title { font-size: 11px; font-weight: 900; }
     .badge-sub { font-size: 10px; font-weight: 700; color: #60a5fa; margin-top: 2px; }
+    .badge-pending-note { font-size: 10px; font-weight: 800; color: #fde047; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2px; }
 
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
@@ -179,6 +180,10 @@
     .btn-modal-save {
       width: 100%; padding: 14px; border: none; border-radius: 12px;
       background: var(--primary); color: #ffffff; font-size: 13px; font-weight: 800; cursor: pointer; margin-top: 10px;
+    }
+    .btn-modal-delete {
+      padding: 14px; border: 1px solid #ef4444; border-radius: 12px;
+      background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 13px; font-weight: 800; cursor: pointer; margin-top: 10px;
     }
 
     .client-box {
@@ -227,7 +232,6 @@
     }
     .tab-btn.active { background: var(--primary); color: #fff; border-color: #60a5fa; }
 
-    /* ESTILOS PARA FICHA DE TRABAJO INICIAL (COMERCIAL) */
     .priority-card {
       background: rgba(255,255,255,0.05); border-radius: 14px; padding: 12px; margin-bottom: 10px;
       border-left: 4px solid var(--primary); display: flex; flex-direction: column; gap: 4px;
@@ -326,7 +330,7 @@
     </div>
   </div>
 
-  <!-- MODAL FICHA DE INICIO COMERCIAL (PRIORIDADES DEL DÍA) -->
+  <!-- MODAL FICHA DE INICIO COMERCIAL -->
   <div id="briefingModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -337,7 +341,7 @@
     </div>
   </div>
 
-  <!-- MODAL ASIGNACIÓN -->
+  <!-- MODAL ASIGNACIÓN (PLANIFICADOR DE FECHAS) -->
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -346,7 +350,7 @@
       </div>
 
       <div class="input-group">
-        <span class="input-label">📅 Fecha de Agenda</span>
+        <span class="input-label">📅 Fecha de Agenda (Planificación)</span>
         <input type="date" id="assignDate" class="input-field">
       </div>
 
@@ -373,15 +377,15 @@
       </div>
 
       <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px;">
-        <span class="input-label">💬 Instrucción / Nota para el Comercial</span>
-        <input type="text" id="assignBossNote" class="input-field" placeholder="Ej. Rematar primero las casas de la zona alta..." style="width:100%;">
+        <span class="input-label">💬 Instrucción / Nota del Jefe</span>
+        <input type="text" id="assignBossNote" class="input-field" placeholder="Ej. Empezar por la zona este..." style="width:100%;">
       </div>
 
-      <button class="btn-modal-save" onclick="confirmSectorAssignment()">💾 Guardar y Enviar al Mapa</button>
+      <button class="btn-modal-save" onclick="confirmSectorAssignment()">💾 Guardar Sector en la Agenda</button>
     </div>
   </div>
 
-  <!-- MODAL VOLCADO -->
+  <!-- MODAL VOLCADO Y ELIMINACIÓN DE SECTOR -->
   <div id="dumpModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -414,16 +418,26 @@
 
       <div class="input-group">
         <span class="input-label">📌 Estado del Sector</span>
-        <select id="dumpProgressState" class="select-field">
+        <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
           <option value="completada">✅ Sector Terminado Completo</option>
           <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
           <option value="no_apto_sector">⬛ Sector NO APTO (Descarte Técnico)</option>
         </select>
       </div>
 
+      <!-- CAMPO DE ANOTACIÓN PARA PARTE PENDIENTE (COMERCIAL) -->
+      <div id="pendingNoteGroup" class="input-group" style="display:none; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
+        <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
+        <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." style="width:100%;">
+      </div>
+
       <div id="clientsContainer"></div>
 
-      <button class="btn-modal-save" onclick="saveDumpData()">💾 Finalizar Volcado</button>
+      <!-- BOTONES -->
+      <div style="display:flex; gap:8px;">
+        <button class="btn-modal-save" style="flex:3;" onclick="saveDumpData()">💾 Finalizar Volcado</button>
+        <button id="btnDumpDelete" class="btn-modal-delete" style="flex:1; display:none;" onclick="deleteZone(selectedZoneIndexToDump)">🗑️ Borrar</button>
+      </div>
     </div>
   </div>
 
@@ -556,7 +570,6 @@
       }
     }
 
-    // --- POP-UP INICIAL DE PRIORIDADES PARA EL COMERCIAL ---
     function showCommercialBriefing() {
       const container = document.getElementById('briefingContainer');
       container.innerHTML = '';
@@ -574,7 +587,8 @@
               <span style="font-size:10px; font-weight:900; color:#d97706; text-transform:uppercase;">🚨 PRIORIDAD 1: TERMINAR ZONA DE AYER</span>
               <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
               <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
-              ${z.bossNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
+              ${z.pendingNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">✏️ <strong>Pendiente anotado por ti:</strong> "${z.pendingNote}"</div>` : ''}
+              ${z.bossNote ? `<div style="font-size:11px; color:#a78bfa; margin-top:2px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
             </div>
           `;
         });
@@ -587,7 +601,7 @@
               <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">🔵 PRIORIDAD 2: NUEVA ZONA DE HOY</span>
               <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
               <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
-              ${z.bossNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
+              ${z.bossNote ? `<div style="font-size:11px; color:#a78bfa; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
             </div>
           `;
         });
@@ -605,7 +619,6 @@
       document.getElementById('briefingModal').classList.add('active');
     }
 
-    // --- CONTROL DE FICHAJE HORARIO ---
     function getTodayShift(userName) {
       const todayStr = new Date().toDateString();
       return savedShifts.find(s => s.user === userName && new Date(s.date).toDateString() === todayStr);
@@ -712,7 +725,7 @@
         if (results && results.length > 0) {
           map.setView([parseFloat(results[0].lat), parseFloat(results[0].lon)], 16, { animate: true });
         } else {
-          alert("No se encontró el municipio especifico.");
+          alert("No se encontró el municipio especificado.");
         }
       } catch (e) {
         alert("Error al conectar con el mapa.");
@@ -773,6 +786,7 @@
         sectorName,
         comercial,
         bossNote: bossNote || '',
+        pendingNote: '',
         status: 'pendiente',
         points: tempPoints,
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
@@ -828,6 +842,7 @@
           <div class="zone-badge-container">
             <div class="badge-title">${displayName}</div>
             <div class="badge-sub">👤 ${displayComercial} | 📅 ${displayDate}</div>
+            ${z.pendingNote ? `<div class="badge-pending-note">✏️ ${z.pendingNote}</div>` : ''}
           </div>
         `;
 
@@ -860,6 +875,16 @@
       openDumpModal(firstPendingIdx !== -1 ? firstPendingIdx : savedZones.length - 1);
     }
 
+    function togglePendingNoteVisibility() {
+      const st = document.getElementById('dumpProgressState').value;
+      const noteGroup = document.getElementById('pendingNoteGroup');
+      if (st === 'en_proceso') {
+        noteGroup.style.display = 'flex';
+      } else {
+        noteGroup.style.display = 'none';
+      }
+    }
+
     function openDumpModal(idx) {
       selectedZoneIndexToDump = idx;
       const z = savedZones[idx];
@@ -872,9 +897,37 @@
       document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
       document.getElementById('dumpSi').value = z.stats?.si || 0;
       document.getElementById('dumpProgressState').value = z.status || 'completada';
+      document.getElementById('dumpPendingNote').value = z.pendingNote || '';
+
+      togglePendingNoteVisibility();
+
+      const btnDelete = document.getElementById('btnDumpDelete');
+      if (btnDelete) {
+        btnDelete.style.display = (currentUserRole === 'jefe') ? 'block' : 'none';
+      }
 
       renderClientFormFields();
       document.getElementById('dumpModal').classList.add('active');
+    }
+
+    function deleteZone(idx) {
+      if (currentUserRole !== 'jefe') {
+        alert("⛔ Acceso Denegado: Solo Andrei (Jefe de Equipo) puede borrar sectores del mapa.");
+        return;
+      }
+
+      if (idx === null || idx === undefined || !savedZones[idx]) return;
+      const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
+      if (confirm(`¿Seguro que quieres eliminar definitivamente el sector "${zName}" del mapa?`)) {
+        savedZones.splice(idx, 1);
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        closeModal('dumpModal');
+        closeModal('auditModal');
+        renderAllSavedZones();
+        if (document.getElementById('auditModal').classList.contains('active')) {
+          renderCurrentAuditView();
+        }
+      }
     }
 
     function renderClientFormFields() {
@@ -951,6 +1004,7 @@
       };
 
       z.status = document.getElementById('dumpProgressState').value;
+      z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
 
       z.clients = [];
       const clientBoxes = document.querySelectorAll('.client-box');
@@ -973,7 +1027,6 @@
       renderAllSavedZones();
     }
 
-    // AUDITORÍA Y AGENDA DIARIA
     function openAuditModal() {
       renderCurrentAuditView();
       document.getElementById('auditModal').classList.add('active');
@@ -1015,7 +1068,6 @@
         const u = z.comercial || 'Comercial 1';
         if (!stats[u]) return;
 
-        // Comprobar coincidencia de fecha por asignación o por fecha real de volcado
         const zDate = z.dumpDate || z.date;
         if (zDate !== selectedDate) return;
 
@@ -1048,7 +1100,6 @@
         const s = stats[u];
         const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
         
-        // Fichaje del día exacto
         const userShift = savedShifts.find(sh => sh.user === u && new Date(sh.date).toISOString().split('T')[0] === selectedDate);
 
         let shiftTimelineHtml = '🕒 Sin fichaje en esta fecha.';
@@ -1099,9 +1150,13 @@
               <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <span style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})</span>
-                  ${currentUserRole==='jefe' && zoneItem.status==='en_proceso' ? `<button onclick="openNoteModal(${originalIdx})" style="padding:2px 6px; font-size:9px; background:#7c3aed; border:none; border-radius:6px; color:#fff; cursor:pointer;">📌 Añadir Nota</button>` : ''}
+                  <div style="display:flex; gap:4px;">
+                    ${currentUserRole==='jefe' && zoneItem.status==='en_proceso' ? `<button onclick="openNoteModal(${originalIdx})" style="padding:2px 6px; font-size:9px; background:#7c3aed; border:none; border-radius:6px; color:#fff; cursor:pointer;">📌 Nota</button>` : ''}
+                    ${currentUserRole==='jefe' ? `<button onclick="deleteZone(${originalIdx})" style="padding:2px 6px; font-size:9px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; border-radius:6px; color:#fca5a5; cursor:pointer;">🗑️ Borrar</button>` : ''}
+                  </div>
                 </div>
-                ${zoneItem.bossNote ? `<div style="font-size:10px; color:#fde047;">💬 Nota: "${zoneItem.bossNote}"</div>` : ''}
+                ${zoneItem.pendingNote ? `<div style="font-size:10px; color:#fde047;">✏️ Pendiente: "${zoneItem.pendingNote}"</div>` : ''}
+                ${zoneItem.bossNote ? `<div style="font-size:10px; color:#a78bfa;">💬 Nota Jefe: "${zoneItem.bossNote}"</div>` : ''}
                 ${clientRows}
               </div>
             `;
