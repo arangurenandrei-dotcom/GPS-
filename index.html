@@ -145,7 +145,7 @@
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 480px; max-height: 90vh; background: #0f172a;
+      width: 100%; max-width: 500px; max-height: 90vh; background: #0f172a;
       border: 1px solid var(--border-panel); border-radius: 20px; padding: 20px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow-y: auto;
     }
@@ -220,10 +220,10 @@
       border-radius: 8px; padding: 6px 10px; font-size: 10px; color: #e9d5ff; margin-top: 4px;
     }
 
-    .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; overflow-x: auto; }
     .tab-btn {
       flex: 1; padding: 10px 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
-      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 10px; font-weight: 800; cursor: pointer; text-align: center;
+      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 10px; font-weight: 800; cursor: pointer; text-align: center; whitespace: nowrap;
     }
     .tab-btn.active { background: var(--primary); color: #fff; border-color: #60a5fa; }
 
@@ -238,6 +238,17 @@
       background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 12px;
       padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px;
     }
+
+    .kpi-rank-card {
+      background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px; padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .kpi-badge {
+      font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; display: inline-block;
+    }
+    .kpi-badge.top { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .kpi-badge.warning { background: rgba(220, 38, 38, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+    .kpi-badge.ok { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
   </style>
 </head>
 <body>
@@ -410,30 +421,28 @@
       <div class="modal-section-title">📊 Totales del Día en el Papel</div>
       <div class="input-group">
         <span class="input-label">❌ No (Rechazos)</span>
-        <input type="number" id="dumpNo" class="input-field" value="0">
+        <input type="number" id="dumpNo" class="input-field" placeholder="0" onfocus="this.select()">
       </div>
       <div class="input-group">
         <span class="input-label">⏳ Ausentes</span>
-        <input type="number" id="dumpAusente" class="input-field" value="0">
+        <input type="number" id="dumpAusente" class="input-field" placeholder="0" onfocus="this.select()">
       </div>
       <div class="input-group">
         <span class="input-label">📄 Papelito / Pedido Info</span>
-        <input type="number" id="dumpPapelito" class="input-field" value="0">
+        <input type="number" id="dumpPapelito" class="input-field" placeholder="0" onfocus="this.select()">
       </div>
       <div class="input-group">
         <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
-        <input type="number" id="dumpSi" class="input-field" value="0" onchange="renderClientFormFields()">
+        <input type="number" id="dumpSi" class="input-field" placeholder="0" onfocus="this.select()" onchange="renderClientFormFields()">
       </div>
 
-      <!-- ESTADO DE VIVIENDA / SECTOR -->
+      <!-- ESTADO DEL SECTOR (REDUCIDO A LAS 3 CASILLAS INICIALES) -->
       <div class="input-group">
-        <span class="input-label">🏡 Estado de Vivienda / Sector</span>
+        <span class="input-label">🏡 Estado del Sector</span>
         <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
-          <option value="sin_comprobar">⚪ Sin comprobar (De serie / En ruta)</option>
-          <option value="poner_obra">🟢 Listo para PONER OBRA (Agendada/Prioritaria)</option>
+          <option value="sin_comprobar">⚪ Por Hacer</option>
           <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
-          <option value="completada">✅ Sector Terminado Completo</option>
-          <option value="no_apto_sector">⬛ Sector NO APTO (Descarte Técnico)</option>
+          <option value="completada">✅ Terminado</option>
         </select>
       </div>
 
@@ -478,11 +487,12 @@
 
       <div class="tab-bar">
         <div id="tabBtnObras" class="tab-btn active" onclick="switchAuditTab('obras')">🔥 Obras Listas (m²)</div>
+        <div id="tabBtnKpis" class="tab-btn" onclick="switchAuditTab('kpis')">🏆 Ranking & KPIs</div>
         <div id="tabBtnComerciales" class="tab-btn" onclick="switchAuditTab('comerciales')">🗓️ Agenda Día</div>
         <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos</div>
       </div>
 
-      <div id="dateSelectorGroup" class="input-group">
+      <div id="dateSelectorGroup" class="input-group" style="display:none;">
         <span class="input-label">📅 Seleccionar Fecha Exacta</span>
         <input type="date" id="auditDateSelect" class="input-field" onchange="renderCurrentAuditView()">
       </div>
@@ -522,6 +532,15 @@
         const item = localStorage.getItem(key);
         return item ? JSON.parse(item) : [];
       } catch (e) { return []; }
+    }
+
+    function getM2NumericValue(m2Str) {
+      if (m2Str === '45-60') return 50;
+      if (m2Str === '60-80') return 70;
+      if (m2Str === '80-100') return 90;
+      if (m2Str === '100-150') return 125;
+      if (m2Str === '150+') return 160;
+      return 70;
     }
 
     function executeLogin() {
@@ -587,7 +606,7 @@
 
       const myZones = savedZones.filter(z => z.comercial === currentUserName);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
-      const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar');
+      const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer');
 
       let html = '';
 
@@ -822,14 +841,8 @@
         let polyColor = '#2563eb';
         let dashArray = '6, 6';
 
-        if (z.status === 'poner_obra') {
-          polyColor = '#10b981'; // VERDE NEÓN PARA ZONAS DE OBRA LISTA
-          dashArray = null;
-        } else if (z.status === 'en_proceso') {
+        if (z.status === 'en_proceso') {
           polyColor = '#d97706';
-          dashArray = null;
-        } else if (z.status === 'no_apto_sector') {
-          polyColor = '#0f172a';
           dashArray = null;
         } else if (z.status === 'completada') {
           dashArray = null;
@@ -885,7 +898,7 @@
         return;
       }
 
-      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && z.status !== 'completada' && z.status !== 'no_apto_sector');
+      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && z.status !== 'completada');
       openDumpModal(firstPendingIdx !== -1 ? firstPendingIdx : savedZones.length - 1);
     }
 
@@ -906,10 +919,13 @@
 
       document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
       document.getElementById('dumpDate').value = z.dumpDate || z.date || new Date().toISOString().split('T')[0];
-      document.getElementById('dumpNo').value = z.stats?.no || 0;
-      document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
-      document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
-      document.getElementById('dumpSi').value = z.stats?.si || 0;
+      
+      // SIN '0' DE SERIE (EN BLANCO CON PLACEHOLDER)
+      document.getElementById('dumpNo').value = z.stats?.no ? z.stats.no : '';
+      document.getElementById('dumpAusente').value = z.stats?.ausente ? z.stats.ausente : '';
+      document.getElementById('dumpPapelito').value = z.stats?.papelito ? z.stats.papelito : '';
+      document.getElementById('dumpSi').value = z.stats?.si ? z.stats.si : '';
+      
       document.getElementById('dumpProgressState').value = z.status || 'sin_comprobar';
       document.getElementById('dumpPendingNote').value = z.pendingNote || '';
 
@@ -1064,9 +1080,12 @@
             <select class="select-field client-m2" style="flex:1;">
               <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
               <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
-              <option value="80+" ${existing.m2==='80+'?'selected':''}>80+ m² (Alto ⭐)</option>
+              <option value="80-100" ${existing.m2==='80-100'?'selected':''}>80 - 100 m² (Alto)</option>
+              <option value="100-150" ${existing.m2==='100-150'?'selected':''}>100 - 150 m² (Muy Alto ⭐)</option>
+              <option value="150+" ${existing.m2==='150+'?'selected':''}>+150 m² (Premium 🔥)</option>
             </select>
             <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
+              <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>⏳ Obra A PONER (Automática)</option>
               <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
               <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
               <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
@@ -1076,6 +1095,7 @@
           <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
             <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
             <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
+              <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción > 2006 (No Apto CAE)</option>
               <option value="m2_insuficiente" ${existing.obraReason==='m2_insuficiente'?'selected':''}>📐 Superficie m² insuficiente</option>
               <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Aislamiento previo existente</option>
               <option value="suelo_forjado" ${existing.obraReason==='suelo_forjado'?'selected':''}>🏗️ Problema en suelo / forjado</option>
@@ -1139,6 +1159,7 @@
     function switchAuditTab(tab) {
       activeAuditTab = tab;
       document.getElementById('tabBtnObras').className = `tab-btn ${tab==='obras'?'active':''}`;
+      document.getElementById('tabBtnKpis').className = `tab-btn ${tab==='kpis'?'active':''}`;
       document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`;
       document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
 
@@ -1149,6 +1170,8 @@
     function renderCurrentAuditView() {
       if (activeAuditTab === 'obras') {
         renderObrasOptimizationAudit();
+      } else if (activeAuditTab === 'kpis') {
+        renderKpisAudit();
       } else if (activeAuditTab === 'comerciales') {
         renderComercialesAudit();
       } else {
@@ -1156,7 +1179,7 @@
       }
     }
 
-    // PESTAÑA PRINCIPAL DEL JEFE DE EQUIPO: MAXIMIZACIÓN DE m² Y ORGANIZACIÓN DE CUADRILLAS
+    // PESTAÑA OPTIMIZACIÓN DE OBRAS
     function renderObrasOptimizationAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1171,10 +1194,7 @@
         z.clients.forEach(c => {
           if (c.obraStatus === 'no_apto') return;
 
-          let m2Val = 70;
-          if (c.m2 === '45-60') m2Val = 50;
-          if (c.m2 === '80+') m2Val = 90;
-
+          let m2Val = getM2NumericValue(c.m2);
           const town = z.town || 'Navarra';
           const streetRaw = (c.street || 'Calle Sin Nombre').trim();
           const key = `${town}___${streetRaw}`;
@@ -1199,7 +1219,6 @@
         });
       });
 
-      // ORDENAR CALLES POR VOLUMEN TOTAL DE m² (MAYOR A MENOR RENTABILIDAD)
       const sortedStreets = Object.values(streetClusters).sort((a, b) => b.totalM2 - a.totalM2);
 
       const headerBox = document.createElement('div');
@@ -1266,6 +1285,149 @@
       });
     }
 
+    // PESTAÑA NUEVA: RANKING & KPIS GLOBALES PARA EL JEFE
+    function renderKpisAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      const statsMap = {};
+
+      usersList.forEach(u => {
+        statsMap[u] = {
+          name: u,
+          daysWorked: 0,
+          totalTocadas: 0,
+          totalSi: 0,
+          totalNo: 0,
+          totalAusente: 0,
+          totalPapelito: 0,
+          m2Ejecutados: 0,
+          dineroJefeGenerado: 0,
+          dineroComercialGanado: 0,
+          obrasRealizadasCount: 0,
+          obrasNoAptasCount: 0,
+          datesSet: new Set()
+        };
+      });
+
+      // Recorrer todas las zonas acumuladas
+      savedZones.forEach(z => {
+        const u = z.comercial || 'Comercial 1';
+        if (!statsMap[u]) return;
+
+        const st = z.stats || {};
+        const zDate = z.dumpDate || z.date;
+        if (zDate) statsMap[u].datesSet.add(zDate);
+
+        const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        statsMap[u].totalTocadas += tocadas;
+        statsMap[u].totalNo += (st.no||0);
+        statsMap[u].totalAusente += (st.ausente||0);
+        statsMap[u].totalPapelito += (st.papelito||0);
+        statsMap[u].totalSi += (st.si||0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            let m2Val = getM2NumericValue(c.m2);
+            if (c.obraStatus === 'realizada') {
+              statsMap[u].obrasRealizadasCount += 1;
+              statsMap[u].m2Ejecutados += m2Val;
+            } else if (c.obraStatus === 'no_apto') {
+              statsMap[u].obrasNoAptasCount += 1;
+            }
+          });
+        }
+      });
+
+      // Calcular comisiones y días
+      let totalEmpresaMetro2 = 0;
+      let totalEmpresaDineroJefe = 0;
+
+      usersList.forEach(u => {
+        const s = statsMap[u];
+        s.daysWorked = Math.max(1, s.datesSet.size);
+
+        if (u === 'Andrei (Jefe)') {
+          s.dineroComercialGanado = s.m2Ejecutados * 1.0;
+          s.dineroJefeGenerado = s.m2Ejecutados * 1.0;
+        } else {
+          s.dineroComercialGanado = s.m2Ejecutados * 0.85;
+          s.dineroJefeGenerado = s.m2Ejecutados * 0.15; // 15% override
+        }
+
+        totalEmpresaMetro2 += s.m2Ejecutados;
+        totalEmpresaDineroJefe += s.dineroJefeGenerado;
+      });
+
+      // Ordenar comerciales por dinero aportado al Jefe (mayor a menor)
+      const sortedRank = Object.values(statsMap).sort((a, b) => b.dineroJefeGenerado - a.dineroJefeGenerado);
+
+      const headerBox = document.createElement('div');
+      headerBox.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
+      headerBox.style.border = '1px solid #a78bfa';
+      headerBox.style.borderRadius = '16px';
+      headerBox.style.padding = '14px';
+      headerBox.style.marginBottom = '14px';
+
+      headerBox.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">📊 BALANCE ACUMULADO GLOBAL</div>
+        <div style="font-size:24px; font-weight:900; color:#ffffff; margin:4px 0;">${totalEmpresaDineroJefe.toFixed(2)} € Tu Margen Total</div>
+        <div style="font-size:11px; color:#ddd6fe;">
+          • Metros Ejecutados Equipo: <strong>${totalEmpresaMetro2} m²</strong><br>
+          • Rendimiento medio y rentabilidad real histórica por comercial.
+        </div>
+      `;
+      container.appendChild(headerBox);
+
+      sortedRank.forEach((s, rankIdx) => {
+        const avgSiPerDay = (s.totalSi / s.daysWorked).toFixed(1);
+        const avgTocadasPerDay = Math.round(s.totalTocadas / s.daysWorked);
+        const conversionRate = s.totalTocadas > 0 ? ((s.totalSi / s.totalTocadas) * 100).toFixed(1) : '0';
+
+        let badgeClass = 'ok';
+        let badgeText = '🟢 EN OBJETIVO';
+
+        if (rankIdx === 0 && s.dineroJefeGenerado > 0) {
+          badgeClass = 'top';
+          badgeText = '🥇 TOP RENTABILIDAD';
+        } else if (parseFloat(avgSiPerDay) < 2.0 && s.daysWorked >= 1) {
+          badgeClass = 'warning';
+          badgeText = '⚠️ ALERTA / MASTERCLASS REQUERIDA';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'kpi-rank-card';
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong style="font-size:14px; color:#fff;">#${rankIdx + 1} ${s.name}</strong>
+              <div style="margin-top:2px;"><span class="kpi-badge ${badgeClass}">${badgeText}</span></div>
+            </div>
+            <div style="text-align:right;">
+              <span class="financial-pill" style="font-size:12px;">Margen Jefe: ${s.dineroJefeGenerado.toFixed(2)} €</span>
+              <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Paga Comercial: ${s.dineroComercialGanado.toFixed(2)} €</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; background:rgba(0,0,0,0.25); padding:8px; border-radius:10px; font-size:11px; margin-top:4px;">
+            <div>📈 Promedio "Sí"/Día: <strong style="color:#34d399;">${avgSiPerDay} SÍ / día</strong></div>
+            <div>🚪 Ritmo Puertas: <strong>~${avgTocadasPerDay} / día</strong></div>
+            <div>🎯 Efectividad: <strong>${conversionRate}% Sí</strong></div>
+            <div>🏗️ m² Ejecutados: <strong>${s.m2Ejecutados} m²</strong></div>
+          </div>
+
+          <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:2px;">
+            <span>📅 Días Activos: <strong>${s.daysWorked} días</strong></span>
+            <span>✅ Hechas: <strong>${s.obrasRealizadasCount}</strong> | 🚫 Caídas: <strong style="color:#fca5a5;">${s.obrasNoAptasCount}</strong></span>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
     function renderComercialesAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1300,11 +1462,9 @@
 
         if (z.clients) {
           z.clients.forEach(c => {
-            let m2Val = 70;
-            if (c.m2 === '45-60') m2Val = 50;
-            if (c.m2 === '80+') m2Val = 90;
+            let m2Val = getM2NumericValue(c.m2);
 
-            if (c.obraStatus === 'agendada') stats[u].obrasPuestas += 1;
+            if (c.obraStatus === 'agendada' || c.obraStatus === 'a_poner') stats[u].obrasPuestas += 1;
             else if (c.obraStatus === 'realizada') {
               stats[u].obrasRealizadas += 1;
               stats[u].m2Ejecutados += m2Val;
@@ -1482,11 +1642,9 @@
 
         if (z.clients) {
           z.clients.forEach(c => {
-            let m2Val = 70;
-            if (c.m2 === '45-60') m2Val = 50;
-            if (c.m2 === '80+') m2Val = 90;
+            let m2Val = getM2NumericValue(c.m2);
 
-            if (c.obraStatus === 'agendada') tm.obrasPuestas += 1;
+            if (c.obraStatus === 'agendada' || c.obraStatus === 'a_poner') tm.obrasPuestas += 1;
             else if (c.obraStatus === 'realizada') {
               tm.obrasRealizadas += 1;
               tm.m2Ejecutados += m2Val;
