@@ -17,6 +17,7 @@
       --accent-yellow: #d97706;
       --accent-red: #dc2626;
       --accent-purple: #7c3aed;
+      --accent-cyan: #0891b2;
     }
 
     * {
@@ -100,7 +101,6 @@
     .btn-hud.jefe-action { background: #7c3aed; border-color: #a78bfa; }
     .btn-hud.logout { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 
-    /* FICHAJE HORARIO EN EL HUD */
     .shift-bar {
       display: flex; justify-content: space-between; align-items: center;
       background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
@@ -154,7 +154,7 @@
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 450px; max-height: 90vh; background: #0f172a;
+      width: 100%; max-width: 460px; max-height: 90vh; background: #0f172a;
       border: 1px solid var(--border-panel); border-radius: 20px; padding: 20px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow-y: auto;
     }
@@ -219,6 +219,14 @@
       background: rgba(124, 58, 237, 0.15); border: 1px solid rgba(167, 139, 250, 0.3);
       border-radius: 8px; padding: 6px 10px; font-size: 10px; color: #e9d5ff; margin-top: 4px;
     }
+
+    /* PESTAÑAS DE AUDITORÍA */
+    .tab-bar { display: flex; gap: 6px; margin-bottom: 12px; }
+    .tab-btn {
+      flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 11px; font-weight: 800; cursor: pointer; text-align: center;
+    }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: #60a5fa; }
   </style>
 </head>
 <body>
@@ -268,7 +276,7 @@
       </div>
     </div>
 
-    <!-- HUD SUPERIOR CON FICHAJE HORARIO -->
+    <!-- HUD SUPERIOR -->
     <div class="hud-header">
       <div class="hud-top-row">
         <div class="user-pill">
@@ -276,13 +284,12 @@
           <span id="displayUserName" style="font-size:13px; font-weight:800;">Andrei</span>
         </div>
         <div style="display:flex; gap:6px;">
-          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Auditoría & Tiempos</button>
+          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Auditoría & Pueblos</button>
           <button class="btn-hud" onclick="centerOnUser()">🎯 Mi GPS</button>
           <button class="btn-hud logout" onclick="executeLogout()">🔒 Salir</button>
         </div>
       </div>
 
-      <!-- BARRA DE FICHAJE DE JORNADA -->
       <div class="shift-bar">
         <div class="shift-status-pill" id="shiftStatusText">
           🔴 Fuera de Jornada
@@ -321,6 +328,11 @@
       </div>
 
       <div class="input-group">
+        <span class="input-label">📅 Fecha de Asignación</span>
+        <input type="date" id="assignDate" class="input-field">
+      </div>
+
+      <div class="input-group">
         <span class="input-label">Pueblo / Municipio</span>
         <input type="text" id="assignTown" class="input-field" value="Peralta">
       </div>
@@ -352,6 +364,11 @@
       <div class="modal-header">
         <span id="dumpModalTitle">Volcado de Hoja de Trabajo</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('dumpModal')">✕</button>
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">📅 Fecha de Trabajo</span>
+        <input type="date" id="dumpDate" class="input-field">
       </div>
 
       <div class="modal-section-title">📊 Totales del Día en el Papel</div>
@@ -387,17 +404,22 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA CON CONTROL HORARIO Y TIEMPOS -->
+  <!-- MODAL AUDITORÍA CON PESTAÑAS (COMERCIALES VS PUEBLOS) -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📊 Control Horario, Rendimiento & Comisiones</span>
+        <span>📊 Panel de Control & Auditoría</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
 
+      <div class="tab-bar">
+        <div id="tabBtnComerciales" class="tab-btn active" onclick="switchAuditTab('comerciales')">👥 Comerciales</div>
+        <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos & Municipio</div>
+      </div>
+
       <div class="input-group">
-        <span class="input-label">📅 Periodo de Análisis</span>
-        <select id="auditPeriodFilter" class="select-field" onchange="openAuditModal()">
+        <span class="input-label">📅 Periodo</span>
+        <select id="auditPeriodFilter" class="select-field" onchange="renderCurrentAuditView()">
           <option value="hoy">Hoy (Jornada Activa)</option>
           <option value="mes">Este Mes (Noviembre 2026)</option>
           <option value="historico">Todo el Histórico</option>
@@ -425,11 +447,13 @@
     let currentUserName = null;
     let savedZones = safeLoadStorage('comercial_custom_zones');
     let savedShifts = safeLoadStorage('comercial_shifts');
+    let completedTowns = safeLoadStorage('comercial_completed_towns');
     let loadedMapLayers = [];
     let tempPoints = [];
     let tempMarkers = [];
     let isDrawingMode = false;
     let selectedZoneIndexToDump = null;
+    let activeAuditTab = 'comerciales';
 
     function safeLoadStorage(key) {
       try {
@@ -491,7 +515,6 @@
       }
     }
 
-    // --- MOTOR DE FICHAJE HORARIO ---
     function getTodayShift(userName) {
       const todayStr = new Date().toDateString();
       return savedShifts.find(s => s.user === userName && new Date(s.date).toDateString() === todayStr);
@@ -578,6 +601,11 @@
       map = L.map('map', { zoomControl: false, attributionControl: false }).setView([42.3486, -1.8011], 16);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
+      // Pre-cargar fecha de hoy en el modal de asignación
+      const todayIso = new Date().toISOString().split('T')[0];
+      document.getElementById('assignDate').value = todayIso;
+      document.getElementById('dumpDate').value = todayIso;
+
       renderAllSavedZones();
       map.on('click', handleMapClick);
     }
@@ -635,6 +663,7 @@
     }
 
     function confirmSectorAssignment() {
+      const dateVal = document.getElementById('assignDate').value || new Date().toISOString().split('T')[0];
       const town = document.getElementById('assignTown').value.trim() || 'Peralta';
       let sectorName = document.getElementById('assignSectorName').value.trim();
       
@@ -647,7 +676,8 @@
 
       savedZones.push({
         id: Date.now(),
-        timestamp: Date.now(),
+        date: dateVal,
+        timestamp: new Date(dateVal).getTime(),
         town,
         sectorName,
         comercial,
@@ -700,11 +730,12 @@
         const center = polygon.getBounds().getCenter();
         const displayName = z.sectorName || z.town || 'Sector Comercial';
         const displayComercial = z.comercial || 'Comercial';
+        const displayDate = z.date ? formatDate(z.date) : '';
 
         const badgeHtml = `
           <div class="zone-badge-container">
             <div class="badge-title">${displayName}</div>
-            <div class="badge-sub">👤 ${displayComercial}</div>
+            <div class="badge-sub">👤 ${displayComercial} ${displayDate ? '| 📅 ' + displayDate : ''}</div>
           </div>
         `;
 
@@ -717,6 +748,13 @@
         loadedMapLayers.push(polygon);
         loadedMapLayers.push(marker);
       });
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
     }
 
     function openSelectZoneToDumpModal() {
@@ -736,6 +774,7 @@
       const displayName = z.sectorName || z.town || 'Sector Comercial';
 
       document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
+      document.getElementById('dumpDate').value = z.date || new Date().toISOString().split('T')[0];
       document.getElementById('dumpNo').value = z.stats?.no || 0;
       document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
       document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
@@ -810,6 +849,10 @@
       if (selectedZoneIndexToDump === null) return;
 
       const z = savedZones[selectedZoneIndexToDump];
+      const dateVal = document.getElementById('dumpDate').value;
+      z.date = dateVal;
+      z.timestamp = new Date(dateVal).getTime();
+
       z.stats = {
         no: parseInt(document.getElementById('dumpNo').value) || 0,
         ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
@@ -840,8 +883,29 @@
       renderAllSavedZones();
     }
 
-    // AUDITORÍA INTEGRADA CON TIEMPOS, PUERTAS/HORA Y LÍNEA DE TIEMPO
+    // NAVEGACIÓN Y AUDITORÍA MULTI-PESTAÑA
     function openAuditModal() {
+      renderCurrentAuditView();
+      document.getElementById('auditModal').classList.add('active');
+    }
+
+    function switchAuditTab(tab) {
+      activeAuditTab = tab;
+      document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`;
+      document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
+      renderCurrentAuditView();
+    }
+
+    function renderCurrentAuditView() {
+      if (activeAuditTab === 'comerciales') {
+        renderComercialesAudit();
+      } else {
+        renderPueblosAudit();
+      }
+    }
+
+    // AUDITORÍA POR COMERCIALES
+    function renderComercialesAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
@@ -864,7 +928,7 @@
         const u = z.comercial || 'Comercial 1';
         if (!stats[u]) return;
 
-        const zoneDate = z.timestamp ? new Date(z.timestamp) : new Date();
+        const zoneDate = z.date ? new Date(z.date) : new Date();
         if (filterPeriod === 'hoy') {
           if (zoneDate.toDateString() !== now.toDateString()) return;
         } else if (filterPeriod === 'mes') {
@@ -904,8 +968,6 @@
       usersList.forEach((u, uIdx) => {
         const s = stats[u];
         const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
-        
-        // Obtener datos de fichaje horario del periodo
         const userShift = savedShifts.find(sh => sh.user === u && (filterPeriod !== 'hoy' || new Date(sh.date).toDateString() === now.toDateString()));
 
         let shiftTimelineHtml = '🕒 Sin registro de fichaje en este periodo.';
@@ -916,9 +978,7 @@
           const fin = userShift.endTime || (userShift.status === 'working' ? 'En Curso' : 'N/D');
           const comida = userShift.lunchStart ? `${userShift.lunchStart} (${userShift.lunchMinutes || 0} min)` : 'Sin pausa';
           shiftTimelineHtml = `▶️ Inicio: <strong>${inicio}</strong> | ⏸️ Comida: <strong>${comida}</strong> | ⏹️ Fin: <strong>${fin}</strong>`;
-
-          // Estimación aproximada de puertas/hora
-          puertasPorHora = Math.round(s.tocadas / 6); // Base de jornada estándar de 6h de campo
+          puertasPorHora = Math.round(s.tocadas / 6);
         }
 
         let cobradoComercial = 0;
@@ -954,7 +1014,7 @@
 
             detailsHtml += `
               <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 6px;">
-                <div style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})</div>
+                <div style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town}) - ${formatDate(zoneItem.date)}</div>
                 ${clientRows}
               </div>
             `;
@@ -1014,7 +1074,137 @@
       `;
 
       container.prepend(bossTotalCard);
-      document.getElementById('auditModal').classList.add('active');
+    }
+
+    // AUDITORÍA POR PUEBLOS Y ESTADÍSTICAS MUNICIPALES
+    function renderPueblosAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const filterPeriod = document.getElementById('auditPeriodFilter')?.value || 'hoy';
+      const townsMap = {};
+      const now = new Date();
+
+      savedZones.forEach(z => {
+        const t = z.town || 'Peralta';
+        const zoneDate = z.date ? new Date(z.date) : new Date();
+
+        if (filterPeriod === 'hoy') {
+          if (zoneDate.toDateString() !== now.toDateString()) return;
+        } else if (filterPeriod === 'mes') {
+          if (zoneDate.getMonth() !== now.getMonth() || zoneDate.getFullYear() !== now.getFullYear()) return;
+        }
+
+        if (!townsMap[t]) {
+          townsMap[t] = {
+            name: t,
+            tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0,
+            obrasPuestas: 0, obrasRealizadas: 0, obrasNoAptas: 0,
+            m2Ejecutados: 0, sectoresCount: 0
+          };
+        }
+
+        const tm = townsMap[t];
+        const st = z.stats || {};
+        tm.no += st.no || 0;
+        tm.ausente += st.ausente || 0;
+        tm.papelito += st.papelito || 0;
+        tm.si += st.si || 0;
+        tm.tocadas += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        tm.sectoresCount += 1;
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            let m2Val = 70;
+            if (c.m2 === '45-60') m2Val = 50;
+            if (c.m2 === '80+') m2Val = 90;
+
+            if (c.obraStatus === 'agendada') tm.obrasPuestas += 1;
+            else if (c.obraStatus === 'realizada') {
+              tm.obrasRealizadas += 1;
+              tm.m2Ejecutados += m2Val;
+            } else if (c.obraStatus === 'no_apto') tm.obrasNoAptas += 1;
+          });
+        }
+      });
+
+      const townKeys = Object.keys(townsMap);
+      let completedCount = 0;
+
+      townKeys.forEach(tName => {
+        if (completedTowns.includes(tName)) completedCount++;
+      });
+
+      // TARJETA DE RESUMEN DE PUEBLOS
+      const summaryCard = document.createElement('div');
+      summaryCard.style.background = 'linear-gradient(135deg, #0891b2 0%, #155e75 100%)';
+      summaryCard.style.border = '1px solid #67e8f9';
+      summaryCard.style.borderRadius = '14px';
+      summaryCard.style.padding = '14px';
+      summaryCard.style.marginBottom = '12px';
+
+      summaryCard.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#cff4fc; text-transform:uppercase;">🏘️ PROGRESO GENERAL DE NAVARRA</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${completedCount} / ${townKeys.length} Pueblos Finalizados</div>
+        <div style="font-size:11px; color:#e0f2fe;">
+          Control de cobertura de municipios trabajados por el equipo.
+        </div>
+      `;
+      container.appendChild(summaryCard);
+
+      if (townKeys.length === 0) {
+        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center;">No hay registros de zonas en pueblos para el periodo seleccionado.</div>`;
+        return;
+      }
+
+      townKeys.forEach((tName) => {
+        const tm = townsMap[tName];
+        const isCompleted = completedTowns.includes(tName);
+        const conversionRatio = tm.tocadas > 0 ? Math.round((tm.si / tm.tocadas) * 100) : 0;
+        const totalFacturadoPueblo = tm.m2Ejecutados * 1.0;
+
+        const card = document.createElement('div');
+        card.className = 'audit-card';
+        card.style.cursor = 'default';
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#38bdf8; font-size:14px;">📍 ${tName}</strong>
+            <button onclick="toggleTownCompletion('${tName}')" style="padding:4px 10px; border-radius:8px; border:none; font-size:10px; font-weight:800; cursor:pointer; background:${isCompleted?'#059669':'#d97706'}; color:#fff;">
+              ${isCompleted ? '✅ COMPLETADO' : '🟡 MARCAR FINALIZADO'}
+            </button>
+          </div>
+
+          <div style="font-size:11px; color:#cbd5e1; margin-top:6px;">
+            🚪 Puertas Totales: <strong>${tm.tocadas}</strong> (Sí: ${tm.si} | Info: ${tm.papelito} | Ausente: ${tm.ausente} | No: ${tm.no})
+          </div>
+
+          <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:4px;">
+            <span>Efectividad: <strong>${conversionRatio}% Sí</strong></span>
+            <span>📅 Citas: <strong>${tm.obrasPuestas}</strong> | ✅ Hechas: <strong>${tm.obrasRealizadas}</strong></span>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px; font-size:11px;">
+            <span style="color:#fca5a5;">🚫 Caídas Técnicas: <strong>${tm.obrasNoAptas}</strong></span>
+            <span style="color:#34d399; font-weight:900;">Facturado: ${totalFacturadoPueblo} € (${tm.m2Ejecutados} m²)</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleTownCompletion(townName) {
+      if (currentUserRole !== 'jefe') return;
+
+      const idx = completedTowns.indexOf(townName);
+      if (idx === -1) {
+        completedTowns.push(townName);
+      } else {
+        completedTowns.splice(idx, 1);
+      }
+
+      localStorage.setItem('comercial_completed_towns', JSON.stringify(completedTowns));
+      renderPueblosAudit();
     }
 
     function toggleDetailPanel(panelId) {
