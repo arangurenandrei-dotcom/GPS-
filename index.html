@@ -3,23 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Plataforma de Control Comercial - Buhardillas</title>
+  <title>Sistema de Gestión Comercial y Logística de Obras</title>
   
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
-  <!-- Firebase SDKs (Compat) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
   <style>
     :root {
       --bg-dark: #0f172a;
       --bg-panel: rgba(15, 23, 42, 0.96);
       --border-panel: rgba(255, 255, 255, 0.15);
       --primary: #2563eb;
-      --primary-hover: #1d4ed8;
       --accent-green: #059669;
       --accent-yellow: #d97706;
       --accent-red: #dc2626;
@@ -42,7 +35,7 @@
       color: #f8fafc;
     }
 
-    /* PANTALLA COMPLETA DE LOGIN OBLIGATORIO */
+    /* PANTALLA DE LOGIN */
     #loginScreen {
       position: fixed;
       inset: 0;
@@ -57,357 +50,146 @@
     .login-card {
       width: 100%;
       max-width: 360px;
-      background: rgba(30, 41, 59, 0.85);
+      background: rgba(30, 41, 59, 0.9);
       backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 24px;
-      padding: 28px 22px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      padding: 26px 20px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
 
-    .login-header {
-      text-align: center;
-    }
+    .login-title { font-size: 20px; font-weight: 900; text-align: center; }
+    .login-subtitle { font-size: 12px; color: #94a3b8; text-align: center; margin-top: -10px; }
 
-    .login-title {
-      font-size: 20px;
-      font-weight: 900;
-      color: #ffffff;
-      letter-spacing: -0.5px;
-    }
-
-    .login-subtitle {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 4px;
-      font-weight: 600;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .form-label {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #cbd5e1;
-    }
-
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #cbd5e1; }
     .form-select, .form-input {
-      width: 100%;
-      background: #0f172a;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      padding: 12px 14px;
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 700;
-      outline: none;
-      transition: border-color 0.2s ease;
-    }
-
-    .form-select:focus, .form-input:focus {
-      border-color: var(--primary);
+      width: 100%; background: #0f172a; border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px; padding: 12px; color: #fff; font-size: 14px; font-weight: 700; outline: none;
     }
 
     .btn-login {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 14px;
-      background: var(--primary);
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
-      margin-top: 6px;
+      width: 100%; padding: 14px; border: none; border-radius: 14px;
+      background: var(--primary); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer;
     }
 
-    .btn-login:active {
-      transform: scale(0.98);
-    }
-
-    .login-error {
-      display: none;
-      background: rgba(220, 38, 38, 0.2);
-      border: 1px solid #ef4444;
-      color: #fca5a5;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 8px 12px;
-      border-radius: 10px;
-      text-align: center;
-    }
-
-    /* APLICACIÓN PRINCIPAL (OCULTA HASTA AUTENTICAR) */
-    #appContainer {
-      display: none;
-      width: 100vw;
-      height: 100vh;
-      position: relative;
-    }
-
-    #map {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 1;
-      background: #1e293b;
-    }
+    /* APP MAIN */
+    #appContainer { display: none; width: 100vw; height: 100vh; position: relative; }
+    #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
     /* HUD SUPERIOR */
     .hud-header {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      right: 12px;
-      z-index: 1000;
-      background: var(--bg-panel);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--border-panel);
-      border-radius: 18px;
-      padding: 10px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
+      background: var(--bg-panel); backdrop-filter: blur(16px);
+      border: 1px solid var(--border-panel); border-radius: 18px; padding: 10px 14px;
+      display: flex; flex-direction: column; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
-    .hud-top-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .user-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .role-badge {
-      font-size: 10px;
-      font-weight: 900;
-      padding: 4px 8px;
-      border-radius: 8px;
-      text-transform: uppercase;
-    }
-
+    .hud-top-row { display: flex; justify-content: space-between; align-items: center; }
+    .user-pill { display: flex; align-items: center; gap: 8px; }
+    .role-badge { font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; }
     .role-badge.jefe { background: #7c3aed; color: #fff; border: 1px solid #a78bfa; }
     .role-badge.comercial { background: #2563eb; color: #fff; border: 1px solid #60a5fa; }
 
-    .nav-actions {
-      display: flex;
-      gap: 6px;
-    }
-
     .btn-hud {
-      padding: 7px 12px;
-      border: 1px solid var(--border-panel);
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
+      padding: 8px 12px; border: 1px solid var(--border-panel); border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+    .btn-hud.jefe-action { background: #7c3aed; border-color: #a78bfa; }
+    .btn-hud.logout { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+
+    /* PANEL INFERIOR LIMPIO DE ACCIÓN */
+    .bottom-action-panel {
+      position: absolute; bottom: 20px; left: 12px; right: 12px; z-index: 1000;
+      display: flex; gap: 8px;
     }
 
-    .btn-hud.jefe-btn {
-      background: #7c3aed;
-      border-color: #a78bfa;
+    .btn-main-action {
+      flex: 1; padding: 16px; border: none; border-radius: 16px;
+      color: #fff; font-size: 13px; font-weight: 900; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; gap: 8px;
     }
+    .btn-assign { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); border: 1px solid #a78bfa; }
+    .btn-dump { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border: 1px solid #60a5fa; }
 
-    .btn-hud.logout-btn {
-      background: rgba(239, 68, 68, 0.2);
-      border-color: rgba(239, 68, 68, 0.4);
-      color: #fca5a5;
+    /* BANNER DE TRAZADO */
+    .banner-drawing {
+      display: none; position: absolute; top: 100px; left: 12px; right: 12px; z-index: 1000;
+      background: #7c3aed; border-radius: 14px; padding: 12px 16px; color: white;
+      font-size: 12px; font-weight: 800; justify-content: space-between; align-items: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
     }
+    .banner-drawing.active { display: flex; }
 
-    /* CONTROLES INFERIORES */
-    .controls-panel {
-      position: absolute;
-      bottom: 20px;
-      left: 12px;
-      right: 12px;
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    /* ETIQUETAS EN EL MAPA */
+    .zone-badge-container {
+      background: rgba(15, 23, 42, 0.95) !important; border: 1px solid rgba(255,255,255,0.2) !important;
+      border-radius: 10px; padding: 6px 10px !important; color: #fff; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.5);
     }
+    .badge-title { font-size: 11px; font-weight: 900; }
+    .badge-sub { font-size: 10px; font-weight: 700; color: #60a5fa; margin-top: 2px; }
 
-    .categories-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-    }
-
-    .btn-cat {
-      padding: 12px 8px;
-      border: none;
-      border-radius: 12px;
-      color: #ffffff;
-      font-size: 11px;
-      font-weight: 800;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-
-    .cat-buena { background: #059669; }
-    .cat-regular { background: #d97706; }
-    .cat-mala { background: #dc2626; }
-    .cat-noapto { background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.25); }
-    .cat-unifamiliar { background: #0284c7; }
-    .cat-comunidad { background: #7c3aed; }
-
-    /* MODALES FLOTANTES */
+    /* MODALES */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
+      display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;
     }
-
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%;
-      max-width: 420px;
-      max-height: 90vh;
-      background: #0f172a;
-      border: 1px solid var(--border-panel);
-      border-radius: 20px;
-      padding: 20px;
-      color: #ffffff;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
+      width: 100%; max-width: 420px; max-height: 90vh; background: #0f172a;
+      border: 1px solid var(--border-panel); border-radius: 20px; padding: 20px;
+      color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow-y: auto;
     }
 
     .modal-header {
-      font-size: 15px;
-      font-weight: 800;
-      margin-bottom: 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding-bottom: 10px;
+      font-size: 15px; font-weight: 800; margin-bottom: 14px; display: flex;
+      justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;
     }
 
-    .modal-section-title {
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #60a5fa;
-      margin: 12px 0 6px 0;
-    }
-
+    .modal-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #60a5fa; margin: 12px 0 6px 0; }
     .input-group {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      padding: 8px 12px;
-      margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px; padding: 8px 12px; margin-bottom: 8px;
     }
-
     .input-label { font-size: 12px; font-weight: 600; }
-
     .input-field, .select-field {
-      background: #1e293b;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 6px 10px;
-      outline: none;
+      background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px; color: #ffffff; font-size: 12px; font-weight: 700; padding: 6px 10px; outline: none;
     }
 
     .btn-modal-save {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 12px;
-      background: var(--primary);
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 800;
-      cursor: pointer;
-      margin-top: 10px;
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: var(--primary); color: #ffffff; font-size: 13px; font-weight: 800; cursor: pointer; margin-top: 10px;
     }
 
-    .btn-modal-delete {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 12px;
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-
-    .audit-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-
-    .audit-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      margin-bottom: 4px;
+    .client-box {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;
     }
   </style>
 </head>
 <body>
 
-  <!-- PANTALLA DE AUTENTICACIÓN INICIAL OBLIGATORIA -->
+  <!-- PANTALLA LOGIN OBLIGATORIO -->
   <div id="loginScreen">
     <div class="login-card">
-      <div class="login-header">
+      <div style="text-align:center;">
         <h1 class="login-title">Control Comercial</h1>
-        <p class="login-subtitle">Acceso de Equipo y Gestión de Obras</p>
+        <p class="login-subtitle">Gestión de Zonas y Volcado de Obras</p>
       </div>
 
-      <div id="loginError" class="login-error">Contraseña incorrecta</div>
+      <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
+        Contraseña incorrecta
+      </div>
 
       <div class="form-group">
-        <label class="form-label">¿Quién eres?</label>
+        <label class="form-label">Perfil de Usuario</label>
         <select id="userSelect" class="form-select">
           <option value="jefe">👑 Andrei (Jefe de Equipo)</option>
           <option value="comercial1">🏃 Comercial 1</option>
@@ -419,7 +201,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Contraseña de Acceso</label>
+        <label class="form-label">Contraseña</label>
         <input type="password" id="passInput" class="form-input" placeholder="Ingresa tu clave..." onkeypress="if(event.key==='Enter') executeLogin()">
       </div>
 
@@ -427,142 +209,135 @@
     </div>
   </div>
 
-  <!-- APLICACIÓN PRINCIPAL -->
+  <!-- APP PRINCIPAL -->
   <div id="appContainer">
     <div id="map"></div>
 
-    <!-- HUD SUPERIOR CON ADAPTACIÓN SEGÚN ROL -->
+    <!-- BANNER DE MODOS -->
+    <div id="drawingBanner" class="banner-drawing">
+      <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
+      <div style="display:flex; gap:6px;">
+        <button style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:800; font-size:11px;" onclick="finishSectorDrawing()">CONFIRMAR SECTOR</button>
+        <button style="padding:6px 10px; border:none; border-radius:8px; background:rgba(255,255,255,0.2); color:#fff; font-size:11px;" onclick="cancelDrawing()">✕</button>
+      </div>
+    </div>
+
+    <!-- HUD SUPERIOR -->
     <div class="hud-header">
       <div class="hud-top-row">
         <div class="user-pill">
           <span id="displayRoleBadge" class="role-badge jefe">JEFE</span>
           <span id="displayUserName" style="font-size:13px; font-weight:800;">Andrei</span>
         </div>
-        <div class="nav-actions">
-          <!-- Botón de Auditoría SOLO visible para el JEFE -->
-          <button id="btnBossDashboard" class="btn-hud jefe-btn" onclick="openAuditModal()">📊 Auditoría Equipo</button>
+        <div style="display:flex; gap:6px;">
+          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Auditoría</button>
           <button class="btn-hud" onclick="centerOnUser()">🎯 Mi GPS</button>
-          <button class="btn-hud logout-btn" onclick="executeLogout()">🔒 Salir</button>
+          <button class="btn-hud logout" onclick="executeLogout()">🔒 Salir</button>
         </div>
       </div>
     </div>
 
-    <!-- CONTROLES INFERIORES DE MARCADOR -->
-    <div class="controls-panel">
-      <div class="categories-grid">
-        <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">🏠 HACER YO (Unifamiliar)</button>
-        <button class="btn-cat cat-comunidad" onclick="startMarkingMode('comunidad')">🏢 HACER YO (Comunidad)</button>
-        <button class="btn-cat cat-buena" onclick="startMarkingMode('buena')">🟢 Zona Buena</button>
-        <button class="btn-cat cat-regular" onclick="startMarkingMode('regular')">🟡 Zona Sin Más</button>
-      </div>
+    <!-- PANEL INFERIOR DE ACCIÓN -->
+    <div class="bottom-action-panel">
+      <!-- Botón exclusivo para el JEFE -->
+      <button id="btnBossAssignMode" class="btn-main-action btn-assign" onclick="startSectorDrawing()">
+        ➕ ASIGNAR SECTOR / ZONA
+      </button>
 
-      <div style="display:flex; gap:6px;">
-        <button class="btn-cat cat-mala" style="flex:1;" onclick="startMarkingMode('mala')">🔴 Zona Mala</button>
-        <button class="btn-cat cat-noapto" style="flex:1;" onclick="startMarkingMode('noapto')">⬛ NO APTO</button>
-      </div>
+      <!-- Botón visible para el COMERCIAL -->
+      <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" onclick="openSelectZoneToDumpModal()">
+        📝 VOLCAR HOJA DE PAPEL
+      </button>
     </div>
   </div>
 
-  <!-- MODAL DE AUDITORÍA DE RENDIMIENTO (EXCLUSIVO JEFE) -->
+  <!-- MODAL DE ASIGNACIÓN DE SECTOR (JEFE) -->
+  <div id="assignModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>📍 Asignar Sector a Comercial</span>
+        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('assignModal')">✕</button>
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Pueblo / Municipio</span>
+        <input type="text" id="assignTown" class="input-field" value="Peralta">
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Nombre del Sector / Calles</span>
+        <input type="text" id="assignSectorName" class="input-field" placeholder="Ej: San Pedro / Baztán">
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Comercial Asignado</span>
+        <select id="assignComercial" class="select-field">
+          <option value="Comercial 1">Comercial 1</option>
+          <option value="Comercial 2">Comercial 2</option>
+          <option value="Comercial 3">Comercial 3</option>
+          <option value="Comercial 4">Comercial 4</option>
+          <option value="Comercial 5">Comercial 5</option>
+        </select>
+      </div>
+
+      <button class="btn-modal-save" onclick="confirmSectorAssignment()">💾 Guardar y Enviar al Mapa</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE VOLCADO DE PAPEL (COMERCIAL) -->
+  <div id="dumpModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="dumpModalTitle">Volcado de Hoja de Trabajo</span>
+        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('dumpModal')">✕</button>
+      </div>
+
+      <div class="modal-section-title">📊 Totales del Día en el Papel</div>
+      <div class="input-group">
+        <span class="input-label">❌ No (Rechazos)</span>
+        <input type="number" id="dumpNo" class="input-field" value="0">
+      </div>
+      <div class="input-group">
+        <span class="input-label">⏳ Ausentes</span>
+        <input type="number" id="dumpAusente" class="input-field" value="0">
+      </div>
+      <div class="input-group">
+        <span class="input-label">📄 Papelito / Pedido Info</span>
+        <input type="number" id="dumpPapelito" class="input-field" value="0">
+      </div>
+      <div class="input-group">
+        <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
+        <input type="number" id="dumpSi" class="input-field" value="0" onchange="renderClientFormFields()">
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">📌 Estado del Sector</span>
+        <select id="dumpProgressState" class="select-field">
+          <option value="completada">✅ Sector Terminado Completo</option>
+          <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
+        </select>
+      </div>
+
+      <div id="clientsContainer"></div>
+
+      <button class="btn-modal-save" onclick="saveDumpData()">💾 Finalizar Volcado</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE AUDITORÍA (JEFE) -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📈 Rendimiento Global de Comerciales</span>
+        <span>📊 Resumen de Rendimiento de Equipo</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
       <div id="auditContainer"></div>
     </div>
   </div>
 
-  <!-- MODAL DE FICHA TÉCNICA Y GESTIÓN DE ZONA -->
-  <div id="editModal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <span id="modalZoneTitle">Ficha Técnica de Zona</span>
-        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('editModal')">✕</button>
-      </div>
-
-      <div class="modal-grid">
-        <div class="modal-section-title">📍 Datos Principales</div>
-        <div class="input-group">
-          <span class="input-label">Pueblo / Municipio</span>
-          <input type="text" id="inputTown" class="input-field" placeholder="Peralta">
-        </div>
-        <div class="input-group">
-          <span class="input-label">Comercial Asignado</span>
-          <select id="inputComercialAssign" class="select-field">
-            <option value="Comercial 1">Comercial 1</option>
-            <option value="Comercial 2">Comercial 2</option>
-            <option value="Comercial 3">Comercial 3</option>
-            <option value="Comercial 4">Comercial 4</option>
-            <option value="Comercial 5">Comercial 5</option>
-          </select>
-        </div>
-
-        <div class="modal-section-title">🏗️ Especificaciones Técnicas</div>
-        <div class="input-group">
-          <span class="input-label">Año de Construcción</span>
-          <select id="inputYear" class="select-field">
-            <option value="antes_1990">Anterior a 1990 (Prioritario)</option>
-            <option value="1990_2007">1990 - 2007</option>
-            <option value="post_2007">Posterior a 2007</option>
-          </select>
-        </div>
-        <div class="input-group">
-          <span class="input-label">Superficie (m²)</span>
-          <select id="inputM2" class="select-field">
-            <option value="45-60">45 - 60 m² (Poco)</option>
-            <option value="60-80">60 - 80 m² (Medio)</option>
-            <option value="80+">80+ m² (Alto)</option>
-          </select>
-        </div>
-
-        <div class="modal-section-title">🔨 Estado de Obra</div>
-        <div class="input-group">
-          <span class="input-label">Estado Actual</span>
-          <select id="inputObraStatus" class="select-field">
-            <option value="pendiente">⏳ Pendiente Cita Técnica</option>
-            <option value="agendada">📅 Cita de Obra Agendada</option>
-            <option value="realizada">✅ OBRA REALIZADA Y GANADA</option>
-            <option value="no_apto">🚫 NO APTO (Cancelada)</option>
-          </select>
-        </div>
-        <div class="input-group">
-          <span class="input-label">Motivo de No Apto / Observación</span>
-          <select id="inputObraReason" class="select-field">
-            <option value="ninguno">N/A - En Regla</option>
-            <option value="m2_insuficientes">No Apto - Falta m² reales</option>
-            <option value="ya_aislado">No Apto - Ya tiene aislamiento previo</option>
-            <option value="suelo_forjado">No Apto - Problema en suelo/forjado</option>
-            <option value="falta_info">Pendiente - Falta información / Re-visitar</option>
-          </select>
-        </div>
-
-        <div class="modal-section-title">🚪 Registro de Puertas</div>
-        <div class="input-group">
-          <span class="input-label">Sí (Firmados)</span>
-          <input type="number" id="inputSi" class="input-field" value="0">
-        </div>
-        <div class="input-group">
-          <span class="input-label">Papelito / Info</span>
-          <input type="number" id="inputPapelito" class="input-field" value="0">
-        </div>
-        <div class="input-group">
-          <span class="input-label">No</span>
-          <input type="number" id="inputNo" class="input-field" value="0">
-        </div>
-      </div>
-
-      <button class="btn-modal-save" onclick="saveModalData()">💾 Guardar Registro</button>
-      <!-- Opción de eliminar reservada exclusivamente para el JEFE -->
-      <button id="btnDeleteZone" class="btn-modal-delete" onclick="deleteZoneData()">🗑️ Eliminar Zona</button>
-    </div>
-  </div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // --- BASE DE DATOS DE CREDENCIALES ---
     const PASSWORDS = {
       jefe: 'jefe2026',
       comercial1: 'comercial1',
@@ -577,10 +352,10 @@
     let currentUserName = null;
     let savedZones = safeLoadStorage('comercial_custom_zones');
     let loadedMapLayers = [];
-    let editingZoneIndex = null;
     let tempPoints = [];
     let tempMarkers = [];
-    let activeCategory = null;
+    let isDrawingMode = false;
+    let selectedZoneIndexToDump = null;
 
     function safeLoadStorage(key) {
       try {
@@ -589,24 +364,19 @@
       } catch (e) { return []; }
     }
 
-    // --- PROCESO DE LOGIN OBLIGATORIO ---
     function executeLogin() {
-      const selectedUser = document.getElementById('userSelect').value;
-      const enteredPass = document.getElementById('passInput').value.trim();
-      const errorLabel = document.getElementById('loginError');
+      const userVal = document.getElementById('userSelect').value;
+      const passVal = document.getElementById('passInput').value.trim();
 
-      if (PASSWORDS[selectedUser] && enteredPass === PASSWORDS[selectedUser]) {
-        errorLabel.style.display = 'none';
-
-        if (selectedUser === 'jefe') {
+      if (PASSWORDS[userVal] && passVal === PASSWORDS[userVal]) {
+        if (userVal === 'jefe') {
           currentUserRole = 'jefe';
           currentUserName = 'Andrei (Jefe)';
         } else {
           currentUserRole = 'comercial';
-          currentUserName = selectedUser.replace('comercial', 'Comercial ');
+          currentUserName = userVal.replace('comercial', 'Comercial ');
         }
 
-        // Guardar sesión temporal
         sessionStorage.setItem('auth_role', currentUserRole);
         sessionStorage.setItem('auth_name', currentUserName);
 
@@ -616,7 +386,7 @@
         setupRoleInterface();
         initMap();
       } else {
-        errorLabel.style.display = 'block';
+        document.getElementById('loginError').style.display = 'block';
       }
     }
 
@@ -627,28 +397,27 @@
 
     function setupRoleInterface() {
       const roleBadge = document.getElementById('displayRoleBadge');
-      const userName = document.getElementById('displayUserName');
-      const btnBossDashboard = document.getElementById('btnBossDashboard');
-      const btnDeleteZone = document.getElementById('btnDeleteZone');
+      const nameLbl = document.getElementById('displayUserName');
+      const btnBossAssign = document.getElementById('btnBossAssignMode');
+      const btnBossAudit = document.getElementById('btnBossAudit');
 
-      userName.innerText = currentUserName;
+      nameLbl.innerText = currentUserName;
 
       if (currentUserRole === 'jefe') {
         roleBadge.className = 'role-badge jefe';
         roleBadge.innerText = '👑 JEFE';
-        btnBossDashboard.style.display = 'inline-block';
-        btnDeleteZone.style.display = 'block';
+        btnBossAssign.style.display = 'flex';
+        btnBossAudit.style.display = 'inline-block';
       } else {
         roleBadge.className = 'role-badge comercial';
         roleBadge.innerText = '🏃 COMERCIAL';
-        btnBossDashboard.style.display = 'none';
-        btnDeleteZone.style.display = 'none'; // Comerciales no pueden borrar zonas completas
+        btnBossAssign.style.display = 'none'; // El comercial no asigna zonas
+        btnBossAudit.style.display = 'none';
       }
     }
 
     function initMap() {
       if (map) return;
-
       map = L.map('map', { zoomControl: false, attributionControl: false }).setView([42.3486, -1.8011], 16);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -656,41 +425,248 @@
       map.on('click', handleMapClick);
     }
 
-    // --- MANEJO DE AUDITORÍA PARA JEFE ---
-    function openAuditModal() {
-      if (currentUserRole !== 'jefe') return;
+    // --- ASIGNACIÓN DE SECTORES POR EL JEFE ---
+    function startSectorDrawing() {
+      isDrawingMode = true;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      document.getElementById('drawingBanner').classList.add('active');
+    }
 
+    function handleMapClick(e) {
+      if (!isDrawingMode) return;
+      const pt = [e.latlng.lat, e.latlng.lng];
+      tempPoints.push(pt);
+
+      const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: '#7c3aed', fillOpacity: 1 }).addTo(map);
+      tempMarkers.push(m);
+    }
+
+    function finishSectorDrawing() {
+      if (tempPoints.length < 3) {
+        alert("Toca al menos 3 puntos para delimitar la zona del sector.");
+        return;
+      }
+      document.getElementById('drawingBanner').classList.remove('active');
+      document.getElementById('assignModal').classList.add('active');
+    }
+
+    function cancelDrawing() {
+      isDrawingMode = false;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      document.getElementById('drawingBanner').classList.remove('active');
+    }
+
+    function confirmSectorAssignment() {
+      const town = document.getElementById('assignTown').value.trim() || 'Peralta';
+      const sectorName = document.getElementById('assignSectorName').value.trim() || 'Sector Asignado';
+      const comercial = document.getElementById('assignComercial').value;
+
+      savedZones.push({
+        id: Date.now(),
+        town,
+        sectorName,
+        comercial,
+        status: 'pendiente', // 'pendiente', 'en_proceso', 'completada'
+        points: tempPoints,
+        stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
+        clients: []
+      });
+
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      cancelDrawing();
+      closeModal('assignModal');
+      renderAllSavedZones();
+    }
+
+    // --- RENDERS DE ZONAS EN EL MAPA ---
+    function renderAllSavedZones() {
+      loadedMapLayers.forEach(l => map.removeLayer(l));
+      loadedMapLayers = [];
+
+      savedZones.forEach((z, idx) => {
+        // Filtrar visualización para comerciales (solo ven las suyas)
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
+          return;
+        }
+
+        let polyColor = '#2563eb'; // AZUL = Asignada / Pendiente
+        let dashArray = '6, 6';
+
+        if (z.status === 'en_proceso') {
+          polyColor = '#d97706'; // AMARILLO = En proceso (incompleta)
+          dashArray = null;
+        } else if (z.status === 'completada') {
+          dashArray = null;
+          const si = z.stats?.si || 0;
+          const total = (z.stats?.no || 0) + (z.stats?.papelito || 0) + si;
+          const ratio = total > 0 ? (si / total) : 0;
+
+          if (ratio >= 0.25) {
+            polyColor = '#059669'; // VERDE = Alta Rentabilidad
+          } else {
+            polyColor = '#dc2626'; // ROJO = Baja Rentabilidad
+          }
+        }
+
+        const polygon = L.polygon(z.points, {
+          color: polyColor,
+          weight: 3,
+          dashArray: dashArray,
+          fillColor: polyColor,
+          fillOpacity: 0.35
+        }).addTo(map);
+
+        // Centro y Badge
+        const center = polygon.getBounds().getCenter();
+        const badgeHtml = `
+          <div class="zone-badge-container">
+            <div class="badge-title">${z.sectorName}</div>
+            <div class="badge-sub">👤 ${z.comercial}</div>
+          </div>
+        `;
+
+        const badgeIcon = L.divIcon({ className: '', html: badgeHtml, iconSize: [0,0] });
+        const marker = L.marker(center, { icon: badgeIcon }).addTo(map);
+
+        polygon.on('click', () => triggerZoneAction(idx));
+        marker.on('click', () => triggerZoneAction(idx));
+
+        loadedMapLayers.push(polygon);
+        loadedMapLayers.push(marker);
+      });
+    }
+
+    function triggerZoneAction(idx) {
+      selectedZoneIndexToDump = idx;
+      openDumpModal(idx);
+    }
+
+    // --- VOLCADO DE HOJA DE PAPEL ---
+    function openSelectZoneToDumpModal() {
+      // Buscar primera zona pendiente del comercial
+      const myZoneIdx = savedZones.findIndex(z => z.comercial === currentUserName && z.status !== 'completada');
+      if (myZoneIdx !== -1) {
+        openDumpModal(myZoneIdx);
+      } else {
+        alert("No tienes sectores pendientes asignados en el mapa.");
+      }
+    }
+
+    function openDumpModal(idx) {
+      selectedZoneIndexToDump = idx;
+      const z = savedZones[idx];
+
+      document.getElementById('dumpModalTitle').innerText = `Volcado: ${z.sectorName} (${z.town})`;
+      document.getElementById('dumpNo').value = z.stats?.no || 0;
+      document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
+      document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
+      document.getElementById('dumpSi').value = z.stats?.si || 0;
+      document.getElementById('dumpProgressState').value = z.status === 'en_proceso' ? 'en_proceso' : 'completada';
+
+      renderClientFormFields();
+      document.getElementById('dumpModal').classList.add('active');
+    }
+
+    function renderClientFormFields() {
+      const container = document.getElementById('clientsContainer');
+      container.innerHTML = '';
+
+      const siCount = parseInt(document.getElementById('dumpSi').value) || 0;
+      if (siCount <= 0) return;
+
+      const title = document.createElement('div');
+      title.className = 'modal-section-title';
+      title.innerText = `🏡 Datos de Clientes "SÍ" (${siCount})`;
+      container.appendChild(title);
+
+      for (let i = 0; i < siCount; i++) {
+        const box = document.createElement('div');
+        box.className = 'client-box';
+        box.innerHTML = `
+          <strong style="font-size:11px; color:#34d399;">Cliente #${i+1}</strong>
+          <input type="text" class="input-field client-name" placeholder="Nombre completo">
+          <div style="display:flex; gap:6px;">
+            <input type="text" class="input-field client-street" placeholder="Calle y Portal" style="flex:2;">
+            <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;">
+          </div>
+          <div style="display:flex; gap:6px;">
+            <select class="select-field client-year" style="flex:1;">
+              <option value="antes_1990">Anterior a 1990</option>
+              <option value="1990_2007">1990 - 2007</option>
+              <option value="post_2007">Post 2007</option>
+            </select>
+            <select class="select-field client-m2" style="flex:1;">
+              <option value="45-60">45 - 60 m²</option>
+              <option value="60-80">60 - 80 m²</option>
+              <option value="80+">80+ m²</option>
+            </select>
+          </div>
+        `;
+        container.appendChild(box);
+      }
+    }
+
+    function saveDumpData() {
+      if (selectedZoneIndexToDump === null) return;
+
+      const z = savedZones[selectedZoneIndexToDump];
+      z.stats = {
+        no: parseInt(document.getElementById('dumpNo').value) || 0,
+        ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
+        papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
+        si: parseInt(document.getElementById('dumpSi').value) || 0
+      };
+
+      z.status = document.getElementById('dumpProgressState').value;
+
+      // Recoger fichas de clientes "Sí"
+      z.clients = [];
+      const clientBoxes = document.querySelectorAll('.client-box');
+      clientBoxes.forEach(box => {
+        z.clients.push({
+          name: box.querySelector('.client-name').value,
+          street: box.querySelector('.client-street').value,
+          phone: box.querySelector('.client-phone').value,
+          year: box.querySelector('.client-year').value,
+          m2: box.querySelector('.client-m2').value
+        });
+      });
+
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      closeModal('dumpModal');
+      renderAllSavedZones();
+    }
+
+    // --- AUDITORÍA DE JEFE ---
+    function openAuditModal() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
-      const stats = {
-        'Comercial 1': { si: 0, obras: 0 },
-        'Comercial 2': { si: 0, obras: 0 },
-        'Comercial 3': { si: 0, obras: 0 },
-        'Comercial 4': { si: 0, obras: 0 },
-        'Comercial 5': { si: 0, obras: 0 }
-      };
-
       savedZones.forEach(z => {
-        const com = z.comercial || 'Comercial 1';
-        if (stats[com]) {
-          stats[com].si += parseInt(z.stats?.si) || 0;
-          if (z.obraStatus === 'realizada') stats[com].obras += 1;
-        }
-      });
+        const total = (z.stats?.no||0) + (z.stats?.papelito||0) + (z.stats?.si||0);
+        const ratio = total > 0 ? Math.round(((z.stats?.si||0) / total) * 100) : 0;
 
-      Object.keys(stats).forEach(com => {
-        const ratio = stats[com].si > 0 ? Math.round((stats[com].obras / stats[com].si) * 100) : 0;
         const card = document.createElement('div');
-        card.className = 'audit-card';
+        card.style.background = 'rgba(255,255,255,0.04)';
+        card.style.border = '1px solid rgba(255,255,255,0.1)';
+        card.style.borderRadius = '12px';
+        card.style.padding = '10px';
+        card.style.marginBottom = '8px';
+
         card.innerHTML = `
-          <div class="audit-row">
-            <strong style="color:#60a5fa;">${com}</strong>
-            <span style="font-weight:800; color:${ratio >= 50 ? '#34d399' : '#f87171'}">${ratio}% Efectividad</span>
+          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800;">
+            <span style="color:#60a5fa;">${z.sectorName} (${z.town})</span>
+            <span style="color:${z.status==='completada'?'#34d399':'#fbbf24'}">${z.status.toUpperCase()}</span>
           </div>
-          <div class="audit-row" style="color:#cbd5e1;">
-            <span>Viviendas Firmadas: ${stats[com].si}</span>
-            <span>Obras Ejecutadas: <strong>${stats[com].obras}</strong></span>
+          <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
+            👤 ${z.comercial} | Ratio: <strong>${ratio}% Sí</strong>
+          </div>
+          <div style="font-size:10px; color:#94a3b8; margin-top:2px;">
+            Sí: ${z.stats?.si||0} | Info: ${z.stats?.papelito||0} | Ausentes: ${z.stats?.ausente||0} | No: ${z.stats?.no||0}
           </div>
         `;
         container.appendChild(card);
@@ -699,124 +675,12 @@
       document.getElementById('auditModal').classList.add('active');
     }
 
-    // --- MARCADOR Y FICHA TÉCNICA ---
-    function startMarkingMode(catKey) {
-      activeCategory = catKey;
-      tempPoints = [];
-      tempMarkers.forEach(m => map.removeLayer(m));
-      tempMarkers = [];
-    }
-
-    function handleMapClick(e) {
-      if (!activeCategory) return;
-      const point = [e.latlng.lat, e.latlng.lng];
-      tempPoints.push(point);
-
-      const marker = L.circleMarker(point, { radius: 5, color: '#fff', fillColor: '#2563eb', fillOpacity: 1 }).addTo(map);
-      tempMarkers.push(marker);
-
-      if (tempPoints.length >= 3) {
-        saveNewZone();
-      }
-    }
-
-    function saveNewZone() {
-      const zoneData = {
-        id: Date.now(),
-        category: activeCategory,
-        comercial: currentUserRole === 'comercial' ? currentUserName : 'Comercial 1',
-        town: 'Peralta',
-        year: 'antes_1990',
-        m2: '60-80',
-        obraStatus: 'pendiente',
-        obraReason: 'ninguno',
-        points: tempPoints,
-        stats: { si: 0, papelito: 0, no: 0 }
-      };
-
-      savedZones.push(zoneData);
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
-      activeCategory = null;
-      tempPoints = [];
-      tempMarkers.forEach(m => map.removeLayer(m));
-      tempMarkers = [];
-      renderAllSavedZones();
-    }
-
-    function renderAllSavedZones() {
-      loadedMapLayers.forEach(l => map.removeLayer(l));
-      loadedMapLayers = [];
-
-      savedZones.forEach((z, idx) => {
-        const polyColor = z.obraStatus === 'realizada' ? '#059669' : (z.obraStatus === 'no_apto' ? '#1e293b' : '#2563eb');
-        const polygon = L.polygon(z.points, { color: polyColor, weight: 3, fillOpacity: 0.5 }).addTo(map);
-
-        polygon.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-          openEditModal(idx);
-        });
-
-        loadedMapLayers.push(polygon);
-      });
-    }
-
-    function openEditModal(idx) {
-      editingZoneIndex = idx;
-      const z = savedZones[idx];
-
-      document.getElementById('inputTown').value = z.town || 'Peralta';
-      document.getElementById('inputComercialAssign').value = z.comercial || 'Comercial 1';
-      document.getElementById('inputYear').value = z.year || 'antes_1990';
-      document.getElementById('inputM2').value = z.m2 || '60-80';
-      document.getElementById('inputObraStatus').value = z.obraStatus || 'pendiente';
-      document.getElementById('inputObraReason').value = z.obraReason || 'ninguno';
-
-      document.getElementById('inputSi').value = z.stats?.si || 0;
-      document.getElementById('inputPapelito').value = z.stats?.papelito || 0;
-      document.getElementById('inputNo').value = z.stats?.no || 0;
-
-      document.getElementById('editModal').classList.add('active');
-    }
-
-    function saveModalData() {
-      if (editingZoneIndex === null) return;
-
-      const z = savedZones[editingZoneIndex];
-      z.town = document.getElementById('inputTown').value;
-      z.comercial = document.getElementById('inputComercialAssign').value;
-      z.year = document.getElementById('inputYear').value;
-      z.m2 = document.getElementById('inputM2').value;
-      z.obraStatus = document.getElementById('inputObraStatus').value;
-      z.obraReason = document.getElementById('inputObraReason').value;
-
-      z.stats = {
-        si: parseInt(document.getElementById('inputSi').value) || 0,
-        papelito: parseInt(document.getElementById('inputPapelito').value) || 0,
-        no: parseInt(document.getElementById('inputNo').value) || 0
-      };
-
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
-      closeModal('editModal');
-      renderAllSavedZones();
-    }
-
-    function deleteZoneData() {
-      if (currentUserRole === 'jefe' && editingZoneIndex !== null && confirm("¿Eliminar esta manzana definitivamente?")) {
-        savedZones.splice(editingZoneIndex, 1);
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
-        closeModal('editModal');
-        renderAllSavedZones();
-      }
-    }
-
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     function centerOnUser() { map.locate({ setView: true, maxZoom: 18 }); }
 
-    // Auto-restaurar sesión si no se ha cerrado manualmente
     window.onload = () => {
       const savedRole = sessionStorage.getItem('auth_role');
       const savedName = sessionStorage.getItem('auth_name');
-
       if (savedRole && savedName) {
         currentUserRole = savedRole;
         currentUserName = savedName;
