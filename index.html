@@ -3,26 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Plataforma Comercial y Logística de Obras - Buhardillas Navarrenses</title>
+  <title>Plataforma de Control Comercial - Buhardillas</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
-  <!-- Firebase Compat SDKs -->
+  <!-- Firebase SDKs (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
     :root {
+      --bg-dark: #0f172a;
       --bg-panel: rgba(15, 23, 42, 0.96);
       --border-panel: rgba(255, 255, 255, 0.15);
       --primary: #2563eb;
+      --primary-hover: #1d4ed8;
       --accent-green: #059669;
       --accent-yellow: #d97706;
       --accent-red: #dc2626;
       --accent-purple: #7c3aed;
-      --accent-black: #0f172a;
     }
 
     * {
@@ -37,13 +38,127 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #0f172a;
+      background: var(--bg-dark);
       color: #f8fafc;
     }
 
-    #map {
+    /* PANTALLA COMPLETA DE LOGIN OBLIGATORIO */
+    #loginScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 28px 22px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .login-header {
+      text-align: center;
+    }
+
+    .login-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .login-subtitle {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #cbd5e1;
+    }
+
+    .form-select, .form-input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 700;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-select:focus, .form-input:focus {
+      border-color: var(--primary);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+      margin-top: 6px;
+    }
+
+    .btn-login:active {
+      transform: scale(0.98);
+    }
+
+    .login-error {
+      display: none;
+      background: rgba(220, 38, 38, 0.2);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    /* APLICACIÓN PRINCIPAL (OCULTA HASTA AUTENTICAR) */
+    #appContainer {
+      display: none;
       width: 100vw;
       height: 100vh;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
       position: absolute;
       top: 0;
       left: 0;
@@ -51,8 +166,8 @@
       background: #1e293b;
     }
 
-    /* BARRA SUPERIOR DE SESIÓN Y ROL */
-    .session-bar {
+    /* HUD SUPERIOR */
+    .hud-header {
       position: absolute;
       top: 12px;
       left: 12px;
@@ -62,7 +177,7 @@
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--border-panel);
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 10px 14px;
       display: flex;
       flex-direction: column;
@@ -70,30 +185,35 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
 
-    .session-row {
+    .hud-top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .role-badge {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 900;
-      padding: 4px 10px;
+      padding: 4px 8px;
       border-radius: 8px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
-    .role-jefe { background: #7c3aed; color: #fff; border: 1px solid #a78bfa; }
-    .role-comercial { background: #2563eb; color: #fff; border: 1px solid #60a5fa; }
 
-    .nav-buttons {
+    .role-badge.jefe { background: #7c3aed; color: #fff; border: 1px solid #a78bfa; }
+    .role-badge.comercial { background: #2563eb; color: #fff; border: 1px solid #60a5fa; }
+
+    .nav-actions {
       display: flex;
       gap: 6px;
-      overflow-x: auto;
     }
 
-    .btn-nav {
+    .btn-hud {
       padding: 7px 12px;
       border: 1px solid var(--border-panel);
       border-radius: 10px;
@@ -104,29 +224,19 @@
       cursor: pointer;
       white-space: nowrap;
     }
-    .btn-nav.active-btn {
-      background: var(--primary);
-      border-color: #60a5fa;
+
+    .btn-hud.jefe-btn {
+      background: #7c3aed;
+      border-color: #a78bfa;
     }
 
-    /* SEARCH BAR */
-    .search-row {
-      display: flex;
-      gap: 6px;
-    }
-    .search-input {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      padding: 8px 12px;
-      color: #ffffff;
-      font-size: 12px;
-      font-weight: 600;
-      outline: none;
+    .btn-hud.logout-btn {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
     }
 
-    /* PANEL INFERIOR DE ACCIONES */
+    /* CONTROLES INFERIORES */
     .controls-panel {
       position: absolute;
       bottom: 20px;
@@ -158,39 +268,13 @@
       gap: 6px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
+
     .cat-buena { background: #059669; }
     .cat-regular { background: #d97706; }
     .cat-mala { background: #dc2626; }
     .cat-noapto { background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.25); }
     .cat-unifamiliar { background: #0284c7; }
     .cat-comunidad { background: #7c3aed; }
-
-    /* ETIQUETAS Y MARCADORES EN EL MAPA */
-    .zone-badge-container {
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-      pointer-events: auto;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      user-select: none;
-      transition: opacity 0.2s ease;
-      opacity: 0;
-    }
-    .zone-badge-container.visible { opacity: 1; }
-
-    .zone-badge-header {
-      font-size: 11px;
-      font-weight: 900;
-      color: #ffffff;
-      text-shadow: 0 1px 3px #000, 0 0 5px #000;
-    }
-    .zone-badge-subhead {
-      font-size: 9px;
-      font-weight: 800;
-      color: #facc15;
-      text-shadow: 0 1px 3px #000;
-    }
 
     /* MODALES FLOTANTES */
     .modal-overlay {
@@ -205,6 +289,7 @@
       justify-content: center;
       padding: 16px;
     }
+
     .modal-overlay.active { display: flex; }
 
     .modal-card {
@@ -279,7 +364,19 @@
       margin-top: 10px;
     }
 
-    /* AUDITORÍA Y TABLAS DE JEFE */
+    .btn-modal-delete {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+
     .audit-card {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -295,121 +392,98 @@
       font-size: 12px;
       margin-bottom: 4px;
     }
-
-    .progress-bar-bg {
-      width: 100%;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 4px;
-    }
-    .progress-bar-fill { height: 100%; border-radius: 4px; background: #34d399; }
   </style>
 </head>
 <body>
 
-  <div id="map"></div>
-
-  <!-- BARRA SUPERIOR DE SESIÓN Y CONTROL DE ROL -->
-  <div class="session-bar">
-    <div class="session-row">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span id="roleBadge" class="role-badge role-jefe">JEFE (ADMIN)</span>
-        <span id="activeUserLabel" style="font-size:12px; font-weight:800;">Andrei</span>
-      </div>
-      <button class="btn-nav" onclick="openLoginModal()">🔑 Cambiar Rol</button>
-    </div>
-
-    <div class="nav-buttons">
-      <button class="btn-nav active-btn" onclick="openAuditModal()">📊 Auditoría & Rendimiento</button>
-      <button class="btn-nav" onclick="openObraManagerModal()">🛠️ Gestión de Obras</button>
-      <button class="btn-nav" onclick="centerOnUser()">🎯 Mi GPS</button>
-    </div>
-
-    <div class="search-row">
-      <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar municipio o zona..." onkeypress="if(event.key==='Enter') searchLocation()">
-    </div>
-  </div>
-
-  <!-- CONTROLES INFERIORES -->
-  <div class="controls-panel">
-    <div class="categories-grid">
-      <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">🏠 HACER YO (Unifamiliar)</button>
-      <button class="btn-cat cat-comunidad" onclick="startMarkingMode('comunidad')">🏢 HACER YO (Comunidad)</button>
-      <button class="btn-cat cat-buena" onclick="startMarkingMode('buena')">🟢 Zona Buena</button>
-      <button class="btn-cat cat-regular" onclick="startMarkingMode('regular')">🟡 Zona Sin Más</button>
-    </div>
-
-    <div style="display:flex; gap:6px;">
-      <button class="btn-cat cat-mala" style="flex:1;" onclick="startMarkingMode('mala')">🔴 Zona Mala</button>
-      <button class="btn-cat cat-noapto" style="flex:1;" onclick="startMarkingMode('noapto')">⬛ NO APTO</button>
-    </div>
-  </div>
-
-  <!-- MODAL DE CAMBIO DE ROL / USUARIO -->
-  <div id="loginModal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <span>👤 Selección de Perfil y Comercial</span>
-        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('loginModal')">✕</button>
+  <!-- PANTALLA DE AUTENTICACIÓN INICIAL OBLIGATORIA -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="login-header">
+        <h1 class="login-title">Control Comercial</h1>
+        <p class="login-subtitle">Acceso de Equipo y Gestión de Obras</p>
       </div>
 
-      <div class="input-group">
-        <span class="input-label">Rol Activo</span>
-        <select id="selectRole" class="select-field" onchange="handleRoleChange()">
-          <option value="jefe">👑 Jefe / Director Comercial</option>
-          <option value="comercial">🏃 Comercial de Campo</option>
+      <div id="loginError" class="login-error">Contraseña incorrecta</div>
+
+      <div class="form-group">
+        <label class="form-label">¿Quién eres?</label>
+        <select id="userSelect" class="form-select">
+          <option value="jefe">👑 Andrei (Jefe de Equipo)</option>
+          <option value="comercial1">🏃 Comercial 1</option>
+          <option value="comercial2">🏃 Comercial 2</option>
+          <option value="comercial3">🏃 Comercial 3</option>
+          <option value="comercial4">🏃 Comercial 4</option>
+          <option value="comercial5">🏃 Comercial 5</option>
         </select>
       </div>
 
-      <div class="input-group" id="comercialSelectGroup">
-        <span class="input-label">Agente Comercial</span>
-        <select id="selectComercial" class="select-field">
-          <option value="Comercial 1">Comercial 1</option>
-          <option value="Comercial 2">Comercial 2</option>
-          <option value="Comercial 3">Comercial 3</option>
-          <option value="Comercial 4">Comercial 4</option>
-          <option value="Comercial 5">Comercial 5</option>
-        </select>
+      <div class="form-group">
+        <label class="form-label">Contraseña de Acceso</label>
+        <input type="password" id="passInput" class="form-input" placeholder="Ingresa tu clave..." onkeypress="if(event.key==='Enter') executeLogin()">
       </div>
 
-      <button class="btn-modal-save" onclick="saveUserSession()">Confirmar e Iniciar Sesión</button>
+      <button class="btn-login" onclick="executeLogin()">Acceder a la Aplicación</button>
     </div>
   </div>
 
-  <!-- MODAL DE AUDITORÍA DE RENDIMIENTO POR COMERCIAL Y OBRA REALIZADA -->
+  <!-- APLICACIÓN PRINCIPAL -->
+  <div id="appContainer">
+    <div id="map"></div>
+
+    <!-- HUD SUPERIOR CON ADAPTACIÓN SEGÚN ROL -->
+    <div class="hud-header">
+      <div class="hud-top-row">
+        <div class="user-pill">
+          <span id="displayRoleBadge" class="role-badge jefe">JEFE</span>
+          <span id="displayUserName" style="font-size:13px; font-weight:800;">Andrei</span>
+        </div>
+        <div class="nav-actions">
+          <!-- Botón de Auditoría SOLO visible para el JEFE -->
+          <button id="btnBossDashboard" class="btn-hud jefe-btn" onclick="openAuditModal()">📊 Auditoría Equipo</button>
+          <button class="btn-hud" onclick="centerOnUser()">🎯 Mi GPS</button>
+          <button class="btn-hud logout-btn" onclick="executeLogout()">🔒 Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTROLES INFERIORES DE MARCADOR -->
+    <div class="controls-panel">
+      <div class="categories-grid">
+        <button class="btn-cat cat-unifamiliar" onclick="startMarkingMode('unifamiliar')">🏠 HACER YO (Unifamiliar)</button>
+        <button class="btn-cat cat-comunidad" onclick="startMarkingMode('comunidad')">🏢 HACER YO (Comunidad)</button>
+        <button class="btn-cat cat-buena" onclick="startMarkingMode('buena')">🟢 Zona Buena</button>
+        <button class="btn-cat cat-regular" onclick="startMarkingMode('regular')">🟡 Zona Sin Más</button>
+      </div>
+
+      <div style="display:flex; gap:6px;">
+        <button class="btn-cat cat-mala" style="flex:1;" onclick="startMarkingMode('mala')">🔴 Zona Mala</button>
+        <button class="btn-cat cat-noapto" style="flex:1;" onclick="startMarkingMode('noapto')">⬛ NO APTO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE AUDITORÍA DE RENDIMIENTO (EXCLUSIVO JEFE) -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📈 Auditoría de Efectividad Real</span>
+        <span>📈 Rendimiento Global de Comerciales</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
-
-      <div class="input-group">
-        <span class="input-label">📅 Periodo</span>
-        <select id="auditPeriod" class="select-field" onchange="renderAuditDashboard()">
-          <option value="dia">Hoy (Día Activo)</option>
-          <option value="mes">Últimos 30 días</option>
-          <option value="trimestre">Trimestre</option>
-          <option value="ano">Año Completo</option>
-        </select>
-      </div>
-
-      <div id="auditContainer" style="margin-top:10px;"></div>
+      <div id="auditContainer"></div>
     </div>
   </div>
 
-  <!-- MODAL DE EDICIÓN TÉCNICA Y GESTIÓN DE OBRA -->
+  <!-- MODAL DE FICHA TÉCNICA Y GESTIÓN DE ZONA -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span id="modalZoneTitle">Ficha Técnica de Zona y Obra</span>
+        <span id="modalZoneTitle">Ficha Técnica de Zona</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('editModal')">✕</button>
       </div>
 
       <div class="modal-grid">
-        <div class="modal-section-title">📍 Asignación y Prospección</div>
+        <div class="modal-section-title">📍 Datos Principales</div>
         <div class="input-group">
           <span class="input-label">Pueblo / Municipio</span>
           <input type="text" id="inputTown" class="input-field" placeholder="Peralta">
@@ -425,7 +499,7 @@
           </select>
         </div>
 
-        <div class="modal-section-title">🏗️ Especificaciones del Inmueble</div>
+        <div class="modal-section-title">🏗️ Especificaciones Técnicas</div>
         <div class="input-group">
           <span class="input-label">Año de Construcción</span>
           <select id="inputYear" class="select-field">
@@ -435,7 +509,7 @@
           </select>
         </div>
         <div class="input-group">
-          <span class="input-label">Franja m² Buhardilla</span>
+          <span class="input-label">Superficie (m²)</span>
           <select id="inputM2" class="select-field">
             <option value="45-60">45 - 60 m² (Poco)</option>
             <option value="60-80">60 - 80 m² (Medio)</option>
@@ -443,9 +517,9 @@
           </select>
         </div>
 
-        <div class="modal-section-title">🔨 Estado de Obra e Instalación</div>
+        <div class="modal-section-title">🔨 Estado de Obra</div>
         <div class="input-group">
-          <span class="input-label">Resultado de Obra</span>
+          <span class="input-label">Estado Actual</span>
           <select id="inputObraStatus" class="select-field">
             <option value="pendiente">⏳ Pendiente Cita Técnica</option>
             <option value="agendada">📅 Cita de Obra Agendada</option>
@@ -454,7 +528,7 @@
           </select>
         </div>
         <div class="input-group">
-          <span class="input-label">Motivo de No Apto / Cita</span>
+          <span class="input-label">Motivo de No Apto / Observación</span>
           <select id="inputObraReason" class="select-field">
             <option value="ninguno">N/A - En Regla</option>
             <option value="m2_insuficientes">No Apto - Falta m² reales</option>
@@ -479,38 +553,28 @@
         </div>
       </div>
 
-      <button class="btn-modal-save" onclick="saveModalData()">💾 Guardar y Sincronizar</button>
+      <button class="btn-modal-save" onclick="saveModalData()">💾 Guardar Registro</button>
+      <!-- Opción de eliminar reservada exclusivamente para el JEFE -->
+      <button id="btnDeleteZone" class="btn-modal-delete" onclick="deleteZoneData()">🗑️ Eliminar Zona</button>
     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // --- CONFIGURACIÓN DE FIREBASE (CONFIGURA TUS CLAVES AQUÍ O USA MODAL LOCAL) ---
-    const firebaseConfig = {
-      apiKey: "AIzaSy_REPLACE_WITH_YOUR_KEY",
-      authDomain: "buhardillas-crm.firebaseapp.com",
-      databaseURL: "https://buhardillas-crm-default-rtdb.firebaseio.com",
-      projectId: "buhardillas-crm",
-      storageBucket: "buhardillas-crm.appspot.com",
-      messagingSenderId: "1234567890",
-      appId: "1:1234567890:web:abcdef123456"
+    // --- BASE DE DATOS DE CREDENCIALES ---
+    const PASSWORDS = {
+      jefe: 'jefe2026',
+      comercial1: 'comercial1',
+      comercial2: 'comercial2',
+      comercial3: 'comercial3',
+      comercial4: 'comercial4',
+      comercial5: 'comercial5'
     };
 
-    let isFirebaseActive = false;
-    try {
-      if (firebaseConfig.apiKey !== "AIzaSy_REPLACE_WITH_YOUR_KEY") {
-        firebase.initializeApp(firebaseConfig);
-        isFirebaseActive = true;
-      }
-    } catch (e) {
-      console.warn("Firebase no inicializado. Usando modo de almacenamiento local y simulador de sincronización.");
-    }
-
-    // --- VARIABLES DE ESTADO LOCAL ---
     let map;
-    let currentUserRole = localStorage.getItem('comercial_user_role') || 'jefe';
-    let currentUserName = localStorage.getItem('comercial_user_name') || 'Comercial 1';
+    let currentUserRole = null;
+    let currentUserName = null;
     let savedZones = safeLoadStorage('comercial_custom_zones');
     let loadedMapLayers = [];
     let editingZoneIndex = null;
@@ -525,122 +589,117 @@
       } catch (e) { return []; }
     }
 
+    // --- PROCESO DE LOGIN OBLIGATORIO ---
+    function executeLogin() {
+      const selectedUser = document.getElementById('userSelect').value;
+      const enteredPass = document.getElementById('passInput').value.trim();
+      const errorLabel = document.getElementById('loginError');
+
+      if (PASSWORDS[selectedUser] && enteredPass === PASSWORDS[selectedUser]) {
+        errorLabel.style.display = 'none';
+
+        if (selectedUser === 'jefe') {
+          currentUserRole = 'jefe';
+          currentUserName = 'Andrei (Jefe)';
+        } else {
+          currentUserRole = 'comercial';
+          currentUserName = selectedUser.replace('comercial', 'Comercial ');
+        }
+
+        // Guardar sesión temporal
+        sessionStorage.setItem('auth_role', currentUserRole);
+        sessionStorage.setItem('auth_name', currentUserName);
+
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'block';
+
+        setupRoleInterface();
+        initMap();
+      } else {
+        errorLabel.style.display = 'block';
+      }
+    }
+
+    function executeLogout() {
+      sessionStorage.clear();
+      location.reload();
+    }
+
+    function setupRoleInterface() {
+      const roleBadge = document.getElementById('displayRoleBadge');
+      const userName = document.getElementById('displayUserName');
+      const btnBossDashboard = document.getElementById('btnBossDashboard');
+      const btnDeleteZone = document.getElementById('btnDeleteZone');
+
+      userName.innerText = currentUserName;
+
+      if (currentUserRole === 'jefe') {
+        roleBadge.className = 'role-badge jefe';
+        roleBadge.innerText = '👑 JEFE';
+        btnBossDashboard.style.display = 'inline-block';
+        btnDeleteZone.style.display = 'block';
+      } else {
+        roleBadge.className = 'role-badge comercial';
+        roleBadge.innerText = '🏃 COMERCIAL';
+        btnBossDashboard.style.display = 'none';
+        btnDeleteZone.style.display = 'none'; // Comerciales no pueden borrar zonas completas
+      }
+    }
+
     function initMap() {
+      if (map) return;
+
       map = L.map('map', { zoomControl: false, attributionControl: false }).setView([42.3486, -1.8011], 16);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-      updateUserUI();
       renderAllSavedZones();
-
       map.on('click', handleMapClick);
-      map.on('zoomend moveend', updateLabelsVisibility);
     }
 
-    function updateUserUI() {
-      const badge = document.getElementById('roleBadge');
-      const nameLbl = document.getElementById('activeUserLabel');
-
-      if (currentUserRole === 'jefe') {
-        badge.className = 'role-badge role-jefe';
-        badge.innerText = 'JEFE (ADMIN)';
-        nameLbl.innerText = 'Andrei';
-      } else {
-        badge.className = 'role-badge role-comercial';
-        badge.innerText = 'COMERCIAL';
-        nameLbl.innerText = currentUserName;
-      }
-    }
-
-    function openLoginModal() {
-      document.getElementById('selectRole').value = currentUserRole;
-      document.getElementById('selectComercial').value = currentUserName;
-      handleRoleChange();
-      document.getElementById('loginModal').classList.add('active');
-    }
-
-    function handleRoleChange() {
-      const role = document.getElementById('selectRole').value;
-      const grp = document.getElementById('comercialSelectGroup');
-      grp.style.display = (role === 'comercial') ? 'flex' : 'none';
-    }
-
-    function saveUserSession() {
-      currentUserRole = document.getElementById('selectRole').value;
-      if (currentUserRole === 'comercial') {
-        currentUserName = document.getElementById('selectComercial').value;
-      } else {
-        currentUserName = 'Andrei (Jefe)';
-      }
-
-      localStorage.setItem('comercial_user_role', currentUserRole);
-      localStorage.setItem('comercial_user_name', currentUserName);
-
-      updateUserUI();
-      closeModal('loginModal');
-      renderAllSavedZones();
-    }
-
-    // --- AUDITORÍA DE EFECTIVIDAD REAL POR COMERCIAL ---
+    // --- MANEJO DE AUDITORÍA PARA JEFE ---
     function openAuditModal() {
-      renderAuditDashboard();
-      document.getElementById('auditModal').classList.add('active');
-    }
+      if (currentUserRole !== 'jefe') return;
 
-    function renderAuditDashboard() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
-      const statsByComercial = {
-        'Comercial 1': { si: 0, obras: 0, canceladas: 0, noAptoReason: {} },
-        'Comercial 2': { si: 0, obras: 0, canceladas: 0, noAptoReason: {} },
-        'Comercial 3': { si: 0, obras: 0, canceladas: 0, noAptoReason: {} },
-        'Comercial 4': { si: 0, obras: 0, canceladas: 0, noAptoReason: {} },
-        'Comercial 5': { si: 0, obras: 0, canceladas: 0, noAptoReason: {} },
+      const stats = {
+        'Comercial 1': { si: 0, obras: 0 },
+        'Comercial 2': { si: 0, obras: 0 },
+        'Comercial 3': { si: 0, obras: 0 },
+        'Comercial 4': { si: 0, obras: 0 },
+        'Comercial 5': { si: 0, obras: 0 }
       };
 
       savedZones.forEach(z => {
         const com = z.comercial || 'Comercial 1';
-        if (!statsByComercial[com]) return;
-
-        const si = parseInt(z.stats?.si) || 0;
-        statsByComercial[com].si += si;
-
-        if (z.obraStatus === 'realizada') {
-          statsByComercial[com].obras += 1;
-        } else if (z.obraStatus === 'no_apto') {
-          statsByComercial[com].canceladas += 1;
-          const r = z.obraReason || 'desconocido';
-          statsByComercial[com].noAptoReason[r] = (statsByComercial[com].noAptoReason[r] || 0) + 1;
+        if (stats[com]) {
+          stats[com].si += parseInt(z.stats?.si) || 0;
+          if (z.obraStatus === 'realizada') stats[com].obras += 1;
         }
       });
 
-      Object.keys(statsByComercial).forEach(comName => {
-        const st = statsByComercial[comName];
-        const ratio = st.si > 0 ? Math.round((st.obras / st.si) * 100) : 0;
-
+      Object.keys(stats).forEach(com => {
+        const ratio = stats[com].si > 0 ? Math.round((stats[com].obras / stats[com].si) * 100) : 0;
         const card = document.createElement('div');
         card.className = 'audit-card';
         card.innerHTML = `
           <div class="audit-row">
-            <strong style="color:#60a5fa;">${comName}</strong>
-            <span style="font-weight:800; color:${ratio >= 50 ? '#34d399' : '#f87171'}">${ratio}% Efectividad Obra</span>
+            <strong style="color:#60a5fa;">${com}</strong>
+            <span style="font-weight:800; color:${ratio >= 50 ? '#34d399' : '#f87171'}">${ratio}% Efectividad</span>
           </div>
           <div class="audit-row" style="color:#cbd5e1;">
-            <span>Puertas Sí (Firmas): ${st.si}</span>
-            <span>Obras Realizadas: <strong>${st.obras}</strong></span>
-          </div>
-          <div class="audit-row" style="color:#94a3b8; font-size:10px;">
-            <span>Obras Caídas/No Aptas: ${st.canceladas}</span>
-          </div>
-          <div class="progress-bar-bg">
-            <div class="progress-bar-fill" style="width: ${ratio}%;"></div>
+            <span>Viviendas Firmadas: ${stats[com].si}</span>
+            <span>Obras Ejecutadas: <strong>${stats[com].obras}</strong></span>
           </div>
         `;
         container.appendChild(card);
       });
+
+      document.getElementById('auditModal').classList.add('active');
     }
 
-    // --- MANEJO DE MARCADOS EN EL MAPA ---
+    // --- MARCADOR Y FICHA TÉCNICA ---
     function startMarkingMode(catKey) {
       activeCategory = catKey;
       tempPoints = [];
@@ -676,7 +735,7 @@
       };
 
       savedZones.push(zoneData);
-      syncZones();
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
       activeCategory = null;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
@@ -736,23 +795,37 @@
         no: parseInt(document.getElementById('inputNo').value) || 0
       };
 
-      syncZones();
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
       closeModal('editModal');
       renderAllSavedZones();
     }
 
-    function syncZones() {
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
-      if (isFirebaseActive) {
-        firebase.database().ref('zones').set(savedZones);
+    function deleteZoneData() {
+      if (currentUserRole === 'jefe' && editingZoneIndex !== null && confirm("¿Eliminar esta manzana definitivamente?")) {
+        savedZones.splice(editingZoneIndex, 1);
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        closeModal('editModal');
+        renderAllSavedZones();
       }
     }
 
-    function updateLabelsVisibility() {}
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     function centerOnUser() { map.locate({ setView: true, maxZoom: 18 }); }
 
-    window.onload = initMap;
+    // Auto-restaurar sesión si no se ha cerrado manualmente
+    window.onload = () => {
+      const savedRole = sessionStorage.getItem('auth_role');
+      const savedName = sessionStorage.getItem('auth_name');
+
+      if (savedRole && savedName) {
+        currentUserRole = savedRole;
+        currentUserName = savedName;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'block';
+        setupRoleInterface();
+        initMap();
+      }
+    };
   </script>
 </body>
 </html>
