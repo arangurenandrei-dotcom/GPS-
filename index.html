@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Sistema de Gestión Comercial y Logística de Obras</title>
   
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
@@ -18,6 +17,7 @@
       --accent-yellow: #d97706;
       --accent-red: #dc2626;
       --accent-purple: #7c3aed;
+      --accent-black: #334155;
     }
 
     * {
@@ -36,7 +36,6 @@
       color: #f8fafc;
     }
 
-    /* PANTALLA DE LOGIN OBLIGATORIO */
     #loginScreen {
       position: fixed;
       inset: 0;
@@ -77,11 +76,9 @@
       background: var(--primary); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer;
     }
 
-    /* APP MAIN */
     #appContainer { display: none; width: 100vw; height: 100vh; position: relative; }
     #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-    /* HUD SUPERIOR CON BUSCADOR */
     .hud-header {
       position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
       background: var(--bg-panel); backdrop-filter: blur(16px);
@@ -102,7 +99,6 @@
     .btn-hud.jefe-action { background: #7c3aed; border-color: #a78bfa; }
     .btn-hud.logout { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 
-    /* BUSCADOR INTEGRADO */
     .search-row { display: flex; gap: 6px; }
     .search-input {
       flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
@@ -113,7 +109,6 @@
       color: #ffffff; font-size: 11px; font-weight: 800; cursor: pointer;
     }
 
-    /* PANEL INFERIOR DE ACCIÓN */
     .bottom-action-panel {
       position: absolute; bottom: 20px; left: 12px; right: 12px; z-index: 1000;
       display: flex; gap: 8px;
@@ -127,7 +122,6 @@
     .btn-assign { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); border: 1px solid #a78bfa; }
     .btn-dump { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border: 1px solid #60a5fa; }
 
-    /* BANNER DE TRAZADO */
     .banner-drawing {
       display: none; position: absolute; top: 120px; left: 12px; right: 12px; z-index: 1000;
       background: #7c3aed; border-radius: 14px; padding: 12px 16px; color: white;
@@ -136,7 +130,6 @@
     }
     .banner-drawing.active { display: flex; }
 
-    /* ETIQUETAS EN EL MAPA */
     .zone-badge-container {
       background: rgba(15, 23, 42, 0.95) !important; border: 1px solid rgba(255,255,255,0.2) !important;
       border-radius: 10px; padding: 6px 10px !important; color: #fff; transform: translate(-50%, -50%);
@@ -145,7 +138,6 @@
     .badge-title { font-size: 11px; font-weight: 900; }
     .badge-sub { font-size: 10px; font-weight: 700; color: #60a5fa; margin-top: 2px; }
 
-    /* MODALES */
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;
@@ -185,7 +177,6 @@
       border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;
     }
 
-    /* AUDITORÍA Y TARJETAS EXTENSIBLES */
     .audit-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 14px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px;
@@ -198,6 +189,11 @@
       padding: 4px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;
     }
 
+    .no-apto-pill {
+      background: rgba(220, 38, 38, 0.2); border: 1px solid #ef4444; color: #fca5a5;
+      padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 10px;
+    }
+
     .audit-details-panel {
       display: none; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px;
       margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); flex-direction: column; gap: 8px;
@@ -207,13 +203,13 @@
     .detail-section-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; }
     .client-detail-row {
       font-size: 11px; background: rgba(255,255,255,0.03); border-radius: 6px; padding: 6px 8px;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: center; margin-top: 4px;
     }
   </style>
 </head>
 <body>
 
-  <!-- PANTALLA LOGIN OBLIGATORIO -->
+  <!-- LOGIN -->
   <div id="loginScreen">
     <div class="login-card">
       <div style="text-align:center;">
@@ -250,7 +246,6 @@
   <div id="appContainer">
     <div id="map"></div>
 
-    <!-- BANNER DE TRAZADO DE ZONAS -->
     <div id="drawingBanner" class="banner-drawing">
       <span>Toca las esquinas del sector comercial...</span>
       <div style="display:flex; gap:6px;">
@@ -259,7 +254,7 @@
       </div>
     </div>
 
-    <!-- HUD SUPERIOR CON BUSCADOR RESTABLECIDO -->
+    <!-- HUD SUPERIOR -->
     <div class="hud-header">
       <div class="hud-top-row">
         <div class="user-pill">
@@ -279,21 +274,19 @@
       </div>
     </div>
 
-    <!-- PANEL INFERIOR DE ACCIÓN -->
+    <!-- BOTONES INFERIORES -->
     <div class="bottom-action-panel">
-      <!-- Botón exclusivo para el JEFE -->
       <button id="btnBossAssignMode" class="btn-main-action btn-assign" onclick="startSectorDrawing()">
         ➕ ASIGNAR SECTOR / ZONA
       </button>
 
-      <!-- Botón visible para TODOS -->
       <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" onclick="openSelectZoneToDumpModal()">
         📝 VOLCAR HOJA DE PAPEL
       </button>
     </div>
   </div>
 
-  <!-- MODAL DE ASIGNACIÓN DE SECTOR (JEFE) -->
+  <!-- MODAL ASIGNACIÓN -->
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -327,7 +320,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE VOLCADO DE PAPEL Y GESTIÓN DE OBRAS -->
+  <!-- MODAL VOLCADO CON CONTROL DETALLADO DE NO APTOS -->
   <div id="dumpModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -358,6 +351,7 @@
         <select id="dumpProgressState" class="select-field">
           <option value="completada">✅ Sector Terminado Completo</option>
           <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
+          <option value="no_apto_sector">⬛ Sector NO APTO (Descarte Técnico)</option>
         </select>
       </div>
 
@@ -367,15 +361,14 @@
     </div>
   </div>
 
-  <!-- MODAL DE AUDITORÍA CON FILTROS Y DESGLOSE EXTENDIDO POR COMERCIAL -->
+  <!-- MODAL AUDITORÍA DETALLADA -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📊 Rendimiento & Auditoría Extendida</span>
+        <span>📊 Rendimiento & Auditoría de Obras</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
 
-      <!-- FILTRO TEMPORAL -->
       <div class="input-group">
         <span class="input-label">📅 Periodo de Análisis</span>
         <select id="auditPeriodFilter" class="select-field" onchange="openAuditModal()">
@@ -383,10 +376,6 @@
           <option value="hoy">Hoy (Jornada Activa)</option>
           <option value="historico">Todo el Histórico</option>
         </select>
-      </div>
-
-      <div style="font-size:11px; color:#94a3b8; margin: 4px 0 10px 0;">
-        💡 Toca sobre la tarjeta de un comercial para desplegar la lista de sus calles, sectores y clientes de este periodo.
       </div>
 
       <div id="auditContainer"></div>
@@ -483,7 +472,6 @@
       map.on('click', handleMapClick);
     }
 
-    // BUSCADOR DE MUNICIPIOS
     async function searchLocation() {
       const query = document.getElementById('searchInput').value.trim();
       if (!query) return;
@@ -493,18 +481,15 @@
         const results = await response.json();
 
         if (results && results.length > 0) {
-          const lat = parseFloat(results[0].lat);
-          const lon = parseFloat(results[0].lon);
-          map.setView([lat, lon], 16, { animate: true });
+          map.setView([parseFloat(results[0].lat), parseFloat(results[0].lon)], 16, { animate: true });
         } else {
-          alert("No se encontró el municipio o ubicación especificada.");
+          alert("No se encontró el municipio especificado.");
         }
       } catch (e) {
-        alert("Error al conectar con el servidor de búsqueda.");
+        alert("Error al conectar con la búsqueda.");
       }
     }
 
-    // --- ASIGNACIÓN DE SECTORES POR EL JEFE ---
     function startSectorDrawing() {
       isDrawingMode = true;
       tempPoints = [];
@@ -568,7 +553,6 @@
       renderAllSavedZones();
     }
 
-    // --- RENDERS DE ZONAS EN EL MAPA ---
     function renderAllSavedZones() {
       loadedMapLayers.forEach(l => map.removeLayer(l));
       loadedMapLayers = [];
@@ -583,6 +567,9 @@
 
         if (z.status === 'en_proceso') {
           polyColor = '#d97706';
+          dashArray = null;
+        } else if (z.status === 'no_apto_sector') {
+          polyColor = '#0f172a'; // NEGRO = NO APTO
           dashArray = null;
         } else if (z.status === 'completada') {
           dashArray = null;
@@ -622,25 +609,15 @@
       });
     }
 
-    // MEJORA DEL BOTÓN DE VOLCADO RÁPIDO
     function openSelectZoneToDumpModal() {
-      // Filtrar zonas del usuario activo
       const myZones = savedZones.filter(z => (currentUserRole === 'jefe' || z.comercial === currentUserName));
-      
       if (myZones.length === 0) {
         alert("No hay ningún sector trazado en el mapa. Primero debes pulsar en '➕ ASIGNAR SECTOR / ZONA'.");
         return;
       }
 
-      // Buscar si hay una pendiente
-      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && z.status !== 'completada');
-
-      if (firstPendingIdx !== -1) {
-        openDumpModal(firstPendingIdx);
-      } else {
-        // Abrir la última creada si todas están completadas
-        openDumpModal(savedZones.length - 1);
-      }
+      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && z.status !== 'completada' && z.status !== 'no_apto_sector');
+      openDumpModal(firstPendingIdx !== -1 ? firstPendingIdx : savedZones.length - 1);
     }
 
     function openDumpModal(idx) {
@@ -653,12 +630,13 @@
       document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
       document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
       document.getElementById('dumpSi').value = z.stats?.si || 0;
-      document.getElementById('dumpProgressState').value = z.status === 'en_proceso' ? 'en_proceso' : 'completada';
+      document.getElementById('dumpProgressState').value = z.status || 'completada';
 
       renderClientFormFields();
       document.getElementById('dumpModal').classList.add('active');
     }
 
+    // FORMULARIO DINÁMICO CON SELECCIÓN DE CAUSA NO APTO
     function renderClientFormFields() {
       const container = document.getElementById('clientsContainer');
       container.innerHTML = '';
@@ -691,14 +669,32 @@
               <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
               <option value="80+" ${existing.m2==='80+'?'selected':''}>80+ m² (Alto)</option>
             </select>
-            <select class="select-field client-obra-status" style="flex:1;">
+            <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
               <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
               <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
               <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
             </select>
           </div>
+          
+          <!-- DESPLEGABLE DINÁMICO DE MOTIVO DE NO APTO -->
+          <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
+            <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
+            <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
+              <option value="m2_insuficiente" ${existing.obraReason==='m2_insuficiente'?'selected':''}>📐 Superficie m² insuficiente</option>
+              <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Aislamiento previo existente</option>
+              <option value="suelo_forjado" ${existing.obraReason==='suelo_forjado'?'selected':''}>🏗️ Problema en suelo / forjado</option>
+              <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a tejado imposible</option>
+            </select>
+          </div>
         `;
         container.appendChild(box);
+      }
+    }
+
+    function toggleNoAptoReasonField(selectEl) {
+      const reasonBox = selectEl.closest('.client-box').querySelector('.no-apto-reason-box');
+      if (reasonBox) {
+        reasonBox.style.display = selectEl.value === 'no_apto' ? 'block' : 'none';
       }
     }
 
@@ -718,12 +714,16 @@
       z.clients = [];
       const clientBoxes = document.querySelectorAll('.client-box');
       clientBoxes.forEach(box => {
+        const statusVal = box.querySelector('.client-obra-status').value;
+        const reasonVal = statusVal === 'no_apto' ? box.querySelector('.client-no-apto-reason').value : 'ninguno';
+
         z.clients.push({
           name: box.querySelector('.client-name').value,
           street: box.querySelector('.client-street').value,
           phone: box.querySelector('.client-phone').value,
           m2: box.querySelector('.client-m2').value,
-          obraStatus: box.querySelector('.client-obra-status').value
+          obraStatus: statusVal,
+          obraReason: reasonVal
         });
       });
 
@@ -732,7 +732,7 @@
       renderAllSavedZones();
     }
 
-    // --- CÁLCULO FINANCIERO Y AUDITORÍA DETALLADA Y EXTENSIBLE ---
+    // AUDITORÍA CON MÉTRICAS DE CAÍDA TÉCNICA
     function openAuditModal() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -744,7 +744,9 @@
       usersList.forEach(u => {
         stats[u] = {
           tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0,
-          obrasPuestas: 0, obrasRealizadas: 0, m2Ejecutados: 0, m2Potenciales: 0,
+          obrasPuestas: 0, obrasRealizadas: 0, obrasNoAptas: 0,
+          m2Ejecutados: 0, m2Potenciales: 0,
+          noAptoReasons: {},
           zones: []
         };
       });
@@ -755,7 +757,6 @@
         const u = z.comercial || 'Comercial 1';
         if (!stats[u]) return;
 
-        // Filtro de fecha
         const zoneDate = z.timestamp ? new Date(z.timestamp) : new Date();
         if (filterPeriod === 'hoy') {
           if (zoneDate.toDateString() !== now.toDateString()) return;
@@ -784,6 +785,10 @@
             } else if (c.obraStatus === 'realizada') {
               stats[u].obrasRealizadas += 1;
               stats[u].m2Ejecutados += m2Val;
+            } else if (c.obraStatus === 'no_apto') {
+              stats[u].obrasNoAptas += 1;
+              const r = c.obraReason || 'desconocido';
+              stats[u].noAptoReasons[r] = (stats[u].noAptoReasons[r] || 0) + 1;
             }
           });
         }
@@ -794,43 +799,43 @@
       usersList.forEach((u, uIdx) => {
         const s = stats[u];
         const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
+        const totalCitasCerradas = s.obrasPuestas + s.obrasRealizadas + s.obrasNoAptas;
+        const ratioCaidaTecnica = totalCitasCerradas > 0 ? Math.round((s.obrasNoAptas / totalCitasCerradas) * 100) : 0;
 
         let cobradoComercial = 0;
-        let gananciaJefeDeEsteComercial = 0;
-
         if (u === 'Andrei (Jefe)') {
           cobradoComercial = s.m2Ejecutados * 1.0;
         } else {
           cobradoComercial = s.m2Ejecutados * 0.85;
-          gananciaJefeDeEsteComercial = s.m2Ejecutados * 0.15;
-          totalOverridenCommission += gananciaJefeDeEsteComercial;
+          totalOverridenCommission += (s.m2Ejecutados * 0.15);
         }
 
-        // Construir detalle extendido de zonas y clientes
         let detailsHtml = '';
         if (s.zones.length === 0) {
-          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin zonas registradas en este periodo.</div>`;
+          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin zonas registradas.</div>`;
         } else {
           s.zones.forEach(zoneItem => {
             let clientRows = '';
             if (zoneItem.clients && zoneItem.clients.length > 0) {
               zoneItem.clients.forEach(cItem => {
-                const badgeStatus = cItem.obraStatus === 'realizada' ? '✅ Obra Hecha' : (cItem.obraStatus === 'agendada' ? '📅 Cita Agendada' : '🚫 No Apta');
+                let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">📅 Cita Agendada</span>';
+                if (cItem.obraStatus === 'realizada') badgeStatus = '<span style="color:#34d399; font-weight:800;">✅ Obra Hecha</span>';
+                if (cItem.obraStatus === 'no_apto') badgeStatus = `<span class="no-apto-pill">🚫 No Apta (${cItem.obraReason||'Técnica'})</span>`;
+
                 clientRows += `
                   <div class="client-detail-row">
-                    <span><strong>${cItem.name || 'Cliente'}</strong> (${cItem.street || 'Dirección N/D'})</span>
-                    <span style="color:#60a5fa; font-weight:800;">${badgeStatus} (${cItem.m2||'60-80'} m²)</span>
+                    <span><strong>${cItem.name || 'Cliente'}</strong> (${cItem.street || 'N/D'})</span>
+                    <span>${badgeStatus} (${cItem.m2||'60-80'} m²)</span>
                   </div>
                 `;
               });
             } else {
-              clientRows = `<div style="font-size:10px; color:#64748b; margin-top:2px;">Sin fichas de clientes "Sí" todavía.</div>`;
+              clientRows = `<div style="font-size:10px; color:#64748b;">Sin fichas aún.</div>`;
             }
 
             detailsHtml += `
               <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 6px;">
                 <div style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})</div>
-                <div style="font-size:10px; color:#cbd5e1;">Puertas: ${zoneItem.stats?.si||0} Sí | ${zoneItem.stats?.papelito||0} Info | ${zoneItem.stats?.no||0} No</div>
                 ${clientRows}
               </div>
             `;
@@ -850,12 +855,12 @@
           </div>
 
           <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
-            🚪 Puertas Tocadas: <strong>${s.tocadas}</strong> (Sí: ${s.si} | Info: ${s.papelito} | Ausente: ${s.ausente} | No: ${s.no})
+            🚪 Puertas: <strong>${s.tocadas}</strong> | Efectividad Puerta: <strong>${ratioConversion}% Sí</strong>
           </div>
 
           <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:2px;">
-            <span>Efectividad Puerta: <strong>${ratioConversion}%</strong></span>
             <span>📅 Citas: <strong>${s.obrasPuestas}</strong> | ✅ Hechas: <strong>${s.obrasRealizadas}</strong></span>
+            <span style="color:#fca5a5;">🚫 Caídas en Visita: <strong>${s.obrasNoAptas} (${ratioCaidaTecnica}%)</strong></span>
           </div>
 
           <div id="${panelId}" class="audit-details-panel">
@@ -866,7 +871,6 @@
         container.appendChild(card);
       });
 
-      // Tarjeta Resumen Final para Andrei (Jefe)
       const jefeStats = stats['Andrei (Jefe)'];
       const totalJefeMes = (jefeStats.m2Ejecutados * 1.0) + totalOverridenCommission;
 
