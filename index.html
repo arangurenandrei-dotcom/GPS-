@@ -138,21 +138,31 @@
     .badge-sub { font-size: 10px; font-weight: 700; color: #60a5fa; margin-top: 2px; }
     .badge-pending-note { font-size: 10px; font-weight: 800; color: #fde047; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2px; }
 
+    /* ESTRUCTURA MODAL CON NAVEGACIÓN FIJA (STICKY) */
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;
+      backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 12px;
     }
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 500px; max-height: 90vh; background: #0f172a;
-      border: 1px solid var(--border-panel); border-radius: 20px; padding: 20px;
-      color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow-y: auto;
+      width: 100%; max-width: 520px; max-height: 88vh; background: #0f172a;
+      border: 1px solid var(--border-panel); border-radius: 20px; padding: 16px;
+      color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column;
+      overflow: hidden; /* EL CONTENEDOR PADRE NO HACE SCROLL */
+    }
+
+    .modal-header-sticky {
+      flex-shrink: 0; /* LA CABECERA Y LAS PESTAÑAS NUNCA SE DESPLAZAN */
     }
 
     .modal-header {
-      font-size: 15px; font-weight: 800; margin-bottom: 14px; display: flex;
-      justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;
+      font-size: 15px; font-weight: 800; margin-bottom: 10px; display: flex;
+      justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;
+    }
+
+    .modal-scrollable-content {
+      flex: 1; overflow-y: auto; margin-top: 6px; padding-right: 4px; /* SOLO SCROLL INTERNO */
     }
 
     .modal-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #60a5fa; margin: 12px 0 6px 0; }
@@ -220,7 +230,7 @@
       border-radius: 8px; padding: 6px 10px; font-size: 10px; color: #e9d5ff; margin-top: 4px;
     }
 
-    .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; overflow-x: auto; }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 6px; overflow-x: auto; flex-shrink: 0; }
     .tab-btn {
       flex: 1; padding: 10px 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
       background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 10px; font-weight: 800; cursor: pointer; text-align: center; whitespace: nowrap;
@@ -239,16 +249,19 @@
       padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px;
     }
 
-    .kpi-rank-card {
-      background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px; padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;
+    /* ESTILOS DE LA TABLA DIRECTIVA DE RANKING */
+    .ranking-table-container {
+      width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px;
     }
-    .kpi-badge {
-      font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; display: inline-block;
+    .ranking-table-container th {
+      background: rgba(30, 41, 59, 0.9); color: #94a3b8; text-transform: uppercase; font-size: 9px;
+      padding: 8px 6px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: 800;
     }
-    .kpi-badge.top { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
-    .kpi-badge.warning { background: rgba(220, 38, 38, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
-    .kpi-badge.ok { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+    .ranking-table-container td {
+      padding: 10px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 700; color: #f8fafc;
+    }
+    .rank-row-top { background: rgba(16, 185, 129, 0.08); }
+    .rank-row-warning { background: rgba(220, 38, 38, 0.08); }
   </style>
 </head>
 <body>
@@ -344,118 +357,130 @@
   <!-- MODAL FICHA DE INICIO COMERCIAL -->
   <div id="briefingModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-header">
-        <span>📋 Tu Plan de Ruta para Hoy</span>
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span>📋 Tu Plan de Ruta para Hoy</span>
+        </div>
       </div>
-      <div id="briefingContainer"></div>
-      <button class="btn-modal-save" onclick="closeModal('briefingModal')">🚀 Entrar al Mapa y Comenzar</button>
+      <div class="modal-scrollable-content">
+        <div id="briefingContainer"></div>
+        <button class="btn-modal-save" onclick="closeModal('briefingModal')">🚀 Entrar al Mapa y Comenzar</button>
+      </div>
     </div>
   </div>
 
   <!-- MODAL ASIGNACIÓN -->
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-header">
-        <span>📍 Asignar Sector a Comercial</span>
-        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('assignModal')">✕</button>
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span>📍 Asignar Sector a Comercial</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('assignModal')">✕</button>
+        </div>
       </div>
 
-      <div class="input-group">
-        <span class="input-label">📅 Fecha de Agenda</span>
-        <input type="date" id="assignDate" class="input-field">
-      </div>
+      <div class="modal-scrollable-content">
+        <div class="input-group">
+          <span class="input-label">📅 Fecha de Agenda</span>
+          <input type="date" id="assignDate" class="input-field">
+        </div>
 
-      <div class="input-group">
-        <span class="input-label">Pueblo / Municipio</span>
-        <input type="text" id="assignTown" class="input-field" value="Peralta">
-      </div>
+        <div class="input-group">
+          <span class="input-label">Pueblo / Municipio</span>
+          <input type="text" id="assignTown" class="input-field" value="Peralta">
+        </div>
 
-      <div class="input-group">
-        <span class="input-label">Nombre del Sector (Opcional)</span>
-        <input type="text" id="assignSectorName" class="input-field" placeholder="Dejar en blanco para auto-generar">
-      </div>
+        <div class="input-group">
+          <span class="input-label">Nombre del Sector (Opcional)</span>
+          <input type="text" id="assignSectorName" class="input-field" placeholder="Dejar en blanco para auto-generar">
+        </div>
 
-      <div class="input-group">
-        <span class="input-label">Asignar A:</span>
-        <select id="assignComercial" class="select-field">
-          <option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
-          <option value="Comercial 1">Comercial 1</option>
-          <option value="Comercial 2">Comercial 2</option>
-          <option value="Comercial 3">Comercial 3</option>
-          <option value="Comercial 4">Comercial 4</option>
-          <option value="Comercial 5">Comercial 5</option>
-        </select>
-      </div>
+        <div class="input-group">
+          <span class="input-label">Asignar A:</span>
+          <select id="assignComercial" class="select-field">
+            <option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
+            <option value="Comercial 1">Comercial 1</option>
+            <option value="Comercial 2">Comercial 2</option>
+            <option value="Comercial 3">Comercial 3</option>
+            <option value="Comercial 4">Comercial 4</option>
+            <option value="Comercial 5">Comercial 5</option>
+          </select>
+        </div>
 
-      <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px;">
-        <span class="input-label">💬 Instrucción / Nota del Jefe</span>
-        <input type="text" id="assignBossNote" class="input-field" placeholder="Ej. Empezar por la zona este..." style="width:100%;">
-      </div>
+        <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px;">
+          <span class="input-label">💬 Instrucción / Nota del Jefe</span>
+          <input type="text" id="assignBossNote" class="input-field" placeholder="Ej. Empezar por la zona este..." style="width:100%;">
+        </div>
 
-      <button class="btn-modal-save" onclick="confirmSectorAssignment()">💾 Guardar Sector en la Agenda</button>
+        <button class="btn-modal-save" onclick="confirmSectorAssignment()">💾 Guardar Sector en la Agenda</button>
+      </div>
     </div>
   </div>
 
   <!-- MODAL VOLCADO Y ESTADO DE VIVIENDA -->
   <div id="dumpModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-header">
-        <span id="dumpModalTitle">Volcado de Hoja de Trabajo</span>
-        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('dumpModal')">✕</button>
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span id="dumpModalTitle">Volcado de Hoja de Trabajo</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('dumpModal')">✕</button>
+        </div>
       </div>
 
-      <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
-        📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
-      </button>
-      <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
+      <div class="modal-scrollable-content">
+        <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
+          📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
+        </button>
+        <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
 
-      <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
-        ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
-      </div>
+        <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
+          ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
+        </div>
 
-      <div class="input-group">
-        <span class="input-label">📅 Fecha Real de Volcado</span>
-        <input type="date" id="dumpDate" class="input-field">
-      </div>
+        <div class="input-group">
+          <span class="input-label">📅 Fecha Real de Volcado</span>
+          <input type="date" id="dumpDate" class="input-field">
+        </div>
 
-      <div class="modal-section-title">📊 Totales del Día en el Papel</div>
-      <div class="input-group">
-        <span class="input-label">❌ No (Rechazos)</span>
-        <input type="number" id="dumpNo" class="input-field" placeholder="0" onfocus="this.select()">
-      </div>
-      <div class="input-group">
-        <span class="input-label">⏳ Ausentes</span>
-        <input type="number" id="dumpAusente" class="input-field" placeholder="0" onfocus="this.select()">
-      </div>
-      <div class="input-group">
-        <span class="input-label">📄 Papelito / Pedido Info</span>
-        <input type="number" id="dumpPapelito" class="input-field" placeholder="0" onfocus="this.select()">
-      </div>
-      <div class="input-group">
-        <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
-        <input type="number" id="dumpSi" class="input-field" placeholder="0" onfocus="this.select()" onchange="renderClientFormFields()">
-      </div>
+        <div class="modal-section-title">📊 Totales del Día en el Papel</div>
+        <div class="input-group">
+          <span class="input-label">❌ No (Rechazos)</span>
+          <input type="number" id="dumpNo" class="input-field" placeholder="0" onfocus="this.select()">
+        </div>
+        <div class="input-group">
+          <span class="input-label">⏳ Ausentes</span>
+          <input type="number" id="dumpAusente" class="input-field" placeholder="0" onfocus="this.select()">
+        </div>
+        <div class="input-group">
+          <span class="input-label">📄 Papelito / Pedido Info</span>
+          <input type="number" id="dumpPapelito" class="input-field" placeholder="0" onfocus="this.select()">
+        </div>
+        <div class="input-group">
+          <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
+          <input type="number" id="dumpSi" class="input-field" placeholder="0" onfocus="this.select()" onchange="renderClientFormFields()">
+        </div>
 
-      <!-- ESTADO DEL SECTOR (REDUCIDO A LAS 3 CASILLAS INICIALES) -->
-      <div class="input-group">
-        <span class="input-label">🏡 Estado del Sector</span>
-        <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
-          <option value="sin_comprobar">⚪ Por Hacer</option>
-          <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
-          <option value="completada">✅ Terminado</option>
-        </select>
-      </div>
+        <!-- ESTADO DEL SECTOR -->
+        <div class="input-group">
+          <span class="input-label">🏡 Estado del Sector</span>
+          <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
+            <option value="sin_comprobar">⚪ Por Hacer</option>
+            <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
+            <option value="completada">✅ Terminado</option>
+          </select>
+        </div>
 
-      <div id="pendingNoteGroup" class="input-group" style="display:none; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
-        <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
-        <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." style="width:100%;">
-      </div>
+        <div id="pendingNoteGroup" class="input-group" style="display:none; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
+          <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
+          <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." style="width:100%;">
+        </div>
 
-      <div id="clientsContainer"></div>
+        <div id="clientsContainer"></div>
 
-      <div style="display:flex; gap:8px;">
-        <button class="btn-modal-save" style="flex:3;" onclick="saveDumpData()">💾 Finalizar Volcado</button>
-        <button id="btnDumpDelete" class="btn-modal-delete" style="flex:1; display:none;" onclick="deleteZone(selectedZoneIndexToDump)">🗑️ Borrar</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-modal-save" style="flex:3;" onclick="saveDumpData()">💾 Finalizar Volcado</button>
+          <button id="btnDumpDelete" class="btn-modal-delete" style="flex:1; display:none;" onclick="deleteZone(selectedZoneIndexToDump)">🗑️ Borrar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -463,41 +488,49 @@
   <!-- MODAL NOTA DEL JEFE -->
   <div id="noteModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-header">
-        <span>💬 Añadir Nota de Recordatorio</span>
-        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('noteModal')">✕</button>
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span>💬 Añadir Nota de Recordatorio</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('noteModal')">✕</button>
+        </div>
       </div>
-
-      <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:6px;">
-        <span class="input-label">Mensaje para el Comercial:</span>
-        <input type="text" id="modalNoteText" class="input-field" placeholder="Escribe aquí la indicación..." style="width:100%;">
+      <div class="modal-scrollable-content">
+        <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:6px;">
+          <span class="input-label">Mensaje para el Comercial:</span>
+          <input type="text" id="modalNoteText" class="input-field" placeholder="Escribe aquí la indicación..." style="width:100%;">
+        </div>
+        <button class="btn-modal-save" onclick="saveBossNoteFromModal()">💾 Guardar Instrucción</button>
       </div>
-
-      <button class="btn-modal-save" onclick="saveBossNoteFromModal()">💾 Guardar Instrucción</button>
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA & CONTROL DE OBRAS (ANDREI) -->
+  <!-- MODAL AUDITORÍA CON PESTAÑAS Y CABECERA FIJAS (STICKY) -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-header">
-        <span>📊 Agenda & Cuadro de Mando de Obras</span>
-        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
+      
+      <!-- CONTENEDOR FIJO QUE NUNCA SE OCULTA AL HACER SCROLL -->
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span>📊 Agenda & Cuadro de Mando de Obras</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:4px;" onclick="closeModal('auditModal')">✕</button>
+        </div>
+
+        <div class="tab-bar">
+          <div id="tabBtnKpis" class="tab-btn active" onclick="switchAuditTab('kpis')">🏆 Ranking Global</div>
+          <div id="tabBtnComerciales" class="tab-btn" onclick="switchAuditTab('comerciales')">🗓️ Agenda Día</div>
+          <div id="tabBtnObras" class="tab-btn" onclick="switchAuditTab('obras')">🔥 Obras Listas (m²)</div>
+          <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos</div>
+        </div>
+
+        <div id="dateSelectorGroup" class="input-group" style="display:none; margin-bottom:4px;">
+          <span class="input-label">📅 Seleccionar Fecha Exacta</span>
+          <input type="date" id="auditDateSelect" class="input-field" onchange="renderCurrentAuditView()">
+        </div>
       </div>
 
-      <div class="tab-bar">
-        <div id="tabBtnObras" class="tab-btn active" onclick="switchAuditTab('obras')">🔥 Obras Listas (m²)</div>
-        <div id="tabBtnKpis" class="tab-btn" onclick="switchAuditTab('kpis')">🏆 Ranking & KPIs</div>
-        <div id="tabBtnComerciales" class="tab-btn" onclick="switchAuditTab('comerciales')">🗓️ Agenda Día</div>
-        <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos</div>
-      </div>
+      <!-- CONTENIDO INTERNO DESPLAZABLE -->
+      <div class="modal-scrollable-content" id="auditContainer"></div>
 
-      <div id="dateSelectorGroup" class="input-group" style="display:none;">
-        <span class="input-label">📅 Seleccionar Fecha Exacta</span>
-        <input type="date" id="auditDateSelect" class="input-field" onchange="renderCurrentAuditView()">
-      </div>
-
-      <div id="auditContainer"></div>
     </div>
   </div>
 
@@ -525,7 +558,7 @@
     let isDrawingMode = false;
     let selectedZoneIndexToDump = null;
     let selectedZoneIndexForNote = null;
-    let activeAuditTab = 'obras';
+    let activeAuditTab = 'kpis';
 
     function safeLoadStorage(key) {
       try {
@@ -920,7 +953,6 @@
       document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
       document.getElementById('dumpDate').value = z.dumpDate || z.date || new Date().toISOString().split('T')[0];
       
-      // SIN '0' DE SERIE (EN BLANCO CON PLACEHOLDER)
       document.getElementById('dumpNo').value = z.stats?.no ? z.stats.no : '';
       document.getElementById('dumpAusente').value = z.stats?.ausente ? z.stats.ausente : '';
       document.getElementById('dumpPapelito').value = z.stats?.papelito ? z.stats.papelito : '';
@@ -1158,9 +1190,9 @@
 
     function switchAuditTab(tab) {
       activeAuditTab = tab;
-      document.getElementById('tabBtnObras').className = `tab-btn ${tab==='obras'?'active':''}`;
       document.getElementById('tabBtnKpis').className = `tab-btn ${tab==='kpis'?'active':''}`;
       document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`;
+      document.getElementById('tabBtnObras').className = `tab-btn ${tab==='obras'?'active':''}`;
       document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
 
       document.getElementById('dateSelectorGroup').style.display = (tab === 'comerciales') ? 'flex' : 'none';
@@ -1168,124 +1200,18 @@
     }
 
     function renderCurrentAuditView() {
-      if (activeAuditTab === 'obras') {
-        renderObrasOptimizationAudit();
-      } else if (activeAuditTab === 'kpis') {
+      if (activeAuditTab === 'kpis') {
         renderKpisAudit();
       } else if (activeAuditTab === 'comerciales') {
         renderComercialesAudit();
+      } else if (activeAuditTab === 'obras') {
+        renderObrasOptimizationAudit();
       } else {
         renderPueblosAudit();
       }
     }
 
-    // PESTAÑA OPTIMIZACIÓN DE OBRAS
-    function renderObrasOptimizationAudit() {
-      const container = document.getElementById('auditContainer');
-      container.innerHTML = '';
-
-      const streetClusters = {};
-      let totalOpportunityM2 = 0;
-      let totalReadyClients = 0;
-
-      savedZones.forEach(z => {
-        if (!z.clients) return;
-
-        z.clients.forEach(c => {
-          if (c.obraStatus === 'no_apto') return;
-
-          let m2Val = getM2NumericValue(c.m2);
-          const town = z.town || 'Navarra';
-          const streetRaw = (c.street || 'Calle Sin Nombre').trim();
-          const key = `${town}___${streetRaw}`;
-
-          if (!streetClusters[key]) {
-            streetClusters[key] = {
-              town,
-              streetName: streetRaw,
-              totalM2: 0,
-              houseCount: 0,
-              clients: [],
-              sectorName: z.sectorName
-            };
-          }
-
-          streetClusters[key].totalM2 += m2Val;
-          streetClusters[key].houseCount += 1;
-          streetClusters[key].clients.push({ ...c, m2Val, comercial: z.comercial });
-
-          totalOpportunityM2 += m2Val;
-          totalReadyClients += 1;
-        });
-      });
-
-      const sortedStreets = Object.values(streetClusters).sort((a, b) => b.totalM2 - a.totalM2);
-
-      const headerBox = document.createElement('div');
-      headerBox.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
-      headerBox.style.border = '1px solid #34d399';
-      headerBox.style.borderRadius = '14px';
-      headerBox.style.padding = '14px';
-      headerBox.style.marginBottom = '14px';
-
-      headerBox.innerHTML = `
-        <div style="font-size:11px; font-weight:800; color:#a7f3d0; text-transform:uppercase;">💰 OPTIMIZADOR DE CUADRILLAS Y FACTURACIÓN</div>
-        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalOpportunityM2} m² Listos (${totalOpportunityM2 * 1.0} €)</div>
-        <div style="font-size:11px; color:#ecfdf5;">
-          • Total Viviendas Captadas: <strong>${totalReadyClients} casas</strong><br>
-          • Prioridad automática por concentración geográfica y volumen de m².
-        </div>
-      `;
-      container.appendChild(headerBox);
-
-      if (sortedStreets.length === 0) {
-        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">No hay obras pendientes en este momento.</div>`;
-        return;
-      }
-
-      sortedStreets.forEach((item, index) => {
-        const clusterEuros = item.totalM2 * 1.0;
-        const isClusterDense = item.houseCount >= 2;
-
-        const card = document.createElement('div');
-        card.className = 'obra-priority-card';
-        if (isClusterDense) {
-          card.style.border = '2px solid #f59e0b';
-          card.style.background = 'rgba(245, 158, 11, 0.12)';
-        }
-
-        let housesHtml = '';
-        item.clients.forEach(c => {
-          housesHtml += `
-            <div style="font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between;">
-              <span>🏡 <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
-              <span style="color:#34d399; font-weight:800;">${c.m2Val} m²</span>
-            </div>
-          `;
-        });
-
-        card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:12px; font-weight:900; color:#ffffff;">
-              #${index + 1} 📍 ${item.town} - ${item.streetName}
-            </span>
-            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px;">
-              ${item.totalM2} m² (${clusterEuros} €)
-            </span>
-          </div>
-
-          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
-            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} CASAS EN LA MISMA CALLE)</strong>` : `1 vivienda de ${item.totalM2} m²`}
-          </div>
-
-          ${housesHtml}
-        `;
-
-        container.appendChild(card);
-      });
-    }
-
-    // PESTAÑA NUEVA: RANKING & KPIS GLOBALES PARA EL JEFE
+    // PESTAÑA REDISEÑADA: LEADERBOARD / CLASIFICACIÓN GENERAL DIRECTIVA
     function renderKpisAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1299,19 +1225,12 @@
           daysWorked: 0,
           totalTocadas: 0,
           totalSi: 0,
-          totalNo: 0,
-          totalAusente: 0,
-          totalPapelito: 0,
           m2Ejecutados: 0,
           dineroJefeGenerado: 0,
-          dineroComercialGanado: 0,
-          obrasRealizadasCount: 0,
-          obrasNoAptasCount: 0,
           datesSet: new Set()
         };
       });
 
-      // Recorrer todas las zonas acumuladas
       savedZones.forEach(z => {
         const u = z.comercial || 'Comercial 1';
         if (!statsMap[u]) return;
@@ -1322,112 +1241,123 @@
 
         const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
         statsMap[u].totalTocadas += tocadas;
-        statsMap[u].totalNo += (st.no||0);
-        statsMap[u].totalAusente += (st.ausente||0);
-        statsMap[u].totalPapelito += (st.papelito||0);
         statsMap[u].totalSi += (st.si||0);
 
         if (z.clients) {
           z.clients.forEach(c => {
             let m2Val = getM2NumericValue(c.m2);
             if (c.obraStatus === 'realizada') {
-              statsMap[u].obrasRealizadasCount += 1;
               statsMap[u].m2Ejecutados += m2Val;
-            } else if (c.obraStatus === 'no_apto') {
-              statsMap[u].obrasNoAptasCount += 1;
             }
           });
         }
       });
 
-      // Calcular comisiones y días
-      let totalEmpresaMetro2 = 0;
       let totalEmpresaDineroJefe = 0;
+      let totalEmpresaMetro2 = 0;
 
       usersList.forEach(u => {
         const s = statsMap[u];
         s.daysWorked = Math.max(1, s.datesSet.size);
 
         if (u === 'Andrei (Jefe)') {
-          s.dineroComercialGanado = s.m2Ejecutados * 1.0;
           s.dineroJefeGenerado = s.m2Ejecutados * 1.0;
         } else {
-          s.dineroComercialGanado = s.m2Ejecutados * 0.85;
-          s.dineroJefeGenerado = s.m2Ejecutados * 0.15; // 15% override
+          s.dineroJefeGenerado = s.m2Ejecutados * 0.15; // 15% COMISIÓN PARA ANDREI
         }
 
         totalEmpresaMetro2 += s.m2Ejecutados;
         totalEmpresaDineroJefe += s.dineroJefeGenerado;
       });
 
-      // Ordenar comerciales por dinero aportado al Jefe (mayor a menor)
+      // ORDENAR POR DINERO NETO GENERADO PARA ANDREI
       const sortedRank = Object.values(statsMap).sort((a, b) => b.dineroJefeGenerado - a.dineroJefeGenerado);
+      const topProducer = sortedRank[0];
 
-      const headerBox = document.createElement('div');
-      headerBox.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
-      headerBox.style.border = '1px solid #a78bfa';
-      headerBox.style.borderRadius = '16px';
-      headerBox.style.padding = '14px';
-      headerBox.style.marginBottom = '14px';
+      // TARJETA DE RESUMEN FINANCIERO
+      const summaryCard = document.createElement('div');
+      summaryCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
+      summaryCard.style.border = '1px solid #a78bfa';
+      summaryCard.style.borderRadius = '16px';
+      summaryCard.style.padding = '14px';
+      summaryCard.style.marginBottom = '12px';
 
-      headerBox.innerHTML = `
-        <div style="font-size:11px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">📊 BALANCE ACUMULADO GLOBAL</div>
-        <div style="font-size:24px; font-weight:900; color:#ffffff; margin:4px 0;">${totalEmpresaDineroJefe.toFixed(2)} € Tu Margen Total</div>
+      summaryCard.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">👑 CUADRO DE MANDOS DE RENTABILIDAD</div>
+        <div style="font-size:24px; font-weight:900; color:#ffffff; margin:4px 0;">${totalEmpresaDineroJefe.toFixed(2)} € Tu Margen Neto</div>
         <div style="font-size:11px; color:#ddd6fe;">
-          • Metros Ejecutados Equipo: <strong>${totalEmpresaMetro2} m²</strong><br>
-          • Rendimiento medio y rentabilidad real histórica por comercial.
+          • Volumen Total Equipo: <strong>${totalEmpresaMetro2} m²</strong><br>
+          • Líder del Equipo: <strong>${topProducer.name}</strong> (${topProducer.dineroJefeGenerado.toFixed(2)} € aportados)
         </div>
       `;
-      container.appendChild(headerBox);
+      container.appendChild(summaryCard);
 
+      // TABLA RESUMEN TIPO CLASIFICACIÓN
+      const tableWrapper = document.createElement('div');
+      tableWrapper.style.overflowX = 'auto';
+
+      let tableRows = '';
       sortedRank.forEach((s, rankIdx) => {
         const avgSiPerDay = (s.totalSi / s.daysWorked).toFixed(1);
-        const avgTocadasPerDay = Math.round(s.totalTocadas / s.daysWorked);
-        const conversionRate = s.totalTocadas > 0 ? ((s.totalSi / s.totalTocadas) * 100).toFixed(1) : '0';
+        const conversionRate = s.totalTocadas > 0 ? ((s.totalSi / s.totalTocadas) * 100).toFixed(0) : '0';
 
-        let badgeClass = 'ok';
-        let badgeText = '🟢 EN OBJETIVO';
+        let medal = `#${rankIdx + 1}`;
+        if (rankIdx === 0) medal = '🥇';
+        if (rankIdx === 1) medal = '🥈';
+        if (rankIdx === 2) medal = '🥉';
+
+        let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">🟢 CUMPLIENDO</span>';
+        let rowClass = '';
 
         if (rankIdx === 0 && s.dineroJefeGenerado > 0) {
-          badgeClass = 'top';
-          badgeText = '🥇 TOP RENTABILIDAD';
+          badgeStatus = '<span style="color:#34d399; font-weight:900;">🔥 TOP LEADER</span>';
+          rowClass = 'rank-row-top';
         } else if (parseFloat(avgSiPerDay) < 2.0 && s.daysWorked >= 1) {
-          badgeClass = 'warning';
-          badgeText = '⚠️ ALERTA / MASTERCLASS REQUERIDA';
+          badgeStatus = '<span style="color:#fca5a5; font-weight:900;">⚠️ ALERTA / FORMACIÓN</span>';
+          rowClass = 'rank-row-warning';
         }
 
-        const card = document.createElement('div');
-        card.className = 'kpi-rank-card';
+        const gapWithLeader = (topProducer.dineroJefeGenerado - s.dineroJefeGenerado).toFixed(2);
+        const gapText = rankIdx === 0 ? '---' : `-${gapWithLeader} € vs #1`;
 
-        card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <strong style="font-size:14px; color:#fff;">#${rankIdx + 1} ${s.name}</strong>
-              <div style="margin-top:2px;"><span class="kpi-badge ${badgeClass}">${badgeText}</span></div>
-            </div>
-            <div style="text-align:right;">
-              <span class="financial-pill" style="font-size:12px;">Margen Jefe: ${s.dineroJefeGenerado.toFixed(2)} €</span>
-              <div style="font-size:10px; color:#94a3b8; margin-top:4px;">Paga Comercial: ${s.dineroComercialGanado.toFixed(2)} €</div>
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; background:rgba(0,0,0,0.25); padding:8px; border-radius:10px; font-size:11px; margin-top:4px;">
-            <div>📈 Promedio "Sí"/Día: <strong style="color:#34d399;">${avgSiPerDay} SÍ / día</strong></div>
-            <div>🚪 Ritmo Puertas: <strong>~${avgTocadasPerDay} / día</strong></div>
-            <div>🎯 Efectividad: <strong>${conversionRate}% Sí</strong></div>
-            <div>🏗️ m² Ejecutados: <strong>${s.m2Ejecutados} m²</strong></div>
-          </div>
-
-          <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:2px;">
-            <span>📅 Días Activos: <strong>${s.daysWorked} días</strong></span>
-            <span>✅ Hechas: <strong>${s.obrasRealizadasCount}</strong> | 🚫 Caídas: <strong style="color:#fca5a5;">${s.obrasNoAptasCount}</strong></span>
-          </div>
+        tableRows += `
+          <tr class="${rowClass}">
+            <td style="font-size:14px; text-align:center;">${medal}</td>
+            <td>
+              <div style="font-weight:900; color:#fff;">${s.name}</div>
+              <div style="font-size:9px; margin-top:2px;">${badgeStatus}</div>
+            </td>
+            <td style="color:#34d399; font-weight:900; font-size:12px;">${s.dineroJefeGenerado.toFixed(2)} €</td>
+            <td style="text-align:center;">
+              <div><strong>${avgSiPerDay}</strong> / día</div>
+              <small style="color:#94a3b8; font-size:9px;">${conversionRate}% Éxito</small>
+            </td>
+            <td style="font-size:10px; color:#fde047; text-align:right;">${gapText}</td>
+          </tr>
         `;
-
-        container.appendChild(card);
       });
+
+      tableWrapper.innerHTML = `
+        <table class="ranking-table-container">
+          <thead>
+            <tr>
+              <th style="width:30px; text-align:center;">#</th>
+              <th>Comercial</th>
+              <th>Tu Beneficio</th>
+              <th style="text-align:center;">Media "Sí"</th>
+              <th style="text-align:right;">Brecha vs #1</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      `;
+
+      container.appendChild(tableWrapper);
     }
 
+    // PESTAÑA: AGENDA DÍA (OPERATIVA DIARIA DETALLADA)
     function renderComercialesAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1481,7 +1411,7 @@
         
         const userShift = savedShifts.find(sh => sh.user === u && new Date(sh.date).toISOString().split('T')[0] === selectedDate);
 
-        let shiftTimelineHtml = '🕒 Sin fichaje en esta fecha.';
+        let shiftTimelineHtml = '🕒 Sin fichaje registrado en esta fecha.';
         let puertasPorHora = 'N/D';
 
         if (userShift) {
@@ -1595,6 +1525,112 @@
       `;
 
       container.prepend(bossTotalCard);
+    }
+
+    // PESTAÑA: OPTIMIZADOR DE OBRAS POR PROXIMIDAD
+    function renderObrasOptimizationAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const streetClusters = {};
+      let totalOpportunityM2 = 0;
+      let totalReadyClients = 0;
+
+      savedZones.forEach(z => {
+        if (!z.clients) return;
+
+        z.clients.forEach(c => {
+          if (c.obraStatus === 'no_apto') return;
+
+          let m2Val = getM2NumericValue(c.m2);
+          const town = z.town || 'Navarra';
+          const streetRaw = (c.street || 'Calle Sin Nombre').trim();
+          const key = `${town}___${streetRaw}`;
+
+          if (!streetClusters[key]) {
+            streetClusters[key] = {
+              town,
+              streetName: streetRaw,
+              totalM2: 0,
+              houseCount: 0,
+              clients: [],
+              sectorName: z.sectorName
+            };
+          }
+
+          streetClusters[key].totalM2 += m2Val;
+          streetClusters[key].houseCount += 1;
+          streetClusters[key].clients.push({ ...c, m2Val, comercial: z.comercial });
+
+          totalOpportunityM2 += m2Val;
+          totalReadyClients += 1;
+        });
+      });
+
+      const sortedStreets = Object.values(streetClusters).sort((a, b) => b.totalM2 - a.totalM2);
+
+      const headerBox = document.createElement('div');
+      headerBox.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+      headerBox.style.border = '1px solid #34d399';
+      headerBox.style.borderRadius = '14px';
+      headerBox.style.padding = '14px';
+      headerBox.style.marginBottom = '14px';
+
+      headerBox.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#a7f3d0; text-transform:uppercase;">💰 OPTIMIZADOR DE CUADRILLAS Y FACTURACIÓN</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalOpportunityM2} m² Listos (${totalOpportunityM2 * 1.0} €)</div>
+        <div style="font-size:11px; color:#ecfdf5;">
+          • Total Viviendas Captadas: <strong>${totalReadyClients} casas</strong><br>
+          • Prioridad automática por concentración geográfica y volumen de m².
+        </div>
+      `;
+      container.appendChild(headerBox);
+
+      if (sortedStreets.length === 0) {
+        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">No hay obras pendientes en este momento.</div>`;
+        return;
+      }
+
+      sortedStreets.forEach((item, index) => {
+        const clusterEuros = item.totalM2 * 1.0;
+        const isClusterDense = item.houseCount >= 2;
+
+        const card = document.createElement('div');
+        card.className = 'obra-priority-card';
+        if (isClusterDense) {
+          card.style.border = '2px solid #f59e0b';
+          card.style.background = 'rgba(245, 158, 11, 0.12)';
+        }
+
+        let housesHtml = '';
+        item.clients.forEach(c => {
+          housesHtml += `
+            <div style="font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between;">
+              <span>🏡 <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
+              <span style="color:#34d399; font-weight:800;">${c.m2Val} m²</span>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; font-weight:900; color:#ffffff;">
+              #${index + 1} 📍 ${item.town} - ${item.streetName}
+            </span>
+            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px;">
+              ${item.totalM2} m² (${clusterEuros} €)
+            </span>
+          </div>
+
+          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
+            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} CASAS EN LA MISMA CALLE)</strong>` : `1 vivienda de ${item.totalM2} m²`}
+          </div>
+
+          ${housesHtml}
+        `;
+
+        container.appendChild(card);
+      });
     }
 
     function openNoteModal(zoneIdx) {
