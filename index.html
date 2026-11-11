@@ -220,13 +220,20 @@
       border-radius: 8px; padding: 6px 10px; font-size: 10px; color: #e9d5ff; margin-top: 4px;
     }
 
-    /* PESTAÑAS DE AUDITORÍA */
     .tab-bar { display: flex; gap: 6px; margin-bottom: 12px; }
     .tab-btn {
       flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
       background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 11px; font-weight: 800; cursor: pointer; text-align: center;
     }
     .tab-btn.active { background: var(--primary); color: #fff; border-color: #60a5fa; }
+
+    /* ESTILOS PARA FICHA DE TRABAJO INICIAL (COMERCIAL) */
+    .priority-card {
+      background: rgba(255,255,255,0.05); border-radius: 14px; padding: 12px; margin-bottom: 10px;
+      border-left: 4px solid var(--primary); display: flex; flex-direction: column; gap: 4px;
+    }
+    .priority-card.p1 { border-left-color: #d97706; background: rgba(217, 119, 6, 0.1); }
+    .priority-card.p2 { border-left-color: #2563eb; background: rgba(37, 99, 235, 0.1); }
   </style>
 </head>
 <body>
@@ -236,7 +243,7 @@
     <div class="login-card">
       <div style="text-align:center;">
         <h1 class="login-title">Control Comercial</h1>
-        <p class="login-subtitle">Gestión de Zonas y Control Horario</p>
+        <p class="login-subtitle">Gestión de Zonas y Agenda Diaria</p>
       </div>
 
       <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
@@ -284,7 +291,7 @@
           <span id="displayUserName" style="font-size:13px; font-weight:800;">Andrei</span>
         </div>
         <div style="display:flex; gap:6px;">
-          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Auditoría & Pueblos</button>
+          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda & Pueblos</button>
           <button class="btn-hud" onclick="centerOnUser()">🎯 Mi GPS</button>
           <button class="btn-hud logout" onclick="executeLogout()">🔒 Salir</button>
         </div>
@@ -319,6 +326,17 @@
     </div>
   </div>
 
+  <!-- MODAL FICHA DE INICIO COMERCIAL (PRIORIDADES DEL DÍA) -->
+  <div id="briefingModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>📋 Tu Plan de Ruta para Hoy</span>
+      </div>
+      <div id="briefingContainer"></div>
+      <button class="btn-modal-save" onclick="closeModal('briefingModal')">🚀 Entrar al Mapa y Comenzar</button>
+    </div>
+  </div>
+
   <!-- MODAL ASIGNACIÓN -->
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
@@ -328,7 +346,7 @@
       </div>
 
       <div class="input-group">
-        <span class="input-label">📅 Fecha de Asignación</span>
+        <span class="input-label">📅 Fecha de Agenda</span>
         <input type="date" id="assignDate" class="input-field">
       </div>
 
@@ -354,6 +372,11 @@
         </select>
       </div>
 
+      <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px;">
+        <span class="input-label">💬 Instrucción / Nota para el Comercial</span>
+        <input type="text" id="assignBossNote" class="input-field" placeholder="Ej. Rematar primero las casas de la zona alta..." style="width:100%;">
+      </div>
+
       <button class="btn-modal-save" onclick="confirmSectorAssignment()">💾 Guardar y Enviar al Mapa</button>
     </div>
   </div>
@@ -367,7 +390,7 @@
       </div>
 
       <div class="input-group">
-        <span class="input-label">📅 Fecha de Trabajo</span>
+        <span class="input-label">📅 Fecha Real de Volcado</span>
         <input type="date" id="dumpDate" class="input-field">
       </div>
 
@@ -404,26 +427,39 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA CON PESTAÑAS (COMERCIALES VS PUEBLOS) -->
+  <!-- MODAL NOTA DEL JEFE -->
+  <div id="noteModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>💬 Añadir Nota de Recordatorio</span>
+        <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('noteModal')">✕</button>
+      </div>
+
+      <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:6px;">
+        <span class="input-label">Mensaje para el Comercial:</span>
+        <input type="text" id="modalNoteText" class="input-field" placeholder="Escribe aquí la indicación..." style="width:100%;">
+      </div>
+
+      <button class="btn-modal-save" onclick="saveBossNoteFromModal()">💾 Guardar Instrucción</button>
+    </div>
+  </div>
+
+  <!-- MODAL AUDITORÍA AGENDA POR FECHAS & PUEBLOS -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📊 Panel de Control & Auditoría</span>
+        <span>📊 Agenda Diaria & Control de Equipo</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
 
       <div class="tab-bar">
-        <div id="tabBtnComerciales" class="tab-btn active" onclick="switchAuditTab('comerciales')">👥 Comerciales</div>
-        <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos & Municipio</div>
+        <div id="tabBtnComerciales" class="tab-btn active" onclick="switchAuditTab('comerciales')">🗓️ Agenda por Día</div>
+        <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos & Mapa</div>
       </div>
 
       <div class="input-group">
-        <span class="input-label">📅 Periodo</span>
-        <select id="auditPeriodFilter" class="select-field" onchange="renderCurrentAuditView()">
-          <option value="hoy">Hoy (Jornada Activa)</option>
-          <option value="mes">Este Mes (Noviembre 2026)</option>
-          <option value="historico">Todo el Histórico</option>
-        </select>
+        <span class="input-label">📅 Seleccionar Fecha Exacta</span>
+        <input type="date" id="auditDateSelect" class="input-field" onchange="renderCurrentAuditView()">
       </div>
 
       <div id="auditContainer"></div>
@@ -453,6 +489,7 @@
     let tempMarkers = [];
     let isDrawingMode = false;
     let selectedZoneIndexToDump = null;
+    let selectedZoneIndexForNote = null;
     let activeAuditTab = 'comerciales';
 
     function safeLoadStorage(key) {
@@ -484,6 +521,10 @@
         setupRoleInterface();
         updateShiftUI();
         initMap();
+
+        if (currentUserRole === 'comercial') {
+          showCommercialBriefing();
+        }
       } else {
         document.getElementById('loginError').style.display = 'block';
       }
@@ -515,6 +556,56 @@
       }
     }
 
+    // --- POP-UP INICIAL DE PRIORIDADES PARA EL COMERCIAL ---
+    function showCommercialBriefing() {
+      const container = document.getElementById('briefingContainer');
+      container.innerHTML = '';
+
+      const myZones = savedZones.filter(z => z.comercial === currentUserName);
+      const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
+      const assignedNew = myZones.filter(z => z.status === 'pendiente');
+
+      let html = '';
+
+      if (pendingIncomplete.length > 0) {
+        pendingIncomplete.forEach(z => {
+          html += `
+            <div class="priority-card p1">
+              <span style="font-size:10px; font-weight:900; color:#d97706; text-transform:uppercase;">🚨 PRIORIDAD 1: TERMINAR ZONA DE AYER</span>
+              <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
+              <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
+              ${z.bossNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      if (assignedNew.length > 0) {
+        assignedNew.forEach(z => {
+          html += `
+            <div class="priority-card p2">
+              <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">🔵 PRIORIDAD 2: NUEVA ZONA DE HOY</span>
+              <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
+              <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
+              ${z.bossNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
+            </div>
+          `;
+        });
+      }
+
+      if (pendingIncomplete.length === 0 && assignedNew.length === 0) {
+        html = `
+          <div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">
+            ✅ No tienes ninguna zona pendiente ni asignada para hoy. El Jefe de Equipo te asignará una nueva zona en breve.
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      document.getElementById('briefingModal').classList.add('active');
+    }
+
+    // --- CONTROL DE FICHAJE HORARIO ---
     function getTodayShift(userName) {
       const todayStr = new Date().toDateString();
       return savedShifts.find(s => s.user === userName && new Date(s.date).toDateString() === todayStr);
@@ -533,19 +624,19 @@
         btnLunch.style.display = 'none';
         btnEnd.style.display = 'none';
       } else if (shift.status === 'working') {
-        statusLbl.innerHTML = `🟢 En Jornada (Desde ${shift.startTime})`;
+        statusLbl.innerHTML = `🟢 En Jornada (${shift.startTime})`;
         btnStart.style.display = 'none';
         btnLunch.style.display = 'inline-block';
         btnLunch.innerText = '⏸️ Comida';
         btnEnd.style.display = 'inline-block';
       } else if (shift.status === 'lunch') {
-        statusLbl.innerHTML = `🟡 En Pausa Comida (${shift.lunchStart})`;
+        statusLbl.innerHTML = `🟡 En Comida (${shift.lunchStart})`;
         btnStart.style.display = 'none';
         btnLunch.style.display = 'inline-block';
         btnLunch.innerText = '▶️ Reanudar';
         btnEnd.style.display = 'inline-block';
       } else if (shift.status === 'finished') {
-        statusLbl.innerHTML = `🏁 Jornada Finalizada (${shift.startTime} - ${shift.endTime})`;
+        statusLbl.innerHTML = `🏁 Jornada Cerrada (${shift.startTime} - ${shift.endTime})`;
         btnStart.style.display = 'none';
         btnLunch.style.display = 'none';
         btnEnd.style.display = 'none';
@@ -601,10 +692,10 @@
       map = L.map('map', { zoomControl: false, attributionControl: false }).setView([42.3486, -1.8011], 16);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-      // Pre-cargar fecha de hoy en el modal de asignación
       const todayIso = new Date().toISOString().split('T')[0];
       document.getElementById('assignDate').value = todayIso;
       document.getElementById('dumpDate').value = todayIso;
+      document.getElementById('auditDateSelect').value = todayIso;
 
       renderAllSavedZones();
       map.on('click', handleMapClick);
@@ -621,10 +712,10 @@
         if (results && results.length > 0) {
           map.setView([parseFloat(results[0].lat), parseFloat(results[0].lon)], 16, { animate: true });
         } else {
-          alert("No se encontró el municipio especificado.");
+          alert("No se encontró el municipio especifico.");
         }
       } catch (e) {
-        alert("Error al conectar con la búsqueda.");
+        alert("Error al conectar con el mapa.");
       }
     }
 
@@ -647,7 +738,7 @@
 
     function finishSectorDrawing() {
       if (tempPoints.length < 3) {
-        alert("Toca al menos 3 puntos para delimitar la zona del sector.");
+        alert("Toca al menos 3 puntos para delimitar la manzana.");
         return;
       }
       document.getElementById('drawingBanner').classList.remove('active');
@@ -666,6 +757,7 @@
       const dateVal = document.getElementById('assignDate').value || new Date().toISOString().split('T')[0];
       const town = document.getElementById('assignTown').value.trim() || 'Peralta';
       let sectorName = document.getElementById('assignSectorName').value.trim();
+      const bossNote = document.getElementById('assignBossNote').value.trim();
       
       if (!sectorName) {
         const sectorCount = savedZones.filter(z => z.town === town).length + 1;
@@ -677,10 +769,10 @@
       savedZones.push({
         id: Date.now(),
         date: dateVal,
-        timestamp: new Date(dateVal).getTime(),
         town,
         sectorName,
         comercial,
+        bossNote: bossNote || '',
         status: 'pendiente',
         points: tempPoints,
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
@@ -735,7 +827,7 @@
         const badgeHtml = `
           <div class="zone-badge-container">
             <div class="badge-title">${displayName}</div>
-            <div class="badge-sub">👤 ${displayComercial} ${displayDate ? '| 📅 ' + displayDate : ''}</div>
+            <div class="badge-sub">👤 ${displayComercial} | 📅 ${displayDate}</div>
           </div>
         `;
 
@@ -774,7 +866,7 @@
       const displayName = z.sectorName || z.town || 'Sector Comercial';
 
       document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
-      document.getElementById('dumpDate').value = z.date || new Date().toISOString().split('T')[0];
+      document.getElementById('dumpDate').value = z.dumpDate || z.date || new Date().toISOString().split('T')[0];
       document.getElementById('dumpNo').value = z.stats?.no || 0;
       document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
       document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
@@ -849,9 +941,7 @@
       if (selectedZoneIndexToDump === null) return;
 
       const z = savedZones[selectedZoneIndexToDump];
-      const dateVal = document.getElementById('dumpDate').value;
-      z.date = dateVal;
-      z.timestamp = new Date(dateVal).getTime();
+      z.dumpDate = document.getElementById('dumpDate').value;
 
       z.stats = {
         no: parseInt(document.getElementById('dumpNo').value) || 0,
@@ -883,7 +973,7 @@
       renderAllSavedZones();
     }
 
-    // NAVEGACIÓN Y AUDITORÍA MULTI-PESTAÑA
+    // AUDITORÍA Y AGENDA DIARIA
     function openAuditModal() {
       renderCurrentAuditView();
       document.getElementById('auditModal').classList.add('active');
@@ -904,12 +994,11 @@
       }
     }
 
-    // AUDITORÍA POR COMERCIALES
     function renderComercialesAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
-      const filterPeriod = document.getElementById('auditPeriodFilter')?.value || 'hoy';
+      const selectedDate = document.getElementById('auditDateSelect').value;
       const usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       
       const stats = {};
@@ -917,23 +1006,18 @@
         stats[u] = {
           tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0,
           obrasPuestas: 0, obrasRealizadas: 0, obrasNoAptas: 0,
-          m2Ejecutados: 0, m2Potenciales: 0,
+          m2Ejecutados: 0,
           zones: []
         };
       });
-
-      const now = new Date();
 
       savedZones.forEach(z => {
         const u = z.comercial || 'Comercial 1';
         if (!stats[u]) return;
 
-        const zoneDate = z.date ? new Date(z.date) : new Date();
-        if (filterPeriod === 'hoy') {
-          if (zoneDate.toDateString() !== now.toDateString()) return;
-        } else if (filterPeriod === 'mes') {
-          if (zoneDate.getMonth() !== now.getMonth() || zoneDate.getFullYear() !== now.getFullYear()) return;
-        }
+        // Comprobar coincidencia de fecha por asignación o por fecha real de volcado
+        const zDate = z.dumpDate || z.date;
+        if (zDate !== selectedDate) return;
 
         const st = z.stats || {};
         stats[u].no += st.no || 0;
@@ -949,16 +1033,11 @@
             if (c.m2 === '45-60') m2Val = 50;
             if (c.m2 === '80+') m2Val = 90;
 
-            stats[u].m2Potenciales += m2Val;
-
-            if (c.obraStatus === 'agendada') {
-              stats[u].obrasPuestas += 1;
-            } else if (c.obraStatus === 'realizada') {
+            if (c.obraStatus === 'agendada') stats[u].obrasPuestas += 1;
+            else if (c.obraStatus === 'realizada') {
               stats[u].obrasRealizadas += 1;
               stats[u].m2Ejecutados += m2Val;
-            } else if (c.obraStatus === 'no_apto') {
-              stats[u].obrasNoAptas += 1;
-            }
+            } else if (c.obraStatus === 'no_apto') stats[u].obrasNoAptas += 1;
           });
         }
       });
@@ -968,9 +1047,11 @@
       usersList.forEach((u, uIdx) => {
         const s = stats[u];
         const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
-        const userShift = savedShifts.find(sh => sh.user === u && (filterPeriod !== 'hoy' || new Date(sh.date).toDateString() === now.toDateString()));
+        
+        // Fichaje del día exacto
+        const userShift = savedShifts.find(sh => sh.user === u && new Date(sh.date).toISOString().split('T')[0] === selectedDate);
 
-        let shiftTimelineHtml = '🕒 Sin registro de fichaje en este periodo.';
+        let shiftTimelineHtml = '🕒 Sin fichaje en esta fecha.';
         let puertasPorHora = 'N/D';
 
         if (userShift) {
@@ -991,10 +1072,12 @@
 
         let detailsHtml = '';
         if (s.zones.length === 0) {
-          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin zonas registradas.</div>`;
+          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin manzana registrada en este día.</div>`;
         } else {
           s.zones.forEach(zoneItem => {
+            const originalIdx = savedZones.indexOf(zoneItem);
             let clientRows = '';
+
             if (zoneItem.clients && zoneItem.clients.length > 0) {
               zoneItem.clients.forEach(cItem => {
                 let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">📅 Cita Agendada</span>';
@@ -1013,8 +1096,12 @@
             }
 
             detailsHtml += `
-              <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 6px;">
-                <div style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town}) - ${formatDate(zoneItem.date)}</div>
+              <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})</span>
+                  ${currentUserRole==='jefe' && zoneItem.status==='en_proceso' ? `<button onclick="openNoteModal(${originalIdx})" style="padding:2px 6px; font-size:9px; background:#7c3aed; border:none; border-radius:6px; color:#fff; cursor:pointer;">📌 Añadir Nota</button>` : ''}
+                </div>
+                ${zoneItem.bossNote ? `<div style="font-size:10px; color:#fde047;">💬 Nota: "${zoneItem.bossNote}"</div>` : ''}
                 ${clientRows}
               </div>
             `;
@@ -1030,7 +1117,7 @@
         card.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <strong style="color:#60a5fa; font-size:13px;">${u} ▾</strong>
-            <span class="financial-pill">Cobrado Real: ${cobradoComercial} €</span>
+            <span class="financial-pill">Ganado Día: ${cobradoComercial} €</span>
           </div>
 
           <div class="time-timeline-box">
@@ -1047,7 +1134,7 @@
           </div>
 
           <div id="${panelId}" class="audit-details-panel">
-            <div class="detail-section-label">📋 Desglose de Sectores y Clientes:</div>
+            <div class="detail-section-label">📋 Actividad del Día:</div>
             ${detailsHtml}
           </div>
         `;
@@ -1055,7 +1142,7 @@
       });
 
       const jefeStats = stats['Andrei (Jefe)'];
-      const totalJefeMes = (jefeStats.m2Ejecutados * 1.0) + totalOverridenCommission;
+      const totalJefeDia = (jefeStats.m2Ejecutados * 1.0) + totalOverridenCommission;
 
       const bossTotalCard = document.createElement('div');
       bossTotalCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
@@ -1065,42 +1152,49 @@
       bossTotalCard.style.marginBottom = '12px';
 
       bossTotalCard.innerHTML = `
-        <div style="font-size:11px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">💰 BALANCE TOTAL A COBRAR (ANDREI - JEFE)</div>
-        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalJefeMes} € Ganados</div>
+        <div style="font-size:11px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">💰 BALANCE DEL DÍA (${formatDate(selectedDate)})</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalJefeDia} € Ganados</div>
         <div style="font-size:11px; color:#ddd6fe;">
-          • Obras Propias Realizadas: <strong>${jefeStats.m2Ejecutados * 1.0} €</strong> (${jefeStats.m2Ejecutados} m²)<br>
-          • 15% Comisiones sobre Comerciales: <strong>${totalOverridenCommission} €</strong>
+          • Obras Propias: <strong>${jefeStats.m2Ejecutados * 1.0} €</strong> (${jefeStats.m2Ejecutados} m²)<br>
+          • 15% Comisiones Equipo: <strong>${totalOverridenCommission} €</strong>
         </div>
       `;
 
       container.prepend(bossTotalCard);
     }
 
-    // AUDITORÍA POR PUEBLOS Y ESTADÍSTICAS MUNICIPALES
+    function openNoteModal(zoneIdx) {
+      selectedZoneIndexForNote = zoneIdx;
+      document.getElementById('modalNoteText').value = savedZones[zoneIdx].bossNote || '';
+      document.getElementById('noteModal').classList.add('active');
+    }
+
+    function saveBossNoteFromModal() {
+      if (selectedZoneIndexForNote === null) return;
+
+      const text = document.getElementById('modalNoteText').value.trim();
+      savedZones[selectedZoneIndexForNote].bossNote = text;
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+
+      closeModal('noteModal');
+      renderCurrentAuditView();
+    }
+
     function renderPueblosAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
-      const filterPeriod = document.getElementById('auditPeriodFilter')?.value || 'hoy';
       const townsMap = {};
-      const now = new Date();
 
       savedZones.forEach(z => {
         const t = z.town || 'Peralta';
-        const zoneDate = z.date ? new Date(z.date) : new Date();
-
-        if (filterPeriod === 'hoy') {
-          if (zoneDate.toDateString() !== now.toDateString()) return;
-        } else if (filterPeriod === 'mes') {
-          if (zoneDate.getMonth() !== now.getMonth() || zoneDate.getFullYear() !== now.getFullYear()) return;
-        }
 
         if (!townsMap[t]) {
           townsMap[t] = {
             name: t,
             tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0,
             obrasPuestas: 0, obrasRealizadas: 0, obrasNoAptas: 0,
-            m2Ejecutados: 0, sectoresCount: 0
+            m2Ejecutados: 0
           };
         }
 
@@ -1111,7 +1205,6 @@
         tm.papelito += st.papelito || 0;
         tm.si += st.si || 0;
         tm.tocadas += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
-        tm.sectoresCount += 1;
 
         if (z.clients) {
           z.clients.forEach(c => {
@@ -1135,7 +1228,6 @@
         if (completedTowns.includes(tName)) completedCount++;
       });
 
-      // TARJETA DE RESUMEN DE PUEBLOS
       const summaryCard = document.createElement('div');
       summaryCard.style.background = 'linear-gradient(135deg, #0891b2 0%, #155e75 100%)';
       summaryCard.style.border = '1px solid #67e8f9';
@@ -1147,15 +1239,10 @@
         <div style="font-size:11px; font-weight:800; color:#cff4fc; text-transform:uppercase;">🏘️ PROGRESO GENERAL DE NAVARRA</div>
         <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${completedCount} / ${townKeys.length} Pueblos Finalizados</div>
         <div style="font-size:11px; color:#e0f2fe;">
-          Control de cobertura de municipios trabajados por el equipo.
+          Estado acumulado histórico por municipio.
         </div>
       `;
       container.appendChild(summaryCard);
-
-      if (townKeys.length === 0) {
-        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center;">No hay registros de zonas en pueblos para el periodo seleccionado.</div>`;
-        return;
-      }
 
       townKeys.forEach((tName) => {
         const tm = townsMap[tName];
@@ -1226,6 +1313,10 @@
         setupRoleInterface();
         updateShiftUI();
         initMap();
+
+        if (currentUserRole === 'comercial') {
+          showCommercialBriefing();
+        }
       }
     };
   </script>
