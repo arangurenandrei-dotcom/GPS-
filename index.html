@@ -57,9 +57,11 @@
 
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #cbd5e1; }
-    .form-select, .form-input {
+    
+    .form-select, .form-input, .input-field, .select-field {
       width: 100%; background: #0f172a; border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 12px; padding: 12px; color: #fff; font-size: 14px; font-weight: 700; outline: none;
+      border-radius: 10px; padding: 10px 12px; color: #fff; font-size: 12px; font-weight: 700; outline: none;
+      box-sizing: border-box; min-width: 0;
     }
 
     .btn-login {
@@ -101,11 +103,11 @@
     .search-row { display: flex; gap: 6px; }
     .search-input {
       flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px; padding: 8px 12px; color: #ffffff; font-size: 12px; font-weight: 600; outline: none;
+      border-radius: 10px; padding: 8px 12px; color: #ffffff; font-size: 12px; font-weight: 600; outline: none; min-width: 0;
     }
     .btn-search {
       padding: 8px 14px; border: none; border-radius: 10px; background: var(--primary);
-      color: #ffffff; font-size: 11px; font-weight: 800; cursor: pointer;
+      color: #ffffff; font-size: 11px; font-weight: 800; cursor: pointer; flex-shrink: 0;
     }
 
     .bottom-action-panel {
@@ -129,49 +131,54 @@
     }
     .banner-drawing.active { display: flex; }
 
+    /* MODALES Y CAPAS */
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 12px;
+      backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 10px;
     }
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 520px; max-height: 88vh; background: #0f172a;
-      border: 1px solid var(--border-panel); border-radius: 20px; padding: 16px;
+      width: 100%; max-width: 500px; max-height: 90vh; background: #0f172a;
+      border: 1px solid var(--border-panel); border-radius: 20px; padding: 14px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column;
-      overflow: hidden;
+      overflow: hidden; box-sizing: border-box;
     }
 
     .modal-header-sticky { flex-shrink: 0; }
 
     .modal-header {
-      font-size: 15px; font-weight: 800; margin-bottom: 10px; display: flex;
+      font-size: 15px; font-weight: 800; margin-bottom: 8px; display: flex;
       justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;
     }
 
     .modal-scrollable-content {
-      flex: 1; overflow-y: auto; margin-top: 6px; padding-right: 4px;
+      flex: 1; overflow-y: auto; margin-top: 4px; padding-right: 4px; width: 100%; box-sizing: border-box;
     }
 
     .modal-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #60a5fa; margin: 12px 0 6px 0; }
+    
+    /* CONTROL FLEXIBILIZADO PARA EVITAR OVERFLOW */
     .input-group {
       display: flex; justify-content: space-between; align-items: center;
       background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px; padding: 8px 12px; margin-bottom: 8px;
+      border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; gap: 8px; width: 100%; box-sizing: border-box;
     }
-    .input-label { font-size: 12px; font-weight: 600; }
-    .input-field, .select-field {
-      background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px; color: #ffffff; font-size: 12px; font-weight: 700; padding: 6px 10px; outline: none;
-    }
+    .input-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+    .grid-row-2 { display: flex; gap: 6px; width: 100%; margin-bottom: 8px; box-sizing: border-box; }
+    .grid-row-2 > * { flex: 1; min-width: 0; }
+
+    .grid-row-3 { display: flex; gap: 6px; width: 100%; margin-bottom: 8px; box-sizing: border-box; }
+    .grid-row-3 > * { flex: 1; min-width: 0; }
 
     .btn-modal-save {
       width: 100%; padding: 14px; border: none; border-radius: 12px;
       background: var(--primary); color: #ffffff; font-size: 13px; font-weight: 800; cursor: pointer; margin-top: 10px;
     }
     .btn-modal-ocr {
-      width: 100%; padding: 12px; border: 1px dashed #0891b2; border-radius: 12px;
-      background: rgba(8, 145, 178, 0.15); color: #22d3ee; font-size: 12px; font-weight: 800; cursor: pointer; margin-bottom: 12px;
+      width: 100%; padding: 10px; border: 1px dashed #0891b2; border-radius: 12px;
+      background: rgba(8, 145, 178, 0.15); color: #22d3ee; font-size: 11px; font-weight: 800; cursor: pointer; margin-bottom: 10px;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .btn-modal-delete {
@@ -186,25 +193,39 @@
 
     .client-box {
       background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+      border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+      width: 100%; box-sizing: border-box;
     }
 
     .comunidad-box {
       background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(167, 139, 250, 0.3);
-      border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+      border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+      width: 100%; box-sizing: border-box;
     }
 
     .hierarchy-pill {
-      font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px; display: inline-block;
+      font-size: 9px; font-weight: 800; padding: 3px 6px; border-radius: 6px; display: inline-block;
     }
     .hierarchy-pill.p1 { background: rgba(5, 150, 105, 0.2); color: #34d399; border: 1px solid #059669; }
     .hierarchy-pill.p2 { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid #2563eb; }
     .hierarchy-pill.p3 { background: rgba(217, 119, 6, 0.2); color: #fde047; border: 1px solid #d97706; }
 
+    /* ESTILOS DE DESGLOSE DE ATICOS POR COMUNIDAD */
+    .attics-list-container {
+      display: flex; flex-direction: column; gap: 6px; margin-top: 4px; width: 100%; box-sizing: border-box;
+    }
+    .attic-item-card {
+      background: rgba(0, 0, 0, 0.3); border: 1px dashed rgba(167, 139, 250, 0.4);
+      border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;
+    }
+    .attic-item-header {
+      display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #cbd5e1;
+    }
+
     .audit-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 14px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px;
-      cursor: pointer; transition: background 0.2s ease;
+      cursor: pointer; transition: background 0.2s ease; width: 100%; box-sizing: border-box;
     }
     .audit-card:active { background: rgba(255,255,255,0.08); }
 
@@ -968,6 +989,19 @@
 
             if (isComunidad) {
               const presiStatus = c.isPresi ? '<span class="hierarchy-pill p1">👑 Presidente Oficial</span>' : '<span class="hierarchy-pill p3">👥 Vecino Intermediario</span>';
+              
+              let atticsBreakdownHtml = '';
+              if (c.atticsDetails && c.atticsDetails.length > 0) {
+                c.atticsDetails.forEach(att => {
+                  atticsBreakdownHtml += `
+                    <div style="font-size:10px; background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:6px; margin-top:2px; display:flex; justify-content:space-between;">
+                      <span>🏠 <strong>Piso ${att.door || 'Buhardilla'}</strong>: ${att.owner || 'Propietario N/D'} (${att.phone || 'Sin tel'})</span>
+                      <span style="color:#34d399; font-weight:800;">${att.m2} m²</span>
+                    </div>
+                  `;
+                });
+              }
+
               clientsHtml += `
                 <div class="comunidad-box" style="margin-top:6px;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -975,13 +1009,13 @@
                     ${presiStatus}
                   </div>
                   <div style="font-size:11px; color:#e2e8f0; margin-top:2px;">
-                    👤 Contacto: <strong>${c.name || 'Presidente/Vecino'}</strong> (Tel: ${c.phone || 'N/D'})
+                    👤 Presidente/Enlace: <strong>${c.name || 'N/D'}</strong> (Tel: ${c.phone || 'N/D'})
                   </div>
                   <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>📐 Áticos: <strong>${c.numAttics || 1} buhardillas (${c.m2PerAttic || 70} m²/c.u.)</strong></span>
+                    <span>🏗️ Año: <strong>${c.buildYear || 'Anterior 2006'}</strong> | 📐 Buhardillas: <strong>${c.atticsDetails ? c.atticsDetails.length : (c.numAttics || 1)}</strong></span>
                     <span style="color:#34d399; font-weight:900;">Total: ${getM2NumericValue(c.m2)} m²</span>
                   </div>
-                  <div style="font-size:10px; color:#94a3b8;">🏗️ Año Construcción: <strong>${c.buildYear || 'Anterior a 2006'}</strong></div>
+                  ${atticsBreakdownHtml ? `<div style="margin-top:4px;"><span style="font-size:9px; color:#94a3b8; font-weight:800;">DESGLOSE PISOS ULTIMA PLANTA:</span>${atticsBreakdownHtml}</div>` : ''}
                 </div>
               `;
             } else {
@@ -1074,24 +1108,29 @@
           </div>
 
           <div class="modal-section-title">📊 Totales del Día en el Papel</div>
-          <div class="input-group">
-            <span class="input-label">❌ No (Rechazos)</span>
-            <input type="number" id="dumpNo" class="input-field" placeholder="0" value="${z.stats?.no ? z.stats.no : ''}" onfocus="this.select()">
-          </div>
-          <div class="input-group">
-            <span class="input-label">⏳ Ausentes</span>
-            <input type="number" id="dumpAusente" class="input-field" placeholder="0" value="${z.stats?.ausente ? z.stats.ausente : ''}" onfocus="this.select()">
-          </div>
-          <div class="input-group">
-            <span class="input-label">📄 Papelito / Pedido Info</span>
-            <input type="number" id="dumpPapelito" class="input-field" placeholder="0" value="${z.stats?.papelito ? z.stats.papelito : ''}" onfocus="this.select()">
-          </div>
-          <div class="input-group">
-            <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
-            <input type="number" id="dumpSi" class="input-field" placeholder="0" value="${z.stats?.si ? z.stats.si : ''}" onfocus="this.select()" onchange="renderClientFormFields()">
+          <div class="grid-row-2">
+            <div class="input-group" style="margin-bottom:0;">
+              <span class="input-label">❌ No</span>
+              <input type="number" id="dumpNo" class="input-field" placeholder="0" value="${z.stats?.no ? z.stats.no : ''}" onfocus="this.select()">
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <span class="input-label">⏳ Ausentes</span>
+              <input type="number" id="dumpAusente" class="input-field" placeholder="0" value="${z.stats?.ausente ? z.stats.ausente : ''}" onfocus="this.select()">
+            </div>
           </div>
 
-          <div class="input-group">
+          <div class="grid-row-2" style="margin-top:6px;">
+            <div class="input-group" style="margin-bottom:0;">
+              <span class="input-label">📄 Papelito</span>
+              <input type="number" id="dumpPapelito" class="input-field" placeholder="0" value="${z.stats?.papelito ? z.stats.papelito : ''}" onfocus="this.select()">
+            </div>
+            <div class="input-group" style="margin-bottom:0; border-color:#059669;">
+              <span class="input-label" style="color:#34d399;">✅ Sí (Interesados)</span>
+              <input type="number" id="dumpSi" class="input-field" placeholder="0" value="${z.stats?.si ? z.stats.si : ''}" onfocus="this.select()" onchange="renderClientFormFields()">
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-top:8px;">
             <span class="input-label">🏡 Estado del Sector</span>
             <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
               <option value="sin_comprobar" ${z.status==='sin_comprobar'?'selected':''}>⚪ Por Hacer</option>
@@ -1247,7 +1286,7 @@
       }
     }
 
-    /* GENERACIÓN DE FORMULARIOS DINÁMICOS CON SOPORTE PARA VIVIENDA / COMUNIDAD */
+    /* GENERACIÓN DE FORMULARIOS DINÁMICOS CON CORRECCIÓN DE ANCHO Y DESGLOSE DE ÁTICOS */
     function renderClientFormFields() {
       const container = document.getElementById('clientsContainer');
       if (!container) return;
@@ -1273,19 +1312,23 @@
         box.setAttribute('data-client-index', i);
 
         box.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Ficha #${i+1}</strong>
-            <select class="select-field client-type" style="font-size:10px; padding:2px 6px;" onchange="switchClientTypeView(this, ${i})">
+            <select class="select-field client-type" style="font-size:10px; padding:3px 6px; width:auto;" onchange="switchClientTypeView(this, ${i})">
               <option value="vivienda" ${!isComunidad?'selected':''}>🏠 Vivienda Individual</option>
               <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
             </select>
           </div>
 
-          <div class="client-fields-dynamic-area">
-            ${isComunidad ? getComunidadFormHTML(existing) : getViviendaFormHTML(existing)}
+          <div class="client-fields-dynamic-area" style="width:100%; box-sizing:border-box;">
+            ${isComunidad ? getComunidadFormHTML(existing, i) : getViviendaFormHTML(existing)}
           </div>
         `;
         container.appendChild(box);
+
+        if (isComunidad) {
+          renderAtticsBreakdownList(box, existing.atticsDetails || null, parseInt(existing.numAttics || 2));
+        }
       }
     }
 
@@ -1295,25 +1338,34 @@
       const isComunidad = selectEl.value === 'comunidad';
 
       parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
-      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML({}) : getViviendaFormHTML({});
+      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML({}, idx) : getViviendaFormHTML({});
+
+      if (isComunidad) {
+        renderAtticsBreakdownList(parentBox, null, 2);
+      }
     }
 
     function getViviendaFormHTML(existing) {
       return `
-        <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
-        <div style="display:flex; gap:6px;">
-          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso" style="flex:2;" value="${existing.street || ''}">
-          <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;" value="${existing.phone || ''}">
+        <div style="margin-bottom:6px;">
+          <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
         </div>
-        <div style="display:flex; gap:6px;">
-          <select class="select-field client-m2" style="flex:1;">
+        
+        <div class="grid-row-2">
+          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso" value="${existing.street || ''}">
+          <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
+        </div>
+
+        <div class="grid-row-2">
+          <select class="select-field client-m2">
             <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
             <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
             <option value="80-100" ${existing.m2==='80-100'?'selected':''}>80 - 100 m² (Alto)</option>
             <option value="100-150" ${existing.m2==='100-150'?'selected':''}>100 - 150 m² (Muy Alto ⭐)</option>
             <option value="150+" ${existing.m2==='150+'?'selected':''}>+150 m² (Premium 🔥)</option>
           </select>
-          <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
+          
+          <select class="select-field client-obra-status" onchange="toggleNoAptoReasonField(this)">
             <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>⏳ Obra A PONER (Automática)</option>
             <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
             <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
@@ -1334,46 +1386,60 @@
       `;
     }
 
-    function getComunidadFormHTML(existing) {
+    function getComunidadFormHTML(existing, cardIdx) {
       return `
-        <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:6px;">
+        <div style="background:rgba(0,0,0,0.25); padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:4px; margin-bottom:6px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:11px; font-weight:800; color:#a78bfa;">👑 ¿Es el Presidente Oficial?</span>
-            <select class="select-field client-is-presi" style="padding:2px 8px;" onchange="togglePresiHierarchyInfo(this)">
-              <option value="si" ${existing.isPresi!==false?'selected':''}>SÍ (Presidente Oficial)</option>
-              <option value="no" ${existing.isPresi===false?'selected':''}>NO (Vecino Intermediario)</option>
+            <select class="select-field client-is-presi" style="padding:2px 6px; width:auto;" onchange="togglePresiHierarchyInfo(this)">
+              <option value="si" ${existing.isPresi!==false?'selected':''}>SÍ (Presidente)</option>
+              <option value="no" ${existing.isPresi===false?'selected':''}>NO (Vecino Enlace)</option>
             </select>
           </div>
           
-          <div class="presi-hierarchy-hint" style="font-size:10px; color:#cbd5e1; border-left:2px solid #a78bfa; padding-left:6px;">
-            ${existing.isPresi===false ? '⚠️ Vecino enlace: Nos facilitará el contacto directo del Presidente de la comunidad.' : '👑 Hablando directamente con la Presidencia del Edificio.'}
+          <div class="presi-hierarchy-hint" style="font-size:9.5px; color:#cbd5e1; border-left:2px solid #a78bfa; padding-left:6px; margin-top:2px;">
+            ${existing.isPresi===false ? '⚠️ Nos facilitará el contacto del Presidente oficial.' : '👑 Hablando directamente con la Presidencia del Edificio.'}
           </div>
         </div>
 
-        <input type="text" class="input-field client-street" placeholder="Dirección de la Comunidad (Calle y Nº Portal)" value="${existing.street || ''}">
-        
-        <div style="display:flex; gap:6px;">
-          <input type="text" class="input-field client-name" placeholder="Nombre del Presidente / Contacto" style="flex:2;" value="${existing.name || ''}">
-          <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;" value="${existing.phone || ''}">
+        <div style="margin-bottom:6px;">
+          <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}">
         </div>
 
-        <div style="display:flex; gap:6px;">
-          <input type="number" class="input-field client-build-year" placeholder="Año Const. (ej. 1985)" style="flex:1;" value="${existing.buildYear || '1990'}">
-          <input type="number" class="input-field client-num-attics" placeholder="Nº Buhardillas (Pisos Arriba)" style="flex:1.2;" value="${existing.numAttics || '2'}" onchange="recalculateComunidadM2(this)">
-          <input type="number" class="input-field client-m2-per-attic" placeholder="m² por buhardilla" style="flex:1.2;" value="${existing.m2PerAttic || '70'}" onchange="recalculateComunidadM2(this)">
+        <div class="grid-row-2">
+          <input type="text" class="input-field client-name" placeholder="Nombre Presidente / Enlace" value="${existing.name || ''}">
+          <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(5, 150, 105, 0.15); padding:6px 10px; border-radius:8px;">
-          <span style="font-size:11px; font-weight:800; color:#34d399;">📐 Superficie Total Cubierta:</span>
-          <strong class="comunidad-calculated-m2-label" style="font-size:13px; color:#34d399;">${getM2NumericValue(existing.m2 || 140)} m²</strong>
+        <div class="grid-row-2">
+          <div style="flex:1;">
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">AÑO EDIFICIO</label>
+            <input type="number" class="input-field client-build-year" placeholder="Ej. 1985" value="${existing.buildYear || '1990'}">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:9px; color:#a78bfa; font-weight:800;">Nº BUHARDILLAS (ÁTICOS)</label>
+            <input type="number" class="input-field client-num-attics" min="1" max="10" placeholder="Ej. 2" value="${existing.numAttics || '2'}" onchange="updateAtticsCount(this)">
+          </div>
         </div>
 
-        <div style="display:flex; gap:6px;">
-          <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
+        <div style="font-size:10px; font-weight:800; color:#cbd5e1; margin:8px 0 4px 0; text-transform:uppercase; display:flex; justify-content:space-between;">
+          <span>🏘️ Desglose de Pisos de la última planta:</span>
+          <span style="color:#60a5fa; font-weight:700;">(Cada vecino puede tener distintos m²)</span>
+        </div>
+
+        <div class="attics-list-container"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(5, 150, 105, 0.18); border:1px solid #059669; padding:8px 10px; border-radius:8px; margin-top:8px;">
+          <span style="font-size:11px; font-weight:800; color:#34d399;">📐 Total Cubierta Aislable:</span>
+          <strong class="comunidad-calculated-m2-label" style="font-size:14px; color:#34d399;">${getM2NumericValue(existing.m2 || 140)} m²</strong>
+        </div>
+
+        <div style="margin-top:8px;">
+          <select class="select-field client-obra-status" onchange="toggleNoAptoReasonField(this)">
             <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>⏳ Obra A PONER (Automática)</option>
             <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita Junta)</option>
             <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
-            <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica/Votación)</option>
+            <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica/Junta)</option>
           </select>
         </div>
 
@@ -1389,23 +1455,73 @@
       `;
     }
 
+    function renderAtticsBreakdownList(parentBox, existingAtticsList, count) {
+      const listContainer = parentBox.querySelector('.attics-list-container');
+      if (!listContainer) return;
+
+      listContainer.innerHTML = '';
+      const totalCount = Math.max(1, count || 1);
+
+      for (let k = 0; k < totalCount; k++) {
+        const attData = (existingAtticsList && existingAtticsList[k]) ? existingAtticsList[k] : {};
+        const atticCard = document.createElement('div');
+        atticCard.className = 'attic-item-card';
+
+        const defaultDoor = attData.door || `Piso ${k+1}º`;
+        const defaultM2 = attData.m2 !== undefined ? attData.m2 : 70;
+
+        atticCard.innerHTML = `
+          <div class="attic-item-header">
+            <span>🏠 Buhardilla #${k+1}</span>
+            <span style="color:#a78bfa;">Puerta / Propietario Afectado</span>
+          </div>
+
+          <div class="grid-row-2">
+            <input type="text" class="input-field attic-door" placeholder="Piso/Puerta (Ej. 4ºA)" value="${defaultDoor}">
+            <input type="number" class="input-field attic-m2" placeholder="m² piso" value="${defaultM2}" oninput="recalculateComunidadTotalM2(this)">
+          </div>
+
+          <div class="grid-row-2">
+            <input type="text" class="input-field attic-owner" placeholder="Propietario (Opcional)" value="${attData.owner || ''}">
+            <input type="tel" class="input-field attic-phone" placeholder="Tel. Vecino (Opcional)" value="${attData.phone || ''}">
+          </div>
+        `;
+        listContainer.appendChild(atticCard);
+      }
+
+      recalculateComunidadTotalM2(listContainer.querySelector('.attic-m2'));
+    }
+
+    function updateAtticsCount(inputEl) {
+      const parentBox = inputEl.closest('.comunidad-box');
+      const newCount = parseInt(inputEl.value) || 1;
+      renderAtticsBreakdownList(parentBox, null, newCount);
+    }
+
+    function recalculateComunidadTotalM2(inputEl) {
+      if (!inputEl) return;
+      const parentBox = inputEl.closest('.comunidad-box');
+      if (!parentBox) return;
+
+      const m2Inputs = parentBox.querySelectorAll('.attic-m2');
+      let sum = 0;
+      m2Inputs.forEach(inp => {
+        sum += (parseFloat(inp.value) || 0);
+      });
+
+      const labelEl = parentBox.querySelector('.comunidad-calculated-m2-label');
+      if (labelEl) {
+        labelEl.innerText = `${sum} m²`;
+      }
+    }
+
     function togglePresiHierarchyInfo(selectEl) {
       const hintEl = selectEl.closest('div.client-fields-dynamic-area').querySelector('.presi-hierarchy-hint');
       if (hintEl) {
         hintEl.innerHTML = selectEl.value === 'no' 
-          ? '⚠️ Vecino enlace: Nos facilitará el contacto directo del Presidente de la comunidad.'
+          ? '⚠️ Nos facilitará el contacto del Presidente oficial.'
           : '👑 Hablando directamente con la Presidencia del Edificio.';
       }
-    }
-
-    function recalculateComunidadM2(inputEl) {
-      const area = inputEl.closest('.client-fields-dynamic-area');
-      const numAttics = parseInt(area.querySelector('.client-num-attics').value) || 1;
-      const m2Attic = parseInt(area.querySelector('.client-m2-per-attic').value) || 70;
-      const totalM2 = numAttics * m2Attic;
-
-      const labelEl = area.querySelector('.comunidad-calculated-m2-label');
-      if (labelEl) labelEl.innerText = `${totalM2} m²`;
     }
 
     function toggleNoAptoReasonField(selectEl) {
@@ -1441,29 +1557,39 @@
         const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
 
         if (typeVal === 'comunidad') {
-          const numAttics = parseInt(box.querySelector('.client-num-attics').value) || 1;
-          const m2PerAttic = parseInt(box.querySelector('.client-m2-per-attic').value) || 70;
-          const totalM2 = numAttics * m2PerAttic;
+          const atticCards = box.querySelectorAll('.attic-item-card');
+          const atticsDetails = [];
+          let computedTotalM2 = 0;
+
+          atticCards.forEach(attCard => {
+            const door = attCard.querySelector('.attic-door').value.trim();
+            const m2Val = parseFloat(attCard.querySelector('.attic-m2').value) || 0;
+            const owner = attCard.querySelector('.attic-owner').value.trim();
+            const phone = attCard.querySelector('.attic-phone').value.trim();
+
+            computedTotalM2 += m2Val;
+            atticsDetails.push({ door, m2: m2Val, owner, phone });
+          });
 
           z.clients.push({
             type: 'comunidad',
             isPresi: box.querySelector('.client-is-presi').value === 'si',
-            name: box.querySelector('.client-name').value,
-            street: box.querySelector('.client-street').value,
-            phone: box.querySelector('.client-phone').value,
-            buildYear: box.querySelector('.client-build-year').value,
-            numAttics: numAttics,
-            m2PerAttic: m2PerAttic,
-            m2: totalM2,
+            name: box.querySelector('.client-name').value.trim(),
+            street: box.querySelector('.client-street').value.trim(),
+            phone: box.querySelector('.client-phone').value.trim(),
+            buildYear: box.querySelector('.client-build-year').value.trim(),
+            numAttics: atticsDetails.length,
+            atticsDetails: atticsDetails,
+            m2: computedTotalM2,
             obraStatus: statusVal,
             obraReason: reasonVal
           });
         } else {
           z.clients.push({
             type: 'vivienda',
-            name: box.querySelector('.client-name').value,
-            street: box.querySelector('.client-street').value,
-            phone: box.querySelector('.client-phone').value,
+            name: box.querySelector('.client-name').value.trim(),
+            street: box.querySelector('.client-street').value.trim(),
+            phone: box.querySelector('.client-phone').value.trim(),
             m2: box.querySelector('.client-m2').value,
             obraStatus: statusVal,
             obraReason: reasonVal
