@@ -101,7 +101,7 @@
     .btn-hud.jefe-action { background: #7c3aed; border-color: #a78bfa; }
     .btn-hud.logout { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 
-    /* PANEL INFERIOR LIMPIO DE ACCIÓN */
+    /* PANEL INFERIOR DE ACCIÓN */
     .bottom-action-panel {
       position: absolute; bottom: 20px; left: 12px; right: 12px; z-index: 1000;
       display: flex; gap: 8px;
@@ -141,7 +141,7 @@
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 420px; max-height: 90vh; background: #0f172a;
+      width: 100%; max-width: 440px; max-height: 90vh; background: #0f172a;
       border: 1px solid var(--border-panel); border-radius: 20px; padding: 20px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow-y: auto;
     }
@@ -172,6 +172,15 @@
       background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;
     }
+
+    .audit-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .financial-pill {
+      background: rgba(5, 150, 105, 0.2); border: 1px solid #059669; color: #34d399;
+      padding: 4px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -181,7 +190,7 @@
     <div class="login-card">
       <div style="text-align:center;">
         <h1 class="login-title">Control Comercial</h1>
-        <p class="login-subtitle">Gestión de Zonas y Volcado de Obras</p>
+        <p class="login-subtitle">Gestión de Zonas y Auditoría de Obras</p>
       </div>
 
       <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
@@ -215,7 +224,7 @@
 
     <!-- BANNER DE MODOS -->
     <div id="drawingBanner" class="banner-drawing">
-      <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
+      <span>Toca las esquinas del sector comercial...</span>
       <div style="display:flex; gap:6px;">
         <button style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:800; font-size:11px;" onclick="finishSectorDrawing()">CONFIRMAR SECTOR</button>
         <button style="padding:6px 10px; border:none; border-radius:8px; background:rgba(255,255,255,0.2); color:#fff; font-size:11px;" onclick="cancelDrawing()">✕</button>
@@ -244,7 +253,7 @@
         ➕ ASIGNAR SECTOR / ZONA
       </button>
 
-      <!-- Botón visible para el COMERCIAL -->
+      <!-- Botón visible para TODOS -->
       <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" onclick="openSelectZoneToDumpModal()">
         📝 VOLCAR HOJA DE PAPEL
       </button>
@@ -265,13 +274,14 @@
       </div>
 
       <div class="input-group">
-        <span class="input-label">Nombre del Sector / Calles</span>
-        <input type="text" id="assignSectorName" class="input-field" placeholder="Ej: San Pedro / Baztán">
+        <span class="input-label">Nombre del Sector (Opcional)</span>
+        <input type="text" id="assignSectorName" class="input-field" placeholder="Dejar en blanco para auto-generar">
       </div>
 
       <div class="input-group">
-        <span class="input-label">Comercial Asignado</span>
+        <span class="input-label">Asignar A:</span>
         <select id="assignComercial" class="select-field">
+          <option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
           <option value="Comercial 1">Comercial 1</option>
           <option value="Comercial 2">Comercial 2</option>
           <option value="Comercial 3">Comercial 3</option>
@@ -284,7 +294,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE VOLCADO DE PAPEL (COMERCIAL) -->
+  <!-- MODAL DE VOLCADO DE PAPEL Y GESTIÓN DE OBRAS -->
   <div id="dumpModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -324,13 +334,18 @@
     </div>
   </div>
 
-  <!-- MODAL DE AUDITORÍA (JEFE) -->
+  <!-- MODAL DE AUDITORÍA Y LIQUIDACIÓN FINANCIERA (JEFE) -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📊 Resumen de Rendimiento de Equipo</span>
+        <span>📊 Rendimiento & Liquidación de Comisiones</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
+
+      <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">
+        Base de cálculo: 1 €/m² por obra realizada. Comerciales cobran el 85% y el Jefe recibe el 15% de comisión + 100% de sus obras propias.
+      </div>
+
       <div id="auditContainer"></div>
     </div>
   </div>
@@ -411,7 +426,7 @@
       } else {
         roleBadge.className = 'role-badge comercial';
         roleBadge.innerText = '🏃 COMERCIAL';
-        btnBossAssign.style.display = 'none'; // El comercial no asigna zonas
+        btnBossAssign.style.display = 'none';
         btnBossAudit.style.display = 'none';
       }
     }
@@ -462,7 +477,14 @@
 
     function confirmSectorAssignment() {
       const town = document.getElementById('assignTown').value.trim() || 'Peralta';
-      const sectorName = document.getElementById('assignSectorName').value.trim() || 'Sector Asignado';
+      let sectorName = document.getElementById('assignSectorName').value.trim();
+      
+      // Auto-generación de nombre si se deja en blanco para evitar "undefined"
+      if (!sectorName) {
+        const sectorCount = savedZones.filter(z => z.town === town).length + 1;
+        sectorName = `Sector ${town} #${sectorCount}`;
+      }
+
       const comercial = document.getElementById('assignComercial').value;
 
       savedZones.push({
@@ -470,7 +492,7 @@
         town,
         sectorName,
         comercial,
-        status: 'pendiente', // 'pendiente', 'en_proceso', 'completada'
+        status: 'pendiente',
         points: tempPoints,
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
         clients: []
@@ -488,28 +510,23 @@
       loadedMapLayers = [];
 
       savedZones.forEach((z, idx) => {
-        // Filtrar visualización para comerciales (solo ven las suyas)
+        // Comerciales solo ven sus zonas
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
           return;
         }
 
-        let polyColor = '#2563eb'; // AZUL = Asignada / Pendiente
+        let polyColor = '#2563eb'; // AZUL = Asignada
         let dashArray = '6, 6';
 
         if (z.status === 'en_proceso') {
-          polyColor = '#d97706'; // AMARILLO = En proceso (incompleta)
+          polyColor = '#d97706'; // AMARILLO = En proceso
           dashArray = null;
         } else if (z.status === 'completada') {
           dashArray = null;
           const si = z.stats?.si || 0;
           const total = (z.stats?.no || 0) + (z.stats?.papelito || 0) + si;
           const ratio = total > 0 ? (si / total) : 0;
-
-          if (ratio >= 0.25) {
-            polyColor = '#059669'; // VERDE = Alta Rentabilidad
-          } else {
-            polyColor = '#dc2626'; // ROJO = Baja Rentabilidad
-          }
+          polyColor = ratio >= 0.25 ? '#059669' : '#dc2626'; // VERDE vs ROJO
         }
 
         const polygon = L.polygon(z.points, {
@@ -520,12 +537,14 @@
           fillOpacity: 0.35
         }).addTo(map);
 
-        // Centro y Badge
         const center = polygon.getBounds().getCenter();
+        const displayName = z.sectorName || z.town || 'Sector Comercial';
+        const displayComercial = z.comercial || 'Comercial';
+
         const badgeHtml = `
           <div class="zone-badge-container">
-            <div class="badge-title">${z.sectorName}</div>
-            <div class="badge-sub">👤 ${z.comercial}</div>
+            <div class="badge-title">${displayName}</div>
+            <div class="badge-sub">👤 ${displayComercial}</div>
           </div>
         `;
 
@@ -541,13 +560,10 @@
     }
 
     function triggerZoneAction(idx) {
-      selectedZoneIndexToDump = idx;
       openDumpModal(idx);
     }
 
-    // --- VOLCADO DE HOJA DE PAPEL ---
     function openSelectZoneToDumpModal() {
-      // Buscar primera zona pendiente del comercial
       const myZoneIdx = savedZones.findIndex(z => z.comercial === currentUserName && z.status !== 'completada');
       if (myZoneIdx !== -1) {
         openDumpModal(myZoneIdx);
@@ -559,8 +575,9 @@
     function openDumpModal(idx) {
       selectedZoneIndexToDump = idx;
       const z = savedZones[idx];
+      const displayName = z.sectorName || z.town || 'Sector Comercial';
 
-      document.getElementById('dumpModalTitle').innerText = `Volcado: ${z.sectorName} (${z.town})`;
+      document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
       document.getElementById('dumpNo').value = z.stats?.no || 0;
       document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
       document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
@@ -578,31 +595,35 @@
       const siCount = parseInt(document.getElementById('dumpSi').value) || 0;
       if (siCount <= 0) return;
 
+      const z = selectedZoneIndexToDump !== null ? savedZones[selectedZoneIndexToDump] : null;
+
       const title = document.createElement('div');
       title.className = 'modal-section-title';
-      title.innerText = `🏡 Datos de Clientes "SÍ" (${siCount})`;
+      title.innerText = `🏡 Fichas Técnicas de Clientes "SÍ" (${siCount})`;
       container.appendChild(title);
 
       for (let i = 0; i < siCount; i++) {
+        const existing = z && z.clients && z.clients[i] ? z.clients[i] : {};
+
         const box = document.createElement('div');
         box.className = 'client-box';
         box.innerHTML = `
           <strong style="font-size:11px; color:#34d399;">Cliente #${i+1}</strong>
-          <input type="text" class="input-field client-name" placeholder="Nombre completo">
+          <input type="text" class="input-field client-name" placeholder="Nombre completo" value="${existing.name || ''}">
           <div style="display:flex; gap:6px;">
-            <input type="text" class="input-field client-street" placeholder="Calle y Portal" style="flex:2;">
-            <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;">
+            <input type="text" class="input-field client-street" placeholder="Calle y Portal" style="flex:2;" value="${existing.street || ''}">
+            <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;" value="${existing.phone || ''}">
           </div>
           <div style="display:flex; gap:6px;">
-            <select class="select-field client-year" style="flex:1;">
-              <option value="antes_1990">Anterior a 1990</option>
-              <option value="1990_2007">1990 - 2007</option>
-              <option value="post_2007">Post 2007</option>
-            </select>
             <select class="select-field client-m2" style="flex:1;">
-              <option value="45-60">45 - 60 m²</option>
-              <option value="60-80">60 - 80 m²</option>
-              <option value="80+">80+ m²</option>
+              <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
+              <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
+              <option value="80+" ${existing.m2==='80+'?'selected':''}>80+ m² (Alto)</option>
+            </select>
+            <select class="select-field client-obra-status" style="flex:1;">
+              <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
+              <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
+              <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
             </select>
           </div>
         `;
@@ -623,7 +644,6 @@
 
       z.status = document.getElementById('dumpProgressState').value;
 
-      // Recoger fichas de clientes "Sí"
       z.clients = [];
       const clientBoxes = document.querySelectorAll('.client-box');
       clientBoxes.forEach(box => {
@@ -631,8 +651,8 @@
           name: box.querySelector('.client-name').value,
           street: box.querySelector('.client-street').value,
           phone: box.querySelector('.client-phone').value,
-          year: box.querySelector('.client-year').value,
-          m2: box.querySelector('.client-m2').value
+          m2: box.querySelector('.client-m2').value,
+          obraStatus: box.querySelector('.client-obra-status').value
         });
       });
 
@@ -641,37 +661,113 @@
       renderAllSavedZones();
     }
 
-    // --- AUDITORÍA DE JEFE ---
+    // --- CÁLCULO FINANCIERO Y AUDITORÍA DE JEFE ---
     function openAuditModal() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
+      const usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      
+      const stats = {};
+      usersList.forEach(u => {
+        stats[u] = {
+          tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0,
+          obrasPuestas: 0, obrasRealizadas: 0, m2Ejecutados: 0, m2Potenciales: 0
+        };
+      });
+
       savedZones.forEach(z => {
-        const total = (z.stats?.no||0) + (z.stats?.papelito||0) + (z.stats?.si||0);
-        const ratio = total > 0 ? Math.round(((z.stats?.si||0) / total) * 100) : 0;
+        const u = z.comercial || 'Comercial 1';
+        if (!stats[u]) return;
+
+        const st = z.stats || {};
+        stats[u].no += st.no || 0;
+        stats[u].ausente += st.ausente || 0;
+        stats[u].papelito += st.papelito || 0;
+        stats[u].si += st.si || 0;
+        stats[u].tocadas += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            let m2Val = 70; // promedio 60-80
+            if (c.m2 === '45-60') m2Val = 50;
+            if (c.m2 === '80+') m2Val = 90;
+
+            stats[u].m2Potenciales += m2Val;
+
+            if (c.obraStatus === 'agendada') {
+              stats[u].obrasPuestas += 1;
+            } else if (c.obraStatus === 'realizada') {
+              stats[u].obrasRealizadas += 1;
+              stats[u].m2Ejecutados += m2Val;
+            }
+          });
+        }
+      });
+
+      // Cálculo de comisiones globales de Andrei (Jefe)
+      let totalOverridenCommission = 0;
+
+      usersList.forEach(u => {
+        const s = stats[u];
+        const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
+
+        let cobradoComercial = 0;
+        let gananciaJefeDeEsteComercial = 0;
+
+        if (u === 'Andrei (Jefe)') {
+          cobradoComercial = s.m2Ejecutados * 1.0; // 100% propio
+        } else {
+          cobradoComercial = s.m2Ejecutados * 0.85; // 85% para comercial
+          gananciaJefeDeEsteComercial = s.m2Ejecutados * 0.15; // 15% para el jefe
+          totalOverridenCommission += gananciaJefeDeEsteComercial;
+        }
 
         const card = document.createElement('div');
-        card.style.background = 'rgba(255,255,255,0.04)';
-        card.style.border = '1px solid rgba(255,255,255,0.1)';
-        card.style.borderRadius = '12px';
-        card.style.padding = '10px';
-        card.style.marginBottom = '8px';
-
+        card.className = 'audit-card';
         card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800;">
-            <span style="color:#60a5fa;">${z.sectorName} (${z.town})</span>
-            <span style="color:${z.status==='completada'?'#34d399':'#fbbf24'}">${z.status.toUpperCase()}</span>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#60a5fa; font-size:13px;">${u}</strong>
+            <span class="financial-pill">Cobrado Real: ${cobradoComercial} €</span>
           </div>
+
           <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
-            👤 ${z.comercial} | Ratio: <strong>${ratio}% Sí</strong>
+            🚪 Puertas Tocadas: <strong>${s.tocadas}</strong> (Sí: ${s.si} | Info: ${s.papelito} | Ausente: ${s.ausente} | No: ${s.no})
           </div>
-          <div style="font-size:10px; color:#94a3b8; margin-top:2px;">
-            Sí: ${z.stats?.si||0} | Info: ${z.stats?.papelito||0} | Ausentes: ${z.stats?.ausente||0} | No: ${z.stats?.no||0}
+
+          <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:2px;">
+            <span>Efectividad Puerta: <strong>${ratioConversion}%</strong></span>
+            <span>📅 Citas: <strong>${s.obrasPuestas}</strong> | ✅ Hechas: <strong>${s.obrasRealizadas}</strong></span>
+          </div>
+
+          <div style="font-size:10px; color:#64748b; margin-top:2px; text-align:right;">
+            Potencial Bruto Acumulado: ${s.m2Potenciales * 1.0} € (${s.m2Potenciales} m²)
           </div>
         `;
         container.appendChild(card);
       });
 
+      // Tarjeta Resumen Final para Andrei (Jefe)
+      const jefeStats = stats['Andrei (Jefe)'];
+      const totalJefeMes = (jefeStats.m2Ejecutados * 1.0) + totalOverridenCommission;
+
+      const bossTotalCard = document.createElement('div');
+      bossTotalCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
+      bossTotalCard.style.border = '1px solid #a78bfa';
+      bossTotalCard.style.borderRadius = '14px';
+      bossTotalCard.style.padding = '14px';
+      bossTotalCard.style.marginTop = '10px';
+
+      bossTotalCard.innerHTML = `
+        <div style="font-size:12px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">💰 BALANCE TOTAL MES (ANDREI - JEFE)</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalJefeMes} € Ganados</div>
+        <div style="font-size:11px; color:#ddd6fe;">
+          • Obras Propias Realizadas: <strong>${jefeStats.m2Ejecutados * 1.0} €</strong> (${jefeStats.m2Ejecutados} m²)<br>
+          • 15% Comisiones de Comerciales: <strong>${totalOverridenCommission} €</strong>
+        </div>
+      `;
+
+      container.prepend(bossTotalCard);
       document.getElementById('auditModal').classList.add('active');
     }
 
