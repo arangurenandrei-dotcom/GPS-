@@ -19,6 +19,7 @@
       --accent-red: #dc2626;
       --accent-purple: #7c3aed;
       --accent-cyan: #0891b2;
+      --accent-neon: #10b981;
     }
 
     * {
@@ -37,6 +38,7 @@
       color: #f8fafc;
     }
 
+    /* PANTALLA LOGIN */
     #loginScreen {
       position: fixed; inset: 0; z-index: 10000;
       background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
@@ -68,6 +70,7 @@
     #appContainer { display: none; width: 100vw; height: 100vh; position: relative; }
     #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
+    /* HUD SUPERIOR */
     .hud-header {
       position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
       background: var(--bg-panel); backdrop-filter: blur(16px);
@@ -142,7 +145,7 @@
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 460px; max-height: 90vh; background: #0f172a;
+      width: 100%; max-width: 480px; max-height: 90vh; background: #0f172a;
       border: 1px solid var(--border-panel); border-radius: 20px; padding: 20px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow-y: auto;
     }
@@ -217,10 +220,10 @@
       border-radius: 8px; padding: 6px 10px; font-size: 10px; color: #e9d5ff; margin-top: 4px;
     }
 
-    .tab-bar { display: flex; gap: 6px; margin-bottom: 12px; }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
     .tab-btn {
-      flex: 1; padding: 10px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
-      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 11px; font-weight: 800; cursor: pointer; text-align: center;
+      flex: 1; padding: 10px 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 10px; font-weight: 800; cursor: pointer; text-align: center;
     }
     .tab-btn.active { background: var(--primary); color: #fff; border-color: #60a5fa; }
 
@@ -230,6 +233,11 @@
     }
     .priority-card.p1 { border-left-color: #d97706; background: rgba(217, 119, 6, 0.1); }
     .priority-card.p2 { border-left-color: #2563eb; background: rgba(37, 99, 235, 0.1); }
+
+    .obra-priority-card {
+      background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 12px;
+      padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px;
+    }
   </style>
 </head>
 <body>
@@ -287,7 +295,7 @@
           <span id="displayUserName" style="font-size:13px; font-weight:800;">Andrei</span>
         </div>
         <div style="display:flex; gap:6px;">
-          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda & Pueblos</button>
+          <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda & Obras</button>
           <button class="btn-hud" onclick="centerOnUser()">🎯 Mi GPS</button>
           <button class="btn-hud logout" onclick="executeLogout()">🔒 Salir</button>
         </div>
@@ -305,7 +313,7 @@
       </div>
 
       <div class="search-row">
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar municipio (ej. Peralta, Cintruénigo)..." onkeypress="if(event.key==='Enter') searchLocation()">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar municipio (ej. Peralta, Barasoain)..." onkeypress="if(event.key==='Enter') searchLocation()">
         <button class="btn-search" onclick="searchLocation()">Ir</button>
       </div>
     </div>
@@ -377,7 +385,7 @@
     </div>
   </div>
 
-  <!-- MODAL VOLCADO CON ESCÁNER ESTRUCTURADO POR ZONAS (ROI) -->
+  <!-- MODAL VOLCADO Y ESTADO DE VIVIENDA -->
   <div id="dumpModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -385,7 +393,6 @@
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('dumpModal')">✕</button>
       </div>
 
-      <!-- BOTÓN CÁMARA PARA ESCANEAR PLANTILLA ESTÁNDAR -->
       <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
         📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
       </button>
@@ -418,11 +425,14 @@
         <input type="number" id="dumpSi" class="input-field" value="0" onchange="renderClientFormFields()">
       </div>
 
+      <!-- ESTADO DE VIVIENDA / SECTOR -->
       <div class="input-group">
-        <span class="input-label">📌 Estado del Sector</span>
+        <span class="input-label">🏡 Estado de Vivienda / Sector</span>
         <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
-          <option value="completada">✅ Sector Terminado Completo</option>
+          <option value="sin_comprobar">⚪ Sin comprobar (De serie / En ruta)</option>
+          <option value="poner_obra">🟢 Listo para PONER OBRA (Agendada/Prioritaria)</option>
           <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
+          <option value="completada">✅ Sector Terminado Completo</option>
           <option value="no_apto_sector">⬛ Sector NO APTO (Descarte Técnico)</option>
         </select>
       </div>
@@ -458,20 +468,21 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA AGENDA POR FECHAS & PUEBLOS -->
+  <!-- MODAL AUDITORÍA & CONTROL DE OBRAS (ANDREI) -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <span>📊 Agenda Diaria & Control de Equipo</span>
+        <span>📊 Agenda & Cuadro de Mando de Obras</span>
         <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('auditModal')">✕</button>
       </div>
 
       <div class="tab-bar">
-        <div id="tabBtnComerciales" class="tab-btn active" onclick="switchAuditTab('comerciales')">🗓️ Agenda por Día</div>
-        <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos & Mapa</div>
+        <div id="tabBtnObras" class="tab-btn active" onclick="switchAuditTab('obras')">🔥 Obras Listas (m²)</div>
+        <div id="tabBtnComerciales" class="tab-btn" onclick="switchAuditTab('comerciales')">🗓️ Agenda Día</div>
+        <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos</div>
       </div>
 
-      <div class="input-group">
+      <div id="dateSelectorGroup" class="input-group">
         <span class="input-label">📅 Seleccionar Fecha Exacta</span>
         <input type="date" id="auditDateSelect" class="input-field" onchange="renderCurrentAuditView()">
       </div>
@@ -504,7 +515,7 @@
     let isDrawingMode = false;
     let selectedZoneIndexToDump = null;
     let selectedZoneIndexForNote = null;
-    let activeAuditTab = 'comerciales';
+    let activeAuditTab = 'obras';
 
     function safeLoadStorage(key) {
       try {
@@ -576,7 +587,7 @@
 
       const myZones = savedZones.filter(z => z.comercial === currentUserName);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
-      const assignedNew = myZones.filter(z => z.status === 'pendiente');
+      const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar');
 
       let html = '';
 
@@ -787,7 +798,7 @@
         comercial,
         bossNote: bossNote || '',
         pendingNote: '',
-        status: 'pendiente',
+        status: 'sin_comprobar',
         points: tempPoints,
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
         clients: []
@@ -811,7 +822,10 @@
         let polyColor = '#2563eb';
         let dashArray = '6, 6';
 
-        if (z.status === 'en_proceso') {
+        if (z.status === 'poner_obra') {
+          polyColor = '#10b981'; // VERDE NEÓN PARA ZONAS DE OBRA LISTA
+          dashArray = null;
+        } else if (z.status === 'en_proceso') {
           polyColor = '#d97706';
           dashArray = null;
         } else if (z.status === 'no_apto_sector') {
@@ -896,7 +910,7 @@
       document.getElementById('dumpAusente').value = z.stats?.ausente || 0;
       document.getElementById('dumpPapelito').value = z.stats?.papelito || 0;
       document.getElementById('dumpSi').value = z.stats?.si || 0;
-      document.getElementById('dumpProgressState').value = z.status || 'completada';
+      document.getElementById('dumpProgressState').value = z.status || 'sin_comprobar';
       document.getElementById('dumpPendingNote').value = z.pendingNote || '';
 
       togglePendingNoteVisibility();
@@ -910,7 +924,6 @@
       document.getElementById('dumpModal').classList.add('active');
     }
 
-    // ESCÁNER DE FOTO CON SEGMENTACIÓN POR CUADRÍCULAS (ROI)
     async function processStructuredSheetOCR(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -923,7 +936,6 @@
       img.src = URL.createObjectURL(file);
       await img.decode();
 
-      // CANVAS PARA MAPPING DE REGIONES FIJAS (ROI)
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = img.width;
@@ -931,7 +943,6 @@
       ctx.drawImage(img, 0, 0);
 
       try {
-        // OCR EN ZONA SUPERIOR (CONTEO DE PALITOS: 10% A 35% DE ALTURA)
         const talliesCanvas = document.createElement('canvas');
         talliesCanvas.width = img.width;
         talliesCanvas.height = img.height * 0.25;
@@ -941,14 +952,11 @@
         const talliesResult = await Tesseract.recognize(talliesCanvas, 'spa');
         const talliesText = talliesResult.data.text;
 
-        // ALGORITMO DE RECONOCIMIENTO DE PALITOS (TALLY MARKS)
         const parseTallyCount = (linePattern) => {
           if (!linePattern) return 0;
           let total = 0;
-          // Contar tachados (bloques de 5)
           const blocksOfFive = (linePattern.match(/(HH|卌|X|H|\/|\-){2,}/g) || []).length;
           total += blocksOfFive * 5;
-          // Contar palitos sueltos (|)
           const singleStrokes = (linePattern.match(/\||i|l|1/g) || []).length;
           total += singleStrokes;
           return total > 0 ? total : 0;
@@ -965,13 +973,11 @@
           if (clean.includes('S') || clean.includes('SÍ') || clean.includes('SI')) valS = Math.max(valS, parseTallyCount(line));
         });
 
-        // ASIGNAR VALORES AUTO-DETECTADOS AL FORMULARIO
         document.getElementById('dumpAusente').value = valA || 2;
         document.getElementById('dumpNo').value = valN || 2;
         document.getElementById('dumpPapelito').value = valI || 2;
         document.getElementById('dumpSi').value = valS || 5;
 
-        // OCR EN ZONA INFERIOR (CATASTRO SÍ: 35% A 95% DE ALTURA)
         const tableCanvas = document.createElement('canvas');
         tableCanvas.width = img.width;
         tableCanvas.height = img.height * 0.60;
@@ -983,19 +989,16 @@
 
         renderClientFormFields();
 
-        // RELLENAR FICHAS DE CLIENTES "SÍ"
         const clientBoxes = document.querySelectorAll('.client-box');
         tableLines.slice(0, clientBoxes.length).forEach((lineText, idx) => {
           const box = clientBoxes[idx];
           if (!box) return;
 
-          // Separar por teléfono (patrón numérico de 9 dígitos)
           const phoneMatch = lineText.match(/\b[6789]\d{8}\b/);
           if (phoneMatch) {
             box.querySelector('.client-phone').value = phoneMatch[0];
           }
 
-          // Inserción limpia de la línea reconocida
           const parts = lineText.split(/\s{2,}/);
           if (parts.length >= 2) {
             box.querySelector('.client-street').value = parts[0].replace(/^[0-9.]+\s*/, '');
@@ -1061,7 +1064,7 @@
             <select class="select-field client-m2" style="flex:1;">
               <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
               <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
-              <option value="80+" ${existing.m2==='80+'?'selected':''}>80+ m² (Alto)</option>
+              <option value="80+" ${existing.m2==='80+'?'selected':''}>80+ m² (Alto ⭐)</option>
             </select>
             <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
               <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
@@ -1135,17 +1138,132 @@
 
     function switchAuditTab(tab) {
       activeAuditTab = tab;
+      document.getElementById('tabBtnObras').className = `tab-btn ${tab==='obras'?'active':''}`;
       document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`;
       document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
+
+      document.getElementById('dateSelectorGroup').style.display = (tab === 'comerciales') ? 'flex' : 'none';
       renderCurrentAuditView();
     }
 
     function renderCurrentAuditView() {
-      if (activeAuditTab === 'comerciales') {
+      if (activeAuditTab === 'obras') {
+        renderObrasOptimizationAudit();
+      } else if (activeAuditTab === 'comerciales') {
         renderComercialesAudit();
       } else {
         renderPueblosAudit();
       }
+    }
+
+    // PESTAÑA PRINCIPAL DEL JEFE DE EQUIPO: MAXIMIZACIÓN DE m² Y ORGANIZACIÓN DE CUADRILLAS
+    function renderObrasOptimizationAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const streetClusters = {};
+      let totalOpportunityM2 = 0;
+      let totalReadyClients = 0;
+
+      savedZones.forEach(z => {
+        if (!z.clients) return;
+
+        z.clients.forEach(c => {
+          if (c.obraStatus === 'no_apto') return;
+
+          let m2Val = 70;
+          if (c.m2 === '45-60') m2Val = 50;
+          if (c.m2 === '80+') m2Val = 90;
+
+          const town = z.town || 'Navarra';
+          const streetRaw = (c.street || 'Calle Sin Nombre').trim();
+          const key = `${town}___${streetRaw}`;
+
+          if (!streetClusters[key]) {
+            streetClusters[key] = {
+              town,
+              streetName: streetRaw,
+              totalM2: 0,
+              houseCount: 0,
+              clients: [],
+              sectorName: z.sectorName
+            };
+          }
+
+          streetClusters[key].totalM2 += m2Val;
+          streetClusters[key].houseCount += 1;
+          streetClusters[key].clients.push({ ...c, m2Val, comercial: z.comercial });
+
+          totalOpportunityM2 += m2Val;
+          totalReadyClients += 1;
+        });
+      });
+
+      // ORDENAR CALLES POR VOLUMEN TOTAL DE m² (MAYOR A MENOR RENTABILIDAD)
+      const sortedStreets = Object.values(streetClusters).sort((a, b) => b.totalM2 - a.totalM2);
+
+      const headerBox = document.createElement('div');
+      headerBox.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+      headerBox.style.border = '1px solid #34d399';
+      headerBox.style.borderRadius = '14px';
+      headerBox.style.padding = '14px';
+      headerBox.style.marginBottom = '14px';
+
+      headerBox.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#a7f3d0; text-transform:uppercase;">💰 OPTIMIZADOR DE CUADRILLAS Y FACTURACIÓN</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalOpportunityM2} m² Listos (${totalOpportunityM2 * 1.0} €)</div>
+        <div style="font-size:11px; color:#ecfdf5;">
+          • Total Viviendas Captadas: <strong>${totalReadyClients} casas</strong><br>
+          • Prioridad automática por concentración geográfica y volumen de $\text{m}^2$.
+        </div>
+      `;
+      container.appendChild(headerBox);
+
+      if (sortedStreets.length === 0) {
+        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">No hay obras pendientes en este momento.</div>`;
+        return;
+      }
+
+      sortedStreets.forEach((item, index) => {
+        const clusterEuros = item.totalM2 * 1.0;
+        const isClusterDense = item.houseCount >= 2;
+
+        const card = document.createElement('div');
+        card.className = 'obra-priority-card';
+        if (isClusterDense) {
+          card.style.border = '2px solid #f59e0b';
+          card.style.background = 'rgba(245, 158, 11, 0.12)';
+        }
+
+        let housesHtml = '';
+        item.clients.forEach(c => {
+          housesHtml += `
+            <div style="font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between;">
+              <span>🏡 <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
+              <span style="color:#34d399; font-weight:800;">${c.m2Val} m²</span>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; font-weight:900; color:#ffffff;">
+              #${index + 1} 📍 ${item.town} - ${item.streetName}
+            </span>
+            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px;">
+              ${item.totalM2} m² (${clusterEuros} €)
+            </span>
+          </div>
+
+          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
+            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} CASAS EN LA MISMA CALLE)</strong>` : `1 vivienda de ${item.totalM2} m²`}
+          </div>
+
+          ${housesHtml}
+        `;
+
+        container.appendChild(card);
+      });
     }
 
     function renderComercialesAudit() {
