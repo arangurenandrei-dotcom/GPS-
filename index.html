@@ -121,7 +121,6 @@
     .btn-assign { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); border: 1px solid #a78bfa; }
     .btn-dump { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border: 1px solid #60a5fa; }
 
-    /* BANNER DE DIBUJO AJUSTADO DEBAJO DEL HUD */
     .banner-drawing {
       display: none; position: absolute; top: 200px; left: 12px; right: 12px; z-index: 2000;
       background: #7c3aed; border-radius: 14px; padding: 12px 16px; color: white;
@@ -130,7 +129,6 @@
     }
     .banner-drawing.active { display: flex; }
 
-    /* ESTRUCTURA MODAL CON NAVEGACIÓN FIJA (STICKY) */
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 12px;
@@ -144,9 +142,7 @@
       overflow: hidden;
     }
 
-    .modal-header-sticky {
-      flex-shrink: 0;
-    }
+    .modal-header-sticky { flex-shrink: 0; }
 
     .modal-header {
       font-size: 15px; font-weight: 800; margin-bottom: 10px; display: flex;
@@ -190,8 +186,20 @@
 
     .client-box {
       background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px; padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;
+      border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
     }
+
+    .comunidad-box {
+      background: rgba(124, 58, 237, 0.08); border: 1px solid rgba(167, 139, 250, 0.3);
+      border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .hierarchy-pill {
+      font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px; display: inline-block;
+    }
+    .hierarchy-pill.p1 { background: rgba(5, 150, 105, 0.2); color: #34d399; border: 1px solid #059669; }
+    .hierarchy-pill.p2 { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid #2563eb; }
+    .hierarchy-pill.p3 { background: rgba(217, 119, 6, 0.2); color: #fde047; border: 1px solid #d97706; }
 
     .audit-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
@@ -246,7 +254,6 @@
       padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px;
     }
 
-    /* ESTILOS DE LA TABLA DIRECTIVA DE RANKING */
     .ranking-table-container {
       width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px;
     }
@@ -260,7 +267,6 @@
     .rank-row-top { background: rgba(16, 185, 129, 0.08); }
     .rank-row-warning { background: rgba(220, 38, 38, 0.08); }
 
-    /* POPUP MAPA SLIM */
     .leaflet-popup-content-wrapper {
       background: #0f172a !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.2);
       border-radius: 12px !important; padding: 4px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.6);
@@ -314,7 +320,6 @@
   <div id="appContainer">
     <div id="map"></div>
 
-    <!-- BANNER DE DIBUJO DESPLAZADO DEBAJO DEL BUSCADOR -->
     <div id="drawingBanner" class="banner-drawing">
       <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
       <div style="display:flex; gap:6px;">
@@ -429,7 +434,7 @@
     </div>
   </div>
 
-  <!-- MODAL VOLCADO Y ESTADO DE VIVIENDA -->
+  <!-- MODAL VOLCADO Y VISTA DE SUPERVISIÓN -->
   <div id="dumpModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -439,65 +444,7 @@
         </div>
       </div>
 
-      <div class="modal-scrollable-content">
-        <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
-          📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
-        </button>
-        <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
-
-        <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
-          ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
-        </div>
-
-        <div class="input-group">
-          <span class="input-label">📅 Fecha Real de Volcado</span>
-          <input type="date" id="dumpDate" class="input-field">
-        </div>
-
-        <div class="modal-section-title">📊 Totales del Día en el Papel</div>
-        <div class="input-group">
-          <span class="input-label">❌ No (Rechazos)</span>
-          <input type="number" id="dumpNo" class="input-field" placeholder="0" onfocus="this.select()">
-        </div>
-        <div class="input-group">
-          <span class="input-label">⏳ Ausentes</span>
-          <input type="number" id="dumpAusente" class="input-field" placeholder="0" onfocus="this.select()">
-        </div>
-        <div class="input-group">
-          <span class="input-label">📄 Papelito / Pedido Info</span>
-          <input type="number" id="dumpPapelito" class="input-field" placeholder="0" onfocus="this.select()">
-        </div>
-        <div class="input-group">
-          <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
-          <input type="number" id="dumpSi" class="input-field" placeholder="0" onfocus="this.select()" onchange="renderClientFormFields()">
-        </div>
-
-        <!-- ESTADO DEL SECTOR -->
-        <div class="input-group">
-          <span class="input-label">🏡 Estado del Sector</span>
-          <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
-            <option value="sin_comprobar">⚪ Por Hacer</option>
-            <option value="en_proceso">🟡 Incompleto (Continuar mañana)</option>
-            <option value="completada">✅ Terminado</option>
-          </select>
-        </div>
-
-        <div id="pendingNoteGroup" class="input-group" style="display:none; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
-          <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
-          <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." style="width:100%;">
-          
-          <button class="btn-modal-crop" onclick="startCropSubZone()">
-            ✂️ Redibujar zona pendiente en el mapa
-          </button>
-        </div>
-
-        <div id="clientsContainer"></div>
-
-        <div style="display:flex; gap:8px;">
-          <button class="btn-modal-save" style="flex:3;" onclick="saveDumpData()">💾 Finalizar Volcado</button>
-          <button id="btnDumpDelete" class="btn-modal-delete" style="flex:1; display:none;" onclick="deleteZone(selectedZoneIndexToDump)">🗑️ Borrar</button>
-        </div>
-      </div>
+      <div class="modal-scrollable-content" id="dumpModalBodyContent"></div>
     </div>
   </div>
 
@@ -558,14 +505,13 @@
       comercial5: 'comercial5'
     };
 
-    // PALETA DE COLORES EXCLUSIVA POR COMERCIAL
     const COMMERCIAL_COLORS = {
-      'Andrei (Jefe)': '#7c3aed', // Morado Púrpura
-      'Comercial 1': '#2563eb',   // Azul
-      'Comercial 2': '#059669',   // Verde
-      'Comercial 3': '#d97706',   // Naranja
-      'Comercial 4': '#0891b2',   // Cian
-      'Comercial 5': '#e11d48'    // Rosa/Rojo
+      'Andrei (Jefe)': '#7c3aed',
+      'Comercial 1': '#2563eb',
+      'Comercial 2': '#059669',
+      'Comercial 3': '#d97706',
+      'Comercial 4': '#0891b2',
+      'Comercial 5': '#e11d48'
     };
 
     let map;
@@ -591,12 +537,14 @@
     }
 
     function getM2NumericValue(m2Str) {
+      if (typeof m2Str === 'number') return m2Str;
       if (m2Str === '45-60') return 50;
       if (m2Str === '60-80') return 70;
       if (m2Str === '80-100') return 90;
       if (m2Str === '100-150') return 125;
       if (m2Str === '150+') return 160;
-      return 70;
+      const parsed = parseInt(m2Str);
+      return !isNaN(parsed) ? parsed : 70;
     }
 
     function getComercialColor(comercialName) {
@@ -797,7 +745,6 @@
 
       const todayIso = new Date().toISOString().split('T')[0];
       document.getElementById('assignDate').value = todayIso;
-      document.getElementById('dumpDate').value = todayIso;
       document.getElementById('auditDateSelect').value = todayIso;
 
       renderAllSavedZones();
@@ -860,7 +807,6 @@
       document.getElementById('drawingBanner').classList.remove('active');
 
       if (isCropMode && selectedZoneIndexToDump !== null) {
-        // REEMPLAZAR PUNTOS DE LA ZONA INCOMPLETA CON EL NUEVO RECORTADO
         savedZones[selectedZoneIndexToDump].points = tempPoints;
         localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
         isCropMode = false;
@@ -917,7 +863,6 @@
       renderAllSavedZones();
     }
 
-    // MAPA CON COLORES POR COMERCIAL Y POPUPS AL PULSAR (SIN DIV-ICONS NEGROS)
     function renderAllSavedZones() {
       loadedMapLayers.forEach(l => map.removeLayer(l));
       loadedMapLayers = [];
@@ -934,7 +879,7 @@
         if (z.status === 'sin_comprobar' || z.status === 'por_hacer') {
           dashArray = '6, 6';
         } else if (z.status === 'en_proceso') {
-          borderStyleColor = '#f59e0b'; // Naranja warning para incompletos
+          borderStyleColor = '#f59e0b';
         }
 
         const polygon = L.polygon(z.points, {
@@ -952,13 +897,16 @@
         if (z.status === 'en_proceso') statusBadgeText = '🟡 Incompleto';
         if (z.status === 'completada') statusBadgeText = '✅ Terminado';
 
+        const isSupervisor = (currentUserRole === 'jefe' && z.comercial !== 'Andrei (Jefe)');
+        const btnActionLabel = isSupervisor ? '🔍 Ver Datos & Supervisar' : '📝 Volcar Hoja / Editar';
+
         const popupContent = `
           <div class="popup-zone-info">
             <div class="popup-zone-title">📍 ${displayName}</div>
             <div class="popup-zone-sub">👤 <strong>${displayComercial}</strong> | ${statusBadgeText}</div>
             <div class="popup-zone-sub">📅 ${displayDate}</div>
             ${z.pendingNote ? `<div style="font-size:10px; color:#fde047; margin-bottom:6px;">✏️ <strong>Falta:</strong> ${z.pendingNote}</div>` : ''}
-            <button class="btn-popup-open" onclick="openDumpModal(${idx})">📝 Volcar Hoja / Editar</button>
+            <button class="btn-popup-open" onclick="openDumpModal(${idx})">${btnActionLabel}</button>
           </div>
         `;
 
@@ -986,40 +934,204 @@
     }
 
     function togglePendingNoteVisibility() {
-      const st = document.getElementById('dumpProgressState').value;
+      const st = document.getElementById('dumpProgressState');
       const noteGroup = document.getElementById('pendingNoteGroup');
-      if (st === 'en_proceso') {
-        noteGroup.style.display = 'flex';
-      } else {
-        noteGroup.style.display = 'none';
+      if (st && noteGroup) {
+        noteGroup.style.display = st.value === 'en_proceso' ? 'flex' : 'none';
       }
     }
 
+    /* VISTA EN MODAL: SUPERVISIÓN DEL JEFE VS EDICIÓN DE VIVIENDA / COMUNIDAD */
     function openDumpModal(idx) {
       selectedZoneIndexToDump = idx;
       const z = savedZones[idx];
       const displayName = z.sectorName || z.town || 'Sector Comercial';
 
-      document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
-      document.getElementById('dumpDate').value = z.dumpDate || z.date || new Date().toISOString().split('T')[0];
-      
-      document.getElementById('dumpNo').value = z.stats?.no ? z.stats.no : '';
-      document.getElementById('dumpAusente').value = z.stats?.ausente ? z.stats.ausente : '';
-      document.getElementById('dumpPapelito').value = z.stats?.papelito ? z.stats.papelito : '';
-      document.getElementById('dumpSi').value = z.stats?.si ? z.stats.si : '';
-      
-      document.getElementById('dumpProgressState').value = z.status || 'sin_comprobar';
-      document.getElementById('dumpPendingNote').value = z.pendingNote || '';
+      const isSupervisorView = (currentUserRole === 'jefe' && z.comercial !== 'Andrei (Jefe)');
+      const bodyContainer = document.getElementById('dumpModalBodyContent');
+      bodyContainer.innerHTML = '';
 
-      togglePendingNoteVisibility();
+      if (isSupervisorView) {
+        document.getElementById('dumpModalTitle').innerText = `🔍 Ficha de Supervisión: ${displayName}`;
 
-      const btnDelete = document.getElementById('btnDumpDelete');
-      if (btnDelete) {
-        btnDelete.style.display = (currentUserRole === 'jefe') ? 'block' : 'none';
+        let statusText = '⚪ Por Hacer';
+        if (z.status === 'en_proceso') statusText = '🟡 Incompleto (Continuar mañana)';
+        if (z.status === 'completada') statusText = '✅ Terminado';
+
+        let clientsHtml = '';
+        if (z.clients && z.clients.length > 0) {
+          z.clients.forEach((c, cIdx) => {
+            const isComunidad = c.type === 'comunidad';
+            let stBadge = '<span style="color:#60a5fa; font-weight:800;">📅 Obra A Poner / Agendada</span>';
+            if (c.obraStatus === 'realizada') stBadge = '<span style="color:#34d399; font-weight:800;">✅ Obra Realizada</span>';
+            if (c.obraStatus === 'no_apto') stBadge = `<span class="no-apto-pill">🚫 No Apta</span>`;
+
+            if (isComunidad) {
+              const presiStatus = c.isPresi ? '<span class="hierarchy-pill p1">👑 Presidente Oficial</span>' : '<span class="hierarchy-pill p3">👥 Vecino Intermediario</span>';
+              clientsHtml += `
+                <div class="comunidad-box" style="margin-top:6px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:#a78bfa; font-size:12px;">🏢 Comunidad #${cIdx+1}: ${c.street || 'Edificio'}</strong>
+                    ${presiStatus}
+                  </div>
+                  <div style="font-size:11px; color:#e2e8f0; margin-top:2px;">
+                    👤 Contacto: <strong>${c.name || 'Presidente/Vecino'}</strong> (Tel: ${c.phone || 'N/D'})
+                  </div>
+                  <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>📐 Áticos: <strong>${c.numAttics || 1} buhardillas (${c.m2PerAttic || 70} m²/c.u.)</strong></span>
+                    <span style="color:#34d399; font-weight:900;">Total: ${getM2NumericValue(c.m2)} m²</span>
+                  </div>
+                  <div style="font-size:10px; color:#94a3b8;">🏗️ Año Construcción: <strong>${c.buildYear || 'Anterior a 2006'}</strong></div>
+                </div>
+              `;
+            } else {
+              clientsHtml += `
+                <div class="client-detail-row" style="margin-top:6px; padding:8px;">
+                  <div>
+                    <strong>🏠 #${cIdx+1} ${c.name || 'Cliente'}</strong> (${c.street || 'N/D'})
+                    <div style="font-size:10px; color:#94a3b8; margin-top:2px;">📞 ${c.phone || 'Sin tel'}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    ${stBadge}
+                    <div style="font-size:10px; color:#a78bfa; margin-top:2px;">📐 ${c.m2 || '60-80'} m²</div>
+                  </div>
+                </div>
+              `;
+            }
+          });
+        } else {
+          clientsHtml = `<div style="font-size:11px; color:#64748b; padding:8px; text-align:center;">El comercial no ha introducido fichas de "SÍ" todavía.</div>`;
+        }
+
+        bodyContainer.innerHTML = `
+          <div class="input-group">
+            <span class="input-label">👤 Comercial Asignado</span>
+            <span style="font-size:13px; font-weight:900; color:#60a5fa;">${z.comercial}</span>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">📅 Fecha de Volcado</span>
+            <span style="font-size:12px; font-weight:700;">${formatDate(z.dumpDate || z.date)}</span>
+          </div>
+
+          <div class="modal-section-title">📊 Totales Reportados por el Comercial</div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div style="background:rgba(239,68,68,0.15); border:1px solid #ef4444; padding:8px 10px; border-radius:10px; font-size:11px;">
+              ❌ No (Rechazos): <strong>${z.stats?.no || 0}</strong>
+            </div>
+            <div style="background:rgba(217,119,6,0.15); border:1px solid #d97706; padding:8px 10px; border-radius:10px; font-size:11px;">
+              ⏳ Ausentes: <strong>${z.stats?.ausente || 0}</strong>
+            </div>
+            <div style="background:rgba(8,145,178,0.15); border:1px solid #0891b2; padding:8px 10px; border-radius:10px; font-size:11px;">
+              📄 Info / Papelito: <strong>${z.stats?.papelito || 0}</strong>
+            </div>
+            <div style="background:rgba(5,150,105,0.15); border:1px solid #059669; padding:8px 10px; border-radius:10px; font-size:11px; color:#34d399;">
+              ✅ Sí (Interesados): <strong>${z.stats?.si || 0}</strong>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">🏡 Estado del Sector</span>
+            <span style="font-size:12px; font-weight:800; color:#fde047;">${statusText}</span>
+          </div>
+
+          ${z.pendingNote ? `
+            <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.15);">
+              <span class="input-label" style="color:#fde047;">✏️ Lo que falta por terminar (Escrito por ${z.comercial}):</span>
+              <div style="font-size:12px; color:#fff; font-weight:700;">"${z.pendingNote}"</div>
+            </div>
+          ` : ''}
+
+          <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:6px; margin-top:10px; border-color:#7c3aed; background:rgba(124,58,237,0.12);">
+            <span class="input-label" style="color:#a78bfa;">💬 Escribir Instrucción / Nota para ${z.comercial}:</span>
+            <input type="text" id="supervisionBossNoteInput" class="input-field" placeholder="Ej. Remata esa acera mañana primera hora..." value="${z.bossNote || ''}" style="width:100%;">
+          </div>
+
+          <div class="modal-section-title">🏡 Fichas Técnicas Captadas (${z.clients ? z.clients.length : 0})</div>
+          ${clientsHtml}
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="btn-modal-save" style="flex:3;" onclick="saveSupervisionBossNote()">💾 Guardar Nota para Comercial</button>
+            <button class="btn-modal-delete" style="flex:1;" onclick="deleteZone(${idx})">🗑️ Borrar</button>
+          </div>
+        `;
+      } else {
+        document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
+
+        bodyContainer.innerHTML = `
+          <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
+            📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
+          </button>
+          <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
+
+          <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
+            ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">📅 Fecha Real de Volcado</span>
+            <input type="date" id="dumpDate" class="input-field" value="${z.dumpDate || z.date || new Date().toISOString().split('T')[0]}">
+          </div>
+
+          <div class="modal-section-title">📊 Totales del Día en el Papel</div>
+          <div class="input-group">
+            <span class="input-label">❌ No (Rechazos)</span>
+            <input type="number" id="dumpNo" class="input-field" placeholder="0" value="${z.stats?.no ? z.stats.no : ''}" onfocus="this.select()">
+          </div>
+          <div class="input-group">
+            <span class="input-label">⏳ Ausentes</span>
+            <input type="number" id="dumpAusente" class="input-field" placeholder="0" value="${z.stats?.ausente ? z.stats.ausente : ''}" onfocus="this.select()">
+          </div>
+          <div class="input-group">
+            <span class="input-label">📄 Papelito / Pedido Info</span>
+            <input type="number" id="dumpPapelito" class="input-field" placeholder="0" value="${z.stats?.papelito ? z.stats.papelito : ''}" onfocus="this.select()">
+          </div>
+          <div class="input-group">
+            <span class="input-label" style="color:#34d399;">✅ Sí (Interesados / Firmados)</span>
+            <input type="number" id="dumpSi" class="input-field" placeholder="0" value="${z.stats?.si ? z.stats.si : ''}" onfocus="this.select()" onchange="renderClientFormFields()">
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">🏡 Estado del Sector</span>
+            <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
+              <option value="sin_comprobar" ${z.status==='sin_comprobar'?'selected':''}>⚪ Por Hacer</option>
+              <option value="en_proceso" ${z.status==='en_proceso'?'selected':''}>🟡 Incompleto (Continuar mañana)</option>
+              <option value="completada" ${z.status==='completada'?'selected':''}>✅ Terminado</option>
+            </select>
+          </div>
+
+          <div id="pendingNoteGroup" class="input-group" style="display:${z.status==='en_proceso'?'flex':'none'}; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
+            <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
+            <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." value="${z.pendingNote || ''}" style="width:100%;">
+            
+            <button class="btn-modal-crop" onclick="startCropSubZone()">
+              ✂️ Redibujar zona pendiente en el mapa
+            </button>
+          </div>
+
+          <div id="clientsContainer"></div>
+
+          <div style="display:flex; gap:8px;">
+            <button class="btn-modal-save" style="flex:3;" onclick="saveDumpData()">💾 Finalizar Volcado</button>
+            ${currentUserRole === 'jefe' ? `<button class="btn-modal-delete" style="flex:1;" onclick="deleteZone(${idx})">🗑️ Borrar</button>` : ''}
+          </div>
+        `;
+
+        renderClientFormFields();
       }
 
-      renderClientFormFields();
       document.getElementById('dumpModal').classList.add('active');
+    }
+
+    function saveSupervisionBossNote() {
+      if (selectedZoneIndexToDump === null) return;
+      const noteInput = document.getElementById('supervisionBossNoteInput');
+      if (noteInput) {
+        savedZones[selectedZoneIndexToDump].bossNote = noteInput.value.trim();
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      }
+      closeModal('dumpModal');
+      renderAllSavedZones();
     }
 
     async function processStructuredSheetOCR(event) {
@@ -1087,22 +1199,25 @@
 
         renderClientFormFields();
 
-        const clientBoxes = document.querySelectorAll('.client-box');
+        const clientBoxes = document.querySelectorAll('.client-box, .comunidad-box');
         tableLines.slice(0, clientBoxes.length).forEach((lineText, idx) => {
           const box = clientBoxes[idx];
           if (!box) return;
 
           const phoneMatch = lineText.match(/\b[6789]\d{8}\b/);
           if (phoneMatch) {
-            box.querySelector('.client-phone').value = phoneMatch[0];
+            const phoneEl = box.querySelector('.client-phone');
+            if (phoneEl) phoneEl.value = phoneMatch[0];
           }
 
           const parts = lineText.split(/\s{2,}/);
+          const streetEl = box.querySelector('.client-street');
+          const nameEl = box.querySelector('.client-name');
           if (parts.length >= 2) {
-            box.querySelector('.client-street').value = parts[0].replace(/^[0-9.]+\s*/, '');
-            box.querySelector('.client-name').value = parts[1];
+            if (streetEl) streetEl.value = parts[0].replace(/^[0-9.]+\s*/, '');
+            if (nameEl) nameEl.value = parts[1];
           } else {
-            box.querySelector('.client-name').value = lineText;
+            if (nameEl) nameEl.value = lineText;
           }
         });
 
@@ -1132,65 +1247,170 @@
       }
     }
 
+    /* GENERACIÓN DE FORMULARIOS DINÁMICOS CON SOPORTE PARA VIVIENDA / COMUNIDAD */
     function renderClientFormFields() {
       const container = document.getElementById('clientsContainer');
+      if (!container) return;
       container.innerHTML = '';
 
-      const siCount = parseInt(document.getElementById('dumpSi').value) || 0;
+      const dumpSiEl = document.getElementById('dumpSi');
+      const siCount = dumpSiEl ? (parseInt(dumpSiEl.value) || 0) : 0;
       if (siCount <= 0) return;
 
       const z = selectedZoneIndexToDump !== null ? savedZones[selectedZoneIndexToDump] : null;
 
       const title = document.createElement('div');
       title.className = 'modal-section-title';
-      title.innerText = `🏡 Fichas Técnicas de Clientes "SÍ" (${siCount})`;
+      title.innerText = `🏡 / 🏢 Fichas de Captación (${siCount})`;
       container.appendChild(title);
 
       for (let i = 0; i < siCount; i++) {
         const existing = z && z.clients && z.clients[i] ? z.clients[i] : {};
+        const isComunidad = existing.type === 'comunidad';
 
         const box = document.createElement('div');
-        box.className = 'client-box';
+        box.className = isComunidad ? 'comunidad-box' : 'client-box';
+        box.setAttribute('data-client-index', i);
+
         box.innerHTML = `
-          <strong style="font-size:11px; color:#34d399;">Cliente #${i+1}</strong>
-          <input type="text" class="input-field client-name" placeholder="Nombre completo" value="${existing.name || ''}">
-          <div style="display:flex; gap:6px;">
-            <input type="text" class="input-field client-street" placeholder="Calle y Portal" style="flex:2;" value="${existing.street || ''}">
-            <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;" value="${existing.phone || ''}">
-          </div>
-          <div style="display:flex; gap:6px;">
-            <select class="select-field client-m2" style="flex:1;">
-              <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
-              <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
-              <option value="80-100" ${existing.m2==='80-100'?'selected':''}>80 - 100 m² (Alto)</option>
-              <option value="100-150" ${existing.m2==='100-150'?'selected':''}>100 - 150 m² (Muy Alto ⭐)</option>
-              <option value="150+" ${existing.m2==='150+'?'selected':''}>+150 m² (Premium 🔥)</option>
-            </select>
-            <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
-              <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>⏳ Obra A PONER (Automática)</option>
-              <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
-              <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
-              <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Ficha #${i+1}</strong>
+            <select class="select-field client-type" style="font-size:10px; padding:2px 6px;" onchange="switchClientTypeView(this, ${i})">
+              <option value="vivienda" ${!isComunidad?'selected':''}>🏠 Vivienda Individual</option>
+              <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
             </select>
           </div>
-          
-          <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
-            <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
-            <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
-              <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción > 2006 (No Apto CAE)</option>
-              <option value="m2_insuficiente" ${existing.obraReason==='m2_insuficiente'?'selected':''}>📐 Superficie m² insuficiente</option>
-              <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Aislamiento previo existente</option>
-              <option value="suelo_forjado" ${existing.obraReason==='suelo_forjado'?'selected':''}>🏗️ Problema en suelo / forjado</option>
-              <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a tejado imposible</option>
-            </select>
+
+          <div class="client-fields-dynamic-area">
+            ${isComunidad ? getComunidadFormHTML(existing) : getViviendaFormHTML(existing)}
           </div>
         `;
         container.appendChild(box);
       }
     }
 
+    function switchClientTypeView(selectEl, idx) {
+      const parentBox = selectEl.closest('.client-box, .comunidad-box');
+      const dynamicArea = parentBox.querySelector('.client-fields-dynamic-area');
+      const isComunidad = selectEl.value === 'comunidad';
+
+      parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
+      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML({}) : getViviendaFormHTML({});
+    }
+
+    function getViviendaFormHTML(existing) {
+      return `
+        <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
+        <div style="display:flex; gap:6px;">
+          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso" style="flex:2;" value="${existing.street || ''}">
+          <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;" value="${existing.phone || ''}">
+        </div>
+        <div style="display:flex; gap:6px;">
+          <select class="select-field client-m2" style="flex:1;">
+            <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
+            <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
+            <option value="80-100" ${existing.m2==='80-100'?'selected':''}>80 - 100 m² (Alto)</option>
+            <option value="100-150" ${existing.m2==='100-150'?'selected':''}>100 - 150 m² (Muy Alto ⭐)</option>
+            <option value="150+" ${existing.m2==='150+'?'selected':''}>+150 m² (Premium 🔥)</option>
+          </select>
+          <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
+            <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>⏳ Obra A PONER (Automática)</option>
+            <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita)</option>
+            <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
+            <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
+          </select>
+        </div>
+        
+        <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
+          <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
+          <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
+            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción > 2006 (No Apto CAE)</option>
+            <option value="m2_insuficiente" ${existing.obraReason==='m2_insuficiente'?'selected':''}>📐 Superficie m² insuficiente</option>
+            <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Aislamiento previo existente</option>
+            <option value="suelo_forjado" ${existing.obraReason==='suelo_forjado'?'selected':''}>🏗️ Problema en suelo / forjado</option>
+            <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a tejado imposible</option>
+          </select>
+        </div>
+      `;
+    }
+
+    function getComunidadFormHTML(existing) {
+      return `
+        <div style="background:rgba(0,0,0,0.2); padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:800; color:#a78bfa;">👑 ¿Es el Presidente Oficial?</span>
+            <select class="select-field client-is-presi" style="padding:2px 8px;" onchange="togglePresiHierarchyInfo(this)">
+              <option value="si" ${existing.isPresi!==false?'selected':''}>SÍ (Presidente Oficial)</option>
+              <option value="no" ${existing.isPresi===false?'selected':''}>NO (Vecino Intermediario)</option>
+            </select>
+          </div>
+          
+          <div class="presi-hierarchy-hint" style="font-size:10px; color:#cbd5e1; border-left:2px solid #a78bfa; padding-left:6px;">
+            ${existing.isPresi===false ? '⚠️ Vecino enlace: Nos facilitará el contacto directo del Presidente de la comunidad.' : '👑 Hablando directamente con la Presidencia del Edificio.'}
+          </div>
+        </div>
+
+        <input type="text" class="input-field client-street" placeholder="Dirección de la Comunidad (Calle y Nº Portal)" value="${existing.street || ''}">
+        
+        <div style="display:flex; gap:6px;">
+          <input type="text" class="input-field client-name" placeholder="Nombre del Presidente / Contacto" style="flex:2;" value="${existing.name || ''}">
+          <input type="number" class="input-field client-phone" placeholder="Teléfono" style="flex:1.5;" value="${existing.phone || ''}">
+        </div>
+
+        <div style="display:flex; gap:6px;">
+          <input type="number" class="input-field client-build-year" placeholder="Año Const. (ej. 1985)" style="flex:1;" value="${existing.buildYear || '1990'}">
+          <input type="number" class="input-field client-num-attics" placeholder="Nº Buhardillas (Pisos Arriba)" style="flex:1.2;" value="${existing.numAttics || '2'}" onchange="recalculateComunidadM2(this)">
+          <input type="number" class="input-field client-m2-per-attic" placeholder="m² por buhardilla" style="flex:1.2;" value="${existing.m2PerAttic || '70'}" onchange="recalculateComunidadM2(this)">
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(5, 150, 105, 0.15); padding:6px 10px; border-radius:8px;">
+          <span style="font-size:11px; font-weight:800; color:#34d399;">📐 Superficie Total Cubierta:</span>
+          <strong class="comunidad-calculated-m2-label" style="font-size:13px; color:#34d399;">${getM2NumericValue(existing.m2 || 140)} m²</strong>
+        </div>
+
+        <div style="display:flex; gap:6px;">
+          <select class="select-field client-obra-status" style="flex:1;" onchange="toggleNoAptoReasonField(this)">
+            <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>⏳ Obra A PONER (Automática)</option>
+            <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Obra Puesta (Cita Junta)</option>
+            <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
+            <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica/Votación)</option>
+          </select>
+        </div>
+
+        <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
+          <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica / Rechazo Junta:</label>
+          <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
+            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción > 2006 (No Apto CAE)</option>
+            <option value="rechazo_junta" ${existing.obraReason==='rechazo_junta'?'selected':''}>❌ Rechazado en Junta de Propietarios</option>
+            <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Tejado/Cubierta aislada recientemente</option>
+            <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a bajo cubierta cerrado/imposible</option>
+          </select>
+        </div>
+      `;
+    }
+
+    function togglePresiHierarchyInfo(selectEl) {
+      const hintEl = selectEl.closest('div.client-fields-dynamic-area').querySelector('.presi-hierarchy-hint');
+      if (hintEl) {
+        hintEl.innerHTML = selectEl.value === 'no' 
+          ? '⚠️ Vecino enlace: Nos facilitará el contacto directo del Presidente de la comunidad.'
+          : '👑 Hablando directamente con la Presidencia del Edificio.';
+      }
+    }
+
+    function recalculateComunidadM2(inputEl) {
+      const area = inputEl.closest('.client-fields-dynamic-area');
+      const numAttics = parseInt(area.querySelector('.client-num-attics').value) || 1;
+      const m2Attic = parseInt(area.querySelector('.client-m2-per-attic').value) || 70;
+      const totalM2 = numAttics * m2Attic;
+
+      const labelEl = area.querySelector('.comunidad-calculated-m2-label');
+      if (labelEl) labelEl.innerText = `${totalM2} m²`;
+    }
+
     function toggleNoAptoReasonField(selectEl) {
-      const reasonBox = selectEl.closest('.client-box').querySelector('.no-apto-reason-box');
+      const parentBox = selectEl.closest('.client-box, .comunidad-box');
+      const reasonBox = parentBox.querySelector('.no-apto-reason-box');
       if (reasonBox) {
         reasonBox.style.display = selectEl.value === 'no_apto' ? 'block' : 'none';
       }
@@ -1213,19 +1433,42 @@
       z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
 
       z.clients = [];
-      const clientBoxes = document.querySelectorAll('.client-box');
+      const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      
       clientBoxes.forEach(box => {
+        const typeVal = box.querySelector('.client-type') ? box.querySelector('.client-type').value : 'vivienda';
         const statusVal = box.querySelector('.client-obra-status').value;
-        const reasonVal = statusVal === 'no_apto' ? box.querySelector('.client-no-apto-reason').value : 'ninguno';
+        const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
 
-        z.clients.push({
-          name: box.querySelector('.client-name').value,
-          street: box.querySelector('.client-street').value,
-          phone: box.querySelector('.client-phone').value,
-          m2: box.querySelector('.client-m2').value,
-          obraStatus: statusVal,
-          obraReason: reasonVal
-        });
+        if (typeVal === 'comunidad') {
+          const numAttics = parseInt(box.querySelector('.client-num-attics').value) || 1;
+          const m2PerAttic = parseInt(box.querySelector('.client-m2-per-attic').value) || 70;
+          const totalM2 = numAttics * m2PerAttic;
+
+          z.clients.push({
+            type: 'comunidad',
+            isPresi: box.querySelector('.client-is-presi').value === 'si',
+            name: box.querySelector('.client-name').value,
+            street: box.querySelector('.client-street').value,
+            phone: box.querySelector('.client-phone').value,
+            buildYear: box.querySelector('.client-build-year').value,
+            numAttics: numAttics,
+            m2PerAttic: m2PerAttic,
+            m2: totalM2,
+            obraStatus: statusVal,
+            obraReason: reasonVal
+          });
+        } else {
+          z.clients.push({
+            type: 'vivienda',
+            name: box.querySelector('.client-name').value,
+            street: box.querySelector('.client-street').value,
+            phone: box.querySelector('.client-phone').value,
+            m2: box.querySelector('.client-m2').value,
+            obraStatus: statusVal,
+            obraReason: reasonVal
+          });
+        }
       });
 
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
@@ -1261,7 +1504,6 @@
       }
     }
 
-    // PESTAÑA: LEADERBOARD / CLASIFICACIÓN GENERAL DIRECTIVA
     function renderKpisAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1404,7 +1646,6 @@
       container.appendChild(tableWrapper);
     }
 
-    // PESTAÑA: AGENDA DÍA (OPERATIVA DIARIA DETALLADA)
     function renderComercialesAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1491,10 +1732,12 @@
                 if (cItem.obraStatus === 'realizada') badgeStatus = '<span style="color:#34d399; font-weight:800;">✅ Obra Hecha</span>';
                 if (cItem.obraStatus === 'no_apto') badgeStatus = `<span class="no-apto-pill">🚫 No Apta</span>`;
 
+                const typeIcon = cItem.type === 'comunidad' ? '🏢' : '🏠';
+
                 clientRows += `
                   <div class="client-detail-row">
-                    <span><strong>${cItem.name || 'Cliente'}</strong> (${cItem.street || 'N/D'})</span>
-                    <span>${badgeStatus} (${cItem.m2||'60-80'} m²)</span>
+                    <span>${typeIcon} <strong>${cItem.name || 'Cliente'}</strong> (${cItem.street || 'N/D'})</span>
+                    <span>${badgeStatus} (${getM2NumericValue(cItem.m2)} m²)</span>
                   </div>
                 `;
               });
@@ -1574,7 +1817,6 @@
       container.prepend(bossTotalCard);
     }
 
-    // PESTAÑA: OPTIMIZADOR DE OBRAS POR PROXIMIDAD
     function renderObrasOptimizationAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1627,7 +1869,7 @@
         <div style="font-size:11px; font-weight:800; color:#a7f3d0; text-transform:uppercase;">💰 OPTIMIZADOR DE CUADRILLAS Y FACTURACIÓN</div>
         <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalOpportunityM2} m² Listos (${totalOpportunityM2 * 1.0} €)</div>
         <div style="font-size:11px; color:#ecfdf5;">
-          • Total Viviendas Captadas: <strong>${totalReadyClients} casas</strong><br>
+          • Total Captaciones: <strong>${totalReadyClients} fincas/casas</strong><br>
           • Prioridad automática por concentración geográfica y volumen de m².
         </div>
       `;
@@ -1651,9 +1893,10 @@
 
         let housesHtml = '';
         item.clients.forEach(c => {
+          const typeIcon = c.type === 'comunidad' ? '🏢 Comunidad' : '🏠 Vivienda';
           housesHtml += `
             <div style="font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between;">
-              <span>🏡 <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
+              <span>${typeIcon}: <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small></span>
               <span style="color:#34d399; font-weight:800;">${c.m2Val} m²</span>
             </div>
           `;
@@ -1670,7 +1913,7 @@
           </div>
 
           <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
-            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} CASAS EN LA MISMA CALLE)</strong>` : `1 vivienda de ${item.totalM2} m²`}
+            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} FINCAS EN LA MISMA CALLE)</strong>` : `1 captación de ${item.totalM2} m²`}
           </div>
 
           ${housesHtml}
