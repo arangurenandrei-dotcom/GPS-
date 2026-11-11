@@ -121,22 +121,14 @@
     .btn-assign { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); border: 1px solid #a78bfa; }
     .btn-dump { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border: 1px solid #60a5fa; }
 
+    /* BANNER DE DIBUJO AJUSTADO DEBAJO DEL HUD */
     .banner-drawing {
-      display: none; position: absolute; top: 155px; left: 12px; right: 12px; z-index: 1000;
+      display: none; position: absolute; top: 200px; left: 12px; right: 12px; z-index: 2000;
       background: #7c3aed; border-radius: 14px; padding: 12px 16px; color: white;
       font-size: 12px; font-weight: 800; justify-content: space-between; align-items: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6); border: 1px solid #a78bfa;
     }
     .banner-drawing.active { display: flex; }
-
-    .zone-badge-container {
-      background: rgba(15, 23, 42, 0.95) !important; border: 1px solid rgba(255,255,255,0.2) !important;
-      border-radius: 10px; padding: 6px 10px !important; color: #fff; transform: translate(-50%, -50%);
-      text-align: center; pointer-events: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.5); max-width: 220px;
-    }
-    .badge-title { font-size: 11px; font-weight: 900; }
-    .badge-sub { font-size: 10px; font-weight: 700; color: #60a5fa; margin-top: 2px; }
-    .badge-pending-note { font-size: 10px; font-weight: 800; color: #fde047; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2px; }
 
     /* ESTRUCTURA MODAL CON NAVEGACIÓN FIJA (STICKY) */
     .modal-overlay {
@@ -149,11 +141,11 @@
       width: 100%; max-width: 520px; max-height: 88vh; background: #0f172a;
       border: 1px solid var(--border-panel); border-radius: 20px; padding: 16px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column;
-      overflow: hidden; /* EL CONTENEDOR PADRE NO HACE SCROLL */
+      overflow: hidden;
     }
 
     .modal-header-sticky {
-      flex-shrink: 0; /* LA CABECERA Y LAS PESTAÑAS NUNCA SE DESPLAZAN */
+      flex-shrink: 0;
     }
 
     .modal-header {
@@ -162,7 +154,7 @@
     }
 
     .modal-scrollable-content {
-      flex: 1; overflow-y: auto; margin-top: 6px; padding-right: 4px; /* SOLO SCROLL INTERNO */
+      flex: 1; overflow-y: auto; margin-top: 6px; padding-right: 4px;
     }
 
     .modal-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #60a5fa; margin: 12px 0 6px 0; }
@@ -189,6 +181,11 @@
     .btn-modal-delete {
       padding: 14px; border: 1px solid #ef4444; border-radius: 12px;
       background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 13px; font-weight: 800; cursor: pointer; margin-top: 10px;
+    }
+
+    .btn-modal-crop {
+      width: 100%; padding: 10px; border: 1px dashed #d97706; border-radius: 10px;
+      background: rgba(217, 119, 6, 0.2); color: #fde047; font-size: 11px; font-weight: 800; cursor: pointer; margin-top: 6px;
     }
 
     .client-box {
@@ -262,6 +259,20 @@
     }
     .rank-row-top { background: rgba(16, 185, 129, 0.08); }
     .rank-row-warning { background: rgba(220, 38, 38, 0.08); }
+
+    /* POPUP MAPA SLIM */
+    .leaflet-popup-content-wrapper {
+      background: #0f172a !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px !important; padding: 4px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    }
+    .leaflet-popup-tip { background: #0f172a !important; }
+    .popup-zone-info { padding: 6px 8px; }
+    .popup-zone-title { font-size: 12px; font-weight: 900; color: #fff; margin-bottom: 2px; }
+    .popup-zone-sub { font-size: 10px; color: #94a3b8; margin-bottom: 6px; }
+    .btn-popup-open {
+      width: 100%; padding: 6px; background: #2563eb; color: #fff; border: none; border-radius: 6px;
+      font-size: 10px; font-weight: 800; cursor: pointer; text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -303,10 +314,11 @@
   <div id="appContainer">
     <div id="map"></div>
 
+    <!-- BANNER DE DIBUJO DESPLAZADO DEBAJO DEL BUSCADOR -->
     <div id="drawingBanner" class="banner-drawing">
-      <span>Toca las esquinas del sector comercial...</span>
+      <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
       <div style="display:flex; gap:6px;">
-        <button style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:800; font-size:11px;" onclick="finishSectorDrawing()">CONFIRMAR SECTOR</button>
+        <button style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:800; font-size:11px;" onclick="finishSectorDrawing()">CONFIRMAR ZONA</button>
         <button style="padding:6px 10px; border:none; border-radius:8px; background:rgba(255,255,255,0.2); color:#fff; font-size:11px;" onclick="cancelDrawing()">✕</button>
       </div>
     </div>
@@ -473,6 +485,10 @@
         <div id="pendingNoteGroup" class="input-group" style="display:none; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
           <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
           <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." style="width:100%;">
+          
+          <button class="btn-modal-crop" onclick="startCropSubZone()">
+            ✂️ Redibujar zona pendiente en el mapa
+          </button>
         </div>
 
         <div id="clientsContainer"></div>
@@ -504,11 +520,9 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA CON PESTAÑAS Y CABECERA FIJAS (STICKY) -->
+  <!-- MODAL AUDITORÍA -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
-      
-      <!-- CONTENEDOR FIJO QUE NUNCA SE OCULTA AL HACER SCROLL -->
       <div class="modal-header-sticky">
         <div class="modal-header">
           <span>📊 Agenda & Cuadro de Mando de Obras</span>
@@ -528,9 +542,7 @@
         </div>
       </div>
 
-      <!-- CONTENIDO INTERNO DESPLAZABLE -->
       <div class="modal-scrollable-content" id="auditContainer"></div>
-
     </div>
   </div>
 
@@ -546,6 +558,16 @@
       comercial5: 'comercial5'
     };
 
+    // PALETA DE COLORES EXCLUSIVA POR COMERCIAL
+    const COMMERCIAL_COLORS = {
+      'Andrei (Jefe)': '#7c3aed', // Morado Púrpura
+      'Comercial 1': '#2563eb',   // Azul
+      'Comercial 2': '#059669',   // Verde
+      'Comercial 3': '#d97706',   // Naranja
+      'Comercial 4': '#0891b2',   // Cian
+      'Comercial 5': '#e11d48'    // Rosa/Rojo
+    };
+
     let map;
     let currentUserRole = null;
     let currentUserName = null;
@@ -556,6 +578,7 @@
     let tempPoints = [];
     let tempMarkers = [];
     let isDrawingMode = false;
+    let isCropMode = false;
     let selectedZoneIndexToDump = null;
     let selectedZoneIndexForNote = null;
     let activeAuditTab = 'kpis';
@@ -574,6 +597,10 @@
       if (m2Str === '100-150') return 125;
       if (m2Str === '150+') return 160;
       return 70;
+    }
+
+    function getComercialColor(comercialName) {
+      return COMMERCIAL_COLORS[comercialName] || '#2563eb';
     }
 
     function executeLogin() {
@@ -797,9 +824,22 @@
 
     function startSectorDrawing() {
       isDrawingMode = true;
+      isCropMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
+      document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
+      document.getElementById('drawingBanner').classList.add('active');
+    }
+
+    function startCropSubZone() {
+      closeModal('dumpModal');
+      isDrawingMode = true;
+      isCropMode = true;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      document.getElementById('drawingBannerText').innerText = "✂️ Toca las esquinas de la ZONA PENDIENTE para mañana...";
       document.getElementById('drawingBanner').classList.add('active');
     }
 
@@ -814,15 +854,30 @@
 
     function finishSectorDrawing() {
       if (tempPoints.length < 3) {
-        alert("Toca al menos 3 puntos para delimitar la manzana.");
+        alert("Toca al menos 3 puntos para delimitar la zona.");
         return;
       }
       document.getElementById('drawingBanner').classList.remove('active');
-      document.getElementById('assignModal').classList.add('active');
+
+      if (isCropMode && selectedZoneIndexToDump !== null) {
+        // REEMPLAZAR PUNTOS DE LA ZONA INCOMPLETA CON EL NUEVO RECORTADO
+        savedZones[selectedZoneIndexToDump].points = tempPoints;
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        isCropMode = false;
+        isDrawingMode = false;
+        tempPoints = [];
+        tempMarkers.forEach(m => map.removeLayer(m));
+        tempMarkers = [];
+        renderAllSavedZones();
+        openDumpModal(selectedZoneIndexToDump);
+      } else {
+        document.getElementById('assignModal').classList.add('active');
+      }
     }
 
     function cancelDrawing() {
       isDrawingMode = false;
+      isCropMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
@@ -862,6 +917,7 @@
       renderAllSavedZones();
     }
 
+    // MAPA CON COLORES POR COMERCIAL Y POPUPS AL PULSAR (SIN DIV-ICONS NEGROS)
     function renderAllSavedZones() {
       loadedMapLayers.forEach(l => map.removeLayer(l));
       loadedMapLayers = [];
@@ -871,49 +927,43 @@
           return;
         }
 
-        let polyColor = '#2563eb';
-        let dashArray = '6, 6';
+        const comercialColor = getComercialColor(z.comercial);
+        let borderStyleColor = comercialColor;
+        let dashArray = null;
 
-        if (z.status === 'en_proceso') {
-          polyColor = '#d97706';
-          dashArray = null;
-        } else if (z.status === 'completada') {
-          dashArray = null;
-          const si = z.stats?.si || 0;
-          const total = (z.stats?.no || 0) + (z.stats?.papelito || 0) + si;
-          const ratio = total > 0 ? (si / total) : 0;
-          polyColor = ratio >= 0.25 ? '#059669' : '#dc2626';
+        if (z.status === 'sin_comprobar' || z.status === 'por_hacer') {
+          dashArray = '6, 6';
+        } else if (z.status === 'en_proceso') {
+          borderStyleColor = '#f59e0b'; // Naranja warning para incompletos
         }
 
         const polygon = L.polygon(z.points, {
-          color: polyColor,
+          color: borderStyleColor,
           weight: 3,
           dashArray: dashArray,
-          fillColor: polyColor,
-          fillOpacity: 0.35
+          fillColor: comercialColor,
+          fillOpacity: 0.40
         }).addTo(map);
 
-        const center = polygon.getBounds().getCenter();
         const displayName = z.sectorName || z.town || 'Sector Comercial';
         const displayComercial = z.comercial || 'Comercial';
         const displayDate = z.date ? formatDate(z.date) : '';
+        let statusBadgeText = '⚪ Por Hacer';
+        if (z.status === 'en_proceso') statusBadgeText = '🟡 Incompleto';
+        if (z.status === 'completada') statusBadgeText = '✅ Terminado';
 
-        const badgeHtml = `
-          <div class="zone-badge-container">
-            <div class="badge-title">${displayName}</div>
-            <div class="badge-sub">👤 ${displayComercial} | 📅 ${displayDate}</div>
-            ${z.pendingNote ? `<div class="badge-pending-note">✏️ ${z.pendingNote}</div>` : ''}
+        const popupContent = `
+          <div class="popup-zone-info">
+            <div class="popup-zone-title">📍 ${displayName}</div>
+            <div class="popup-zone-sub">👤 <strong>${displayComercial}</strong> | ${statusBadgeText}</div>
+            <div class="popup-zone-sub">📅 ${displayDate}</div>
+            ${z.pendingNote ? `<div style="font-size:10px; color:#fde047; margin-bottom:6px;">✏️ <strong>Falta:</strong> ${z.pendingNote}</div>` : ''}
+            <button class="btn-popup-open" onclick="openDumpModal(${idx})">📝 Volcar Hoja / Editar</button>
           </div>
         `;
 
-        const badgeIcon = L.divIcon({ className: '', html: badgeHtml, iconSize: [0,0] });
-        const marker = L.marker(center, { icon: badgeIcon }).addTo(map);
-
-        polygon.on('click', () => openDumpModal(idx));
-        marker.on('click', () => openDumpModal(idx));
-
+        polygon.bindPopup(popupContent);
         loadedMapLayers.push(polygon);
-        loadedMapLayers.push(marker);
       });
     }
 
@@ -1211,7 +1261,7 @@
       }
     }
 
-    // PESTAÑA REDISEÑADA: LEADERBOARD / CLASIFICACIÓN GENERAL DIRECTIVA
+    // PESTAÑA: LEADERBOARD / CLASIFICACIÓN GENERAL DIRECTIVA
     function renderKpisAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
@@ -1263,18 +1313,16 @@
         if (u === 'Andrei (Jefe)') {
           s.dineroJefeGenerado = s.m2Ejecutados * 1.0;
         } else {
-          s.dineroJefeGenerado = s.m2Ejecutados * 0.15; // 15% COMISIÓN PARA ANDREI
+          s.dineroJefeGenerado = s.m2Ejecutados * 0.15;
         }
 
         totalEmpresaMetro2 += s.m2Ejecutados;
         totalEmpresaDineroJefe += s.dineroJefeGenerado;
       });
 
-      // ORDENAR POR DINERO NETO GENERADO PARA ANDREI
       const sortedRank = Object.values(statsMap).sort((a, b) => b.dineroJefeGenerado - a.dineroJefeGenerado);
       const topProducer = sortedRank[0];
 
-      // TARJETA DE RESUMEN FINANCIERO
       const summaryCard = document.createElement('div');
       summaryCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
       summaryCard.style.border = '1px solid #a78bfa';
@@ -1292,7 +1340,6 @@
       `;
       container.appendChild(summaryCard);
 
-      // TABLA RESUMEN TIPO CLASIFICACIÓN
       const tableWrapper = document.createElement('div');
       tableWrapper.style.overflowX = 'auto';
 
