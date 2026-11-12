@@ -1342,6 +1342,13 @@
       }
     }
 
+    function openIdenaOfficialViewer() {
+      if (!map) return;
+      const center = map.getCenter();
+      const url = `https://idena.navarra.es/navegar/?lat=${center.lat.toFixed(6)}&lng=${center.lng.toFixed(6)}&zoom=18`;
+      window.open(url, '_blank');
+    }
+
     function toggleSatelliteLayer() {
       const btn = document.getElementById('btnToggleSatellite');
       if (isSatelliteActive) {
