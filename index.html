@@ -1250,9 +1250,12 @@
     /* =====================================================================
        INICIALIZACIÓN DE MAPA + CATASTRO OFICIAL DE NAVARRA (IDENA / SITNA)
        ===================================================================== */
+    let isManualGpsRequest = false;
+
     function initMap() {
       if (map) return;
-      map = L.map('map', { zoomControl: false, attributionControl: false, maxZoom: 20 }).setView([42.3486, -1.8011], 17);
+      // Vista inicial general de Navarra mientras el dispositivo obtiene su GPS
+      map = L.map('map', { zoomControl: false, attributionControl: false, maxZoom: 20 }).setView([42.65, -1.65], 10);
 
       osmStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxNativeZoom: 19,
@@ -1264,12 +1267,13 @@
         maxZoom: 20
       });
 
+      // Capas oficiales de IDENA Navarra sin el prefijo erróneo "IDENA:"
       catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
-        layers: 'IDENA:CATAST_Pol_ParcelaUr,IDENA:CATAST_Pol_ParcelaRu,IDENA:CATAST_Pol_Edificacion',
+        layers: 'CATAST_Pol_ParcelaUr,CATAST_Pol_ParcelaRu,CATAST_Pol_Edificacion',
         format: 'image/png',
         transparent: true,
         version: '1.1.1',
-        opacity: 0.8,
+        opacity: 0.85,
         zIndex: 500,
         maxZoom: 20
       }).addTo(map);
@@ -1279,6 +1283,7 @@
       document.getElementById('auditDateSelect').value = todayIso;
 
       map.on('locationfound', (e) => {
+        isManualGpsRequest = false;
         const radius = e.accuracy || 20;
         if (userAccuracyCircle) map.removeLayer(userAccuracyCircle);
         if (userLocationMarker) map.removeLayer(userLocationMarker);
@@ -1304,11 +1309,17 @@
       });
 
       map.on('locationerror', () => {
-        alert("⚠️ No se pudo obtener tu ubicación GPS. Revisa que los permisos de ubicación estén activos.");
+        if (isManualGpsRequest) {
+          isManualGpsRequest = false;
+          alert("⚠️ No se pudo obtener tu ubicación GPS. Revisa que los permisos de ubicación estén activos.");
+        }
       });
 
       renderAllSavedZones();
       map.on('click', handleMapClick);
+
+      // Centra automáticamente en la ubicación GPS real de quien abra la app
+      map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
     }
 
     function toggleCatastroLayer() {
@@ -4474,6 +4485,7 @@
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
     function centerOnUser() {
+      isManualGpsRequest = true;
       map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
     }
 
