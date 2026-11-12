@@ -74,6 +74,20 @@
       100% { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
     }
 
+    /* MARCADOR DE VIVIENDA ÚNICA EN EL MAPA */
+    .single-house-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      color: #ffffff;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+    }
+
     /* PANTALLA LOGIN */
     #loginScreen {
       position: fixed; inset: 0; z-index: 10000;
@@ -210,13 +224,49 @@
     .btn-assign { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); border: 1px solid #a78bfa; }
     .btn-dump { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border: 1px solid #60a5fa; }
 
+    /* BANNER DE TRAZADO DE SECTOR + OPCIÓN COMPACTA VIVIENDA ÚNICA */
     .banner-drawing {
-      display: none; position: absolute; top: 225px; left: 12px; right: 12px; z-index: 2000;
-      background: #7c3aed; border-radius: 14px; padding: 12px 16px; color: white;
-      font-size: 12px; font-weight: 800; justify-content: space-between; align-items: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.6); border: 1px solid #a78bfa;
+      display: none; position: absolute; top: 205px; left: 10px; right: 10px; z-index: 2000;
+      background: #6d28d9; border-radius: 14px; padding: 10px 12px; color: white;
+      font-size: 11.5px; font-weight: 800; flex-direction: column; gap: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.65); border: 1px solid #a78bfa;
     }
     .banner-drawing.active { display: flex; }
+
+    .banner-drawing-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .banner-drawing-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .btn-single-house-opt {
+      padding: 5px 9px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.35);
+      color: #fde047;
+      font-weight: 800;
+      font-size: 10.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-single-house-opt.active {
+      background: #059669;
+      border-color: #6ee7b7;
+      color: #ffffff;
+    }
 
     /* MODALES Y CAPAS */
     .modal-overlay {
@@ -550,11 +600,19 @@
   <div id="appContainer">
     <div id="map"></div>
 
+    <!-- BANNER DE DIBUJO CON OPCIÓN SECUNDARIA DE VIVIENDA ÚNICA -->
     <div id="drawingBanner" class="banner-drawing">
-      <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
-      <div style="display:flex; gap:6px;">
-        <button style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:800; font-size:11px;" onclick="finishSectorDrawing()">CONFIRMAR ZONA</button>
-        <button style="padding:6px 10px; border:none; border-radius:8px; background:rgba(255,255,255,0.2); color:#fff; font-size:11px;" onclick="cancelDrawing()">✕</button>
+      <div class="banner-drawing-top">
+        <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
+        <button style="padding:4px 9px; border:none; border-radius:7px; background:rgba(255,255,255,0.2); color:#fff; font-size:11px; font-weight:800; cursor:pointer;" onclick="cancelDrawing()">✕</button>
+      </div>
+      <div class="banner-drawing-actions">
+        <button id="btnToggleSingleHouseMode" class="btn-single-house-opt" onclick="toggleSingleHouseDrawingMode()">
+          🏠 Vivienda única
+        </button>
+        <button id="btnConfirmSectorPoly" style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:900; font-size:11px; cursor:pointer;" onclick="finishSectorDrawing()">
+          CONFIRMAR ZONA
+        </button>
       </div>
     </div>
 
@@ -612,6 +670,19 @@
     </div>
   </div>
 
+  <!-- MODAL VIVIENDA ÚNICA (ABRE DIRECTAMENTE FICHA VIVIENDA / EDIFICIO) -->
+  <div id="singleHouseModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span id="singleHouseModalTitle">🏠 Captación Vivienda / Edificio Único</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('singleHouseModal')">✕</button>
+        </div>
+      </div>
+      <div class="modal-scrollable-content" id="singleHouseModalBody"></div>
+    </div>
+  </div>
+
   <!-- MODAL ALERTA OBRAS HOY PARA EL JEFE + ENVÍO DE COMERCIALES A CAPTAR EN CALIENTE -->
   <div id="bossObrasHoyModal" class="modal-overlay">
     <div class="modal-card">
@@ -640,7 +711,7 @@
     </div>
   </div>
 
-  <!-- MODAL LIGA RANKING VISUAL (COMERCIALES: SOLO ELLOS | JEFE: TODOS EN BRUTO) -->
+  <!-- MODAL LIGA RANKING VISUAL -->
   <div id="leagueRankingModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -653,7 +724,7 @@
     </div>
   </div>
 
-  <!-- MODAL ESTADÍSTICAS PERSONALES (COMERCIALES Y JEFE) -->
+  <!-- MODAL ESTADÍSTICAS PERSONALES -->
   <div id="commercialStatsModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -666,7 +737,7 @@
     </div>
   </div>
 
-  <!-- MODAL ASIGNACIÓN -->
+  <!-- MODAL ASIGNACIÓN DE SECTOR -->
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -747,7 +818,7 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA JEFE (MARGEN NETO QUE SE LLEVA EL JEFE) -->
+  <!-- MODAL AUDITORÍA JEFE -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -814,6 +885,9 @@
     let tempMarkers = [];
     let isDrawingMode = false;
     let isCropMode = false;
+    let isSingleHouseMode = false;
+    let pendingSingleHouseCoords = null;
+    let editingSingleHouseIndex = null;
     let selectedZoneIndexToDump = null;
     let selectedZoneIndexForNote = null;
     let activeAuditTab = 'kpis';
@@ -1118,7 +1192,7 @@
 
       const todayIso = getTodayISO();
       const myHotMissions = hotLeadMissions.filter(m => m.comercial === currentUserName && m.date === todayIso);
-      const myZones = savedZones.filter(z => z.comercial === currentUserName);
+      const myZones = savedZones.filter(z => z.comercial === currentUserName && !z.isSingleHouse);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
       const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer');
 
@@ -1263,19 +1337,16 @@
       if (map) return;
       map = L.map('map', { zoomControl: false, attributionControl: false, maxZoom: 20 }).setView([42.3486, -1.8011], 17);
 
-      // 1. Capa base callejera con edificios detallados hasta zoom 20
       osmStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxNativeZoom: 19,
         maxZoom: 20
       }).addTo(map);
 
-      // 2. Capa Satélite Ortografía de alta resolución (PNOA IGN España)
       ignSatelliteLayer = L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', {
         maxNativeZoom: 19,
         maxZoom: 20
       });
 
-      // 3. Capa oficial Catastro (siluetas exactas de todas las viviendas, edificios y parcelas)
       catastroBuildingsLayer = L.tileLayer.wms('https://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx', {
         layers: 'Catastro',
         format: 'image/png',
@@ -1288,7 +1359,6 @@
       document.getElementById('assignDate').value = todayIso;
       document.getElementById('auditDateSelect').value = todayIso;
 
-      // Listeners visuales de ubicación GPS (círculo de precisión + punto pulsante)
       map.on('locationfound', (e) => {
         const radius = e.accuracy || 20;
 
@@ -1379,20 +1449,60 @@
     function startSectorDrawing() {
       isDrawingMode = true;
       isCropMode = false;
+      isSingleHouseMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
+
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) {
+        btnSingle.style.display = 'inline-flex';
+        btnSingle.classList.remove('active');
+        btnSingle.innerHTML = '🏠 Vivienda única';
+      }
+      if (btnConfirm) btnConfirm.style.display = 'inline-block';
+
       document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
       document.getElementById('drawingBanner').classList.add('active');
+    }
+
+    function toggleSingleHouseDrawingMode() {
+      isSingleHouseMode = !isSingleHouseMode;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+
+      if (isSingleHouseMode) {
+        btnSingle.classList.add('active');
+        btnSingle.innerHTML = '↩️ Volver a sector';
+        btnConfirm.style.display = 'none';
+        document.getElementById('drawingBannerText').innerText = "🏠 Toca la vivienda o edificio en el mapa...";
+      } else {
+        btnSingle.classList.remove('active');
+        btnSingle.innerHTML = '🏠 Vivienda única';
+        btnConfirm.style.display = 'inline-block';
+        document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
+      }
     }
 
     function startCropSubZone() {
       closeModal('dumpModal');
       isDrawingMode = true;
       isCropMode = true;
+      isSingleHouseMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
+
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) btnSingle.style.display = 'none';
+      if (btnConfirm) btnConfirm.style.display = 'inline-block';
+
       document.getElementById('drawingBannerText').innerText = "✂️ Toca las esquinas de la ZONA PENDIENTE para mañana...";
       document.getElementById('drawingBanner').classList.add('active');
     }
@@ -1400,8 +1510,16 @@
     function handleMapClick(e) {
       if (!isDrawingMode) return;
       const pt = [e.latlng.lat, e.latlng.lng];
-      tempPoints.push(pt);
 
+      if (isSingleHouseMode) {
+        isDrawingMode = false;
+        isSingleHouseMode = false;
+        document.getElementById('drawingBanner').classList.remove('active');
+        openSingleHouseModal(pt[0], pt[1], null);
+        return;
+      }
+
+      tempPoints.push(pt);
       const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: '#7c3aed', fillOpacity: 1 }).addTo(map);
       tempMarkers.push(m);
     }
@@ -1419,6 +1537,211 @@
         townInput.value = detectedTown;
       } catch (e) {
         townInput.value = 'Peralta';
+      }
+    }
+
+    /* =====================================================================
+       FLUJO DIRECTO: VIVIENDA / EDIFICIO ÚNICO (ABRE FICHA DE CAPTACIÓN AL INSTANTE)
+       ===================================================================== */
+    async function openSingleHouseModal(lat, lon, existingZoneIdx = null) {
+      editingSingleHouseIndex = existingZoneIdx;
+      pendingSingleHouseCoords = [lat, lon];
+
+      const existingZone = existingZoneIdx !== null ? savedZones[existingZoneIdx] : null;
+      const existingClient = (existingZone && existingZone.clients && existingZone.clients[0]) ? existingZone.clients[0] : {};
+      const isComunidad = existingClient.type === 'comunidad';
+      const assignedOwner = existingZone ? existingZone.comercial : currentUserName;
+      const dateVal = existingZone ? (existingZone.dumpDate || existingZone.date || getTodayISO()) : getTodayISO();
+      const townVal = existingZone ? (existingZone.town || '') : '';
+
+      document.getElementById('singleHouseModalTitle').innerText = existingZone
+        ? `✏️ Editar Vivienda / Edificio Único`
+        : `🏠 Nueva Captación • Vivienda / Edificio`;
+
+      const body = document.getElementById('singleHouseModalBody');
+      body.innerHTML = `
+        <div class="grid-row-2">
+          <div class="input-group" style="margin-bottom:0;">
+            <span class="input-label">📅 Fecha</span>
+            <input type="date" id="singleHouseDate" class="input-field" value="${dateVal}">
+          </div>
+          <div class="input-group" style="margin-bottom:0;">
+            <span class="input-label">📍 Pueblo</span>
+            <input type="text" id="singleHouseTown" class="input-field" placeholder="Detectando..." value="${townVal}">
+          </div>
+        </div>
+
+        ${currentUserRole === 'jefe' ? `
+          <div class="input-group" style="margin-top:6px;">
+            <span class="input-label">👤 Comercial Captador</span>
+            <select id="singleHouseComercial" class="select-field">
+              <option value="Andrei (Jefe)" ${assignedOwner==='Andrei (Jefe)'?'selected':''}>👑 Andrei (Jefe)</option>
+              <option value="Comercial 1" ${assignedOwner==='Comercial 1'?'selected':''}>Comercial 1</option>
+              <option value="Comercial 2" ${assignedOwner==='Comercial 2'?'selected':''}>Comercial 2</option>
+              <option value="Comercial 3" ${assignedOwner==='Comercial 3'?'selected':''}>Comercial 3</option>
+              <option value="Comercial 4" ${assignedOwner==='Comercial 4'?'selected':''}>Comercial 4</option>
+              <option value="Comercial 5" ${assignedOwner==='Comercial 5'?'selected':''}>Comercial 5</option>
+            </select>
+          </div>
+        ` : `<input type="hidden" id="singleHouseComercial" value="${assignedOwner}">`}
+
+        <div id="singleHouseCardContainer" style="margin-top:8px;">
+          <div class="${isComunidad ? 'comunidad-box' : 'client-box'}" data-client-index="0">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Tipo de Inmueble Captado</strong>
+              <select class="select-field client-type" style="font-size:11px; padding:4px 8px; width:auto;" onchange="switchClientTypeView(this, 0)">
+                <option value="vivienda" ${!isComunidad?'selected':''}>🏠 Vivienda Individual</option>
+                <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
+              </select>
+            </div>
+
+            <div class="client-fields-dynamic-area" style="width:100%; box-sizing:border-box;">
+              ${isComunidad ? getComunidadFormHTML(existingClient, 0) : getViviendaFormHTML(existingClient)}
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn-modal-save" style="flex:3;" onclick="saveSingleHouseData()">💾 Guardar Vivienda / Edificio</button>
+          ${existingZoneIdx !== null && currentUserRole === 'jefe' ? `<button class="btn-modal-delete" style="flex:1;" onclick="deleteSingleHouse(${existingZoneIdx})">🗑️</button>` : ''}
+        </div>
+      `;
+
+      if (isComunidad) {
+        const box = body.querySelector('.comunidad-box');
+        renderAtticsBreakdownList(box, existingClient.atticsDetails || null, parseInt(existingClient.numAttics || 2));
+      }
+
+      document.getElementById('singleHouseModal').classList.add('active');
+
+      // Autodetectar localidad y calle exacta si es nueva captura
+      if (existingZoneIdx === null) {
+        const townInput = document.getElementById('singleHouseTown');
+        const streetInput = body.querySelector('.client-street');
+        if (townInput) townInput.value = 'Detectando...';
+
+        try {
+          const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
+          const data = await resp.json();
+          const addr = data.address || {};
+          const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || 'Peralta';
+          const road = addr.road || addr.pedestrian || addr.square || addr.footway || '';
+          const houseNum = addr.house_number ? ` ${addr.house_number}` : '';
+
+          if (townInput) townInput.value = detectedTown;
+          if (streetInput && !streetInput.value && road) {
+            streetInput.value = `${road}${houseNum}`;
+          }
+        } catch (e) {
+          if (townInput && townInput.value === 'Detectando...') townInput.value = 'Peralta';
+        }
+      }
+    }
+
+    function saveSingleHouseData() {
+      const container = document.getElementById('singleHouseCardContainer');
+      const box = container.querySelector('.client-box, .comunidad-box');
+      if (!box) return;
+
+      const dateVal = document.getElementById('singleHouseDate').value || getTodayISO();
+      let townVal = document.getElementById('singleHouseTown').value.trim();
+      if (!townVal || townVal === 'Detectando...') townVal = 'Peralta';
+      const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
+
+      const typeVal = box.querySelector('.client-type') ? box.querySelector('.client-type').value : 'vivienda';
+      const statusVal = box.querySelector('.client-obra-status').value;
+      const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
+      const obraDateVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-date')?.value || getTodayISO()) : '';
+
+      let clientObj = null;
+      if (typeVal === 'comunidad') {
+        const atticCards = box.querySelectorAll('.attic-item-card');
+        const atticsDetails = [];
+        let computedTotalM2 = 0;
+
+        atticCards.forEach(attCard => {
+          const door = attCard.querySelector('.attic-door').value.trim();
+          const m2Val = parseFloat(attCard.querySelector('.attic-m2').value) || 0;
+          const owner = attCard.querySelector('.attic-owner').value.trim();
+          const phone = attCard.querySelector('.attic-phone').value.trim();
+
+          computedTotalM2 += m2Val;
+          atticsDetails.push({ door, m2: m2Val, owner, phone });
+        });
+
+        clientObj = {
+          type: 'comunidad',
+          isPresi: box.querySelector('.client-is-presi').value === 'si',
+          name: box.querySelector('.client-name').value.trim(),
+          street: box.querySelector('.client-street').value.trim(),
+          phone: box.querySelector('.client-phone').value.trim(),
+          buildYear: box.querySelector('.client-build-year').value.trim(),
+          numAttics: atticsDetails.length,
+          atticsDetails: atticsDetails,
+          m2: computedTotalM2,
+          obraStatus: statusVal,
+          obraDate: obraDateVal,
+          obraReason: reasonVal
+        };
+      } else {
+        clientObj = {
+          type: 'vivienda',
+          name: box.querySelector('.client-name').value.trim(),
+          street: box.querySelector('.client-street').value.trim(),
+          phone: box.querySelector('.client-phone').value.trim(),
+          m2: box.querySelector('.client-m2').value,
+          obraStatus: statusVal,
+          obraDate: obraDateVal,
+          obraReason: reasonVal
+        };
+      }
+
+      const labelStreet = clientObj.street || (typeVal === 'comunidad' ? 'Edificio Único' : 'Vivienda Única');
+      const sectorTitle = `${typeVal === 'comunidad' ? '🏢' : '🏠'} ${labelStreet}`;
+
+      if (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]) {
+        const z = savedZones[editingSingleHouseIndex];
+        z.date = dateVal;
+        z.dumpDate = dateVal;
+        z.town = townVal;
+        z.sectorName = sectorTitle;
+        z.comercial = comercialVal;
+        z.stats = { no: 0, ausente: 0, papelito: 0, si: 1 };
+        z.clients = [clientObj];
+      } else {
+        savedZones.push({
+          id: Date.now(),
+          isSingleHouse: true,
+          singlePoint: pendingSingleHouseCoords,
+          date: dateVal,
+          dumpDate: dateVal,
+          town: townVal,
+          sectorName: sectorTitle,
+          comercial: comercialVal,
+          bossNote: '',
+          pendingNote: '',
+          status: 'completada',
+          points: [],
+          stats: { no: 0, ausente: 0, papelito: 0, si: 1 },
+          clients: [clientObj]
+        });
+      }
+
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      editingSingleHouseIndex = null;
+      pendingSingleHouseCoords = null;
+      closeModal('singleHouseModal');
+      renderAllSavedZones();
+    }
+
+    function deleteSingleHouse(idx) {
+      if (currentUserRole !== 'jefe') return;
+      if (!savedZones[idx]) return;
+      if (confirm('¿Seguro que quieres eliminar esta vivienda/edificio del mapa?')) {
+        savedZones.splice(idx, 1);
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        closeModal('singleHouseModal');
+        renderAllSavedZones();
       }
     }
 
@@ -1440,7 +1763,6 @@
         renderAllSavedZones();
         openDumpModal(selectedZoneIndexToDump);
       } else {
-        // Calcular centroide de los puntos dibujados y autodetectar localidad
         let sumLat = 0;
         let sumLon = 0;
         tempPoints.forEach(pt => {
@@ -1458,6 +1780,7 @@
     function cancelDrawing() {
       isDrawingMode = false;
       isCropMode = false;
+      isSingleHouseMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
@@ -1473,7 +1796,7 @@
       const bossNote = document.getElementById('assignBossNote').value.trim();
       
       if (!sectorName) {
-        const sectorCount = savedZones.filter(z => z.town === town).length + 1;
+        const sectorCount = savedZones.filter(z => z.town === town && !z.isSingleHouse).length + 1;
         sectorName = `Sector ${town} #${sectorCount}`;
       }
 
@@ -1507,9 +1830,37 @@
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
           return;
         }
-        if (!z.points || z.points.length < 3) return;
 
         const comercialColor = getComercialColor(z.comercial);
+
+        // Renderizado especial si es Vivienda / Edificio Único
+        if (z.isSingleHouse && z.singlePoint && z.singlePoint.length === 2) {
+          const client = (z.clients && z.clients[0]) ? z.clients[0] : {};
+          const iconEmoji = client.type === 'comunidad' ? '🏢' : '🏠';
+          const houseIcon = L.divIcon({
+            className: '',
+            html: `<div class="single-house-pin" style="background:${comercialColor};">${iconEmoji}</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          });
+
+          const marker = L.marker(z.singlePoint, { icon: houseIcon }).addTo(map);
+          const m2Val = getM2NumericValue(client.m2);
+          const popupHtml = `
+            <div class="popup-zone-info">
+              <div class="popup-zone-title">${iconEmoji} ${client.street || z.sectorName}</div>
+              <div class="popup-zone-sub">👤 <strong>${client.name || 'Cliente'}</strong> • ${m2Val} m²</div>
+              <div class="popup-zone-sub">🏃 ${z.comercial} | 📅 ${formatDate(z.date)}</div>
+              <button class="btn-popup-open" onclick="openSingleHouseModal(${z.singlePoint[0]}, ${z.singlePoint[1]}, ${idx})">✏️ Ver / Editar Ficha</button>
+            </div>
+          `;
+          marker.bindPopup(popupHtml);
+          loadedMapLayers.push(marker);
+          return;
+        }
+
+        if (!z.points || z.points.length < 3) return;
+
         let borderStyleColor = comercialColor;
         let dashArray = null;
 
@@ -1560,14 +1911,19 @@
     }
 
     function openSelectZoneToDumpModal() {
-      const myZones = savedZones.filter(z => (currentUserRole === 'jefe' || z.comercial === currentUserName));
+      const myZones = savedZones.filter(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && !z.isSingleHouse);
       if (myZones.length === 0) {
         alert("No hay ningún sector trazado en el mapa. Primero debes pulsar en '➕ ASIGNAR SECTOR / ZONA'.");
         return;
       }
 
-      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && z.status !== 'completada');
-      openDumpModal(firstPendingIdx !== -1 ? firstPendingIdx : savedZones.length - 1);
+      const firstPendingIdx = savedZones.findIndex(z => (currentUserRole === 'jefe' || z.comercial === currentUserName) && !z.isSingleHouse && z.status !== 'completada');
+      if (firstPendingIdx !== -1) {
+        openDumpModal(firstPendingIdx);
+      } else {
+        const lastSectorIdx = savedZones.map((z, i) => (!z.isSingleHouse && (currentUserRole === 'jefe' || z.comercial === currentUserName)) ? i : -1).filter(i => i !== -1).pop();
+        openDumpModal(lastSectorIdx);
+      }
     }
 
     function togglePendingNoteVisibility() {
@@ -1579,8 +1935,15 @@
     }
 
     function openDumpModal(idx) {
-      selectedZoneIndexToDump = idx;
       const z = savedZones[idx];
+      if (!z) return;
+
+      if (z.isSingleHouse && z.singlePoint) {
+        openSingleHouseModal(z.singlePoint[0], z.singlePoint[1], idx);
+        return;
+      }
+
+      selectedZoneIndexToDump = idx;
       const displayName = z.sectorName || z.town || 'Sector Comercial';
 
       const isSupervisorView = (currentUserRole === 'jefe' && z.comercial !== 'Andrei (Jefe)');
@@ -1893,7 +2256,7 @@
 
       if (idx === null || idx === undefined || !savedZones[idx]) return;
       const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
-      if (confirm(`¿Seguro que quieres eliminar definitivamente el sector "${zName}" del mapa?`)) {
+      if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
         savedZones.splice(idx, 1);
         localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
         closeModal('dumpModal');
@@ -1955,8 +2318,13 @@
       const dynamicArea = parentBox.querySelector('.client-fields-dynamic-area');
       const isComunidad = selectEl.value === 'comunidad';
 
+      const prevStreet = parentBox.querySelector('.client-street')?.value || '';
+      const prevName = parentBox.querySelector('.client-name')?.value || '';
+      const prevPhone = parentBox.querySelector('.client-phone')?.value || '';
+
       parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
-      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML({}, idx) : getViviendaFormHTML({});
+      const preserved = { street: prevStreet, name: prevName, phone: prevPhone };
+      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML(preserved, idx) : getViviendaFormHTML(preserved);
 
       if (isComunidad) {
         renderAtticsBreakdownList(parentBox, null, 2);
@@ -1978,7 +2346,7 @@
         <div class="grid-row-2">
           <select class="select-field client-m2">
             <option value="45-60" ${existing.m2==='45-60'?'selected':''}>45 - 60 m² (Poco)</option>
-            <option value="60-80" ${existing.m2==='60-80'?'selected':''}>60 - 80 m² (Medio)</option>
+            <option value="60-80" ${(!existing.m2 || existing.m2==='60-80')?'selected':''}>60 - 80 m² (Medio)</option>
             <option value="80-100" ${existing.m2==='80-100'?'selected':''}>80 - 100 m² (Alto)</option>
             <option value="100-150" ${existing.m2==='100-150'?'selected':''}>100 - 150 m² (Muy Alto ⭐)</option>
             <option value="150+" ${existing.m2==='150+'?'selected':''}>+150 m² (Premium 🔥)</option>
@@ -2767,7 +3135,7 @@
 
         let detailsHtml = '';
         if (s.zones.length === 0) {
-          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin manzana registrada en este día.</div>`;
+          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin manzana ni vivienda registrada en este día.</div>`;
         } else {
           s.zones.forEach(zoneItem => {
             const originalIdx = savedZones.indexOf(zoneItem);
