@@ -365,6 +365,17 @@
       margin-bottom: 6px;
     }
 
+    .blank-draft-pill {
+      background: rgba(245, 158, 11, 0.22);
+      border: 1px solid #f59e0b;
+      color: #fde047;
+      font-size: 9.5px;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
     /* PÍLDORAS DE ESTADO DE LLAMADA */
     .call-status-pill {
       font-size: 10px;
@@ -376,6 +387,18 @@
     .call-status-pill.pendiente { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
     .call-status-pill.ya_llamado { background: rgba(245, 158, 11, 0.2); color: #fde047; border: 1px solid #f59e0b; }
     .call-status-pill.esperando_confirmacion { background: rgba(168, 85, 247, 0.25); color: #e9d5ff; border: 1px solid #a855f7; }
+
+    /* GUÍA DE RUTINA DIARIA */
+    .routine-guide-box {
+      background: rgba(37, 99, 235, 0.14);
+      border: 1px solid rgba(96, 165, 250, 0.4);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 10.5px;
+      color: #e2e8f0;
+      line-height: 1.45;
+    }
 
     /* ESTILOS ALERTA OBRAS HOY & RECLAMO VECINOS */
     .today-obra-hero {
@@ -776,7 +799,7 @@
     </div>
   </div>
 
-  <!-- MODAL VIVIENDA ÚNICA (ABRE DIRECTAMENTE FICHA VIVIENDA / EDIFICIO) -->
+  <!-- MODAL VIVIENDA ÚNICA -->
   <div id="singleHouseModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -807,7 +830,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📋 Tu Plan de Ruta para Hoy</span>
+          <span>📋 Tu Plan de Ruta y Jornada para Hoy</span>
         </div>
       </div>
       <div class="modal-scrollable-content">
@@ -1009,6 +1032,7 @@
     let selectedZoneIndexForNote = null;
     let activeAuditTab = 'kpis';
     let activeRankingFilter = 'si';
+    let activeObrasSubFilter = 'agendadas';
     let activeFollowUpFilter = 'all';
     let weekOffset = 0;
 
@@ -1019,10 +1043,53 @@
       } catch (e) { return []; }
     }
 
+    function getLocalDateISO(dateObj = new Date()) {
+      const offsetMs = dateObj.getTimezoneOffset() * 60000;
+      return new Date(dateObj.getTime() - offsetMs).toISOString().split('T')[0];
+    }
+
     function getTodayISO() {
-      const now = new Date();
-      const offsetMs = now.getTimezoneOffset() * 60000;
-      return new Date(now.getTime() - offsetMs).toISOString().split('T')[0];
+      return getLocalDateISO(new Date());
+    }
+
+    function isClientValidFilled(client) {
+      if (!client) return false;
+      const hasName = (client.name || '').trim().length > 0;
+      const hasStreet = (client.street || '').trim().length > 0;
+      const hasPhone = (client.phone || '').trim().length > 0;
+      return hasName || hasStreet || hasPhone;
+    }
+
+    function normalizeStreetClusterKey(streetStr) {
+      if (!streetStr) return 'calle sin nombre';
+      return streetStr
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/^(c\/|cl\.|calle|avda\.|avenida|plaza|pl\.|paseo|ps\.|travesia|trav\.)\s+/i, '')
+        .replace(/\b(nº|num\.|numero|portal|piso|pta\.|puerta)\b.*$/i, '')
+        .replace(/[0-9]+.*$/, '')
+        .replace(/[^a-z\s]/g, '')
+        .trim() || streetStr.toLowerCase().trim();
+    }
+
+    function getShiftEffectiveHours(shift) {
+      if (!shift || !shift.startTime) return 0;
+      const [sh, sm] = shift.startTime.split(':').map(Number);
+      if (isNaN(sh) || isNaN(sm)) return 0;
+      const startMins = sh * 60 + sm;
+
+      let endMins;
+      if (shift.endTime) {
+        const [eh, em] = shift.endTime.split(':').map(Number);
+        endMins = eh * 60 + em;
+      } else {
+        const now = new Date();
+        endMins = now.getHours() * 60 + now.getMinutes();
+      }
+
+      const lunchMins = shift.lunchMinutes || 0;
+      const netMins = Math.max(30, endMins - startMins - lunchMins);
+      return netMins / 60;
     }
 
     function getM2NumericValue(m2Str) {
@@ -1271,12 +1338,19 @@
     function confirmScheduleFromFollowUp(zoneIdx, clientIdx, dateInputId, timeInputId) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
+      const client = z.clients[clientIdx];
+
+      if (!isClientValidFilled(client)) {
+        alert("⚠️ Esta ficha está en blanco. Pulsa '✏️ Completar Ficha' para poner nombre, calle y teléfono antes de agendar obra.");
+        return;
+      }
+
       const dateVal = document.getElementById(dateInputId)?.value || getTodayISO();
       const timeVal = document.getElementById(timeInputId)?.value || '09:30';
 
-      z.clients[clientIdx].obraStatus = 'agendada';
-      z.clients[clientIdx].obraDate = dateVal;
-      z.clients[clientIdx].obraTime = timeVal;
+      client.obraStatus = 'agendada';
+      client.obraDate = dateVal;
+      client.obraTime = timeVal;
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
       renderFollowUpsModal();
     }
@@ -1307,7 +1381,7 @@
 
       let html = `
         <div style="font-size:11px; color:#94a3b8; margin-bottom:10px; line-height:1.35;">
-          Aquí aparecen automáticamente todos los clientes que ya metiste como <strong>"SÍ" al volcar hoja</strong> y aún están pendientes de cerrar fecha de obra (${pendingCalls.length}).
+          Clientes en <strong>"Captación SÍ"</strong> pendientes de cerrar fecha de obra (${pendingCalls.length}). <em>Franja ideal: 15:00 - 15:30 o 09:30 - 10:30.</em>
         </div>
       `;
 
@@ -1322,6 +1396,7 @@
       pendingCalls.forEach(item => {
         const c = item.client;
         const z = item.zone;
+        const isFilled = isClientValidFilled(c);
         const cleanPhone = (c.phone || '').replace(/\s+/g, '');
         const schedBoxId = `sched_inline_${item.zoneIdx}_${item.clientIdx}`;
         const dateInpId = `sched_date_${item.zoneIdx}_${item.clientIdx}`;
@@ -1332,21 +1407,24 @@
         if (item.callStatus === 'esperando_confirmacion') badgeHtml = `<span class="call-status-pill esperando_confirmacion">🟣 Esperando confirmación</span>`;
 
         html += `
-          <div class="audit-card" style="cursor:default; border-left:4px solid #22d3ee;">
+          <div class="audit-card" style="cursor:default; border-left:4px solid ${isFilled ? '#22d3ee' : '#f59e0b'};">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
-              <strong style="font-size:13px; color:#fff;">${c.type === 'comunidad' ? '🏢' : '🏠'} ${c.name || 'Cliente SÍ'}</strong>
-              ${badgeHtml}
+              <strong style="font-size:13px; color:#fff;">${c.type === 'comunidad' ? '🏢' : '🏠'} ${c.name || 'Ficha sin nombre'}</strong>
+              <div style="display:flex; gap:4px; align-items:center;">
+                ${!isFilled ? `<span class="blank-draft-pill">⚠️ Ficha Incompleta</span>` : ''}
+                ${badgeHtml}
+              </div>
             </div>
 
             <div style="font-size:11px; color:#cbd5e1;">
-              📍 ${c.street || 'Sin dirección'} • <strong>${z.town || 'Navarra'}</strong> (${getM2NumericValue(c.m2)} m²)
+              📍 ${c.street || 'Sin dirección'} • <strong>${z.town || 'Navarra'}</strong> (${isFilled ? getM2NumericValue(c.m2) + ' m²' : '0 m² hasta rellenar'})
             </div>
             <div style="font-size:10px; color:#94a3b8;">
               🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong> | 👤 ${z.comercial}
             </div>
 
             <div style="display:flex; gap:5px; margin-top:4px;">
-              ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<span style="flex:1; text-align:center; background:rgba(255,255,255,0.06); color:#64748b; padding:7px 4px; border-radius:8px; font-size:10px;">Sin teléfono</span>`}
+              ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
               ${cleanPhone ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:0.8; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
             </div>
 
@@ -1421,7 +1499,7 @@
         html += `
           <div class="audit-card" style="cursor:pointer;" onclick="closeModal('globalSearchModal'); openDumpModal(${m.zoneIdx});">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="font-size:12.5px; color:#fff;">${isCom ? '🏢' : '🏠'} ${c.name || 'Cliente'}</strong>
+              <strong style="font-size:12.5px; color:#fff;">${isCom ? '🏢' : '🏠'} ${c.name || 'Cliente sin nombre'}</strong>
               <span style="font-size:10px; font-weight:800; color:#34d399;">${getM2NumericValue(c.m2)} m²</span>
             </div>
             <div style="font-size:11px; color:#cbd5e1;">📍 ${c.street || 'Sin calle'} • <strong>${z.town}</strong></div>
@@ -1455,7 +1533,7 @@
       savedZones.forEach((z, zIdx) => {
         if (!z.clients) return;
         z.clients.forEach((c, cIdx) => {
-          if (c.obraStatus === 'agendada' && c.obraDate === todayIso) {
+          if (c.obraStatus === 'agendada' && c.obraDate === todayIso && isClientValidFilled(c)) {
             const townName = (z.town || 'Navarra').trim();
             if (!groupedByTown[townName]) {
               groupedByTown[townName] = {
@@ -1653,7 +1731,15 @@
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
       const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer');
 
-      let html = '';
+      let html = `
+        <div class="routine-guide-box">
+          <div style="font-weight:900; color:#60a5fa; margin-bottom:4px; text-transform:uppercase;">⏱️ Rutina Óptima del Día</div>
+          • <strong>09:30 - 13:30:</strong> 100% Puerta fría en tu sector asignado.<br>
+          • <strong>15:00 - 15:30:</strong> Llamar en <strong>📞 Llamar</strong> a tus <em>SÍ</em> para cerrar fecha.<br>
+          • <strong>15:30 - 19:00:</strong> Hora punta de puerta fría (vecinos en casa).<br>
+          • <strong>19:00 - 19:30:</strong> Fichar fin y <strong>📝 Volcar Hoja</strong> completa antes de salir.
+        </div>
+      `;
 
       if (myHotMissions.length > 0) {
         myHotMissions.forEach(m => {
@@ -1695,7 +1781,7 @@
       }
 
       if (myHotMissions.length === 0 && pendingIncomplete.length === 0 && assignedNew.length === 0) {
-        html = `
+        html += `
           <div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">
             ✅ No tienes ninguna zona pendiente ni asignada para hoy. El Jefe de Equipo te asignará una nueva zona en breve.
           </div>
@@ -1707,8 +1793,8 @@
     }
 
     function getTodayShift(userName) {
-      const todayStr = new Date().toDateString();
-      return savedShifts.find(s => s.user === userName && new Date(s.date).toDateString() === todayStr);
+      const todayIso = getTodayISO();
+      return savedShifts.find(s => s.user === userName && getLocalDateISO(new Date(s.date)) === todayIso);
     }
 
     function updateShiftUI() {
@@ -1745,7 +1831,7 @@
 
     function handleShiftAction(action) {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timeStr = now.toTimeString().slice(0, 5);
       let shift = getTodayShift(currentUserName);
 
       if (action === 'start') {
@@ -1754,6 +1840,7 @@
             id: Date.now(),
             user: currentUserName,
             date: now.toISOString(),
+            localDate: getTodayISO(),
             status: 'working',
             startTime: timeStr,
             lunchStart: null,
@@ -1777,7 +1864,11 @@
           }
         }
       } else if (action === 'end') {
-        if (confirm("¿Seguro que quieres finalizar la jornada de hoy?")) {
+        if (confirm("¿Seguro que quieres finalizar la jornada de hoy? Recuerda haber volcado tu hoja de trabajo.")) {
+          if (shift.status === 'lunch' && shift._lunchStartMs) {
+            const diffMin = Math.round((Date.now() - shift._lunchStartMs) / 60000);
+            shift.lunchMinutes = (shift.lunchMinutes || 0) + diffMin;
+          }
           shift.status = 'finished';
           shift.endTime = timeStr;
         }
@@ -2062,13 +2153,19 @@
       const box = container.querySelector('.client-box, .comunidad-box');
       if (!box) return;
 
+      const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
+      const clientObj = extractClientFromBox(box, prevCallStatus);
+
+      if (!isClientValidFilled(clientObj)) {
+        alert("⚠️ Rellena al menos el nombre, la calle o el teléfono antes de guardar esta vivienda.");
+        return;
+      }
+
       const dateVal = document.getElementById('singleHouseDate').value || getTodayISO();
       let townVal = document.getElementById('singleHouseTown').value.trim();
       if (!townVal || townVal === 'Detectando...') townVal = 'Peralta';
       const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
 
-      const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
-      const clientObj = extractClientFromBox(box, prevCallStatus);
       const labelStreet = clientObj.street || (clientObj.type === 'comunidad' ? 'Edificio Único' : 'Vivienda Única');
       const sectorTitle = `${clientObj.type === 'comunidad' ? '🏢' : '🏠'} ${labelStreet}`;
 
@@ -2379,6 +2476,7 @@
         if (z.clients && z.clients.length > 0) {
           z.clients.forEach((c, cIdx) => {
             const isComunidad = c.type === 'comunidad';
+            const isFilled = isClientValidFilled(c);
             let stBadge = '<span style="color:#60a5fa; font-weight:800;">📝 Captación SÍ</span>';
             if (c.obraStatus === 'agendada') {
               const dateTag = c.obraDate ? ` (${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''})` : '';
@@ -2428,7 +2526,7 @@
                   </div>
                   <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:4px;">
                     <span>🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong></span>
-                    <span style="color:#34d399; font-weight:900;">Total: ${getM2NumericValue(c.m2)} m²</span>
+                    <span style="color:#34d399; font-weight:900;">Total: ${isFilled ? getM2NumericValue(c.m2) : 0} m²</span>
                   </div>
                   <div style="font-size:10px; margin-top:2px;">${stBadge}</div>
                   ${yearAlert}
@@ -2447,13 +2545,13 @@
               clientsHtml += `
                 <div class="client-detail-row" style="margin-top:6px; padding:8px; flex-direction:column; align-items:stretch; gap:4px;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong>🏠 #${cIdx+1} ${c.name || 'Cliente'}</strong>
+                    <strong>🏠 #${cIdx+1} ${c.name || 'Cliente sin rellenar'} ${!isFilled ? '<span class="blank-draft-pill">En blanco</span>' : ''}</strong>
                     ${stBadge}
                   </div>
                   <div style="font-size:10.5px; color:#cbd5e1;">📍 ${c.street || 'N/D'} • 📞 ${c.phone || 'Sin tel'}</div>
                   <div style="font-size:10px; color:#94a3b8; display:flex; justify-content:space-between;">
                     <span>🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong></span>
-                    <span style="color:#a78bfa; font-weight:800;">📐 ${c.m2 || '60-80'} m²</span>
+                    <span style="color:#a78bfa; font-weight:800;">📐 ${isFilled ? getM2NumericValue(c.m2) : 0} m²</span>
                   </div>
                   ${yearAlert}
                 </div>
@@ -3133,7 +3231,7 @@
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus === 'no_apto') return;
+            if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
             const m2Val = getM2NumericValue(c.m2);
             moneySiMap[u] += m2Val * 1.0;
           });
@@ -3273,7 +3371,7 @@
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto') {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
               totalM2 += getM2NumericValue(c.m2);
             }
           });
@@ -3288,7 +3386,15 @@
       const successRate = totalTocadas > 0 ? Math.round((totalSi / totalTocadas) * 100) : 0;
       const noRate = totalTocadas > 0 ? Math.round((totalNo / totalTocadas) * 100) : 0;
       const infoRate = totalTocadas > 0 ? Math.round((totalPapelito / totalTocadas) * 100) : 0;
-      const horasEfectivasDia = (puertasPorDiaMedio / 25).toFixed(1);
+
+      const userShifts = savedShifts.filter(s => s.user === currentUserName);
+      let avgHoursDay = 0;
+      if (userShifts.length > 0) {
+        const sumH = userShifts.reduce((acc, s) => acc + getShiftEffectiveHours(s), 0);
+        avgHoursDay = (sumH / userShifts.length).toFixed(1);
+      } else {
+        avgHoursDay = (puertasPorDiaMedio / 20).toFixed(1);
+      }
 
       const headerTitle = currentUserRole === 'jefe'
         ? '👑 TU PRODUCCIÓN PERSONAL DE CALLE (HISTÓRICO)'
@@ -3305,15 +3411,15 @@
           </div>
         </div>
 
-        <div class="modal-section-title">⏱️ Ritmo & Horas Efectivas de Trabajo</div>
+        <div class="modal-section-title">⏱️ Ritmo & Horas Reales de Trabajo</div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
           <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
             <div style="font-size:9px; color:#94a3b8; font-weight:800;">PUERTAS / DÍA (MEDIA)</div>
             <div style="font-size:18px; font-weight:900; color:#38bdf8; margin-top:2px;">${puertasPorDiaMedio} puertas</div>
           </div>
           <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">HORAS EFECTIVAS / DÍA</div>
-            <div style="font-size:18px; font-weight:900; color:#34d399; margin-top:2px;">~${horasEfectivasDia} h / día</div>
+            <div style="font-size:9px; color:#94a3b8; font-weight:800;">HORAS REALES / DÍA</div>
+            <div style="font-size:18px; font-weight:900; color:#34d399; margin-top:2px;">${avgHoursDay} h / día</div>
           </div>
         </div>
 
@@ -3340,7 +3446,7 @@
     }
 
     /* =====================================================================
-       EXPORTACIÓN A EXCEL (CSV) PARA EL JEFE
+       EXPORTACIÓN A EXCEL (CSV) PARA LIQUIDACIÓN MENSUAL
        ===================================================================== */
     function exportReportToCSV() {
       const headers = [
@@ -3355,6 +3461,7 @@
       savedZones.forEach(z => {
         if (!z.clients || z.clients.length === 0) return;
         z.clients.forEach(c => {
+          if (!isClientValidFilled(c)) return;
           const m2Val = getM2NumericValue(c.m2);
           const isValid = c.obraStatus !== 'no_apto';
           const bruto = isValid ? m2Val * 1.0 : 0;
@@ -3394,7 +3501,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Control_Comercial_Navarra_${getTodayISO()}.csv`;
+      link.download = `Liquidacion_Comercial_Navarra_${getTodayISO()}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -3423,6 +3530,21 @@
     function setRankingFilter(filterMode) {
       activeRankingFilter = filterMode;
       renderKpisAudit();
+    }
+
+    function setObrasSubFilter(mode) {
+      activeObrasSubFilter = mode;
+      renderObrasOptimizationAudit();
+    }
+
+    function markObraAsRealizada(zoneIdx, clientIdx) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      if (confirm('¿Confirmas que esta obra ya se ha ejecutado y pasa a "✅ Obra Realizada"?')) {
+        z.clients[clientIdx].obraStatus = 'realizada';
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        renderObrasOptimizationAudit();
+      }
     }
 
     function renderCurrentAuditView() {
@@ -3478,7 +3600,7 @@
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus === 'no_apto') return;
+            if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
             let m2Val = getM2NumericValue(c.m2);
 
             statsMap[u].m2SiCaptados += m2Val;
@@ -3648,15 +3770,14 @@
       for (let i = 0; i < 5; i++) {
         const d = new Date(mondayDate);
         d.setDate(mondayDate.getDate() + i);
-        const offsetMs = d.getTimezoneOffset() * 60000;
-        const iso = new Date(d.getTime() - offsetMs).toISOString().split('T')[0];
+        const iso = getLocalDateISO(d);
         weekDays.push({ name: dayNames[i], iso, obras: [], totalM2: 0 });
       }
 
       savedZones.forEach((z, zIdx) => {
         if (!z.clients) return;
         z.clients.forEach(c => {
-          if (c.obraStatus === 'agendada' && c.obraDate) {
+          if (c.obraStatus === 'agendada' && c.obraDate && isClientValidFilled(c)) {
             const targetDay = weekDays.find(wd => wd.iso === c.obraDate);
             if (targetDay) {
               const m2Val = getM2NumericValue(c.m2);
@@ -3763,6 +3884,7 @@
               stats[u].obrasNoAptas += 1;
               return;
             }
+            if (!isClientValidFilled(c)) return;
 
             let m2Val = getM2NumericValue(c.m2);
             stats[u].m2TotalSi += m2Val;
@@ -3783,7 +3905,10 @@
         const s = stats[u];
         const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
         
-        const userShift = savedShifts.find(sh => sh.user === u && new Date(sh.date).toISOString().split('T')[0] === selectedDate);
+        const userShift = savedShifts.find(sh => {
+          const shDate = sh.localDate || getLocalDateISO(new Date(sh.date));
+          return sh.user === u && shDate === selectedDate;
+        });
 
         let shiftTimelineHtml = '🕒 Sin fichaje registrado en esta fecha.';
         let puertasPorHora = 'N/D';
@@ -3792,8 +3917,9 @@
           const inicio = userShift.startTime || 'N/D';
           const fin = userShift.endTime || (userShift.status === 'working' ? 'En Curso' : 'N/D');
           const comida = userShift.lunchStart ? `${userShift.lunchStart} (${userShift.lunchMinutes || 0} min)` : 'Sin pausa';
-          shiftTimelineHtml = `▶️ Inicio: <strong>${inicio}</strong> | ⏸️ Comida: <strong>${comida}</strong> | ⏹️ Fin: <strong>${fin}</strong>`;
-          puertasPorHora = Math.round(s.tocadas / 6);
+          const effHours = getShiftEffectiveHours(userShift);
+          shiftTimelineHtml = `▶️ Inicio: <strong>${inicio}</strong> | ⏸️ Comida: <strong>${comida}</strong> | ⏹️ Fin: <strong>${fin}</strong> (${effHours.toFixed(1)}h)`;
+          puertasPorHora = effHours > 0 ? Math.round(s.tocadas / effHours) : 'N/D';
         }
 
         let cobradoComercial = 0;
@@ -3814,6 +3940,7 @@
 
             if (zoneItem.clients && zoneItem.clients.length > 0) {
               zoneItem.clients.forEach(cItem => {
+                const isFilled = isClientValidFilled(cItem);
                 let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">📝 Captación SÍ</span>';
                 if (cItem.obraStatus === 'agendada') {
                   const dateTxt = cItem.obraDate ? ` (${formatDate(cItem.obraDate)}${cItem.obraTime ? ' ' + cItem.obraTime : ''})` : '';
@@ -3828,8 +3955,8 @@
 
                 clientRows += `
                   <div class="client-detail-row">
-                    <span>${typeIcon} <strong>${cItem.name || 'Cliente'}</strong> (${cItem.street || 'N/D'})${docsTag}</span>
-                    <span>${badgeStatus} (${getM2NumericValue(cItem.m2)} m²)</span>
+                    <span>${typeIcon} <strong>${cItem.name || 'Sin rellenar'}</strong> (${cItem.street || 'N/D'})${docsTag}</span>
+                    <span>${badgeStatus} (${isFilled ? getM2NumericValue(cItem.m2) : 0} m²)</span>
                   </div>
                 `;
               });
@@ -3871,11 +3998,11 @@
           </div>
 
           <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
-            🚪 Puertas: <strong>${s.tocadas}</strong> | Ritmo: <strong>~${puertasPorHora} puertas/h</strong> | Eficiencia: <strong>${ratioConversion}% Sí</strong>
+            🚪 Puertas: <strong>${s.tocadas}</strong> | Ritmo: <strong>${puertasPorHora === 'N/D' ? 'N/D' : '~' + puertasPorHora + ' puertas/h'}</strong> | Eficiencia: <strong>${ratioConversion}% Sí</strong>
           </div>
 
           <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:2px;">
-            <span>📝 SÍ: <strong>${s.captacionesSiCount}</strong> (${s.m2TotalSi} m²) | 📅 Citas: <strong>${s.obrasPuestas}</strong></span>
+            <span>📝 SÍ válidos: <strong>${s.captacionesSiCount}</strong> (${s.m2TotalSi} m²) | 📅 Citas: <strong>${s.obrasPuestas}</strong></span>
             <span style="color:#fca5a5;">🚫 Caídas: <strong>${s.obrasNoAptas}</strong></span>
           </div>
 
@@ -3915,25 +4042,27 @@
 
       const { totalObrasCount } = getTodayScheduledObrasGrouped();
       const streetClusters = {};
-      let totalScheduledM2 = 0;
-      let totalScheduledClients = 0;
+      let totalFilteredM2 = 0;
+      let totalFilteredClients = 0;
+
+      const targetStatus = activeObrasSubFilter === 'realizadas' ? 'realizada' : 'agendada';
 
       savedZones.forEach((z, zIdx) => {
         if (!z.clients) return;
 
-        z.clients.forEach(c => {
-          // Únicamente incluir obras que realmente estén agendadas
-          if (c.obraStatus !== 'agendada') return;
+        z.clients.forEach((c, cIdx) => {
+          if (c.obraStatus !== targetStatus || !isClientValidFilled(c)) return;
 
           let m2Val = getM2NumericValue(c.m2);
-          const town = z.town || 'Navarra';
+          const town = (z.town || 'Navarra').trim();
           const streetRaw = (c.street || 'Calle Sin Nombre').trim();
-          const key = `${town}___${streetRaw}`;
+          const normalizedStreet = normalizeStreetClusterKey(streetRaw);
+          const key = `${town.toLowerCase()}___${normalizedStreet}`;
 
           if (!streetClusters[key]) {
             streetClusters[key] = {
               town,
-              streetName: streetRaw,
+              streetDisplay: streetRaw.replace(/[0-9]+.*$/, '').trim() || streetRaw,
               totalM2: 0,
               houseCount: 0,
               clients: [],
@@ -3943,29 +4072,35 @@
 
           streetClusters[key].totalM2 += m2Val;
           streetClusters[key].houseCount += 1;
-          streetClusters[key].clients.push({ ...c, m2Val, comercial: z.comercial, zoneIdx: zIdx });
+          streetClusters[key].clients.push({ ...c, m2Val, comercial: z.comercial, zoneIdx: zIdx, clientIdx: cIdx });
 
-          totalScheduledM2 += m2Val;
-          totalScheduledClients += 1;
+          totalFilteredM2 += m2Val;
+          totalFilteredClients += 1;
         });
       });
 
       const sortedStreets = Object.values(streetClusters).sort((a, b) => b.totalM2 - a.totalM2);
 
       const headerBox = document.createElement('div');
-      headerBox.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
-      headerBox.style.border = '1px solid #34d399';
+      headerBox.style.background = activeObrasSubFilter === 'realizadas'
+        ? 'linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%)'
+        : 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+      headerBox.style.border = activeObrasSubFilter === 'realizadas' ? '1px solid #60a5fa' : '1px solid #34d399';
       headerBox.style.borderRadius = '14px';
       headerBox.style.padding = '14px';
-      headerBox.style.marginBottom = '10px';
+      headerBox.style.marginBottom = '8px';
 
       headerBox.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
           <div>
-            <div style="font-size:10px; font-weight:800; color:#a7f3d0; text-transform:uppercase;">📅 OBRAS AGENDADAS CON FECHA</div>
-            <div style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0;">${totalScheduledM2} m² Agendados (${(totalScheduledM2 * 1.0).toFixed(2)} €)</div>
+            <div style="font-size:10px; font-weight:800; color:#e0f2fe; text-transform:uppercase;">
+              ${activeObrasSubFilter === 'realizadas' ? '✅ HISTORIAL DE OBRAS REALIZADAS (LIQUIDACIÓN)' : '📅 OBRAS AGENDADAS CON FECHA'}
+            </div>
+            <div style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0;">
+              ${totalFilteredM2} m² (${(totalFilteredM2 * 1.0).toFixed(2)} €)
+            </div>
             <div style="font-size:11px; color:#ecfdf5;">
-              • Total Citas Cerradas: <strong>${totalScheduledClients} obra(s)</strong>
+              • Total: <strong>${totalFilteredClients} obra(s)</strong>
             </div>
           </div>
           <button onclick="closeModal('auditModal'); checkAndShowBossTodayObras(false);" style="background:#f59e0b; color:#0f172a; border:none; border-radius:10px; padding:8px 10px; font-size:10.5px; font-weight:900; cursor:pointer; flex-shrink:0;">
@@ -3975,8 +4110,20 @@
       `;
       container.appendChild(headerBox);
 
+      const subFilterBar = document.createElement('div');
+      subFilterBar.className = 'subtab-bar';
+      subFilterBar.innerHTML = `
+        <button class="subtab-btn ${activeObrasSubFilter==='agendadas'?'active':''}" onclick="setObrasSubFilter('agendadas')">📅 Citas Agendadas</button>
+        <button class="subtab-btn ${activeObrasSubFilter==='realizadas'?'active':''}" onclick="setObrasSubFilter('realizadas')">✅ Obras Realizadas</button>
+      `;
+      container.appendChild(subFilterBar);
+
       if (sortedStreets.length === 0) {
-        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">No tienes ninguna obra agendada con fecha todavía.<br><small style="color:#64748b;">Las captaciones en "SÍ" sin cita están en el botón 📞 Llamar.</small></div>`;
+        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">
+          ${activeObrasSubFilter === 'realizadas'
+            ? 'Aún no hay ninguna obra marcada como "✅ Obra REALIZADA".'
+            : 'No tienes ninguna obra agendada con fecha todavía.<br><small style="color:#64748b;">Las captaciones en "SÍ" sin cita están en el botón 📞 Llamar.</small>'}
+        </div>`;
         return;
       }
 
@@ -3996,16 +4143,23 @@
           const isCom = c.type === 'comunidad';
           const typeIcon = isCom ? '🏢 Comunidad' : '🏠 Vivienda';
           const dateBadge = c.obraDate
-            ? `<span style="color:#fde047; font-weight:800;"> • 📅 Obra: ${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''}</span>`
+            ? `<span style="color:#fde047; font-weight:800;"> • 📅 ${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''}</span>`
             : '';
           const docsBadge = isCom
             ? ` • <span style="color:${countComunidadDocs(c.comunidadDocs)===5?'#34d399':'#fca5a5'}; font-weight:800;">📋 Docs: ${countComunidadDocs(c.comunidadDocs)}/5</span>`
             : '';
 
+          const completeBtnHtml = activeObrasSubFilter === 'agendadas'
+            ? `<button onclick="event.stopPropagation(); markObraAsRealizada(${c.zoneIdx}, ${c.clientIdx});" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:6px; padding:4px 7px; font-size:9.5px; font-weight:900; cursor:pointer; margin-left:6px; white-space:nowrap;">✅ Hecha</button>`
+            : '';
+
           housesHtml += `
             <div onclick="closeModal('auditModal'); openDumpModal(${c.zoneIdx});" style="cursor:pointer; font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between; align-items:center;">
               <span>${typeIcon}: <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small>${dateBadge}${docsBadge}</span>
-              <span style="color:#34d399; font-weight:800; margin-left:6px; white-space:nowrap;">${c.m2Val} m²</span>
+              <div style="display:flex; align-items:center;">
+                <span style="color:#34d399; font-weight:800; margin-left:6px; white-space:nowrap;">${c.m2Val} m²</span>
+                ${completeBtnHtml}
+              </div>
             </div>
           `;
         });
@@ -4013,7 +4167,7 @@
         card.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; font-weight:900; color:#ffffff;">
-              #${index + 1} 📍 ${item.town} - ${item.streetName}
+              #${index + 1} 📍 ${item.town} - ${item.streetDisplay}
             </span>
             <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px;">
               ${item.totalM2} m² (${clusterEuros.toFixed(2)} €)
@@ -4021,7 +4175,7 @@
           </div>
 
           <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
-            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} OBRAS EN LA MISMA CALLE)</strong>` : `1 obra agendada de ${item.totalM2} m²`}
+            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} OBRAS EN LA MISMA CALLE)</strong>` : `1 obra de ${item.totalM2} m²`}
           </div>
 
           ${housesHtml}
@@ -4080,6 +4234,7 @@
               tm.obrasNoAptas += 1;
               return;
             }
+            if (!isClientValidFilled(c)) return;
             let m2Val = getM2NumericValue(c.m2);
             tm.m2TotalSi += m2Val;
 
