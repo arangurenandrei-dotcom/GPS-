@@ -252,6 +252,7 @@
     }
     .banner-drawing.active { display: flex; }
     .banner-drawing.repaso-mode { background: #b45309; border-color: #fde047; }
+    .banner-drawing.convert-mode { background: #047857; border-color: #34d399; }
 
     .banner-drawing-top {
       display: flex;
@@ -1026,6 +1027,7 @@
     let isCropMode = false;
     let isSingleHouseMode = false;
     let isRepasoPinMode = false;
+    let pendingConvertFollowUpLead = null;
     let pendingSingleHouseCoords = null;
     let editingSingleHouseIndex = null;
     let selectedZoneIndexToDump = null;
@@ -1149,7 +1151,6 @@
         maxZoom: 20
       });
 
-      // Servidor WMS Oficial del Gobierno de Navarra (IDENA / SITNA) - Parcelas y Edificaciones
       catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
         layers: 'IDENA:CATAST_Pol_Parcela,IDENA:CATAST_Pol_Edificacion',
         format: 'image/png',
@@ -1286,7 +1287,7 @@
     }
 
     /* =====================================================================
-       AGENDA DE SEGUIMIENTOS / LLAMADAS PENDIENTES
+       AGENDA DE SEGUIMIENTOS / LLAMADAS PENDIENTES + CONVERSIÓN DIRECTA A SÍ
        ===================================================================== */
     function openFollowUpsModal() {
       renderFollowUpsModal();
@@ -1334,10 +1335,11 @@
               <div style="font-size:11px; color:#fde047; background:rgba(0,0,0,0.25); padding:5px 8px; border-radius:6px;">
                 💬 "${item.note}"
               </div>
-              <div style="display:flex; gap:6px; margin-top:4px;">
-                ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px; border-radius:8px; font-size:11px; font-weight:800;">📞 Llamar</a>` : ''}
-                ${cleanPhone ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:7px; border-radius:8px; font-size:11px; font-weight:800;">💬 WhatsApp</a>` : ''}
-                <button onclick="deleteFollowUpLead(${item.id})" style="padding:7px 10px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">✓ Cerrar</button>
+              <div style="display:flex; gap:5px; margin-top:4px; flex-wrap:wrap;">
+                ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar</a>` : ''}
+                ${cleanPhone ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
+                <button onclick="convertFollowUpToSi(${item.id})" style="flex:1.4; background:#059669; border:1px solid #34d399; color:#fff; padding:7px 6px; border-radius:8px; font-size:10.5px; font-weight:900; cursor:pointer;">✅ Pasar a SÍ</button>
+                <button onclick="deleteFollowUpLead(${item.id})" style="padding:7px 9px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;" title="Descartar / No interesado">✕</button>
               </div>
             </div>
           `;
@@ -1372,6 +1374,59 @@
 
       localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
       renderFollowUpsModal();
+    }
+
+    function convertFollowUpToSi(leadId) {
+      const lead = followUpLeads.find(f => f.id === leadId);
+      if (!lead) return;
+
+      closeModal('followUpsModal');
+      cancelDrawing();
+
+      // Si existe una zona reciente en ese mismo pueblo asignada al usuario, damos opción o abrimos ficha directa con los datos pre-rellenos
+      const matchingZoneIdx = savedZones.findIndex(z =>
+        !z.isSingleHouse &&
+        (currentUserRole === 'jefe' || z.comercial === currentUserName) &&
+        (z.town || '').toLowerCase() === (lead.town || '').toLowerCase() &&
+        z.status !== 'completada'
+      );
+
+      if (matchingZoneIdx !== -1 && confirm(`¿Quieres añadir a "${lead.name}" directamente dentro de tu sector activo "${savedZones[matchingZoneIdx].sectorName}" sin volver a rellenar sus datos?`)) {
+        const z = savedZones[matchingZoneIdx];
+        if (!z.clients) z.clients = [];
+        z.clients.push({
+          type: 'vivienda',
+          name: lead.name,
+          street: lead.street,
+          phone: lead.phone,
+          m2: '60-80',
+          obraStatus: 'a_poner',
+          obraDate: '',
+          obraTime: '09:30',
+          obraReason: 'ninguno',
+          caeChecks: { esPropietario: true, anterior2006: true, accesoCubierta: true }
+        });
+        z.stats = z.stats || { no: 0, ausente: 0, papelito: 0, si: 0 };
+        z.stats.si = (z.stats.si || 0) + 1;
+
+        followUpLeads = followUpLeads.filter(f => f.id !== leadId);
+        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
+
+        renderAllSavedZones();
+        openDumpModal(matchingZoneIdx);
+        return;
+      }
+
+      // Si no hay sector activo o prefiere ubicar la casa en el mapa, activamos toque rápido en mapa con los datos ya cargados
+      pendingConvertFollowUpLead = lead;
+      isDrawingMode = true;
+      isSingleHouseMode = true;
+
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active convert-mode';
+      document.getElementById('drawingBannerText').innerText = `✅ Toca la casa de ${lead.name} (${lead.street || lead.town}) en el mapa...`;
+      document.getElementById('drawingBannerActionsRow').style.display = 'none';
     }
 
     function deleteFollowUpLead(id) {
@@ -1470,6 +1525,7 @@
               street: c.street || 'Dirección N/D',
               owner: c.name || 'Cliente',
               phone: c.phone || '',
+              obraTime: c.obraTime || '',
               m2: m2Val,
               captador: z.comercial || 'Equipo',
               docsDone: c.type === 'comunidad' ? countComunidadDocs(c.comunidadDocs) : null,
@@ -1496,7 +1552,7 @@
         container.innerHTML = `
           <div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">
             📅 Hoy (${formatDate(todayIso)}) no tienes ninguna obra agendada en calendario.<br><br>
-            <span style="font-size:11px; color:#64748b;">Cuando cambies una ficha a <strong>"📅 Cita Agendada"</strong> y pongas la fecha de la obra, te avisará aquí automáticamente ese día.</span>
+            <span style="font-size:11px; color:#64748b;">Cuando cambies una ficha a <strong>"📅 Cita Agendada"</strong> y pongas la fecha y hora de la obra, te avisará aquí automáticamente ese día.</span>
           </div>
           <button class="btn-modal-save" onclick="closeModal('bossObrasHoyModal')">Entendido</button>
         `;
@@ -1509,7 +1565,8 @@
       townKeys.forEach(tName => {
         const itemsText = groupedByTown[tName].obras.map(o => {
           const labelTipo = o.type === 'comunidad' ? 'Comunidad' : 'Vivienda';
-          return `${labelTipo} ${o.street} (${o.m2} m²)`;
+          const timeStr = o.obraTime ? ` a las ${o.obraTime}` : '';
+          return `${labelTipo} ${o.street}${timeStr} (${o.m2} m²)`;
         });
         const joinedItems = itemsText.length > 1
           ? `${itemsText.slice(0, -1).join(', ')} y ${itemsText[itemsText.length - 1]}`
@@ -1539,11 +1596,12 @@
         let obrasListHtml = '';
         group.obras.forEach(o => {
           const icon = o.type === 'comunidad' ? '🏢 Comunidad' : '🏠 Vivienda';
+          const timeBadge = o.obraTime ? ` <span style="background:#f59e0b; color:#0f172a; padding:1px 5px; border-radius:5px; font-weight:900; font-size:10px;">⏰ ${o.obraTime}</span>` : '';
           const docsTag = o.docsDone !== null ? ` • <span style="color:#a78bfa;">Docs: ${o.docsDone}/5</span>` : '';
           obrasListHtml += `
             <div class="today-obra-item-line">
               <div>
-                <div style="font-weight:800; color:#fff;">${icon}: ${o.street}</div>
+                <div style="font-weight:800; color:#fff;">${icon}: ${o.street}${timeBadge}</div>
                 <div style="font-size:10px; color:#94a3b8;">Cliente: ${o.owner} ${o.phone ? `(${o.phone})` : ''} • Captó: ${o.captador}${docsTag}</div>
               </div>
               <span style="background:#059669; color:#fff; font-weight:900; font-size:11px; padding:4px 8px; border-radius:8px; white-space:nowrap;">
@@ -1607,7 +1665,10 @@
       const townData = groupedByTown[townName];
       if (!townData) return;
 
-      const streetsSummary = townData.obras.map(o => `${o.street} (${o.owner} - ${o.m2}m²)`).join(' | ');
+      const streetsSummary = townData.obras.map(o => {
+        const hStr = o.obraTime ? ` [⏰ ${o.obraTime}]` : '';
+        return `${o.street}${hStr} (${o.owner} - ${o.m2}m²)`;
+      }).join(' | ');
 
       hotLeadMissions.push({
         id: Date.now(),
@@ -1624,7 +1685,7 @@
         town: townName,
         sectorName: `🔥 Reclamo Obra (${townName})`,
         comercial: chosenComercial,
-        bossNote: `OBRA EN CURSO HOY en ${streetsSummary}. Pasa por las casas colindantes y habla con los vecinos que salgan a mirar el camión.`,
+        bossNote: `OBRA EN CURSO HOY en ${streetsSummary}. Acude a esa hora y habla con los vecinos que salgan a mirar el camión.`,
         pendingNote: '',
         status: 'sin_comprobar',
         points: townData.sampleZonePoints || [],
@@ -1655,7 +1716,7 @@
             <div class="priority-card reclamo">
               <span style="font-size:10px; font-weight:900; color:#34d399; text-transform:uppercase;">🔥 MISIÓN ESPECIAL EN CALIENTE (OBRA HOY)</span>
               <strong style="font-size:13px; color:#fff;">📍 Acudir a Obra en ${m.town}</strong>
-              <div style="font-size:11px; color:#e2e8f0; margin-top:2px;">Dirección(es): <strong>${m.streetsSummary}</strong></div>
+              <div style="font-size:11px; color:#e2e8f0; margin-top:2px;">Dirección y hora: <strong>${m.streetsSummary}</strong></div>
             </div>
           `;
         });
@@ -1861,10 +1922,12 @@
       }
 
       if (isSingleHouseMode) {
+        const prefill = pendingConvertFollowUpLead ? { ...pendingConvertFollowUpLead } : null;
+        pendingConvertFollowUpLead = null;
         isDrawingMode = false;
         isSingleHouseMode = false;
         document.getElementById('drawingBanner').classList.remove('active');
-        openSingleHouseModal(pt[0], pt[1], null);
+        openSingleHouseModal(pt[0], pt[1], null, prefill);
         return;
       }
 
@@ -1890,23 +1953,31 @@
     }
 
     /* =====================================================================
-       FLUJO DIRECTO: VIVIENDA / EDIFICIO ÚNICO
+       FLUJO DIRECTO: VIVIENDA / EDIFICIO ÚNICO (ACEPTA PRE-RELLENO DE RELLAMAR)
        ===================================================================== */
-    async function openSingleHouseModal(lat, lon, existingZoneIdx = null) {
+    async function openSingleHouseModal(lat, lon, existingZoneIdx = null, prefillLead = null) {
       editingSingleHouseIndex = existingZoneIdx;
       pendingSingleHouseCoords = [lat, lon];
 
       const existingZone = existingZoneIdx !== null ? savedZones[existingZoneIdx] : null;
-      const existingClient = (existingZone && existingZone.clients && existingZone.clients[0]) ? existingZone.clients[0] : {};
+      const existingClient = (existingZone && existingZone.clients && existingZone.clients[0])
+        ? existingZone.clients[0]
+        : (prefillLead ? { name: prefillLead.name, phone: prefillLead.phone, street: prefillLead.street } : {});
+
       const isComunidad = existingClient.type === 'comunidad';
       const assignedOwner = existingZone ? existingZone.comercial : currentUserName;
       const dateVal = existingZone ? (existingZone.dumpDate || existingZone.date || getTodayISO()) : getTodayISO();
-      const townVal = existingZone ? (existingZone.town || '') : '';
+      const townVal = existingZone ? (existingZone.town || '') : (prefillLead ? (prefillLead.town || '') : '');
       const canDelete = existingZoneIdx !== null && (currentUserRole === 'jefe' || assignedOwner === currentUserName);
+
+      if (prefillLead && prefillLead.id) {
+        followUpLeads = followUpLeads.filter(f => f.id !== prefillLead.id);
+        localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
+      }
 
       document.getElementById('singleHouseModalTitle').innerText = existingZone
         ? `✏️ Editar Vivienda / Edificio Único`
-        : `🏠 Nueva Captación • Vivienda / Edificio`;
+        : (prefillLead ? `✅ Conversión a SÍ: ${prefillLead.name}` : `🏠 Nueva Captación • Vivienda / Edificio`);
 
       const body = document.getElementById('singleHouseModalBody');
       body.innerHTML = `
@@ -1967,7 +2038,7 @@
       if (existingZoneIdx === null) {
         const townInput = document.getElementById('singleHouseTown');
         const streetInput = body.querySelector('.client-street');
-        if (townInput) townInput.value = 'Detectando...';
+        if (townInput && !townVal) townInput.value = 'Detectando...';
 
         try {
           const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
@@ -1977,7 +2048,7 @@
           const road = addr.road || addr.pedestrian || addr.square || addr.footway || '';
           const houseNum = addr.house_number ? ` ${addr.house_number}` : '';
 
-          if (townInput) townInput.value = detectedTown;
+          if (townInput && (!townVal || townInput.value === 'Detectando...')) townInput.value = detectedTown;
           if (streetInput && !streetInput.value && road) {
             streetInput.value = `${road}${houseNum}`;
           }
@@ -1992,6 +2063,7 @@
       const statusVal = box.querySelector('.client-obra-status').value;
       const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
       const obraDateVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-date')?.value || getTodayISO()) : '';
+      const obraTimeVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-time')?.value || '09:30') : '';
 
       const caeChecks = {
         esPropietario: box.querySelector('.cae-chk-prop')?.checked ?? true,
@@ -2032,6 +2104,7 @@
           m2: computedTotalM2,
           obraStatus: statusVal,
           obraDate: obraDateVal,
+          obraTime: obraTimeVal,
           obraReason: reasonVal,
           caeChecks,
           comunidadDocs
@@ -2045,6 +2118,7 @@
           m2: box.querySelector('.client-m2').value,
           obraStatus: statusVal,
           obraDate: obraDateVal,
+          obraTime: obraTimeVal,
           obraReason: reasonVal,
           caeChecks
         };
@@ -2152,6 +2226,7 @@
       isCropMode = false;
       isSingleHouseMode = false;
       isRepasoPinMode = false;
+      pendingConvertFollowUpLead = null;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
@@ -2399,7 +2474,7 @@
             const isComunidad = c.type === 'comunidad';
             let stBadge = '<span style="color:#60a5fa; font-weight:800;">📝 Captación SÍ</span>';
             if (c.obraStatus === 'agendada') {
-              const dateTag = c.obraDate ? ` (${formatDate(c.obraDate)})` : '';
+              const dateTag = c.obraDate ? ` (${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''})` : '';
               stBadge = `<span style="color:#fde047; font-weight:800;">📅 Cita${dateTag}</span>`;
             }
             if (c.obraStatus === 'realizada') stBadge = '<span style="color:#34d399; font-weight:800;">✅ Obra Realizada</span>';
@@ -2807,6 +2882,7 @@
 
     function getViviendaFormHTML(existing) {
       const defaultObraDate = existing.obraDate || getTodayISO();
+      const defaultObraTime = existing.obraTime || '09:30';
       return `
         <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
@@ -2836,9 +2912,12 @@
           </select>
         </div>
 
-        <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; justify-content:space-between; align-items:center; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-top:4px; gap:8px;">
-          <label style="font-size:10.5px; font-weight:800; color:#fde047; white-space:nowrap;">📅 Fecha de la Obra:</label>
-          <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px; width:auto; flex:1;">
+        <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; flex-direction:column; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:7px 8px; margin-top:4px; gap:5px;">
+          <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
+          <div class="grid-row-2" style="margin-bottom:0;">
+            <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px;">
+            <input type="time" class="input-field client-obra-time" value="${defaultObraTime}" style="padding:6px 8px;">
+          </div>
         </div>
         
         <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
@@ -2867,6 +2946,7 @@
 
     function getComunidadFormHTML(existing, cardIdx) {
       const defaultObraDate = existing.obraDate || getTodayISO();
+      const defaultObraTime = existing.obraTime || '09:30';
       const buildYearVal = existing.buildYear || '1990';
       const isInvalidYear = parseInt(buildYearVal) >= 2006;
       const docs = existing.comunidadDocs || {};
@@ -2950,9 +3030,12 @@
           </select>
         </div>
 
-        <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; justify-content:space-between; align-items:center; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-top:6px; gap:8px;">
-          <label style="font-size:10.5px; font-weight:800; color:#fde047; white-space:nowrap;">📅 Fecha de la Obra:</label>
-          <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px; width:auto; flex:1;">
+        <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; flex-direction:column; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:7px 8px; margin-top:6px; gap:5px;">
+          <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
+          <div class="grid-row-2" style="margin-bottom:0;">
+            <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px;">
+            <input type="time" class="input-field client-obra-time" value="${defaultObraTime}" style="padding:6px 8px;">
+          </div>
         </div>
 
         <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
@@ -3314,7 +3397,7 @@
       const headers = [
         'Fecha', 'Comercial', 'Pueblo', 'Sector', 'Tipo Inmueble',
         'Cliente / Presidente', 'Telefono', 'Direccion', 'Ano Edificio',
-        'm2', 'Estado Obra', 'Fecha Obra', 'Docs Comunidad (de 5)',
+        'm2', 'Estado Obra', 'Fecha Obra', 'Hora Obra', 'Docs Comunidad (de 5)',
         'Importe Bruto EUR', 'Comision Comercial (85%) EUR', 'Beneficio Jefe (15% o 100%) EUR'
       ];
 
@@ -3346,6 +3429,7 @@
             m2Val,
             clean(c.obraStatus),
             clean(c.obraDate || ''),
+            clean(c.obraTime || ''),
             clean(docsInfo),
             bruto.toFixed(2).replace('.', ','),
             comisionCom.toFixed(2).replace('.', ','),
@@ -3630,6 +3714,7 @@
                 street: c.street || 'Sin dirección',
                 owner: c.name || 'Cliente',
                 type: c.type || 'vivienda',
+                obraTime: c.obraTime || '',
                 m2: m2Val,
                 docsCount: c.type === 'comunidad' ? countComunidadDocs(c.comunidadDocs) : null,
                 zoneIdx: zIdx
@@ -3670,12 +3755,13 @@
         if (wd.obras.length === 0) {
           html += `<div style="font-size:10.5px; color:#64748b;">Sin obras agendadas este día.</div>`;
         } else {
-          wd.obras.forEach(o => {
+          wd.obras.sort((a, b) => (a.obraTime || '').localeCompare(b.obraTime || '')).forEach(o => {
             const isCom = o.type === 'comunidad';
+            const timeBadge = o.obraTime ? `<span style="color:#fde047; font-weight:900;">[⏰ ${o.obraTime}]</span> ` : '';
             const docBadge = isCom ? ` • <span style="color:${o.docsCount===5?'#34d399':'#fca5a5'}; font-weight:800;">Docs: ${o.docsCount}/5</span>` : '';
             html += `
               <div onclick="closeModal('auditModal'); openDumpModal(${o.zoneIdx});" style="cursor:pointer; font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:7px; display:flex; justify-content:space-between; align-items:center;">
-                <span>${isCom ? '🏢' : '🏠'} <strong>${o.town}</strong>: ${o.street} (${o.owner})${docBadge}</span>
+                <span>${timeBadge}${isCom ? '🏢' : '🏠'} <strong>${o.town}</strong>: ${o.street} (${o.owner})${docBadge}</span>
                 <strong style="color:#34d399; margin-left:6px;">${o.m2} m²</strong>
               </div>
             `;
@@ -3779,7 +3865,7 @@
               zoneItem.clients.forEach(cItem => {
                 let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">📝 Captación SÍ</span>';
                 if (cItem.obraStatus === 'agendada') {
-                  const dateTxt = cItem.obraDate ? ` (${formatDate(cItem.obraDate)})` : '';
+                  const dateTxt = cItem.obraDate ? ` (${formatDate(cItem.obraDate)}${cItem.obraTime ? ' ' + cItem.obraTime : ''})` : '';
                   badgeStatus = `<span style="color:#fde047; font-weight:800;">📅 Obra${dateTxt}</span>`;
                 }
                 if (cItem.obraStatus === 'realizada') badgeStatus = '<span style="color:#34d399; font-weight:800;">✅ Obra Hecha</span>';
@@ -3958,7 +4044,7 @@
           const isCom = c.type === 'comunidad';
           const typeIcon = isCom ? '🏢 Comunidad' : '🏠 Vivienda';
           const dateBadge = (c.obraStatus === 'agendada' && c.obraDate)
-            ? `<span style="color:#fde047; font-weight:800;"> • 📅 Obra: ${formatDate(c.obraDate)}</span>`
+            ? `<span style="color:#fde047; font-weight:800;"> • 📅 Obra: ${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''}</span>`
             : '';
           const docsBadge = isCom
             ? ` • <span style="color:${countComunidadDocs(c.comunidadDocs)===5?'#34d399':'#fca5a5'}; font-weight:800;">📋 Docs: ${countComunidadDocs(c.comunidadDocs)}/5</span>`
