@@ -1043,6 +1043,37 @@
       } catch (e) { return []; }
     }
 
+    function saveAndSync(key, data) {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch (e) {}
+      if (typeof window.pushToFirestore === 'function') {
+        window.pushToFirestore(key, data);
+      }
+    }
+
+    window.applyCloudDataUpdate = function(key, newData) {
+      if (!Array.isArray(newData)) return;
+      try {
+        localStorage.setItem(key, JSON.stringify(newData));
+      } catch (e) {}
+
+      if (key === 'comercial_custom_zones') savedZones = newData;
+      else if (key === 'comercial_shifts') savedShifts = newData;
+      else if (key === 'comercial_completed_towns') completedTowns = newData;
+      else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
+
+      if (currentUserName) {
+        if (map) renderAllSavedZones();
+        updateShiftUI();
+        if (document.getElementById('auditModal')?.classList.contains('active')) renderCurrentAuditView();
+        if (document.getElementById('followUpsModal')?.classList.contains('active')) renderFollowUpsModal();
+        if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults();
+        if (document.getElementById('leagueRankingModal')?.classList.contains('active')) openLeagueRankingModal();
+        if (document.getElementById('commercialStatsModal')?.classList.contains('active')) openCommercialStatsModal();
+      }
+    };
+
     function getLocalDateISO(dateObj = new Date()) {
       const offsetMs = dateObj.getTimezoneOffset() * 60000;
       return new Date(dateObj.getTime() - offsetMs).toISOString().split('T')[0];
@@ -1324,7 +1355,7 @@
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       z.clients[clientIdx].callStatus = newCallStatus;
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
       renderFollowUpsModal();
     }
 
@@ -1351,7 +1382,7 @@
       client.obraStatus = 'agendada';
       client.obraDate = dateVal;
       client.obraTime = timeVal;
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
       renderFollowUpsModal();
     }
 
@@ -1700,7 +1731,7 @@
         comercial: chosenComercial,
         streetsSummary: streetsSummary
       });
-      localStorage.setItem('comercial_hot_lead_missions', JSON.stringify(hotLeadMissions));
+      saveAndSync('comercial_hot_lead_missions', hotLeadMissions);
 
       savedZones.push({
         id: Date.now() + 1,
@@ -1715,7 +1746,7 @@
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
         clients: []
       });
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
 
       renderAllSavedZones();
       checkAndShowBossTodayObras(false);
@@ -1874,7 +1905,7 @@
         }
       }
 
-      localStorage.setItem('comercial_shifts', JSON.stringify(savedShifts));
+      saveAndSync('comercial_shifts', savedShifts);
       updateShiftUI();
     }
 
@@ -2197,7 +2228,7 @@
         });
       }
 
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
       editingSingleHouseIndex = null;
       pendingSingleHouseCoords = null;
       closeModal('singleHouseModal');
@@ -2213,7 +2244,7 @@
       }
       if (confirm('¿Seguro que quieres eliminar esta vivienda/edificio del mapa?')) {
         savedZones.splice(idx, 1);
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        saveAndSync('comercial_custom_zones', savedZones);
         closeModal('singleHouseModal');
         renderAllSavedZones();
       }
@@ -2228,7 +2259,7 @@
 
       if (isCropMode && selectedZoneIndexToDump !== null) {
         savedZones[selectedZoneIndexToDump].points = tempPoints;
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        saveAndSync('comercial_custom_zones', savedZones);
         isCropMode = false;
         isDrawingMode = false;
         tempPoints = [];
@@ -2290,7 +2321,7 @@
         clients: []
       });
 
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
       cancelDrawing();
       closeModal('assignModal');
       renderAllSavedZones();
@@ -2445,7 +2476,7 @@
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       if (!z.clients[clientIdx].comunidadDocs) z.clients[clientIdx].comunidadDocs = {};
       z.clients[clientIdx].comunidadDocs[docKey] = isChecked;
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
       openDumpModal(zoneIdx);
     }
 
@@ -2692,7 +2723,7 @@
       const noteInput = document.getElementById('supervisionBossNoteInput');
       if (noteInput) {
         savedZones[selectedZoneIndexToDump].bossNote = noteInput.value.trim();
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        saveAndSync('comercial_custom_zones', savedZones);
       }
       closeModal('dumpModal');
       renderAllSavedZones();
@@ -2795,7 +2826,7 @@
       const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
       if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
         savedZones.splice(idx, 1);
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        saveAndSync('comercial_custom_zones', savedZones);
         closeModal('dumpModal');
         closeModal('auditModal');
         renderAllSavedZones();
@@ -3201,7 +3232,7 @@
         z.clients.push(extractClientFromBox(box, preservedCallStatus));
       });
 
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
       closeModal('dumpModal');
       renderAllSavedZones();
     }
@@ -3542,7 +3573,7 @@
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       if (confirm('¿Confirmas que esta obra ya se ha ejecutado y pasa a "✅ Obra Realizada"?')) {
         z.clients[clientIdx].obraStatus = 'realizada';
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+        saveAndSync('comercial_custom_zones', savedZones);
         renderObrasOptimizationAudit();
       }
     }
@@ -4196,7 +4227,7 @@
 
       const text = document.getElementById('modalNoteText').value.trim();
       savedZones[selectedZoneIndexForNote].bossNote = text;
-      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      saveAndSync('comercial_custom_zones', savedZones);
 
       closeModal('noteModal');
       renderCurrentAuditView();
@@ -4313,7 +4344,7 @@
         completedTowns.splice(idx, 1);
       }
 
-      localStorage.setItem('comercial_completed_towns', JSON.stringify(completedTowns));
+      saveAndSync('comercial_completed_towns', completedTowns);
       renderPueblosAudit();
     }
 
@@ -4347,6 +4378,71 @@
         }
       }
     };
+  </script>
+
+  <!-- CONEXIÓN EN TIEMPO REAL CON FIRESTORE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-analytics.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD4QzFsYJ8GF2Xgo3GX7LVuhPhTK-Z-kkw",
+      authDomain: "gestion-comercial-navarr-3b028.firebaseapp.com",
+      projectId: "gestion-comercial-navarr-3b028",
+      storageBucket: "gestion-comercial-navarr-3b028.firebasestorage.app",
+      messagingSenderId: "335117082096",
+      appId: "1:335117082096:web:ae8e51ae26457bf29a5135",
+      measurementId: "G-3QSK7S47KD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+
+    const SYNC_KEYS = [
+      'comercial_custom_zones',
+      'comercial_shifts',
+      'comercial_completed_towns',
+      'comercial_hot_lead_missions'
+    ];
+
+    window.pushToFirestore = async function(key, data) {
+      try {
+        await setDoc(doc(db, 'gestion_navarra', key), {
+          payload: JSON.stringify(data),
+          updatedAt: Date.now()
+        });
+      } catch (err) {
+        console.error('Error sincronizando con Firestore:', err);
+      }
+    };
+
+    SYNC_KEYS.forEach((key) => {
+      onSnapshot(doc(db, 'gestion_navarra', key), (snap) => {
+        if (snap.exists() && snap.data().payload) {
+          try {
+            const parsed = JSON.parse(snap.data().payload);
+            if (typeof window.applyCloudDataUpdate === 'function') {
+              window.applyCloudDataUpdate(key, parsed);
+            }
+          } catch (e) {
+            console.error('Error leyendo datos de Firestore:', e);
+          }
+        } else {
+          // Si la nube aún está vacía pero hay datos locales en este dispositivo, los sube automáticamente
+          try {
+            const localRaw = localStorage.getItem(key);
+            if (localRaw) {
+              const localParsed = JSON.parse(localRaw);
+              if (Array.isArray(localParsed) && localParsed.length > 0) {
+                window.pushToFirestore(key, localParsed);
+              }
+            }
+          } catch (e) {}
+        }
+      });
+    });
   </script>
 </body>
 </html>
