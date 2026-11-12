@@ -703,13 +703,13 @@
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
         </div>
-        <div class="hud-utility-group">
-          <button id="btnToggleCatastro" class="btn-hud layer-btn active" onclick="toggleCatastroLayer()" title="Catastro Oficial de Navarra (IDENA)">🏘️ Catastro NA</button>
+       <div class="hud-utility-group">
+          <button id="btnToggleCatastro" class="btn-hud layer-btn active" onclick="toggleCatastroLayer()" title="Mostrar/Ocultar líneas de parcelas">🏘️ Parcelas</button>
+          <button class="btn-hud layer-btn" style="background:#0369a1; border-color:#38bdf8;" onclick="openIdenaOfficialViewer()" title="Consultar año y m² en IDENA">🏛️ Ficha NA</button>
           <button id="btnToggleSatellite" class="btn-hud layer-btn" onclick="toggleSatelliteLayer()" title="Vista aérea satélite">🛰️ Satélite</button>
-          <button class="btn-hud gps" onclick="centerOnUser()">🎯 GPS</button>
+          <button class="btn-hud gps" onclick="centerOnUser()">🎯</button>
           <button class="btn-hud logout" onclick="executeLogout()">🔒</button>
         </div>
-      </div>
 
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
@@ -1267,14 +1267,16 @@
         maxZoom: 20
       });
 
-     // Capas oficiales de IDENA Navarra sin el prefijo erróneo "IDENA:"
+     // Capa agrupada oficial de Catastro de Navarra (parcelas + edificaciones + subparcelas)
       catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
-        layers: 'CATAST_Pol_ParcelaUr,CATAST_Pol_ParcelaRu,CATAST_Pol_Edificacion',
+        layers: 'catastro',
         format: 'image/png',
         transparent: true,
         version: '1.1.1',
         opacity: 0.85,
-        zIndex: 500,
+        zIndex: 650,
+        minZoom: 15,
+        maxNativeZoom: 19,
         maxZoom: 20
       }).addTo(map);
 
