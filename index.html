@@ -76,21 +76,28 @@
     .hud-header {
       position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000;
       background: var(--bg-panel); backdrop-filter: blur(16px);
-      border: 1px solid var(--border-panel); border-radius: 18px; padding: 10px 14px;
+      border: 1px solid var(--border-panel); border-radius: 18px; padding: 10px 12px;
       display: flex; flex-direction: column; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
-    .hud-top-row { display: flex; justify-content: space-between; align-items: center; }
-    .user-pill { display: flex; align-items: center; gap: 8px; }
-    .role-badge { font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 8px; text-transform: uppercase; }
+    .hud-top-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .user-pill { display: flex; align-items: center; gap: 6px; }
+    .role-badge { font-size: 9.5px; font-weight: 900; padding: 4px 7px; border-radius: 8px; text-transform: uppercase; }
     .role-badge.jefe { background: #7c3aed; color: #fff; border: 1px solid #a78bfa; }
     .role-badge.comercial { background: #2563eb; color: #fff; border: 1px solid #60a5fa; }
 
+    .hud-actions-group { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+
     .btn-hud {
-      padding: 8px 12px; border: 1px solid var(--border-panel); border-radius: 10px;
-      background: rgba(255, 255, 255, 0.08); color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;
+      padding: 6px 9px; border: 1px solid var(--border-panel); border-radius: 9px;
+      background: rgba(255, 255, 255, 0.08); color: #fff; font-size: 10.5px; font-weight: 800; cursor: pointer;
+      white-space: nowrap;
     }
     .btn-hud.jefe-action { background: #7c3aed; border-color: #a78bfa; }
+    .btn-hud.ranking-action {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      border-color: #fde047; color: #fff; box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+    }
     .btn-hud.logout { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 
     .shift-bar {
@@ -187,6 +194,63 @@
       background: rgba(217, 119, 6, 0.2); color: #fde047; font-size: 11px; font-weight: 800; cursor: pointer; margin-top: 6px;
     }
 
+    /* ESTILOS LIGA MOTIVANTE DE COMERCIALES */
+    .league-hero-banner {
+      background: linear-gradient(135deg, #b45309 0%, #7c2d12 50%, #1e1b4b 100%);
+      border: 1px solid #fbbf24;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+      text-align: center;
+      box-shadow: 0 8px 25px rgba(245, 158, 11, 0.25);
+    }
+
+    .league-card {
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      position: relative;
+      transition: transform 0.2s ease;
+    }
+    .league-card.rank-1 {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1.5px solid #fbbf24;
+      box-shadow: 0 6px 20px rgba(251, 191, 36, 0.2);
+    }
+    .league-card.rank-2 {
+      background: linear-gradient(135deg, rgba(148, 163, 184, 0.18) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1px solid #cbd5e1;
+    }
+    .league-card.rank-3 {
+      background: linear-gradient(135deg, rgba(217, 119, 6, 0.16) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1px solid #d97706;
+    }
+    .league-card.is-me {
+      box-shadow: 0 0 0 2px #38bdf8;
+    }
+
+    .league-progress-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.45);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .league-progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+      transition: width 0.5s ease;
+    }
+    .league-card.rank-1 .league-progress-fill {
+      background: linear-gradient(90deg, #f59e0b 0%, #fde047 100%);
+    }
+
     .client-box {
       background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
@@ -254,14 +318,14 @@
     .tab-bar { display: flex; gap: 4px; margin-bottom: 6px; overflow-x: auto; flex-shrink: 0; }
     .tab-btn {
       flex: 1; padding: 10px 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
-      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 10px; font-weight: 800; cursor: pointer; text-align: center; whitespace: nowrap;
+      background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 10px; font-weight: 800; cursor: pointer; text-align: center; white-space: nowrap;
     }
     .tab-btn.active { background: var(--primary); color: #fff; border-color: #60a5fa; }
 
     .subtab-bar { display: flex; gap: 4px; margin-bottom: 8px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; }
     .subtab-btn {
       flex: 1; padding: 6px 2px; border: none; border-radius: 8px; background: transparent;
-      color: #94a3b8; font-size: 9.5px; font-weight: 800; cursor: pointer; text-align: center; whitespace: nowrap;
+      color: #94a3b8; font-size: 9.5px; font-weight: 800; cursor: pointer; text-align: center; white-space: nowrap;
     }
     .subtab-btn.active { background: rgba(255,255,255,0.15); color: #fff; }
 
@@ -358,11 +422,12 @@
           <span id="displayRoleBadge" class="role-badge jefe">JEFE</span>
           <span id="displayUserName" style="font-size:13px; font-weight:800;">Andrei</span>
         </div>
-        <div style="display:flex; gap:6px;">
+        <div class="hud-actions-group">
           <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda & Obras</button>
-          <button id="btnCommercialStats" class="btn-hud" style="background:#2563eb; display:none;" onclick="openCommercialStatsModal()">📈 Mis Estadísticas</button>
-          <button class="btn-hud" onclick="centerOnUser()">🎯 Mi GPS</button>
-          <button class="btn-hud logout" onclick="executeLogout()">🔒 Salir</button>
+          <button id="btnCommercialRanking" class="btn-hud ranking-action" style="display:none;" onclick="openCommercialRankingModal()">🏆 Ranking</button>
+          <button id="btnCommercialStats" class="btn-hud" style="background:#2563eb;" onclick="openCommercialStatsModal()">📈 Mis Stats</button>
+          <button class="btn-hud" onclick="centerOnUser()">🎯 GPS</button>
+          <button class="btn-hud logout" onclick="executeLogout()">🔒</button>
         </div>
       </div>
 
@@ -410,7 +475,20 @@
     </div>
   </div>
 
-  <!-- MODAL ESTADÍSTICAS PERSONALES DEL COMERCIAL (TODO CONJUNTO) -->
+  <!-- MODAL RANKING MOTIVANTE EXCLUSIVO COMERCIALES (SOLO DINERO DE SÍ) -->
+  <div id="commercialRankingModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span>🏆 Liga Comercial • Dinero en SÍ</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('commercialRankingModal')">✕</button>
+        </div>
+      </div>
+      <div class="modal-scrollable-content" id="commercialRankingContainer"></div>
+    </div>
+  </div>
+
+  <!-- MODAL ESTADÍSTICAS PERSONALES (COMERCIALES Y JEFE) -->
   <div id="commercialStatsModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -504,7 +582,7 @@
     </div>
   </div>
 
-  <!-- MODAL AUDITORÍA -->
+  <!-- MODAL AUDITORÍA JEFE -->
   <div id="auditModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
@@ -630,22 +708,26 @@
       const nameLbl = document.getElementById('displayUserName');
       const btnBossAssign = document.getElementById('btnBossAssignMode');
       const btnBossAudit = document.getElementById('btnBossAudit');
+      const btnCommercialRanking = document.getElementById('btnCommercialRanking');
       const btnCommercialStats = document.getElementById('btnCommercialStats');
 
       nameLbl.innerText = currentUserName;
+
+      // Mis Stats visible para TODOS (incluyendo el Jefe porque también trabaja)
+      btnCommercialStats.style.display = 'inline-block';
 
       if (currentUserRole === 'jefe') {
         roleBadge.className = 'role-badge jefe';
         roleBadge.innerText = '👑 JEFE';
         btnBossAssign.style.display = 'flex';
         btnBossAudit.style.display = 'inline-block';
-        btnCommercialStats.style.display = 'none';
+        btnCommercialRanking.style.display = 'none';
       } else {
         roleBadge.className = 'role-badge comercial';
         roleBadge.innerText = '🏃 COMERCIAL';
         btnBossAssign.style.display = 'none';
         btnBossAudit.style.display = 'none';
-        btnCommercialStats.style.display = 'inline-block';
+        btnCommercialRanking.style.display = 'inline-block';
       }
     }
 
@@ -1621,6 +1703,223 @@
       renderAllSavedZones();
     }
 
+    /* =====================================================================
+       MODAL RANKING EXCLUSIVO DE COMERCIALES (LLAMATIVO, MOTIVANTE, SOLO SÍ)
+       ===================================================================== */
+    function openCommercialRankingModal() {
+      const container = document.getElementById('commercialRankingContainer');
+      container.innerHTML = '';
+
+      // Solo compiten los comerciales entre sí. El Jefe NO existe aquí.
+      const commercialsList = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      const moneySiMap = {};
+      commercialsList.forEach(c => { moneySiMap[c] = 0; });
+
+      savedZones.forEach(z => {
+        const u = z.comercial;
+        if (moneySiMap[u] === undefined) return; // Ignora al jefe o desconocidos
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus === 'no_apto') return;
+            const m2Val = getM2NumericValue(c.m2);
+            // Dinero movido de SÍ (sin quitar nada para el jefe)
+            moneySiMap[u] += m2Val * 1.0;
+          });
+        }
+      });
+
+      const rankingArray = commercialsList
+        .map(name => ({ name, moneySi: moneySiMap[name] }))
+        .sort((a, b) => b.moneySi - a.moneySi);
+
+      const leaderAmount = rankingArray[0].moneySi;
+      const myRankIndex = rankingArray.findIndex(item => item.name === currentUserName);
+      const myData = rankingArray[myRankIndex];
+
+      let motivationalTopMsg = '';
+      if (leaderAmount === 0) {
+        motivationalTopMsg = '🚀 ¡El marcador está a cero! Sé el primero en romper el hielo y liderar la tabla.';
+      } else if (myRankIndex === 0) {
+        motivationalTopMsg = '👑 ¡VAS #1 EN CABEZA! Mantén el ritmo que te quieren quitar el trono.';
+      } else {
+        const diffToFirst = (leaderAmount - myData.moneySi).toFixed(2);
+        motivationalTopMsg = `🔥 Estás a solo <strong>${diffToFirst} €</strong> del #1 (${rankingArray[0].name}). ¡A por el sorpasso!`;
+      }
+
+      let html = `
+        <div class="league-hero-banner">
+          <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; letter-spacing:1px;">
+            ⚡ COMPETICIÓN DIRECTA • SOLO DINERO MOVIDO EN "SÍ"
+          </div>
+          <div style="font-size:20px; font-weight:900; color:#fff; margin:4px 0;">
+            ${rankingArray[0].name} lidera con ${leaderAmount.toFixed(2)} €
+          </div>
+          <div style="font-size:11px; color:#fef3c7; line-height:1.35;">
+            ${motivationalTopMsg}
+          </div>
+        </div>
+      `;
+
+      rankingArray.forEach((item, idx) => {
+        const isMe = item.name === currentUserName;
+        const pctWidth = leaderAmount > 0 ? Math.max(6, Math.round((item.moneySi / leaderAmount) * 100)) : 0;
+
+        let rankBadge = `<span style="font-size:14px; font-weight:900; color:#94a3b8;">#${idx + 1}</span>`;
+        let cardClass = 'league-card';
+        let statusTag = '';
+
+        if (idx === 0) {
+          rankBadge = '<span style="font-size:20px;">🥇</span>';
+          cardClass += ' rank-1';
+          statusTag = '<span style="background:#f59e0b; color:#0f172a; font-size:9px; font-weight:900; padding:2px 6px; border-radius:6px;">🔥 LÍDER</span>';
+        } else if (idx === 1) {
+          rankBadge = '<span style="font-size:19px;">🥈</span>';
+          cardClass += ' rank-2';
+          statusTag = '<span style="background:rgba(203,213,225,0.2); color:#e2e8f0; font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px;">⚡ ASPIRANTE</span>';
+        } else if (idx === 2) {
+          rankBadge = '<span style="font-size:18px;">🥉</span>';
+          cardClass += ' rank-3';
+          statusTag = '<span style="background:rgba(217,119,6,0.25); color:#fde047; font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px;">💪 PODIO</span>';
+        }
+
+        if (isMe) {
+          cardClass += ' is-me';
+        }
+
+        html += `
+          <div class="${cardClass}">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                ${rankBadge}
+                <div>
+                  <div style="font-size:13px; font-weight:900; color:#fff; display:flex; align-items:center; gap:6px;">
+                    ${item.name}
+                    ${isMe ? '<span style="background:#0284c7; color:#fff; font-size:9px; font-weight:900; padding:2px 6px; border-radius:6px;">TÚ</span>' : ''}
+                    ${statusTag}
+                  </div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:16px; font-weight:900; color:${idx === 0 ? '#fde047' : '#34d399'};">
+                  ${item.moneySi.toFixed(2)} €
+                </div>
+                <div style="font-size:9px; color:#94a3b8; font-weight:700;">DINERO EN SÍ</div>
+              </div>
+            </div>
+
+            <div class="league-progress-bg">
+              <div class="league-progress-fill" style="width:${pctWidth}%;"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `<button class="btn-modal-save" style="margin-top:8px;" onclick="closeModal('commercialRankingModal')">🔥 ¡A reventar puertas para subir!</button>`;
+
+      container.innerHTML = html;
+      document.getElementById('commercialRankingModal').classList.add('active');
+    }
+
+    /* =====================================================================
+       MODAL DE ESTADÍSTICAS PERSONALES (PARA COMERCIALES Y PARA EL JEFE)
+       ===================================================================== */
+    function openCommercialStatsModal() {
+      const container = document.getElementById('commercialStatsContainer');
+      container.innerHTML = '';
+
+      let totalDays = 0;
+      let totalTocadas = 0;
+      let totalSi = 0;
+      let totalNo = 0;
+      let totalPapelito = 0;
+      let totalM2 = 0;
+      const datesSet = new Set();
+
+      savedZones.forEach(z => {
+        if (z.comercial !== currentUserName) return;
+        const st = z.stats || {};
+        const zDate = z.dumpDate || z.date;
+        if (zDate) datesSet.add(zDate);
+
+        const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        totalTocadas += tocadas;
+        totalSi += (st.si||0);
+        totalNo += (st.no||0);
+        totalPapelito += (st.papelito||0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto') {
+              totalM2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+      });
+
+      totalDays = Math.max(1, datesSet.size);
+      const dineroTotalGenerado = totalM2 * 1.0;
+      const dineroMedioDia = (dineroTotalGenerado / totalDays).toFixed(2);
+      const proyeccionMes = (dineroTotalGenerado * (22 / totalDays)).toFixed(2);
+      const puertasPorDiaMedio = Math.round(totalTocadas / totalDays);
+      const successRate = totalTocadas > 0 ? Math.round((totalSi / totalTocadas) * 100) : 0;
+      const noRate = totalTocadas > 0 ? Math.round((totalNo / totalTocadas) * 100) : 0;
+      const infoRate = totalTocadas > 0 ? Math.round((totalPapelito / totalTocadas) * 100) : 0;
+
+      const horasEfectivasDia = (puertasPorDiaMedio / 25).toFixed(1);
+
+      const headerTitle = currentUserRole === 'jefe'
+        ? '👑 TU PRODUCCIÓN PERSONAL DE CALLE (HISTÓRICO)'
+        : '💰 TU DINERO ACUMULADO (MES / HISTÓRICO)';
+
+      container.innerHTML = `
+        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:12px; border:1px solid #60a5fa;">
+          <div style="font-size:10px; font-weight:800; color:#bfdbfe; text-transform:uppercase;">${headerTitle}</div>
+          <div style="font-size:24px; font-weight:900; color:#fff; margin:4px 0;">${dineroTotalGenerado.toFixed(2)} €</div>
+          <div style="font-size:11px; color:#e0f2fe;">
+            • Media diaria: <strong>${dineroMedioDia} € / día</strong><br>
+            • Proyección estimada mensual: <strong>${proyeccionMes} €</strong><br>
+            • Volumen aportado: <strong>${totalM2} m²</strong> en ${datesSet.size > 0 ? datesSet.size : 1} jornadas registradas.
+          </div>
+        </div>
+
+        <div class="modal-section-title">⏱️ Ritmo & Horas Efectivas de Trabajo</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
+            <div style="font-size:9px; color:#94a3b8; font-weight:800;">PUERTAS / DÍA (MEDIA)</div>
+            <div style="font-size:18px; font-weight:900; color:#38bdf8; margin-top:2px;">${puertasPorDiaMedio} puertas</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
+            <div style="font-size:9px; color:#94a3b8; font-weight:800;">HORAS EFECTIVAS / DÍA</div>
+            <div style="font-size:18px; font-weight:900; color:#34d399; margin-top:2px;">~${horasEfectivasDia} h / día</div>
+          </div>
+        </div>
+
+        <div class="modal-section-title">📊 Porcentajes de Conversión (Todo Conjunto)</div>
+        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:#34d399; font-weight:800;">✅ % SÍ (Interesados / Citas):</span>
+            <strong>${successRate}% (${totalSi} totales)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:#fca5a5; font-weight:800;">❌ % NO (Rechazos):</span>
+            <strong>${noRate}% (${totalNo} totales)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:#38bdf8; font-weight:800;">📄 % INFORMACIÓN / PAPELITO:</span>
+            <strong>${infoRate}% (${totalPapelito} totales)</strong>
+          </div>
+        </div>
+
+        <button class="btn-modal-save" style="margin-top:14px;" onclick="closeModal('commercialStatsModal')">Entendido, ¡A seguir reventando! 🔥</button>
+      `;
+
+      document.getElementById('commercialStatsModal').classList.add('active');
+    }
+
+    /* =====================================================================
+       PANEL DE AUDITORÍA DEL JEFE
+       ===================================================================== */
     function openAuditModal() {
       renderCurrentAuditView();
       document.getElementById('auditModal').classList.add('active');
@@ -1654,18 +1953,11 @@
       }
     }
 
-    /* RANKING GLOBAL (CON EXCLUSIÓN DEL JEFE SI ES COMERCIAL) */
     function renderKpisAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
-      let usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
-      
-      // EXCLUSIÓN CRUCIAL: SI ES COMERCIAL, NO VE AL JEFE Y COMPITE SOLO CONTRA SUS COMPAÑEROS
-      if (currentUserRole === 'comercial') {
-        usersList = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
-      }
-
+      const usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       const statsMap = {};
 
       usersList.forEach(u => {
@@ -1686,7 +1978,7 @@
 
       savedZones.forEach(z => {
         const u = z.comercial || 'Comercial 1';
-        if (!statsMap[u]) return; // Si es el jefe y estamos en vista comercial, se ignora
+        if (!statsMap[u]) return;
 
         const st = z.stats || {};
         const zDate = z.dumpDate || z.date;
@@ -1721,17 +2013,7 @@
         if (activeRankingFilter === 'agendadas') selectedM2Metric = s.m2Agendados;
         if (activeRankingFilter === 'realizadas') selectedM2Metric = s.m2Realizados;
 
-        // DINERO QUE MUESTRA CADA UNO: SIN QUITAR NADA PARA EL JEFE (CADA UNO SU BRUTO/TOTAL GENERADO)
-        if (currentUserRole === 'jefe') {
-          if (u === 'Andrei (Jefe)') {
-            s.dineroVisual = selectedM2Metric * 1.0;
-          } else {
-            s.dineroVisual = selectedM2Metric * 1.0; // Bruto total generado por el comercial para motivación
-          }
-        } else {
-          s.dineroVisual = selectedM2Metric * 1.0; // El comercial ve su total de dinero sin retenciones del jefe
-        }
-
+        s.dineroVisual = selectedM2Metric * 1.0;
         totalEquipoM2 += selectedM2Metric;
         totalEquipoDinero += s.dineroVisual;
       });
@@ -1740,7 +2022,6 @@
       const topProducer = sortedRank[0];
 
       let subheaderTitle = "📝 POTENCIAL CAPTADO (TODOS LOS 'SÍ')";
-      let subheaderSubtitle = "Total acumulado de viviendas/edificios captados.";
       if (activeRankingFilter === 'agendadas') {
         subheaderTitle = "📅 METROS AGENDADOS (CITAS PUESTAS)";
       } else if (activeRankingFilter === 'realizadas') {
@@ -1748,17 +2029,15 @@
       }
 
       const summaryCard = document.createElement('div');
-      summaryCard.style.background = currentUserRole === 'jefe' 
-        ? 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)' 
-        : 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)';
-      summaryCard.style.border = '1px solid #60a5fa';
+      summaryCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
+      summaryCard.style.border = '1px solid #a78bfa';
       summaryCard.style.borderRadius = '16px';
       summaryCard.style.padding = '12px 14px';
       summaryCard.style.marginBottom = '8px';
 
       summaryCard.innerHTML = `
         <div style="font-size:10px; font-weight:800; color:#e2e8f0; text-transform:uppercase;">${subheaderTitle}</div>
-        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:2px 0;">${currentUserRole==='jefe' ? totalEquipoDinero.toFixed(2)+' € Brutos Equipo' : totalEquipoDinero.toFixed(2)+' € Generados'}</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:2px 0;">${totalEquipoDinero.toFixed(2)} € Brutos Equipo</div>
         <div style="font-size:10.5px; color:#cbd5e1;">
           • Volumen Total: <strong>${totalEquipoM2} m²</strong><br>
           • Líder del Ranking: <strong>${topProducer ? topProducer.name : 'N/D'}</strong>
@@ -1802,13 +2081,11 @@
         const gapWithLeader = (topProducer.dineroVisual - s.dineroVisual).toFixed(2);
         const gapText = rankIdx === 0 ? '---' : `-${gapWithLeader} € vs #1`;
 
-        // SI ES JEFE, AÑADIMOS TAMBIÉN EL DESGLOSE DE LO QUE FACTURA BRUTO PARA MOTIVARLES
-        let extraInfoBoss = '';
-        if (currentUserRole === 'jefe') {
-          const comisionParaEl = (s.dineroVisual * 0.85).toFixed(2);
-          const margenParaTi = (s.dineroVisual * 0.15).toFixed(2);
-          extraInfoBoss = `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Comercial: ${comisionParaEl}€ | Tu Margen (15%): ${margenParaTi}€</div>`;
-        }
+        const comisionParaEl = (s.dineroVisual * 0.85).toFixed(2);
+        const margenParaTi = (s.dineroVisual * 0.15).toFixed(2);
+        const extraInfoBoss = s.name === 'Andrei (Jefe)'
+          ? `<div style="font-size:9px; color:#34d399; margin-top:1px;">100% Propio para ti</div>`
+          : `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Comercial: ${comisionParaEl}€ | Tu Margen (15%): ${margenParaTi}€</div>`;
 
         tableRows += `
           <tr class="${rowClass}">
@@ -1834,7 +2111,7 @@
             <tr>
               <th style="width:30px; text-align:center;">#</th>
               <th>Comercial</th>
-              <th>Dinero Total</th>
+              <th>Fact. Bruta</th>
               <th style="text-align:center;">Media "Sí"</th>
               <th style="text-align:right;">Brecha vs #1</th>
             </tr>
@@ -1848,98 +2125,6 @@
       container.appendChild(tableWrapper);
     }
 
-    /* MODAL DE ESTADÍSTICAS PERSONALES DEL COMERCIAL (TODO CONJUNTO) */
-    function openCommercialStatsModal() {
-      const container = document.getElementById('commercialStatsContainer');
-      container.innerHTML = '';
-
-      let totalDays = 0;
-      let totalTocadas = 0;
-      let totalSi = 0;
-      let totalNo = 0;
-      let totalPapelito = 0;
-      let totalM2 = 0;
-      const datesSet = new Set();
-
-      savedZones.forEach(z => {
-        if (z.comercial !== currentUserName) return;
-        const st = z.stats || {};
-        const zDate = z.dumpDate || z.date;
-        if (zDate) datesSet.add(zDate);
-
-        const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
-        totalTocadas += tocadas;
-        totalSi += (st.si||0);
-        totalNo += (st.no||0);
-        totalPapelito += (st.papelito||0);
-
-        if (z.clients) {
-          z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto') {
-              totalM2 += getM2NumericValue(c.m2);
-            }
-          });
-        }
-      });
-
-      totalDays = Math.max(1, datesSet.size);
-      const dineroTotalGenerado = totalM2 * 1.0; // 1€ por m2 generado bruto para él
-      const dineroMedioDia = (dineroTotalGenerado / totalDays).toFixed(2);
-      const proyeccionMes = (dineroTotalGenerado * (22 / totalDays)).toFixed(2); // Estimación 22 días laborables mes
-      const puertasPorDiaMedio = Math.round(totalTocadas / totalDays);
-      const successRate = totalTocadas > 0 ? Math.round((totalSi / totalTocadas) * 100) : 0;
-      const noRate = totalTocadas > 0 ? Math.round((totalNo / totalTocadas) * 100) : 0;
-      const infoRate = totalTocadas > 0 ? Math.round((totalPapelito / totalTocadas) * 100) : 0;
-
-      // Cálculo estimado de horas efectivas (asumiendo ~25 puertas por hora efectiva de calle)
-      const horasEfectivasDia = (puertasPorDiaMedio / 25).toFixed(1);
-
-      container.innerHTML = `
-        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:12px; border:1px solid #60a5fa;">
-          <div style="font-size:10px; font-weight:800; color:#bfdbfe; text-transform:uppercase;">💰 TU DINERO ACUMULADO (MES / HISTÓRICO)</div>
-          <div style="font-size:24px; font-weight:900; color:#fff; margin:4px 0;">${dineroTotalGenerado.toFixed(2)} €</div>
-          <div style="font-size:11px; color:#e0f2fe;">
-            • Media diaria: <strong>${dineroMedioDia} € / día</strong><br>
-            • Proyección estimada mensual: <strong>${proyeccionMes} €</strong><br>
-            • Volumen aportado: <strong>${totalM2} m²</strong> en ${totalDays} jornadas registradas.
-          </div>
-        </div>
-
-        <div class="modal-section-title">⏱️ Ritmo & Horas Efectivas de Trabajo</div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
-          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">PUERTAS / DÍA (MEDIA)</div>
-            <div style="font-size:18px; font-weight:900; color:#38bdf8; margin-top:2px;">${puertasPorDiaMedio} puestas</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">HORAS EFECTIVAS / DÍA</div>
-            <div style="font-size:18px; font-weight:900; color:#34d399; margin-top:2px;">~${horasEfectivasDia} h / día</div>
-          </div>
-        </div>
-
-        <div class="modal-section-title">📊 Porcentajes de Conversión (Todo Conjunto)</div>
-        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:12px; display:flex; flex-direction:column; gap:8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-            <span style="color:#34d399; font-weight:800;">✅ % SÍ (Interesados / Citas):</span>
-            <strong>${successRate}% (${totalSi} totales)</strong>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-            <span style="color:#fca5a5; font-weight:800;">❌ % NO (Rechazos):</span>
-            <strong>${noRate}% (${totalNo} totales)</strong>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-            <span style="color:#38bdf8; font-weight:800;">📄 % INFORMACIÓN / PAPELITO:</span>
-            <strong>${infoRate}% (${totalPapelito} totales)</strong>
-          </div>
-        </div>
-
-        <button class="btn-modal-save" style="margin-top:14px;" onclick="closeModal('commercialStatsModal')">Entendido, ¡A seguir reventando! 🔥</button>
-      `;
-
-      document.getElementById('commercialStatsModal').classList.add('active');
-    }
-
-    /* AGENDA DÍA CON CONTABILIDAD CONTINUA Y TEXTOS CORRECTOS */
     function renderComercialesAudit() {
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
