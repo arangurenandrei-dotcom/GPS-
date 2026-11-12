@@ -703,13 +703,14 @@
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
         </div>
-       <div class="hud-utility-group">
+        <div class="hud-utility-group">
           <button id="btnToggleCatastro" class="btn-hud layer-btn active" onclick="toggleCatastroLayer()" title="Mostrar/Ocultar líneas de parcelas">🏘️ Parcelas</button>
           <button class="btn-hud layer-btn" style="background:#0369a1; border-color:#38bdf8;" onclick="openIdenaOfficialViewer()" title="Consultar año y m² en IDENA">🏛️ Ficha NA</button>
           <button id="btnToggleSatellite" class="btn-hud layer-btn" onclick="toggleSatelliteLayer()" title="Vista aérea satélite">🛰️ Satélite</button>
           <button class="btn-hud gps" onclick="centerOnUser()">🎯</button>
           <button class="btn-hud logout" onclick="executeLogout()">🔒</button>
         </div>
+      </div>
 
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
@@ -727,14 +728,12 @@
         <div style="display:flex; gap:4px;">
           <button id="btnStartShift" class="btn-hud" style="background:#059669;" onclick="handleShiftAction('start')">▶️ Empezar</button>
           <button id="btnLunchShift" class="btn-hud" style="background:#d97706; display:none;" onclick="handleShiftAction('lunch')">⏸️ Comida</button>
-         <button id="btnEndShift" class="btn-hud" style="background:#dc2626; display:none;" onclick="handleShiftAction('end')">⏹️ Terminar</button>
+          <button id="btnEndShift" class="btn-hud" style="background:#dc2626; display:none;" onclick="handleShiftAction('end')">⏹️ Terminar</button>
           <button id="btnReopenShift" class="btn-hud" style="background:#475569; display:none;" onclick="reopenTodayShift()" title="Reabrir jornada cerrada por error">↩️ Reabrir</button>
         </div>
       </div>
 
       <!-- Fila 4: Buscador Municipio + Buscador Global Clientes -->
-
-     <!-- Fila 4: Buscador Municipio + Buscador Global Clientes -->
       <div class="search-row">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Ir a pueblo (ej. Peralta, Barásoain)..." onkeypress="if(event.key==='Enter') searchLocation()">
         <button class="btn-search" onclick="searchLocation()">Ir</button>
@@ -756,7 +755,7 @@
         📝 VOLCAR HOJA
       </button>
     </div>
-
+  </div>
   <!-- MODAL SELECTOR DE ZONA AL VOLCAR HOJA -->
   <div id="zoneSelectorDumpModal" class="modal-overlay">
     <div class="modal-card">
