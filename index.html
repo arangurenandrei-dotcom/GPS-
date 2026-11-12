@@ -705,6 +705,7 @@
         </div>
         <div class="hud-utility-group">
           <button id="btnToggleCatastro" class="btn-hud layer-btn active" onclick="toggleCatastroLayer()" title="Mostrar/Ocultar líneas de parcelas">🏘️ Parcelas</button>
+          <button id="btnMeasureRoof" class="btn-hud layer-btn" style="background:#b45309; border-color:#fbbf24;" onclick="startRoofMeasureMode()" title="Medir m² de tejado sobre el mapa">📐 m²</button>
           <button class="btn-hud layer-btn" style="background:#0369a1; border-color:#38bdf8;" onclick="openIdenaOfficialViewer()" title="Consultar año y m² en IDENA">🏛️ Ficha NA</button>
           <button id="btnToggleSatellite" class="btn-hud layer-btn" onclick="toggleSatelliteLayer()" title="Vista aérea satélite">🛰️ Satélite</button>
           <button class="btn-hud gps" onclick="centerOnUser()">🎯</button>
@@ -756,6 +757,27 @@
       </button>
     </div>
   </div>
+  <!-- MODAL VISOR IDENA NAVARRA INTEGRADO EN LA APP -->
+  <div id="idenaViewerModal" class="modal-overlay">
+    <div class="modal-card" style="max-width:600px; height:86vh; padding:10px;">
+      <div class="modal-header-sticky">
+        <div class="modal-header" style="margin-bottom:6px; padding-bottom:6px;">
+          <span>🏛️ Catastro / IDENA Navarra (En Vivo)</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <a id="idenaExternalFallbackLink" href="#" target="_blank" style="background:#0369a1; color:#fff; text-decoration:none; font-size:10px; font-weight:800; padding:5px 8px; border-radius:8px; border:1px solid #38bdf8;">↗️ Safari</a>
+            <button style="background:none; border:none; color:#fca5a5; font-size:20px; font-weight:900; cursor:pointer; padding:0 4px;" onclick="closeIdenaModal()">✕</button>
+          </div>
+        </div>
+        <div style="font-size:10px; color:#94a3b8; margin-bottom:6px;">
+          Toca un tejado y despliega abajo <strong>«Resultados»</strong> para ver año de construcción (≤2006) y m².
+        </div>
+      </div>
+      <div style="flex:1; width:100%; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); background:#1e293b;">
+        <iframe id="idenaEmbeddedFrame" src="about:blank" style="width:100%; height:100%; border:none;"></iframe>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL SELECTOR DE ZONA AL VOLCAR HOJA -->
   <div id="zoneSelectorDumpModal" class="modal-overlay">
     <div class="modal-card">
@@ -1031,6 +1053,8 @@
     let isDrawingMode = false;
     let isCropMode = false;
     let isSingleHouseMode = false;
+    let isRoofMeasureMode = false;
+    let measurePolygonLayer = null;
     let pendingSingleHouseCoords = null;
     let editingSingleHouseIndex = null;
     let selectedZoneIndexToDump = null;
@@ -1345,7 +1369,55 @@
       if (!map) return;
       const center = map.getCenter();
       const url = `https://idena.navarra.es/navegar/?lat=${center.lat.toFixed(6)}&lng=${center.lng.toFixed(6)}&zoom=18`;
-      window.open(url, '_blank');
+      const frame = document.getElementById('idenaEmbeddedFrame');
+      const fallbackLink = document.getElementById('idenaExternalFallbackLink');
+      if (fallbackLink) fallbackLink.href = url;
+      if (frame) frame.src = url;
+      document.getElementById('idenaViewerModal').classList.add('active');
+    }
+
+    function closeIdenaModal() {
+      const frame = document.getElementById('idenaEmbeddedFrame');
+      if (frame) frame.src = 'about:blank';
+      closeModal('idenaViewerModal');
+    }
+
+    function calculatePolygonAreaM2(latlngs) {
+      if (!latlngs || latlngs.length < 3) return 0;
+      const rad = Math.PI / 180;
+      const R = 6378137;
+      let area = 0;
+      for (let i = 0; i < latlngs.length; i++) {
+        const p1 = latlngs[i];
+        const p2 = latlngs[(i + 1) % latlngs.length];
+        const x1 = p1[1] * rad * R * Math.cos(p1[0] * rad);
+        const y1 = p1[0] * rad * R;
+        const x2 = p2[1] * rad * R * Math.cos(p2[0] * rad);
+        const y2 = p2[0] * rad * R;
+        area += (x1 * y2 - x2 * y1);
+      }
+      return Math.round(Math.abs(area) / 2);
+    }
+
+    function startRoofMeasureMode() {
+      cancelDrawing();
+      isDrawingMode = true;
+      isRoofMeasureMode = true;
+
+      // Activa automáticamente satélite si no estaba puesto para ver bien el tejado
+      if (!isSatelliteActive) toggleSatelliteLayer();
+
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'flex';
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) btnSingle.style.display = 'none';
+      if (btnConfirm) {
+        btnConfirm.style.display = 'inline-block';
+        btnConfirm.innerText = '✅ CERRAR MEDICIÓN';
+      }
+      document.getElementById('drawingBannerText').innerText = "📐 Toca las esquinas del tejado: 0 m²";
     }
 
     function toggleSatelliteLayer() {
@@ -2064,8 +2136,25 @@
       }
 
       tempPoints.push(pt);
-      const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: '#7c3aed', fillOpacity: 1 }).addTo(map);
+      const dotColor = isRoofMeasureMode ? '#f59e0b' : '#7c3aed';
+      const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: dotColor, fillOpacity: 1 }).addTo(map);
       tempMarkers.push(m);
+
+      if (isRoofMeasureMode) {
+        if (measurePolygonLayer) map.removeLayer(measurePolygonLayer);
+        if (tempPoints.length >= 3) {
+          measurePolygonLayer = L.polygon(tempPoints, {
+            color: '#fbbf24',
+            weight: 2.5,
+            fillColor: '#f59e0b',
+            fillOpacity: 0.35
+          }).addTo(map);
+          const m2 = calculatePolygonAreaM2(tempPoints);
+          document.getElementById('drawingBannerText').innerText = `📐 Superficie tejado: ${m2} m² (toca más esquinas o cierra)`;
+        } else {
+          document.getElementById('drawingBannerText').innerText = `📐 Punto ${tempPoints.length} marcado (mínimo 3 esquinas)...`;
+        }
+      }
     }
 
     async function detectTownFromCoordinates(lat, lon) {
@@ -2328,9 +2417,17 @@
 
     function finishSectorDrawing() {
       if (tempPoints.length < 3) {
-        alert("Toca al menos 3 puntos para delimitar la zona.");
+        alert("Toca al menos 3 puntos para delimitar.");
         return;
       }
+
+      if (isRoofMeasureMode) {
+        const totalM2 = calculatePolygonAreaM2(tempPoints);
+        alert(`📐 Superficie total medida del tejado: ${totalM2} m²`);
+        cancelDrawing();
+        return;
+      }
+
       document.getElementById('drawingBanner').classList.remove('active');
 
       if (isCropMode && selectedZoneIndexToDump !== null) {
@@ -2362,9 +2459,16 @@
       isDrawingMode = false;
       isCropMode = false;
       isSingleHouseMode = false;
+      isRoofMeasureMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
+      if (measurePolygonLayer) {
+        map.removeLayer(measurePolygonLayer);
+        measurePolygonLayer = null;
+      }
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnConfirm) btnConfirm.innerText = 'CONFIRMAR ZONA';
       document.getElementById('drawingBanner').classList.remove('active');
     }
 
