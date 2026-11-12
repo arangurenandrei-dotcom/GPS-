@@ -88,22 +88,6 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
     }
 
-    /* MARCADOR DE REPASO / AUSENTE EN EL MAPA */
-    .repaso-pin {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #f59e0b;
-      border: 2px solid #ffffff;
-      color: #0f172a;
-      font-size: 11px;
-      font-weight: 900;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
-    }
-
     /* PANTALLA LOGIN */
     #loginScreen {
       position: fixed; inset: 0; z-index: 10000;
@@ -230,20 +214,19 @@
     /* BOTONES INFERIORES */
     .bottom-action-panel {
       position: absolute; bottom: 18px; left: 10px; right: 10px; z-index: 1000;
-      display: flex; gap: 6px;
+      display: flex; gap: 8px;
     }
 
     .btn-main-action {
-      flex: 1; padding: 14px 8px; border: none; border-radius: 15px;
-      color: #fff; font-size: 12px; font-weight: 900; cursor: pointer;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; gap: 5px;
+      flex: 1; padding: 14px 10px; border: none; border-radius: 15px;
+      color: #fff; font-size: 12.5px; font-weight: 900; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; gap: 6px;
       text-align: center;
     }
     .btn-assign { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); border: 1px solid #a78bfa; }
-    .btn-repaso { background: linear-gradient(135deg, #d97706 0%, #92400e 100%); border: 1px solid #fbbf24; flex: 0.72; }
     .btn-dump { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border: 1px solid #60a5fa; }
 
-    /* BANNER DE TRAZADO DE SECTOR / REPASO */
+    /* BANNER DE TRAZADO DE SECTOR */
     .banner-drawing {
       display: none; position: absolute; top: 205px; left: 10px; right: 10px; z-index: 2000;
       background: #6d28d9; border-radius: 14px; padding: 10px 12px; color: white;
@@ -251,8 +234,6 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.65); border: 1px solid #a78bfa;
     }
     .banner-drawing.active { display: flex; }
-    .banner-drawing.repaso-mode { background: #b45309; border-color: #fde047; }
-    .banner-drawing.convert-mode { background: #047857; border-color: #34d399; }
 
     .banner-drawing-top {
       display: flex;
@@ -345,17 +326,7 @@
       background: rgba(217, 119, 6, 0.2); color: #fde047; font-size: 11px; font-weight: 800; cursor: pointer; margin-top: 6px;
     }
 
-    /* CHECKLIST CAE Y DOCUMENTACIÓN DE COMUNIDAD */
-    .cae-checklist-box {
-      background: rgba(16, 185, 129, 0.08);
-      border: 1px solid rgba(52, 211, 153, 0.35);
-      border-radius: 10px;
-      padding: 8px 10px;
-      margin: 6px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
+    /* DOCUMENTACIÓN DE COMUNIDAD */
     .cae-check-item {
       display: flex;
       align-items: center;
@@ -364,12 +335,6 @@
       color: #e2e8f0;
       font-weight: 700;
       cursor: pointer;
-    }
-    .cae-check-item input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: #10b981;
-      flex-shrink: 0;
     }
 
     .comunidad-docs-box {
@@ -397,8 +362,20 @@
       font-weight: 800;
       padding: 6px 8px;
       border-radius: 8px;
-      margin-top: 4px;
+      margin-bottom: 6px;
     }
+
+    /* PÍLDORAS DE ESTADO DE LLAMADA */
+    .call-status-pill {
+      font-size: 10px;
+      font-weight: 900;
+      padding: 3px 7px;
+      border-radius: 7px;
+      display: inline-block;
+    }
+    .call-status-pill.pendiente { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+    .call-status-pill.ya_llamado { background: rgba(245, 158, 11, 0.2); color: #fde047; border: 1px solid #f59e0b; }
+    .call-status-pill.esperando_confirmacion { background: rgba(168, 85, 247, 0.25); color: #e9d5ff; border: 1px solid #a855f7; }
 
     /* ESTILOS ALERTA OBRAS HOY & RECLAMO VECINOS */
     .today-obra-hero {
@@ -679,7 +656,7 @@
   <div id="appContainer">
     <div id="map"></div>
 
-    <!-- BANNER DE DIBUJO CON OPCIÓN SECUNDARIA DE VIVIENDA ÚNICA / MODO REPASO -->
+    <!-- BANNER DE DIBUJO CON OPCIÓN SECUNDARIA DE VIVIENDA ÚNICA -->
     <div id="drawingBanner" class="banner-drawing">
       <div class="banner-drawing-top">
         <span id="drawingBannerText">Toca las esquinas del sector comercial...</span>
@@ -745,10 +722,6 @@
         ➕ SECTOR / ZONA
       </button>
 
-      <button id="btnRepasoPinMode" class="btn-main-action btn-repaso" onclick="startRepasoPinMode()" title="Marcar casa ausente para volver luego">
-        📍 REPASO
-      </button>
-
       <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" onclick="openSelectZoneToDumpModal()">
         📝 VOLCAR HOJA
       </button>
@@ -768,13 +741,19 @@
     </div>
   </div>
 
-  <!-- MODAL AGENDA DE SEGUIMIENTOS / LLAMADAS PENDIENTES -->
+  <!-- MODAL SEGUIMIENTO DE LLAMADAS DE CLIENTES CAPTADOS -->
   <div id="followUpsModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📞 Seguimientos & Llamadas Pendientes</span>
+          <span>📞 Seguimiento de Llamadas (Fichas en SÍ)</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('followUpsModal')">✕</button>
+        </div>
+        <div class="subtab-bar" style="margin-bottom:4px;">
+          <button id="fuFilterAll" class="subtab-btn active" onclick="setFollowUpFilter('all')">📋 Todos</button>
+          <button id="fuFilterPendiente" class="subtab-btn" onclick="setFollowUpFilter('pendiente')">🔴 Por llamar</button>
+          <button id="fuFilterLlamado" class="subtab-btn" onclick="setFollowUpFilter('ya_llamado')">🟡 Ya llamado</button>
+          <button id="fuFilterEsperando" class="subtab-btn" onclick="setFollowUpFilter('esperando_confirmacion')">🟣 Esperando</button>
         </div>
       </div>
       <div class="modal-scrollable-content" id="followUpsModalBody"></div>
@@ -1017,8 +996,6 @@
     let savedShifts = safeLoadStorage('comercial_shifts');
     let completedTowns = safeLoadStorage('comercial_completed_towns');
     let hotLeadMissions = safeLoadStorage('comercial_hot_lead_missions');
-    let repasoPins = safeLoadStorage('comercial_repaso_pins');
-    let followUpLeads = safeLoadStorage('comercial_followup_leads');
 
     let loadedMapLayers = [];
     let tempPoints = [];
@@ -1026,14 +1003,13 @@
     let isDrawingMode = false;
     let isCropMode = false;
     let isSingleHouseMode = false;
-    let isRepasoPinMode = false;
-    let pendingConvertFollowUpLead = null;
     let pendingSingleHouseCoords = null;
     let editingSingleHouseIndex = null;
     let selectedZoneIndexToDump = null;
     let selectedZoneIndexForNote = null;
     let activeAuditTab = 'kpis';
     let activeRankingFilter = 'si';
+    let activeFollowUpFilter = 'all';
     let weekOffset = 0;
 
     function safeLoadStorage(key) {
@@ -1067,6 +1043,14 @@
     function countComunidadDocs(docsObj) {
       if (!docsObj) return 0;
       return COMUNIDAD_DOCS_SCHEMA.reduce((acc, d) => acc + (docsObj[d.key] ? 1 : 0), 0);
+    }
+
+    function formatAccessDisplay(client) {
+      const acc = client.accessType || 'Trampilla';
+      if (acc === 'Otro' && client.accessOther) {
+        return `Otro (${client.accessOther})`;
+      }
+      return acc;
     }
 
     function executeLogin() {
@@ -1247,192 +1231,156 @@
     }
 
     /* =====================================================================
-       MODO PUNTOS DE REPASO EN EL MAPA (AUSENTE / VOLVER TARDE)
-       ===================================================================== */
-    function startRepasoPinMode() {
-      cancelDrawing();
-      isDrawingMode = true;
-      isRepasoPinMode = true;
-
-      const banner = document.getElementById('drawingBanner');
-      banner.className = 'banner-drawing active repaso-mode';
-      document.getElementById('drawingBannerText').innerText = "📍 Toca la casa ausente para dejar marca amarilla de repaso...";
-      document.getElementById('drawingBannerActionsRow').style.display = 'none';
-    }
-
-    function addRepasoPinAt(lat, lon) {
-      const note = prompt("Nota rápida para el repaso (ej. 'Volver a las 18:30', 'Portal 4'):", "Ausente - Volver tarde");
-      if (note === null) {
-        cancelDrawing();
-        return;
-      }
-
-      repasoPins.push({
-        id: Date.now(),
-        lat,
-        lon,
-        note: note.trim() || 'Ausente - Repasar',
-        user: currentUserName,
-        date: getTodayISO()
-      });
-      localStorage.setItem('comercial_repaso_pins', JSON.stringify(repasoPins));
-      cancelDrawing();
-      renderAllSavedZones();
-    }
-
-    function removeRepasoPin(pinId) {
-      repasoPins = repasoPins.filter(p => p.id !== pinId);
-      localStorage.setItem('comercial_repaso_pins', JSON.stringify(repasoPins));
-      renderAllSavedZones();
-    }
-
-    /* =====================================================================
-       AGENDA DE SEGUIMIENTOS / LLAMADAS PENDIENTES + CONVERSIÓN DIRECTA A SÍ
+       APARTADO "📞 LLAMAR": SEGUIMIENTO DIRECTO DE CLIENTES VOLCADOS EN "SÍ"
        ===================================================================== */
     function openFollowUpsModal() {
+      activeFollowUpFilter = 'all';
+      updateFollowUpFilterButtons();
       renderFollowUpsModal();
       document.getElementById('followUpsModal').classList.add('active');
     }
 
+    function setFollowUpFilter(filterKey) {
+      activeFollowUpFilter = filterKey;
+      updateFollowUpFilterButtons();
+      renderFollowUpsModal();
+    }
+
+    function updateFollowUpFilterButtons() {
+      document.getElementById('fuFilterAll').className = `subtab-btn ${activeFollowUpFilter==='all'?'active':''}`;
+      document.getElementById('fuFilterPendiente').className = `subtab-btn ${activeFollowUpFilter==='pendiente'?'active':''}`;
+      document.getElementById('fuFilterLlamado').className = `subtab-btn ${activeFollowUpFilter==='ya_llamado'?'active':''}`;
+      document.getElementById('fuFilterEsperando').className = `subtab-btn ${activeFollowUpFilter==='esperando_confirmacion'?'active':''}`;
+    }
+
+    function updateClientCallStatus(zoneIdx, clientIdx, newCallStatus) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      z.clients[clientIdx].callStatus = newCallStatus;
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      renderFollowUpsModal();
+    }
+
+    function toggleInlineScheduleBox(boxId) {
+      const el = document.getElementById(boxId);
+      if (el) {
+        el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+      }
+    }
+
+    function confirmScheduleFromFollowUp(zoneIdx, clientIdx, dateInputId, timeInputId) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      const dateVal = document.getElementById(dateInputId)?.value || getTodayISO();
+      const timeVal = document.getElementById(timeInputId)?.value || '09:30';
+
+      z.clients[clientIdx].obraStatus = 'agendada';
+      z.clients[clientIdx].obraDate = dateVal;
+      z.clients[clientIdx].obraTime = timeVal;
+      localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
+      renderFollowUpsModal();
+    }
+
     function renderFollowUpsModal() {
       const container = document.getElementById('followUpsModalBody');
-      const visibleLeads = currentUserRole === 'jefe'
-        ? followUpLeads
-        : followUpLeads.filter(f => f.comercial === currentUserName);
+      const pendingCalls = [];
 
-      let html = `
-        <div style="background:rgba(8, 145, 178, 0.14); border:1px solid #22d3ee; border-radius:12px; padding:10px; margin-bottom:12px;">
-          <div style="font-size:11px; font-weight:900; color:#22d3ee; margin-bottom:6px;">➕ AÑADIR CONTACTO A RELLAMAR</div>
-          <div class="grid-row-2">
-            <input type="text" id="fuName" class="input-field" placeholder="Nombre vecino">
-            <input type="tel" id="fuPhone" class="input-field" placeholder="Teléfono">
-          </div>
-          <div class="grid-row-2">
-            <input type="text" id="fuStreet" class="input-field" placeholder="Calle / Portal">
-            <input type="text" id="fuTown" class="input-field" placeholder="Pueblo (ej. Peralta)">
-          </div>
-          <div style="margin-bottom:6px;">
-            <input type="text" id="fuNote" class="input-field" placeholder="Ej. Llamar hoy a las 18:30 tras hablar con su marido">
-          </div>
-          <button class="btn-modal-save" style="margin-top:2px; background:#0891b2;" onclick="addFollowUpLead()">💾 Guardar en Lista de Llamadas</button>
-        </div>
+      savedZones.forEach((z, zIdx) => {
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
+        if (!z.clients) return;
 
-        <div class="modal-section-title">📋 Pendientes de Llamada (${visibleLeads.length})</div>
-      `;
-
-      if (visibleLeads.length === 0) {
-        html += `<div style="text-align:center; padding:16px; color:#94a3b8; font-size:12px;">No tienes llamadas pendientes de seguimiento ahora mismo.</div>`;
-      } else {
-        visibleLeads.forEach(item => {
-          const cleanPhone = (item.phone || '').replace(/\s+/g, '');
-          html += `
-            <div class="audit-card" style="cursor:default; border-left:4px solid #22d3ee;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong style="font-size:13px; color:#fff;">👤 ${item.name || 'Vecino'}</strong>
-                <span style="font-size:10px; color:#94a3b8;">${item.comercial} • ${formatDate(item.date)}</span>
-              </div>
-              <div style="font-size:11px; color:#cbd5e1;">📍 ${item.street || 'Sin calle'} (${item.town || 'Navarra'})</div>
-              <div style="font-size:11px; color:#fde047; background:rgba(0,0,0,0.25); padding:5px 8px; border-radius:6px;">
-                💬 "${item.note}"
-              </div>
-              <div style="display:flex; gap:5px; margin-top:4px; flex-wrap:wrap;">
-                ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar</a>` : ''}
-                ${cleanPhone ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
-                <button onclick="convertFollowUpToSi(${item.id})" style="flex:1.4; background:#059669; border:1px solid #34d399; color:#fff; padding:7px 6px; border-radius:8px; font-size:10.5px; font-weight:900; cursor:pointer;">✅ Pasar a SÍ</button>
-                <button onclick="deleteFollowUpLead(${item.id})" style="padding:7px 9px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; color:#fca5a5; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;" title="Descartar / No interesado">✕</button>
-              </div>
-            </div>
-          `;
+        z.clients.forEach((c, cIdx) => {
+          // Mostrar automáticamente todos los clientes captados en "SÍ" que aún no tienen obra agendada ni realizada ni caída técnica
+          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+            const cStatus = c.callStatus || 'pendiente';
+            if (activeFollowUpFilter === 'all' || activeFollowUpFilter === cStatus) {
+              pendingCalls.push({
+                zone: z,
+                zoneIdx: zIdx,
+                client: c,
+                clientIdx: cIdx,
+                callStatus: cStatus
+              });
+            }
+          }
         });
-      }
-
-      container.innerHTML = html;
-    }
-
-    function addFollowUpLead() {
-      const name = document.getElementById('fuName').value.trim();
-      const phone = document.getElementById('fuPhone').value.trim();
-      const street = document.getElementById('fuStreet').value.trim();
-      const town = document.getElementById('fuTown').value.trim() || 'Peralta';
-      const note = document.getElementById('fuNote').value.trim();
-
-      if (!name && !phone && !street) {
-        alert("Introduce al menos un nombre, teléfono o calle.");
-        return;
-      }
-
-      followUpLeads.unshift({
-        id: Date.now(),
-        name: name || 'Vecino interesado',
-        phone,
-        street,
-        town,
-        note: note || 'Llamar para confirmar',
-        comercial: currentUserName,
-        date: getTodayISO()
       });
 
-      localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
-      renderFollowUpsModal();
-    }
+      let html = `
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:10px; line-height:1.35;">
+          Aquí aparecen automáticamente todos los clientes que ya metiste como <strong>"SÍ" al volcar hoja</strong> y aún están pendientes de cerrar fecha de obra (${pendingCalls.length}).
+        </div>
+      `;
 
-    function convertFollowUpToSi(leadId) {
-      const lead = followUpLeads.find(f => f.id === leadId);
-      if (!lead) return;
-
-      closeModal('followUpsModal');
-      cancelDrawing();
-
-      // Si existe una zona reciente en ese mismo pueblo asignada al usuario, damos opción o abrimos ficha directa con los datos pre-rellenos
-      const matchingZoneIdx = savedZones.findIndex(z =>
-        !z.isSingleHouse &&
-        (currentUserRole === 'jefe' || z.comercial === currentUserName) &&
-        (z.town || '').toLowerCase() === (lead.town || '').toLowerCase() &&
-        z.status !== 'completada'
-      );
-
-      if (matchingZoneIdx !== -1 && confirm(`¿Quieres añadir a "${lead.name}" directamente dentro de tu sector activo "${savedZones[matchingZoneIdx].sectorName}" sin volver a rellenar sus datos?`)) {
-        const z = savedZones[matchingZoneIdx];
-        if (!z.clients) z.clients = [];
-        z.clients.push({
-          type: 'vivienda',
-          name: lead.name,
-          street: lead.street,
-          phone: lead.phone,
-          m2: '60-80',
-          obraStatus: 'a_poner',
-          obraDate: '',
-          obraTime: '09:30',
-          obraReason: 'ninguno',
-          caeChecks: { esPropietario: true, anterior2006: true, accesoCubierta: true }
-        });
-        z.stats = z.stats || { no: 0, ausente: 0, papelito: 0, si: 0 };
-        z.stats.si = (z.stats.si || 0) + 1;
-
-        followUpLeads = followUpLeads.filter(f => f.id !== leadId);
-        localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
-        localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
-
-        renderAllSavedZones();
-        openDumpModal(matchingZoneIdx);
+      if (pendingCalls.length === 0) {
+        html += `<div style="text-align:center; padding:22px 12px; color:#94a3b8; font-size:12px;">
+          ✅ No hay clientes pendientes de llamada en este filtro.
+        </div>`;
+        container.innerHTML = html;
         return;
       }
 
-      // Si no hay sector activo o prefiere ubicar la casa en el mapa, activamos toque rápido en mapa con los datos ya cargados
-      pendingConvertFollowUpLead = lead;
-      isDrawingMode = true;
-      isSingleHouseMode = true;
+      pendingCalls.forEach(item => {
+        const c = item.client;
+        const z = item.zone;
+        const cleanPhone = (c.phone || '').replace(/\s+/g, '');
+        const schedBoxId = `sched_inline_${item.zoneIdx}_${item.clientIdx}`;
+        const dateInpId = `sched_date_${item.zoneIdx}_${item.clientIdx}`;
+        const timeInpId = `sched_time_${item.zoneIdx}_${item.clientIdx}`;
 
-      const banner = document.getElementById('drawingBanner');
-      banner.className = 'banner-drawing active convert-mode';
-      document.getElementById('drawingBannerText').innerText = `✅ Toca la casa de ${lead.name} (${lead.street || lead.town}) en el mapa...`;
-      document.getElementById('drawingBannerActionsRow').style.display = 'none';
-    }
+        let badgeHtml = `<span class="call-status-pill pendiente">🔴 Por llamar</span>`;
+        if (item.callStatus === 'ya_llamado') badgeHtml = `<span class="call-status-pill ya_llamado">🟡 Ya llamado</span>`;
+        if (item.callStatus === 'esperando_confirmacion') badgeHtml = `<span class="call-status-pill esperando_confirmacion">🟣 Esperando confirmación</span>`;
 
-    function deleteFollowUpLead(id) {
-      followUpLeads = followUpLeads.filter(f => f.id !== id);
-      localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
-      renderFollowUpsModal();
+        html += `
+          <div class="audit-card" style="cursor:default; border-left:4px solid #22d3ee;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:13px; color:#fff;">${c.type === 'comunidad' ? '🏢' : '🏠'} ${c.name || 'Cliente SÍ'}</strong>
+              ${badgeHtml}
+            </div>
+
+            <div style="font-size:11px; color:#cbd5e1;">
+              📍 ${c.street || 'Sin dirección'} • <strong>${z.town || 'Navarra'}</strong> (${getM2NumericValue(c.m2)} m²)
+            </div>
+            <div style="font-size:10px; color:#94a3b8;">
+              🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong> | 👤 ${z.comercial}
+            </div>
+
+            <!-- Botones de contacto directo -->
+            <div style="display:flex; gap:5px; margin-top:4px;">
+              ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<span style="flex:1; text-align:center; background:rgba(255,255,255,0.06); color:#64748b; padding:7px 4px; border-radius:8px; font-size:10px;">Sin teléfono</span>`}
+              ${cleanPhone ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:0.8; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
+            </div>
+
+            <!-- Selector rápido de estado de llamada -->
+            <div style="display:flex; gap:4px; margin-top:2px;">
+              <button onclick="updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'ya_llamado')" style="flex:1; padding:6px 4px; border-radius:7px; border:1px solid #f59e0b; background:${item.callStatus==='ya_llamado'?'#d97706':'rgba(245,158,11,0.15)'}; color:#fff; font-size:10px; font-weight:800; cursor:pointer;">
+                🟡 Ya llamado
+              </button>
+              <button onclick="updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'esperando_confirmacion')" style="flex:1.2; padding:6px 4px; border-radius:7px; border:1px solid #a855f7; background:${item.callStatus==='esperando_confirmacion'?'#7c3aed':'rgba(168,85,247,0.15)'}; color:#fff; font-size:10px; font-weight:800; cursor:pointer;">
+                🟣 Esperando conf.
+              </button>
+              <button onclick="toggleInlineScheduleBox('${schedBoxId}')" style="flex:1.1; padding:6px 4px; border-radius:7px; border:1px solid #34d399; background:#059669; color:#fff; font-size:10px; font-weight:900; cursor:pointer;">
+                📅 Citar Obra
+              </button>
+            </div>
+
+            <!-- Desplegable rápido para agendar día y hora sin abrir toda la zona -->
+            <div id="${schedBoxId}" style="display:none; flex-direction:column; gap:6px; background:rgba(5,150,105,0.16); border:1px solid #34d399; border-radius:9px; padding:8px; margin-top:4px;">
+              <div style="font-size:10px; font-weight:800; color:#a7f3d0;">Selecciona día y hora exacta de la obra:</div>
+              <div class="grid-row-2" style="margin-bottom:0;">
+                <input type="date" id="${dateInpId}" class="input-field" value="${getTodayISO()}" style="padding:6px 8px;">
+                <input type="time" id="${timeInpId}" class="input-field" value="09:30" style="padding:6px 8px;">
+              </div>
+              <button onclick="confirmScheduleFromFollowUp(${item.zoneIdx}, ${item.clientIdx}, '${dateInpId}', '${timeInpId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">
+                ✅ Confirmar Cita de Obra
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
     }
 
     /* =====================================================================
@@ -1481,6 +1429,7 @@
               <span style="font-size:10px; font-weight:800; color:#34d399;">${getM2NumericValue(c.m2)} m²</span>
             </div>
             <div style="font-size:11px; color:#cbd5e1;">📍 ${c.street || 'Sin calle'} • <strong>${z.town}</strong></div>
+            <div style="font-size:10px; color:#94a3b8;">🏗️ Año: ${c.buildYear || '≤ 2006'} | 🚪 Acceso: ${formatAccessDisplay(c)}</div>
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#94a3b8; margin-top:2px;">
               <span>📞 ${c.phone || 'Sin tel'} | 👤 ${z.comercial}</span>
               ${isCom ? `<span style="color:#a78bfa; font-weight:800;">📋 Docs CAE: ${docsCount}/5</span>` : ''}
@@ -1850,7 +1799,6 @@
       isDrawingMode = true;
       isCropMode = false;
       isSingleHouseMode = false;
-      isRepasoPinMode = false;
 
       const banner = document.getElementById('drawingBanner');
       banner.className = 'banner-drawing active';
@@ -1895,7 +1843,6 @@
       isDrawingMode = true;
       isCropMode = true;
       isSingleHouseMode = false;
-      isRepasoPinMode = false;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
@@ -1916,18 +1863,11 @@
       if (!isDrawingMode) return;
       const pt = [e.latlng.lat, e.latlng.lng];
 
-      if (isRepasoPinMode) {
-        addRepasoPinAt(pt[0], pt[1]);
-        return;
-      }
-
       if (isSingleHouseMode) {
-        const prefill = pendingConvertFollowUpLead ? { ...pendingConvertFollowUpLead } : null;
-        pendingConvertFollowUpLead = null;
         isDrawingMode = false;
         isSingleHouseMode = false;
         document.getElementById('drawingBanner').classList.remove('active');
-        openSingleHouseModal(pt[0], pt[1], null, prefill);
+        openSingleHouseModal(pt[0], pt[1], null);
         return;
       }
 
@@ -1953,31 +1893,24 @@
     }
 
     /* =====================================================================
-       FLUJO DIRECTO: VIVIENDA / EDIFICIO ÚNICO (ACEPTA PRE-RELLENO DE RELLAMAR)
+       FLUJO DIRECTO: VIVIENDA / EDIFICIO ÚNICO
        ===================================================================== */
-    async function openSingleHouseModal(lat, lon, existingZoneIdx = null, prefillLead = null) {
+    async function openSingleHouseModal(lat, lon, existingZoneIdx = null) {
       editingSingleHouseIndex = existingZoneIdx;
       pendingSingleHouseCoords = [lat, lon];
 
       const existingZone = existingZoneIdx !== null ? savedZones[existingZoneIdx] : null;
-      const existingClient = (existingZone && existingZone.clients && existingZone.clients[0])
-        ? existingZone.clients[0]
-        : (prefillLead ? { name: prefillLead.name, phone: prefillLead.phone, street: prefillLead.street } : {});
+      const existingClient = (existingZone && existingZone.clients && existingZone.clients[0]) ? existingZone.clients[0] : {};
 
       const isComunidad = existingClient.type === 'comunidad';
       const assignedOwner = existingZone ? existingZone.comercial : currentUserName;
       const dateVal = existingZone ? (existingZone.dumpDate || existingZone.date || getTodayISO()) : getTodayISO();
-      const townVal = existingZone ? (existingZone.town || '') : (prefillLead ? (prefillLead.town || '') : '');
+      const townVal = existingZone ? (existingZone.town || '') : '';
       const canDelete = existingZoneIdx !== null && (currentUserRole === 'jefe' || assignedOwner === currentUserName);
-
-      if (prefillLead && prefillLead.id) {
-        followUpLeads = followUpLeads.filter(f => f.id !== prefillLead.id);
-        localStorage.setItem('comercial_followup_leads', JSON.stringify(followUpLeads));
-      }
 
       document.getElementById('singleHouseModalTitle').innerText = existingZone
         ? `✏️ Editar Vivienda / Edificio Único`
-        : (prefillLead ? `✅ Conversión a SÍ: ${prefillLead.name}` : `🏠 Nueva Captación • Vivienda / Edificio`);
+        : `🏠 Nueva Captación • Vivienda / Edificio`;
 
       const body = document.getElementById('singleHouseModalBody');
       body.innerHTML = `
@@ -2058,18 +1991,16 @@
       }
     }
 
-    function extractClientFromBox(box) {
+    function extractClientFromBox(box, existingCallStatus = 'pendiente') {
       const typeVal = box.querySelector('.client-type') ? box.querySelector('.client-type').value : 'vivienda';
       const statusVal = box.querySelector('.client-obra-status').value;
       const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
       const obraDateVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-date')?.value || getTodayISO()) : '';
       const obraTimeVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-time')?.value || '09:30') : '';
 
-      const caeChecks = {
-        esPropietario: box.querySelector('.cae-chk-prop')?.checked ?? true,
-        anterior2006: box.querySelector('.cae-chk-2006')?.checked ?? true,
-        accesoCubierta: box.querySelector('.cae-chk-acceso')?.checked ?? true
-      };
+      const buildYearVal = box.querySelector('.client-build-year')?.value.trim() || '';
+      const accessTypeVal = box.querySelector('.client-access-type')?.value || 'Trampilla';
+      const accessOtherVal = accessTypeVal === 'Otro' ? (box.querySelector('.client-access-other')?.value.trim() || '') : '';
 
       if (typeVal === 'comunidad') {
         const atticCards = box.querySelectorAll('.attic-item-card');
@@ -2098,7 +2029,9 @@
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
           phone: box.querySelector('.client-phone').value.trim(),
-          buildYear: box.querySelector('.client-build-year').value.trim(),
+          buildYear: buildYearVal,
+          accessType: accessTypeVal,
+          accessOther: accessOtherVal,
           numAttics: atticsDetails.length,
           atticsDetails: atticsDetails,
           m2: computedTotalM2,
@@ -2106,7 +2039,7 @@
           obraDate: obraDateVal,
           obraTime: obraTimeVal,
           obraReason: reasonVal,
-          caeChecks,
+          callStatus: existingCallStatus,
           comunidadDocs
         };
       } else {
@@ -2115,12 +2048,15 @@
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
           phone: box.querySelector('.client-phone').value.trim(),
+          buildYear: buildYearVal,
+          accessType: accessTypeVal,
+          accessOther: accessOtherVal,
           m2: box.querySelector('.client-m2').value,
           obraStatus: statusVal,
           obraDate: obraDateVal,
           obraTime: obraTimeVal,
           obraReason: reasonVal,
-          caeChecks
+          callStatus: existingCallStatus
         };
       }
     }
@@ -2135,7 +2071,8 @@
       if (!townVal || townVal === 'Detectando...') townVal = 'Peralta';
       const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
 
-      const clientObj = extractClientFromBox(box);
+      const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
+      const clientObj = extractClientFromBox(box, prevCallStatus);
       const labelStreet = clientObj.street || (clientObj.type === 'comunidad' ? 'Edificio Único' : 'Vivienda Única');
       const sectorTitle = `${clientObj.type === 'comunidad' ? '🏢' : '🏠'} ${labelStreet}`;
 
@@ -2225,8 +2162,6 @@
       isDrawingMode = false;
       isCropMode = false;
       isSingleHouseMode = false;
-      isRepasoPinMode = false;
-      pendingConvertFollowUpLead = null;
       tempPoints = [];
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
@@ -2272,30 +2207,6 @@
       loadedMapLayers.forEach(l => map.removeLayer(l));
       loadedMapLayers = [];
 
-      // 1. Pintar Puntos de Repaso (Ausentes)
-      repasoPins.forEach(pin => {
-        if (currentUserRole === 'comercial' && pin.user !== currentUserName) return;
-
-        const rIcon = L.divIcon({
-          className: '',
-          html: `<div class="repaso-pin" title="${pin.note}">⏳</div>`,
-          iconSize: [22, 22],
-          iconAnchor: [11, 11]
-        });
-
-        const rMarker = L.marker([pin.lat, pin.lon], { icon: rIcon }).addTo(map);
-        rMarker.bindPopup(`
-          <div class="popup-zone-info">
-            <div class="popup-zone-title" style="color:#fde047;">⏳ Repaso / Ausente</div>
-            <div class="popup-zone-sub">💬 ${pin.note}</div>
-            <div class="popup-zone-sub">👤 ${pin.user} • ${formatDate(pin.date)}</div>
-            <button class="btn-popup-open" style="background:#059669;" onclick="removeRepasoPin(${pin.id})">✅ Ya Repasado (Quitar)</button>
-          </div>
-        `);
-        loadedMapLayers.push(rMarker);
-      });
-
-      // 2. Pintar Sectores y Viviendas Únicas
       savedZones.forEach((z, idx) => {
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
           return;
@@ -2480,11 +2391,12 @@
             if (c.obraStatus === 'realizada') stBadge = '<span style="color:#34d399; font-weight:800;">✅ Obra Realizada</span>';
             if (c.obraStatus === 'no_apto') stBadge = `<span class="no-apto-pill">🚫 No Apta</span>`;
 
+            const yearNum = parseInt(c.buildYear) || 1990;
+            const yearAlert = yearNum > 2006 ? `<div class="year-warning-alert">⚠️ Año ${yearNum} (Debe ser 2006 o inferior para CAE)</div>` : '';
+
             if (isComunidad) {
               const presiStatus = c.isPresi ? '<span class="hierarchy-pill p1">👑 Presidente Oficial</span>' : '<span class="hierarchy-pill p3">👥 Vecino Intermediario</span>';
               const docsCount = countComunidadDocs(c.comunidadDocs);
-              const yearNum = parseInt(c.buildYear) || 1990;
-              const yearAlert = yearNum >= 2006 ? `<div class="year-warning-alert">⚠️ Año ${yearNum} (Debe ser inferior a 2006 para CAE)</div>` : '';
 
               let atticsBreakdownHtml = '';
               if (c.atticsDetails && c.atticsDetails.length > 0) {
@@ -2519,9 +2431,10 @@
                     👤 Presidente/Enlace: <strong>${c.name || 'N/D'}</strong> (Tel: ${c.phone || 'N/D'})
                   </div>
                   <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:4px;">
-                    <span>🏗️ Año: <strong>${c.buildYear || 'Anterior 2006'}</strong> | ${stBadge}</span>
+                    <span>🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong></span>
                     <span style="color:#34d399; font-weight:900;">Total: ${getM2NumericValue(c.m2)} m²</span>
                   </div>
+                  <div style="font-size:10px; margin-top:2px;">${stBadge}</div>
                   ${yearAlert}
                   ${atticsBreakdownHtml ? `<div style="margin-top:4px;"><span style="font-size:9px; color:#94a3b8; font-weight:800;">DESGLOSE PISOS ÚLTIMA PLANTA:</span>${atticsBreakdownHtml}</div>` : ''}
 
@@ -2536,15 +2449,17 @@
               `;
             } else {
               clientsHtml += `
-                <div class="client-detail-row" style="margin-top:6px; padding:8px;">
-                  <div>
-                    <strong>🏠 #${cIdx+1} ${c.name || 'Cliente'}</strong> (${c.street || 'N/D'})
-                    <div style="font-size:10px; color:#94a3b8; margin-top:2px;">📞 ${c.phone || 'Sin tel'}</div>
-                  </div>
-                  <div style="text-align:right;">
+                <div class="client-detail-row" style="margin-top:6px; padding:8px; flex-direction:column; align-items:stretch; gap:4px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong>🏠 #${cIdx+1} ${c.name || 'Cliente'}</strong>
                     ${stBadge}
-                    <div style="font-size:10px; color:#a78bfa; margin-top:2px;">📐 ${c.m2 || '60-80'} m²</div>
                   </div>
+                  <div style="font-size:10.5px; color:#cbd5e1;">📍 ${c.street || 'N/D'} • 📞 ${c.phone || 'Sin tel'}</div>
+                  <div style="font-size:10px; color:#94a3b8; display:flex; justify-content:space-between;">
+                    <span>🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong></span>
+                    <span style="color:#a78bfa; font-weight:800;">📐 ${c.m2 || '60-80'} m²</span>
+                  </div>
+                  ${yearAlert}
                 </div>
               `;
             }
@@ -2849,9 +2764,19 @@
       const prevStreet = parentBox.querySelector('.client-street')?.value || '';
       const prevName = parentBox.querySelector('.client-name')?.value || '';
       const prevPhone = parentBox.querySelector('.client-phone')?.value || '';
+      const prevYear = parentBox.querySelector('.client-build-year')?.value || '';
+      const prevAccess = parentBox.querySelector('.client-access-type')?.value || 'Trampilla';
+      const prevAccessOther = parentBox.querySelector('.client-access-other')?.value || '';
 
       parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
-      const preserved = { street: prevStreet, name: prevName, phone: prevPhone };
+      const preserved = {
+        street: prevStreet,
+        name: prevName,
+        phone: prevPhone,
+        buildYear: prevYear,
+        accessType: prevAccess,
+        accessOther: prevAccessOther
+      };
       dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML(preserved, idx) : getViviendaFormHTML(preserved);
 
       if (isComunidad) {
@@ -2859,23 +2784,36 @@
       }
     }
 
-    function getCaeMiniCheckHTML(existing) {
-      const chk = existing.caeChecks || { esPropietario: true, anterior2006: true, accesoCubierta: true };
+    function toggleAccessOtherInput(selectEl) {
+      const area = selectEl.closest('.client-fields-dynamic-area');
+      const otherBox = area ? area.querySelector('.access-other-box') : null;
+      if (otherBox) {
+        otherBox.style.display = selectEl.value === 'Otro' ? 'block' : 'none';
+      }
+    }
+
+    function validateBuildYearWarning(inputEl) {
+      const yr = parseInt(inputEl.value);
+      const warnEl = inputEl.closest('.client-fields-dynamic-area').querySelector('.build-year-warning-slot');
+      if (!warnEl) return;
+      if (yr && yr > 2006) {
+        warnEl.innerHTML = `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>`;
+      } else {
+        warnEl.innerHTML = '';
+      }
+    }
+
+    function getAccessFieldHTML(existing) {
+      const acc = existing.accessType || 'Trampilla';
+      const accOther = existing.accessOther || '';
       return `
-        <div class="cae-checklist-box">
-          <div style="font-size:9.5px; font-weight:900; color:#34d399; text-transform:uppercase;">✅ Mini-Check Requisitos CAE (Obligatorio):</div>
-          <label class="cae-check-item">
-            <input type="checkbox" class="cae-chk-prop" ${chk.esPropietario !== false ? 'checked' : ''}>
-            <span>Es propietario (no inquilino)</span>
-          </label>
-          <label class="cae-check-item">
-            <input type="checkbox" class="cae-chk-2006" ${chk.anterior2006 !== false ? 'checked' : ''}>
-            <span>Edificio inferior a 2006</span>
-          </label>
-          <label class="cae-check-item">
-            <input type="checkbox" class="cae-chk-acceso" ${chk.accesoCubierta !== false ? 'checked' : ''}>
-            <span>Tiene acceso registrable a buhardilla / bajo cubierta</span>
-          </label>
+        <div>
+          <label style="font-size:9px; color:#94a3b8; font-weight:800;">TIPO DE ACCESO</label>
+          <select class="select-field client-access-type" onchange="toggleAccessOtherInput(this)">
+            <option value="Trampilla" ${acc==='Trampilla'?'selected':''}>Trampilla</option>
+            <option value="Tejado" ${acc==='Tejado'?'selected':''}>Tejado</option>
+            <option value="Otro" ${acc==='Otro'?'selected':''}>Otro</option>
+          </select>
         </div>
       `;
     }
@@ -2883,6 +2821,10 @@
     function getViviendaFormHTML(existing) {
       const defaultObraDate = existing.obraDate || getTodayISO();
       const defaultObraTime = existing.obraTime || '09:30';
+      const buildYearVal = existing.buildYear || '';
+      const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
+      const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
+
       return `
         <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
@@ -2893,7 +2835,21 @@
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
 
-        ${getCaeMiniCheckHTML(existing)}
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">AÑO CONSTRUCCIÓN (≤ 2006)</label>
+            <input type="number" class="input-field client-build-year" placeholder="Ej. 1995 (2006 máx.)" value="${buildYearVal}" oninput="validateBuildYearWarning(this)">
+          </div>
+          ${getAccessFieldHTML(existing)}
+        </div>
+
+        <div class="access-other-box" style="display:${isOtroAccess ? 'block' : 'none'}; margin-bottom:6px;">
+          <input type="text" class="input-field client-access-other" placeholder="Escribe qué tipo de acceso es..." value="${existing.accessOther || ''}">
+        </div>
+
+        <div class="build-year-warning-slot">
+          ${isInvalidYear ? `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>` : ''}
+        </div>
 
         <div class="grid-row-2">
           <select class="select-field client-m2">
@@ -2923,7 +2879,7 @@
         <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
           <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
           <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
-            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción ≥ 2006 (No Apto CAE)</option>
+            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción &gt; 2006 (No Apto CAE)</option>
             <option value="m2_insuficiente" ${existing.obraReason==='m2_insuficiente'?'selected':''}>📐 Superficie m² insuficiente</option>
             <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Aislamiento previo existente</option>
             <option value="suelo_forjado" ${existing.obraReason==='suelo_forjado'?'selected':''}>🏗️ Problema en suelo / forjado</option>
@@ -2933,22 +2889,12 @@
       `;
     }
 
-    function validateBuildYearWarning(inputEl) {
-      const yr = parseInt(inputEl.value);
-      const warnEl = inputEl.closest('.client-fields-dynamic-area').querySelector('.build-year-warning-slot');
-      if (!warnEl) return;
-      if (yr && yr >= 2006) {
-        warnEl.innerHTML = `<div class="year-warning-alert">⚠️ Atención: El año debe ser inferior a 2006 para entrar en CAE.</div>`;
-      } else {
-        warnEl.innerHTML = '';
-      }
-    }
-
     function getComunidadFormHTML(existing, cardIdx) {
       const defaultObraDate = existing.obraDate || getTodayISO();
       const defaultObraTime = existing.obraTime || '09:30';
-      const buildYearVal = existing.buildYear || '1990';
-      const isInvalidYear = parseInt(buildYearVal) >= 2006;
+      const buildYearVal = existing.buildYear || '';
+      const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
+      const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
       const docs = existing.comunidadDocs || {};
 
       let docsCheckboxesHtml = '';
@@ -2987,8 +2933,8 @@
 
         <div class="grid-row-2">
           <div style="flex:1;">
-            <label style="font-size:9px; color:#94a3b8; font-weight:800;">AÑO EDIFICIO (&lt; 2006)</label>
-            <input type="number" class="input-field client-build-year" placeholder="Ej. 1985" value="${buildYearVal}" oninput="validateBuildYearWarning(this)">
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">AÑO EDIFICIO (≤ 2006)</label>
+            <input type="number" class="input-field client-build-year" placeholder="Ej. 1995 (2006 máx.)" value="${buildYearVal}" oninput="validateBuildYearWarning(this)">
           </div>
           <div style="flex:1;">
             <label style="font-size:9px; color:#a78bfa; font-weight:800;">Nº BUHARDILLAS (ÁTICOS)</label>
@@ -2996,11 +2942,17 @@
           </div>
         </div>
 
-        <div class="build-year-warning-slot">
-          ${isInvalidYear ? `<div class="year-warning-alert">⚠️ Atención: El año debe ser inferior a 2006 para entrar en CAE.</div>` : ''}
+        <div style="margin-bottom:6px;">
+          ${getAccessFieldHTML(existing)}
         </div>
 
-        ${getCaeMiniCheckHTML(existing)}
+        <div class="access-other-box" style="display:${isOtroAccess ? 'block' : 'none'}; margin-bottom:6px;">
+          <input type="text" class="input-field client-access-other" placeholder="Escribe qué tipo de acceso es..." value="${existing.accessOther || ''}">
+        </div>
+
+        <div class="build-year-warning-slot">
+          ${isInvalidYear ? `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>` : ''}
+        </div>
 
         <div class="comunidad-docs-box">
           <div style="font-size:10px; font-weight:900; color:#c4b5fd; text-transform:uppercase;">
@@ -3041,7 +2993,7 @@
         <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
           <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica / Rechazo Junta:</label>
           <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
-            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción ≥ 2006 (No Apto CAE)</option>
+            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción &gt; 2006 (No Apto CAE)</option>
             <option value="rechazo_junta" ${existing.obraReason==='rechazo_junta'?'selected':''}>❌ Rechazado en Junta de Propietarios</option>
             <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Tejado/Cubierta aislada recientemente</option>
             <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a bajo cubierta cerrado/imposible</option>
@@ -3136,6 +3088,7 @@
       if (selectedZoneIndexToDump === null) return;
 
       const z = savedZones[selectedZoneIndexToDump];
+      const prevClients = z.clients ? [...z.clients] : [];
       z.dumpDate = document.getElementById('dumpDate').value;
 
       z.stats = {
@@ -3150,8 +3103,9 @@
 
       z.clients = [];
       const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
-      clientBoxes.forEach(box => {
-        z.clients.push(extractClientFromBox(box));
+      clientBoxes.forEach((box, idx) => {
+        const preservedCallStatus = (prevClients[idx] && prevClients[idx].callStatus) ? prevClients[idx].callStatus : 'pendiente';
+        z.clients.push(extractClientFromBox(box, preservedCallStatus));
       });
 
       localStorage.setItem('comercial_custom_zones', JSON.stringify(savedZones));
@@ -3396,8 +3350,8 @@
     function exportReportToCSV() {
       const headers = [
         'Fecha', 'Comercial', 'Pueblo', 'Sector', 'Tipo Inmueble',
-        'Cliente / Presidente', 'Telefono', 'Direccion', 'Ano Edificio',
-        'm2', 'Estado Obra', 'Fecha Obra', 'Hora Obra', 'Docs Comunidad (de 5)',
+        'Cliente / Presidente', 'Telefono', 'Direccion', 'Ano Edificio', 'Tipo Acceso',
+        'm2', 'Estado Obra', 'Estado Llamada', 'Fecha Obra', 'Hora Obra', 'Docs Comunidad (de 5)',
         'Importe Bruto EUR', 'Comision Comercial (85%) EUR', 'Beneficio Jefe (15% o 100%) EUR'
       ];
 
@@ -3426,8 +3380,10 @@
             clean(c.phone),
             clean(c.street),
             clean(c.buildYear || ''),
+            clean(formatAccessDisplay(c)),
             m2Val,
             clean(c.obraStatus),
+            clean(c.callStatus || 'pendiente'),
             clean(c.obraDate || ''),
             clean(c.obraTime || ''),
             clean(docsInfo),
