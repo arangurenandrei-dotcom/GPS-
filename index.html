@@ -728,8 +728,8 @@
           <button id="btnStartShift" class="btn-hud" style="background:#059669;" onclick="handleShiftAction('start')">▶️ Empezar</button>
           <button id="btnLunchShift" class="btn-hud" style="background:#d97706; display:none;" onclick="handleShiftAction('lunch')">⏸️ Comida</button>
           <button id="btnEndShift" class="btn-hud" style="background:#dc2626; display:none;" onclick="handleShiftAction('end')">⏹️ Terminar</button>
+          <button id="btnReopenShift" class="btn-hud" style="background:#475569; display:none;" onclick="reopenTodayShift()" title="Reabrir jornada cerrada por error">↩️ Reabrir</button>
         </div>
-      </div>
 
       <!-- Fila 4: Buscador Municipio + Buscador Global Clientes -->
       <div class="search-row">
@@ -739,17 +739,20 @@
       </div>
     </div>
 
-    <!-- BOTONES INFERIORES -->
+   <!-- BOTONES INFERIORES -->
     <div class="bottom-action-panel">
       <button id="btnBossAssignMode" class="btn-main-action btn-assign" onclick="startSectorDrawing()">
         ➕ SECTOR / ZONA
+      </button>
+
+      <button id="btnCommercialSingleHouse" class="btn-main-action" style="background:linear-gradient(135deg, #059669 0%, #047857 100%); border:1px solid #34d399; display:none;" onclick="startSingleHouseDirect()">
+        🏠 VIVIENDA ÚNICA
       </button>
 
       <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" onclick="openSelectZoneToDumpModal()">
         📝 VOLCAR HOJA
       </button>
     </div>
-  </div>
 
   <!-- MODAL SELECTOR DE ZONA AL VOLCAR HOJA -->
   <div id="zoneSelectorDumpModal" class="modal-overlay">
@@ -1043,12 +1046,15 @@
       } catch (e) { return []; }
     }
 
-    function saveAndSync(key, data) {
+   function saveAndSync(key, data) {
+      const stamped = Array.isArray(data)
+        ? data.map(item => (item && typeof item === 'object' ? { ...item, _updatedAt: item._updatedAt || Date.now() } : item))
+        : data;
       try {
-        localStorage.setItem(key, JSON.stringify(data));
+        localStorage.setItem(key, JSON.stringify(stamped));
       } catch (e) {}
       if (typeof window.pushToFirestore === 'function') {
-        window.pushToFirestore(key, data);
+        window.pushToFirestore(key, stamped);
       }
     }
 
@@ -1066,11 +1072,15 @@
       if (currentUserName) {
         if (map) renderAllSavedZones();
         updateShiftUI();
-        if (document.getElementById('auditModal')?.classList.contains('active')) renderCurrentAuditView();
-        if (document.getElementById('followUpsModal')?.classList.contains('active')) renderFollowUpsModal();
-        if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults();
-        if (document.getElementById('leagueRankingModal')?.classList.contains('active')) openLeagueRankingModal();
-        if (document.getElementById('commercialStatsModal')?.classList.contains('active')) openCommercialStatsModal();
+        const isEditingForm = document.getElementById('dumpModal')?.classList.contains('active') ||
+                              document.getElementById('singleHouseModal')?.classList.contains('active');
+        if (!isEditingForm) {
+          if (document.getElementById('auditModal')?.classList.contains('active')) renderCurrentAuditView();
+          if (document.getElementById('followUpsModal')?.classList.contains('active')) renderFollowUpsModal();
+          if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults();
+          if (document.getElementById('leagueRankingModal')?.classList.contains('active')) openLeagueRankingModal();
+          if (document.getElementById('commercialStatsModal')?.classList.contains('active')) openCommercialStatsModal();
+        }
       }
     };
 
@@ -1103,23 +1113,28 @@
         .trim() || streetStr.toLowerCase().trim();
     }
 
-    function getShiftEffectiveHours(shift) {
+   function getShiftEffectiveHours(shift) {
       if (!shift || !shift.startTime) return 0;
       const [sh, sm] = shift.startTime.split(':').map(Number);
       if (isNaN(sh) || isNaN(sm)) return 0;
       const startMins = sh * 60 + sm;
 
+      const todayIso = getTodayISO();
+      const shiftDateIso = shift.localDate || getLocalDateISO(new Date(shift.date));
+
       let endMins;
       if (shift.endTime) {
         const [eh, em] = shift.endTime.split(':').map(Number);
         endMins = eh * 60 + em;
-      } else {
+      } else if (shiftDateIso === todayIso) {
         const now = new Date();
         endMins = now.getHours() * 60 + now.getMinutes();
+      } else {
+        endMins = 20 * 60;
       }
 
       const lunchMins = shift.lunchMinutes || 0;
-      const netMins = Math.max(30, endMins - startMins - lunchMins);
+      const netMins = Math.max(30, Math.min(12 * 60, endMins - startMins - lunchMins));
       return netMins / 60;
     }
 
@@ -1193,6 +1208,7 @@
       const roleBadge = document.getElementById('displayRoleBadge');
       const nameLbl = document.getElementById('displayUserName');
       const btnBossAssign = document.getElementById('btnBossAssignMode');
+      const btnSingleHouse = document.getElementById('btnCommercialSingleHouse');
       const btnBossAudit = document.getElementById('btnBossAudit');
       const btnLeagueRanking = document.getElementById('btnLeagueRanking');
       const hudNavGrid = document.getElementById('hudNavGrid');
@@ -1203,6 +1219,7 @@
         roleBadge.className = 'role-badge jefe';
         roleBadge.innerText = '👑 JEFE';
         btnBossAssign.style.display = 'flex';
+        if (btnSingleHouse) btnSingleHouse.style.display = 'none';
         btnBossAudit.style.display = 'flex';
         btnLeagueRanking.innerHTML = '🏆 Liga';
         hudNavGrid.className = 'hud-nav-grid cols-4';
@@ -1210,10 +1227,21 @@
         roleBadge.className = 'role-badge comercial';
         roleBadge.innerText = '🏃 COMERCIAL';
         btnBossAssign.style.display = 'none';
+        if (btnSingleHouse) btnSingleHouse.style.display = 'flex';
         btnBossAudit.style.display = 'none';
         btnLeagueRanking.innerHTML = '🏆 Ranking';
         hudNavGrid.className = 'hud-nav-grid cols-3';
       }
+    }
+
+    function startSingleHouseDirect() {
+      cancelDrawing();
+      isDrawingMode = true;
+      isSingleHouseMode = true;
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'none';
+      document.getElementById('drawingBannerText').innerText = "🏠 Toca en el mapa la vivienda o edificio captado...";
     }
 
     /* =====================================================================
@@ -1719,6 +1747,7 @@
       const townData = groupedByTown[townName];
       if (!townData) return;
 
+      const firstObraZone = savedZones[townData.obras[0].zoneIdx];
       const streetsSummary = townData.obras.map(o => {
         const hStr = o.obraTime ? ` [⏰ ${o.obraTime}]` : '';
         return `${o.street}${hStr} (${o.owner} - ${o.m2}m²)`;
@@ -1739,6 +1768,9 @@
         town: townName,
         sectorName: `🔥 Reclamo Obra (${townName})`,
         comercial: chosenComercial,
+        isHotMission: true,
+        isSingleHouse: Boolean(firstObraZone?.isSingleHouse),
+        singlePoint: firstObraZone?.singlePoint ? [...firstObraZone.singlePoint] : null,
         bossNote: `OBRA EN CURSO HOY en ${streetsSummary}. Acude a esa hora y habla con los vecinos que salgan a mirar el camión.`,
         pendingNote: '',
         status: 'sin_comprobar',
@@ -1758,7 +1790,7 @@
 
       const todayIso = getTodayISO();
       const myHotMissions = hotLeadMissions.filter(m => m.comercial === currentUserName && m.date === todayIso);
-      const myZones = savedZones.filter(z => z.comercial === currentUserName && !z.isSingleHouse);
+      const myZones = savedZones.filter(z => z.comercial === currentUserName && !z.isSingleHouse && !z.isHotMission);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
       const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer');
 
@@ -1825,7 +1857,17 @@
 
     function getTodayShift(userName) {
       const todayIso = getTodayISO();
-      return savedShifts.find(s => s.user === userName && getLocalDateISO(new Date(s.date)) === todayIso);
+      return savedShifts.find(s => s.user === userName && (s.localDate || getLocalDateISO(new Date(s.date))) === todayIso);
+    }
+
+    function reopenTodayShift() {
+      const shift = getTodayShift(currentUserName);
+      if (!shift) return;
+      shift.status = 'working';
+      shift.endTime = null;
+      shift._updatedAt = Date.now();
+      saveAndSync('comercial_shifts', savedShifts);
+      updateShiftUI();
     }
 
     function updateShiftUI() {
@@ -1834,29 +1876,34 @@
       const btnStart = document.getElementById('btnStartShift');
       const btnLunch = document.getElementById('btnLunchShift');
       const btnEnd = document.getElementById('btnEndShift');
+      const btnReopen = document.getElementById('btnReopenShift');
 
       if (!shift) {
         statusLbl.innerHTML = '🔴 Fuera de Jornada';
         btnStart.style.display = 'inline-block';
         btnLunch.style.display = 'none';
         btnEnd.style.display = 'none';
+        if (btnReopen) btnReopen.style.display = 'none';
       } else if (shift.status === 'working') {
         statusLbl.innerHTML = `🟢 En Jornada (${shift.startTime})`;
         btnStart.style.display = 'none';
         btnLunch.style.display = 'inline-block';
         btnLunch.innerText = '⏸️ Comida';
         btnEnd.style.display = 'inline-block';
+        if (btnReopen) btnReopen.style.display = 'none';
       } else if (shift.status === 'lunch') {
         statusLbl.innerHTML = `🟡 En Comida (${shift.lunchStart})`;
         btnStart.style.display = 'none';
         btnLunch.style.display = 'inline-block';
         btnLunch.innerText = '▶️ Reanudar';
         btnEnd.style.display = 'inline-block';
+        if (btnReopen) btnReopen.style.display = 'none';
       } else if (shift.status === 'finished') {
         statusLbl.innerHTML = `🏁 Jornada Cerrada (${shift.startTime} - ${shift.endTime})`;
         btnStart.style.display = 'none';
         btnLunch.style.display = 'none';
         btnEnd.style.display = 'none';
+        if (btnReopen) btnReopen.style.display = 'inline-block';
       }
     }
 
@@ -2003,10 +2050,12 @@
         const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`);
         const data = await resp.json();
         const addr = data.address || {};
-        const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || 'Peralta';
+        const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || '';
         townInput.value = detectedTown;
+        if (!detectedTown) townInput.placeholder = 'Escribe el pueblo manualmente...';
       } catch (e) {
-        townInput.value = 'Peralta';
+        townInput.value = '';
+        townInput.placeholder = 'Sin red: escribe el pueblo...';
       }
     }
 
@@ -2292,10 +2341,13 @@
       document.getElementById('drawingBanner').classList.remove('active');
     }
 
-    function confirmSectorAssignment() {
+   function confirmSectorAssignment() {
       const dateVal = document.getElementById('assignDate').value || getTodayISO();
       let town = document.getElementById('assignTown').value.trim();
-      if (!town || town === 'Detectando localidad...') town = 'Peralta';
+      if (!town || town === 'Detectando localidad...') {
+        alert("⚠️ Escribe el nombre del pueblo o municipio antes de guardar.");
+        return;
+      }
 
       let sectorName = document.getElementById('assignSectorName').value.trim();
       const bossNote = document.getElementById('assignBossNote').value.trim();
@@ -2772,10 +2824,14 @@
           if (clean.includes('S') || clean.includes('SÍ') || clean.includes('SI')) valS = Math.max(valS, parseTallyCount(line));
         });
 
-        document.getElementById('dumpAusente').value = valA || 2;
-        document.getElementById('dumpNo').value = valN || 2;
-        document.getElementById('dumpPapelito').value = valI || 2;
-        document.getElementById('dumpSi').value = valS || 5;
+        document.getElementById('dumpAusente').value = valA;
+        document.getElementById('dumpNo').value = valN;
+        document.getElementById('dumpPapelito').value = valI;
+        document.getElementById('dumpSi').value = valS;
+
+        if ((valA + valN + valI + valS) === 0) {
+          alert("⚠️ No se han detectado marcas claras en la cabecera. Introduce los conteos manualmente.");
+        }
 
         const tableCanvas = document.createElement('canvas');
         tableCanvas.width = img.width;
@@ -2839,13 +2895,30 @@
     function renderClientFormFields() {
       const container = document.getElementById('clientsContainer');
       if (!container) return;
-      container.innerHTML = '';
 
       const dumpSiEl = document.getElementById('dumpSi');
       const siCount = dumpSiEl ? (parseInt(dumpSiEl.value) || 0) : 0;
-      if (siCount <= 0) return;
+
+      const currentDOMBoxes = container.querySelectorAll('.client-box, .comunidad-box');
+      if (siCount < currentDOMBoxes.length) {
+        const hasFilledRemoved = Array.from(currentDOMBoxes).slice(siCount).some(b =>
+          (b.querySelector('.client-name')?.value.trim() || '') !== '' ||
+          (b.querySelector('.client-phone')?.value.trim() || '') !== ''
+        );
+        if (hasFilledRemoved && !confirm(`Vas a eliminar ${currentDOMBoxes.length - siCount} ficha(s) con datos escritos. ¿Continuar?`)) {
+          dumpSiEl.value = currentDOMBoxes.length;
+          return;
+        }
+      }
 
       const z = selectedZoneIndexToDump !== null ? savedZones[selectedZoneIndexToDump] : null;
+      const inMemoryClients = Array.from(currentDOMBoxes).map((box, idx) => {
+        const prevCall = (z && z.clients && z.clients[idx]?.callStatus) || 'pendiente';
+        return extractClientFromBox(box, prevCall);
+      });
+
+      container.innerHTML = '';
+      if (siCount <= 0) return;
 
       const title = document.createElement('div');
       title.className = 'modal-section-title';
@@ -2853,7 +2926,7 @@
       container.appendChild(title);
 
       for (let i = 0; i < siCount; i++) {
-        const existing = z && z.clients && z.clients[i] ? z.clients[i] : {};
+        const existing = inMemoryClients[i] || (z && z.clients && z.clients[i] ? z.clients[i] : {});
         const isComunidad = existing.type === 'comunidad';
 
         const box = document.createElement('div');
@@ -2878,6 +2951,32 @@
         if (isComunidad) {
           renderAtticsBreakdownList(box, existing.atticsDetails || null, parseInt(existing.numAttics || 2));
         }
+      }
+    }
+
+    function switchClientTypeView(selectEl, idx) {
+      const parentBox = selectEl.closest('.client-box, .comunidad-box');
+      const dynamicArea = parentBox.querySelector('.client-fields-dynamic-area');
+      const isComunidad = selectEl.value === 'comunidad';
+
+      const preserved = {
+        street: parentBox.querySelector('.client-street')?.value || '',
+        name: parentBox.querySelector('.client-name')?.value || '',
+        phone: parentBox.querySelector('.client-phone')?.value || '',
+        buildYear: parentBox.querySelector('.client-build-year')?.value || '',
+        accessType: parentBox.querySelector('.client-access-type')?.value || 'Trampilla',
+        accessOther: parentBox.querySelector('.client-access-other')?.value || '',
+        obraStatus: parentBox.querySelector('.client-obra-status')?.value || 'a_poner',
+        obraDate: parentBox.querySelector('.client-obra-date')?.value || getTodayISO(),
+        obraTime: parentBox.querySelector('.client-obra-time')?.value || '09:30',
+        m2: parentBox.querySelector('.client-m2')?.value || '60-80'
+      };
+
+      parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
+      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML(preserved, idx) : getViviendaFormHTML(preserved);
+
+      if (isComunidad) {
+        renderAtticsBreakdownList(parentBox, null, 2);
       }
     }
 
@@ -3165,8 +3264,15 @@
 
     function updateAtticsCount(inputEl) {
       const parentBox = inputEl.closest('.comunidad-box');
-      const newCount = parseInt(inputEl.value) || 1;
-      renderAtticsBreakdownList(parentBox, null, newCount);
+      const newCount = Math.max(1, parseInt(inputEl.value) || 1);
+      const currentCards = parentBox.querySelectorAll('.attic-item-card');
+      const preserved = Array.from(currentCards).map(card => ({
+        door: card.querySelector('.attic-door')?.value || '',
+        m2: parseFloat(card.querySelector('.attic-m2')?.value) || 70,
+        owner: card.querySelector('.attic-owner')?.value || '',
+        phone: card.querySelector('.attic-phone')?.value || ''
+      }));
+      renderAtticsBreakdownList(parentBox, preserved, newCount);
     }
 
     function recalculateComunidadTotalM2(inputEl) {
@@ -3215,22 +3321,26 @@
       const prevClients = z.clients ? [...z.clients] : [];
       z.dumpDate = document.getElementById('dumpDate').value;
 
-      z.stats = {
-        no: parseInt(document.getElementById('dumpNo').value) || 0,
-        ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
-        papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
-        si: parseInt(document.getElementById('dumpSi').value) || 0
-      };
-
-      z.status = document.getElementById('dumpProgressState').value;
-      z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
-
       z.clients = [];
       const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
       clientBoxes.forEach((box, idx) => {
         const preservedCallStatus = (prevClients[idx] && prevClients[idx].callStatus) ? prevClients[idx].callStatus : 'pendiente';
         z.clients.push(extractClientFromBox(box, preservedCallStatus));
       });
+
+      const validFilledCount = z.clients.filter(c => isClientValidFilled(c)).length;
+      const reportedSi = parseInt(document.getElementById('dumpSi').value) || 0;
+
+      z.stats = {
+        no: parseInt(document.getElementById('dumpNo').value) || 0,
+        ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
+        papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
+        si: validFilledCount > 0 ? validFilledCount : reportedSi
+      };
+
+      z.status = document.getElementById('dumpProgressState').value;
+      z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
+      z._updatedAt = Date.now();
 
       saveAndSync('comercial_custom_zones', savedZones);
       closeModal('dumpModal');
@@ -4384,7 +4494,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-analytics.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+    import { 
+      initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+      doc, setDoc, onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD4QzFsYJ8GF2Xgo3GX7LVuhPhTK-Z-kkw",
@@ -4398,7 +4511,9 @@
 
     const app = initializeApp(firebaseConfig);
     const analytics = getAnalytics(app);
-    const db = getFirestore(app);
+    const db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
 
     const SYNC_KEYS = [
       'comercial_custom_zones',
@@ -4407,12 +4522,44 @@
       'comercial_hot_lead_missions'
     ];
 
+    function mergeArraysById(localArr, cloudArr) {
+      if (!Array.isArray(cloudArr)) return localArr || [];
+      if (!Array.isArray(localArr) || localArr.length === 0) return cloudArr;
+      if (typeof cloudArr[0] !== 'object' || !cloudArr[0]?.id) return cloudArr;
+
+      const map = new Map();
+      cloudArr.forEach(item => map.set(item.id, item));
+      localArr.forEach(item => {
+        const cloudItem = map.get(item.id);
+        if (!cloudItem || (item._updatedAt || 0) > (cloudItem._updatedAt || 0)) {
+          map.set(item.id, item);
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    function mergeArraysById(localArr, cloudArr) {
+      if (!Array.isArray(cloudArr)) return localArr || [];
+      if (!Array.isArray(localArr) || localArr.length === 0) return cloudArr;
+      if (typeof cloudArr[0] !== 'object' || !cloudArr[0]?.id) return cloudArr;
+
+      const map = new Map();
+      cloudArr.forEach(item => map.set(item.id, item));
+      localArr.forEach(item => {
+        const cloudItem = map.get(item.id);
+        if (!cloudItem || (item._updatedAt || 0) > (cloudItem._updatedAt || 0)) {
+          map.set(item.id, item);
+        }
+      });
+      return Array.from(map.values());
+    }
+
     window.pushToFirestore = async function(key, data) {
       try {
         await setDoc(doc(db, 'gestion_navarra', key), {
           payload: JSON.stringify(data),
           updatedAt: Date.now()
-        });
+        }, { merge: true });
       } catch (err) {
         console.error('Error sincronizando con Firestore:', err);
       }
@@ -4422,9 +4569,12 @@
       onSnapshot(doc(db, 'gestion_navarra', key), (snap) => {
         if (snap.exists() && snap.data().payload) {
           try {
-            const parsed = JSON.parse(snap.data().payload);
+            const cloudParsed = JSON.parse(snap.data().payload);
+            const localRaw = localStorage.getItem(key);
+            const localParsed = localRaw ? JSON.parse(localRaw) : [];
+            const merged = mergeArraysById(localParsed, cloudParsed);
             if (typeof window.applyCloudDataUpdate === 'function') {
-              window.applyCloudDataUpdate(key, parsed);
+              window.applyCloudDataUpdate(key, merged);
             }
           } catch (e) {
             console.error('Error leyendo datos de Firestore:', e);
