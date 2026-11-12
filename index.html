@@ -1265,11 +1265,12 @@
       });
 
       catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
-        layers: 'IDENA:CATAST_Pol_Parcela,IDENA:CATAST_Pol_Edificacion',
+        layers: 'IDENA:CATAST_Pol_ParcelaUr,IDENA:CATAST_Pol_ParcelaRu,IDENA:CATAST_Pol_Edificacion',
         format: 'image/png',
         transparent: true,
         version: '1.1.1',
-        opacity: 0.72,
+        opacity: 0.8,
+        zIndex: 500,
         maxZoom: 20
       }).addTo(map);
 
@@ -1311,6 +1312,7 @@
     }
 
     function toggleCatastroLayer() {
+      if (!map || !catastroNavarraLayer) return;
       const btn = document.getElementById('btnToggleCatastro');
       if (isCatastroActive) {
         map.removeLayer(catastroNavarraLayer);
@@ -1319,6 +1321,9 @@
       } else {
         catastroNavarraLayer.addTo(map);
         catastroNavarraLayer.bringToFront();
+        if (map.getZoom() < 16) {
+          map.setZoom(17);
+        }
         isCatastroActive = true;
         btn.classList.add('active');
       }
