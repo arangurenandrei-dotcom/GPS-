@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Sistema de Gestión Comercial y Logística de Obras - Navarra</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -119,7 +122,7 @@
       background: var(--primary); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer;
     }
 
-    #appContainer { display: none; width: 100vw; height: 100vh; position: relative; }
+    #appContainer { display: none; width: 100vw; height: 100vh; height: 100dvh; position: relative; overflow: hidden; }
     #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
     /* HUD SUPERIOR ESTRUCTURADO Y ALINEADO */
@@ -743,7 +746,7 @@
       <!-- Fila superior: Herramientas rápidas de mapa -->
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; width:100%;">
         <button id="btnToggleCatastro" class="btn-hud layer-btn active" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
-        <button id="btnToggleSatellite" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleSatelliteLayer()">🛰️ Satélite</button>
+        <button id="btnToggleSatellite" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.45);" onclick="toggleSatelliteLayer()">🛰️ Satélite</button>
         <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">📐 Medir</button>
       </div>
 
@@ -1436,12 +1439,14 @@
         if (isCatastroActive) catastroNavarraLayer.bringToFront();
         isSatelliteActive = false;
         btn.classList.remove('active');
+        btn.style.background = 'rgba(15, 23, 42, 0.92)';
       } else {
         map.removeLayer(osmStreetLayer);
         ignSatelliteLayer.addTo(map);
         if (isCatastroActive) catastroNavarraLayer.bringToFront();
         isSatelliteActive = true;
         btn.classList.add('active');
+        btn.style.background = '#059669';
       }
     }
 
