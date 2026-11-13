@@ -756,6 +756,11 @@
       </div>
     </div>
 
+    <!-- BRÚJULA FLOTANTE PARA ORIENTACIÓN NORTE -->
+    <button id="btnMapCompass" onclick="resetMapNorth()" title="Orientar Norte arriba" style="position:fixed; bottom:calc(112px + env(safe-area-inset-bottom)); right:10px; z-index:999; width:40px; height:40px; border-radius:50%; background:rgba(15, 23, 42, 0.94); border:1.5px solid rgba(255, 255, 255, 0.35); color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(0,0,0,0.55); cursor:pointer;">
+      <span id="compassNeedleIcon" style="display:inline-block; transition:transform 0.12s ease-out;">🧭</span>
+    </button>
+
     <!-- BOTONES INFERIORES CON CONTROLES DE MAPA EN FILA SUPERIOR -->
     <div class="bottom-action-panel" style="flex-direction:column; gap:8px; bottom: max(12px, env(safe-area-inset-bottom));">
       <!-- Fila superior: Herramientas rápidas de mapa -->
@@ -1314,12 +1319,15 @@
         maxZoom: 20,
         rotate: true,
         touchRotate: true,
-        rotateControl: {
-          closeOnZeroBearing: false,
-          position: 'bottomright'
-        }
+        rotateControl: false
       }).setView([42.65, -1.65], 10);
 
+      map.on('rotate', () => {
+        const needle = document.getElementById('compassNeedleIcon');
+        if (needle && typeof map.getBearing === 'function') {
+          needle.style.transform = `rotate(${-map.getBearing()}deg)`;
+        }
+      });
       osmStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxNativeZoom: 19,
         maxZoom: 20
@@ -5140,6 +5148,14 @@
     }
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function resetMapNorth() {
+      if (map && typeof map.setBearing === 'function') {
+        map.setBearing(0);
+      }
+      const needle = document.getElementById('compassNeedleIcon');
+      if (needle) needle.style.transform = 'rotate(0deg)';
+    }
 
     function centerOnUser() {
       isManualGpsRequest = true;
