@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Sistema de Gestión Comercial y Logística de Obras - Navarra</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -124,7 +124,7 @@
 
     /* HUD SUPERIOR ESTRUCTURADO Y ALINEADO */
     .hud-header {
-      position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000;
+      position: fixed; top: max(6px, env(safe-area-inset-top)); left: 8px; right: 8px; z-index: 1000;
       background: var(--bg-panel); backdrop-filter: blur(18px);
       border: 1px solid var(--border-panel); border-radius: 18px; padding: 10px 12px;
       display: flex; flex-direction: column; gap: 7px; box-shadow: 0 12px 32px rgba(0,0,0,0.55);
@@ -703,12 +703,9 @@
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
         </div>
-        <div class="hud-utility-group" style="gap:4px;">
-          <button id="btnToggleCatastro" class="btn-hud layer-btn active" style="padding:5px 7px;" onclick="toggleCatastroLayer()" title="Mostrar/Ocultar líneas de parcelas">🏘️ Catastro</button>
-          <button id="btnMeasureRoof" class="btn-hud layer-btn" style="background:#b45309; border-color:#fbbf24; padding:5px 7px;" onclick="startRoofMeasureMode()" title="Medir m² de tejado sobre el mapa">📐 m²</button>
-          <button id="btnToggleSatellite" class="btn-hud layer-btn" style="padding:5px 7px;" onclick="toggleSatelliteLayer()" title="Vista aérea satélite">🛰️ Satélite</button>
-          <button class="btn-hud gps" style="padding:5px 7px;" onclick="centerOnUser()">🎯</button>
-          <button class="btn-hud logout" style="padding:5px 7px;" onclick="executeLogout()">🔒</button>
+        <div class="hud-utility-group" style="gap:6px;">
+          <button class="btn-hud gps" style="padding:6px 10px;" onclick="centerOnUser()">🎯 GPS</button>
+          <button class="btn-hud logout" style="padding:6px 10px;" onclick="executeLogout()">🔒 Salir</button>
         </div>
       </div>
 
@@ -741,17 +738,26 @@
       </div>
     </div>
 
-    <!-- BOTONES INFERIORES -->
-    <div class="bottom-action-panel">
-      <button id="btnBossAssignMode" class="btn-main-action btn-assign" onclick="startSectorDrawing()">
-        ➕ SECTOR / ZONA
-      </button>
+    <!-- BOTONES INFERIORES CON CONTROLES DE MAPA EN FILA SUPERIOR -->
+    <div class="bottom-action-panel" style="flex-direction:column; gap:8px; bottom: max(12px, env(safe-area-inset-bottom));">
+      <!-- Fila superior: Herramientas rápidas de mapa -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; width:100%;">
+        <button id="btnToggleCatastro" class="btn-hud layer-btn active" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
+        <button id="btnToggleSatellite" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleSatelliteLayer()">🛰️ Satélite</button>
+        <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">📐 Medir</button>
+      </div>
 
-      <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" onclick="openSelectZoneToDumpModal()">
-        📝 VOLCAR HOJA
-      </button>
+      <!-- Fila inferior: Acciones principales -->
+      <div style="display:flex; gap:8px; width:100%;">
+        <button id="btnBossAssignMode" class="btn-main-action btn-assign" style="flex:1;" onclick="startSectorDrawing()">
+          ➕ SECTOR / ZONA
+        </button>
+
+        <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" style="flex:1;" onclick="openSelectZoneToDumpModal()">
+          📝 VOLCAR HOJA
+        </button>
+      </div>
     </div>
-  </div>
   <!-- MODAL VISOR IDENA NAVARRA INTEGRADO EN LA APP -->
   <div id="idenaViewerModal" class="modal-overlay">
     <div class="modal-card" style="max-width:600px; height:86vh; padding:10px;">
