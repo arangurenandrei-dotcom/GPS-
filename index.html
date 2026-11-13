@@ -758,6 +758,7 @@
         </button>
       </div>
     </div>
+  </div>
   <!-- MODAL VISOR IDENA NAVARRA INTEGRADO EN LA APP -->
   <div id="idenaViewerModal" class="modal-overlay">
     <div class="modal-card" style="max-width:600px; height:86vh; padding:10px;">
@@ -1244,7 +1245,6 @@
       const roleBadge = document.getElementById('displayRoleBadge');
       const nameLbl = document.getElementById('displayUserName');
       const btnBossAssign = document.getElementById('btnBossAssignMode');
-      const btnSingleHouse = document.getElementById('btnCommercialSingleHouse');
       const btnBossAudit = document.getElementById('btnBossAudit');
       const btnLeagueRanking = document.getElementById('btnLeagueRanking');
       const hudNavGrid = document.getElementById('hudNavGrid');
@@ -1255,7 +1255,6 @@
         roleBadge.className = 'role-badge jefe';
         roleBadge.innerText = '👑 JEFE';
         btnBossAssign.style.display = 'flex';
-        if (btnSingleHouse) btnSingleHouse.style.display = 'none';
         btnBossAudit.style.display = 'flex';
         btnLeagueRanking.innerHTML = '🏆 Liga';
         hudNavGrid.className = 'hud-nav-grid cols-4';
@@ -1263,7 +1262,6 @@
         roleBadge.className = 'role-badge comercial';
         roleBadge.innerText = '🏃 COMERCIAL';
         btnBossAssign.style.display = 'none';
-        if (btnSingleHouse) btnSingleHouse.style.display = 'flex';
         btnBossAudit.style.display = 'none';
         btnLeagueRanking.innerHTML = '🏆 Ranking';
         hudNavGrid.className = 'hud-nav-grid cols-3';
@@ -1492,6 +1490,8 @@
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       z.clients[clientIdx].callStatus = newCallStatus;
+      z.clients[clientIdx].statusChangedAt = Date.now();
+      z._updatedAt = Date.now();
       saveAndSync('comercial_custom_zones', savedZones);
       renderFollowUpsModal();
     }
@@ -1570,15 +1570,29 @@
         const dateInpId = `sched_date_${item.zoneIdx}_${item.clientIdx}`;
         const timeInpId = `sched_time_${item.zoneIdx}_${item.clientIdx}`;
 
+        const refTime = item.callStatus === 'pendiente'
+          ? (c.createdAt || z.id || Date.now())
+          : (c.statusChangedAt || c.createdAt || z.id || Date.now());
+        const elapsedHours = Math.max(0, Math.floor((Date.now() - refTime) / 3600000));
+        const isOver48h = elapsedHours >= 48;
+        const isWarning24h = elapsedHours >= 24 && elapsedHours < 48;
+
+        let slaBadge = `<span style="font-size:9.5px; font-weight:800; color:#34d399;">⏱️ ${elapsedHours}h</span>`;
+        if (isWarning24h) slaBadge = `<span style="font-size:9.5px; font-weight:900; color:#fde047;">⚠️ ${elapsedHours}h (Llamar hoy)</span>`;
+        if (isOver48h) slaBadge = `<span style="background:#dc2626; color:#fff; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px;">🚨 +48h (${elapsedHours}h)</span>`;
+
         let badgeHtml = `<span class="call-status-pill pendiente">🔴 Por llamar</span>`;
         if (item.callStatus === 'ya_llamado') badgeHtml = `<span class="call-status-pill ya_llamado">🟡 Ya llamado</span>`;
         if (item.callStatus === 'esperando_confirmacion') badgeHtml = `<span class="call-status-pill esperando_confirmacion">🟣 Esperando confirmación</span>`;
 
+        const borderCol = isOver48h ? '#ef4444' : (isFilled ? '#22d3ee' : '#f59e0b');
+
         html += `
-          <div class="audit-card" style="cursor:default; border-left:4px solid ${isFilled ? '#22d3ee' : '#f59e0b'};">
+          <div class="audit-card" style="cursor:default; border-left:4px solid ${borderCol}; ${isOver48h ? 'background:rgba(220,38,38,0.12);' : ''}">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
               <strong style="font-size:13px; color:#fff;">${c.type === 'comunidad' ? '🏢' : '🏠'} ${c.name || 'Ficha sin nombre'}</strong>
-              <div style="display:flex; gap:4px; align-items:center;">
+              <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                ${slaBadge}
                 ${!isFilled ? `<span class="blank-draft-pill">⚠️ Ficha Incompleta</span>` : ''}
                 ${badgeHtml}
               </div>
@@ -1947,6 +1961,63 @@
       }
     }
 
+    function getCommercialPiqueAndAlerts(comName) {
+      const team = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      const scores = team.map(name => {
+        let m2 = 0;
+        savedZones.forEach(z => {
+          if (z.comercial !== name || !z.clients) return;
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              m2 += getM2NumericValue(c.m2);
+            }
+          });
+        });
+        return { name, bruto: m2 * 1.0, bolsillo: m2 * 0.85 };
+      }).sort((a, b) => b.bruto - a.bruto);
+
+      const myIdx = scores.findIndex(s => s.name === comName);
+      const me = myIdx !== -1 ? scores[myIdx] : { name: comName, bruto: 0, bolsillo: 0 };
+      const leader = scores[0];
+      const runnerUp = scores[1];
+
+      let piqueMsg = '';
+      if (leader.bruto === 0) {
+        piqueMsg = '🚀 <strong>¡Liga abierta!</strong> Nadie ha estrenado el marcador aún. El primero que meta un tejado se pone #1.';
+      } else if (myIdx === 0) {
+        const ventaja = (me.bruto - runnerUp.bruto).toFixed(0);
+        piqueMsg = ventaja > 0
+          ? `👑 <strong>VAS #1 EN CABEZA</strong> (${me.bolsillo.toFixed(2)} € para tu bolsillo). ¡Corre que te pilla <strong>${runnerUp.name}</strong> a solo <strong>${ventaja} m²</strong>!`
+          : `👑 <strong>EMPATE EN EL #1</strong> con <strong>${runnerUp.name}</strong>. ¡Mete una ficha hoy y quédate el liderato solo!`;
+      } else {
+        const ahead = scores[myIdx - 1];
+        const diffAhead = Math.max(1, Math.round(ahead.bruto - me.bruto));
+        const chaser = scores[myIdx + 1];
+        const chaserText = (chaser && chaser.bruto > 0 && (me.bruto - chaser.bruto) <= 120)
+          ? ` ⚠️ Ojo: <strong>${chaser.name}</strong> viene pisándote los talones a ${Math.round(me.bruto - chaser.bruto)} m².`
+          : '';
+        piqueMsg = `⚡ Vas <strong>#${myIdx + 1}</strong> (${me.bolsillo.toFixed(2)} € netos). Te faltan solo <strong>${diffAhead} m²</strong> (1 buhardilla) para adelantar a <strong>${ahead.name}</strong>.${chaserText}`;
+      }
+
+      let overdue48hCount = 0;
+      savedZones.forEach(z => {
+        if (z.comercial !== comName || !z.clients) return;
+        z.clients.forEach(c => {
+          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+            const st = c.callStatus || 'pendiente';
+            const refTime = st === 'pendiente'
+              ? (c.createdAt || z.id || Date.now())
+              : (c.statusChangedAt || c.createdAt || z.id || Date.now());
+            if ((Date.now() - refTime) >= 48 * 3600000) {
+              overdue48hCount++;
+            }
+          }
+        });
+      });
+
+      return { me, myRank: myIdx + 1, piqueMsg, overdue48hCount };
+    }
+
     function showCommercialBriefing() {
       const container = document.getElementById('briefingContainer');
       container.innerHTML = '';
@@ -1956,14 +2027,32 @@
       const myZones = savedZones.filter(z => z.comercial === currentUserName && !z.isSingleHouse && !z.isHotMission);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
       const assignedNew = myZones.filter(z => (z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer') && z.date <= todayIso);
+      const piqueData = getCommercialPiqueAndAlerts(currentUserName);
 
       let html = `
+        <div style="background:linear-gradient(135deg, #b45309 0%, #7c2d12 100%); border:1.5px solid #fbbf24; border-radius:12px; padding:10px 12px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase;">💰 TU MARCADOR & PIQUE DE LIGA</span>
+            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:2px 7px; border-radius:6px;">Bolsillo: ${piqueData.me.bolsillo.toFixed(2)} €</span>
+          </div>
+          <div style="font-size:11.5px; color:#fff; line-height:1.4;">${piqueData.piqueMsg}</div>
+        </div>
+
+        ${piqueData.overdue48hCount > 0 ? `
+          <div style="background:rgba(220,38,38,0.22); border:1.5px solid #ef4444; border-radius:12px; padding:10px 12px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:900; color:#fca5a5;">🚨 ALERTA DE PLAZO MÁXIMO (48H)</div>
+            <div style="font-size:11px; color:#fff; margin-top:2px;">
+              Tienes <strong>${piqueData.overdue48hCount} cliente(s) en SÍ</strong> que llevan más de 48h sin llamar o esperando confirmación. Entra en <strong>📞 Llamar</strong> hoy para no perderlos.
+            </div>
+          </div>
+        ` : ''}
+
         <div class="routine-guide-box">
           <div style="font-weight:900; color:#60a5fa; margin-bottom:6px; text-transform:uppercase;">🔥 Foco y Organización del Día</div>
           • <strong>1. Arranca fuerte:</strong> Ficha <strong>▶️ Empezar</strong> al pisar calle; cada puerta llamada es una obra potencial.<br>
           • <strong>2. Filtra rápido:</strong> Pincha el tejado en el mapa para abrir su Catastro (≤ 2006) antes de insistir.<br>
-          • <strong>3. Cierra seguimiento:</strong> Revisa <strong>📞 Llamar</strong> para confirmar visitas pendientes y subir en el <strong>🏆 Ranking</strong>.<br>
-          • <strong>4. Deja todo limpio:</strong> Al terminar, entra en <strong>📝 Volcar Hoja</strong> sobre tu zona y registra viviendas y comunidades.
+          • <strong>3. Cierra seguimiento:</strong> Revisa <strong>📞 Llamar</strong> antes de 48h para cerrar citas y subir en el <strong>🏆 Ranking</strong>.<br>
+          • <strong>4. Deja todo limpio:</strong> Al terminar el día, entra en <strong>📝 Volcar Hoja</strong> sobre tu zona.
         </div>
       `;
 
@@ -2402,7 +2491,10 @@
       }
     }
 
-    function extractClientFromBox(box, existingCallStatus = 'pendiente') {
+    function extractClientFromBox(box, existingCallStatus = 'pendiente', existingMeta = {}) {
+      const nowMs = Date.now();
+      const createdAt = existingMeta.createdAt || nowMs;
+      const statusChangedAt = existingMeta.statusChangedAt || nowMs;
       const typeVal = box.querySelector('.client-type') ? box.querySelector('.client-type').value : 'vivienda';
       const statusVal = box.querySelector('.client-obra-status').value;
       const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
@@ -2451,6 +2543,8 @@
           obraTime: obraTimeVal,
           obraReason: reasonVal,
           callStatus: existingCallStatus,
+          createdAt,
+          statusChangedAt,
           comunidadDocs
         };
       } else {
@@ -2467,7 +2561,9 @@
           obraDate: obraDateVal,
           obraTime: obraTimeVal,
           obraReason: reasonVal,
-          callStatus: existingCallStatus
+          callStatus: existingCallStatus,
+          createdAt,
+          statusChangedAt
         };
       }
     }
@@ -3592,8 +3688,9 @@
       z.clients = [];
       const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
       clientBoxes.forEach((box, idx) => {
-        const preservedCallStatus = (prevClients[idx] && prevClients[idx].callStatus) ? prevClients[idx].callStatus : 'pendiente';
-        z.clients.push(extractClientFromBox(box, preservedCallStatus));
+        const prev = prevClients[idx] || {};
+        const preservedCallStatus = prev.callStatus || 'pendiente';
+        z.clients.push(extractClientFromBox(box, preservedCallStatus, prev));
       });
 
       const validFilledCount = z.clients.filter(c => isClientValidFilled(c)).length;
@@ -3617,6 +3714,13 @@
       saveAndSync('comercial_custom_zones', savedZones);
       closeModal('dumpModal');
       renderAllSavedZones();
+
+      if (currentUserRole === 'comercial') {
+        const piqueAfter = getCommercialPiqueAndAlerts(currentUserName);
+        const zoneM2 = z.clients.reduce((acc, c) => (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) ? acc + getM2NumericValue(c.m2) : acc, 0);
+        const zoneNeto = (zoneM2 * 0.85).toFixed(2);
+        alert(`✅ ¡Hoja volcada!\n\n💰 Has sumado +${zoneNeto} € netos en este sector.\n🏆 Vas #${piqueAfter.myRank} en la liga con ${piqueAfter.me.bolsillo.toFixed(2)} € acumulados.`);
+      }
     }
 
     /* =====================================================================
@@ -3792,7 +3896,8 @@
       });
 
       const totalDays = Math.max(1, datesSet.size);
-      const dineroTotalGenerado = totalM2 * 1.0;
+      const factorComision = currentUserRole === 'jefe' ? 1.0 : 0.85;
+      const dineroTotalGenerado = totalM2 * factorComision;
       const dineroMedioDia = (dineroTotalGenerado / totalDays).toFixed(2);
       const proyeccionMes = (dineroTotalGenerado * (22 / totalDays)).toFixed(2);
       const puertasPorDiaMedio = Math.round(totalTocadas / totalDays);
@@ -3989,10 +4094,14 @@
           totalSi: 0,
           totalNo: 0,
           totalPapelito: 0,
+          totalNoAptas: 0,
+          citasAgendadasCount: 0,
           m2SiCaptados: 0,
           m2Agendados: 0,
           m2Realizados: 0,
           dineroParaJefe: 0,
+          overdue48hCount: 0,
+          lateDumpsCount: 0,
           datesSet: new Set()
         };
       });
@@ -4005,6 +4114,11 @@
         const zDate = z.dumpDate || z.date;
         if (zDate) statsMap[u].datesSet.add(zDate);
 
+        // Detectar volcado fuera del día asignado (si no venía como zona incompleta)
+        if (!z.isSingleHouse && !z.isHotMission && !z.isUrgentContinuation && z.dumpDate && z.date && z.dumpDate > z.date) {
+          statsMap[u].lateDumpsCount += 1;
+        }
+
         const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
         statsMap[u].totalTocadas += tocadas;
         statsMap[u].totalSi += (st.si||0);
@@ -4013,12 +4127,29 @@
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
+            if (c.obraStatus === 'no_apto') {
+              statsMap[u].totalNoAptas += 1;
+              return;
+            }
+            if (!isClientValidFilled(c)) return;
             let m2Val = getM2NumericValue(c.m2);
 
             statsMap[u].m2SiCaptados += m2Val;
-            if (c.obraStatus === 'agendada') statsMap[u].m2Agendados += m2Val;
+            if (c.obraStatus === 'agendada') {
+              statsMap[u].m2Agendados += m2Val;
+              statsMap[u].citasAgendadasCount += 1;
+            }
             if (c.obraStatus === 'realizada') statsMap[u].m2Realizados += m2Val;
+
+            if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+              const callSt = c.callStatus || 'pendiente';
+              const refTime = callSt === 'pendiente'
+                ? (c.createdAt || z.id || Date.now())
+                : (c.statusChangedAt || c.createdAt || z.id || Date.now());
+              if ((Date.now() - refTime) >= 48 * 3600000) {
+                statsMap[u].overdue48hCount += 1;
+              }
+            }
           });
         }
       });
@@ -4154,6 +4285,101 @@
       `;
 
       container.appendChild(tableWrapper);
+
+      // Resumen económico global de las 3 fases para el Jefe
+      let globalPotencialJefe = 0;
+      let globalAgendadoJefe = 0;
+      let globalRealizadoJefe = 0;
+
+      usersList.forEach(u => {
+        const s = statsMap[u];
+        const mult = u === 'Andrei (Jefe)' ? 1.0 : 0.15;
+        globalPotencialJefe += s.m2SiCaptados * mult;
+        globalAgendadoJefe += s.m2Agendados * mult;
+        globalRealizadoJefe += s.m2Realizados * mult;
+      });
+
+      const financeStrip = document.createElement('div');
+      financeStrip.style.cssText = 'display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:12px;';
+      financeStrip.innerHTML = `
+        <div style="background:rgba(37,99,235,0.16); border:1px solid #3b82f6; border-radius:10px; padding:8px; text-align:center;">
+          <div style="font-size:9px; color:#93c5fd; font-weight:800;">📝 CAPTADO (SÍ)</div>
+          <div style="font-size:13px; color:#fff; font-weight:900; margin-top:2px;">${globalPotencialJefe.toFixed(0)} €</div>
+        </div>
+        <div style="background:rgba(217,119,6,0.16); border:1px solid #f59e0b; border-radius:10px; padding:8px; text-align:center;">
+          <div style="font-size:9px; color:#fde047; font-weight:800;">📅 EN CARTERA</div>
+          <div style="font-size:13px; color:#fff; font-weight:900; margin-top:2px;">${globalAgendadoJefe.toFixed(0)} €</div>
+        </div>
+        <div style="background:rgba(5,150,105,0.18); border:1px solid #10b981; border-radius:10px; padding:8px; text-align:center;">
+          <div style="font-size:9px; color:#6ee7b7; font-weight:800;">✅ COBRADO REAL</div>
+          <div style="font-size:13px; color:#34d399; font-weight:900; margin-top:2px;">${globalRealizadoJefe.toFixed(0)} €</div>
+        </div>
+      `;
+      container.appendChild(financeStrip);
+
+      // Radiografía de coaching por comercial (en qué falla cada uno)
+      const diagTitle = document.createElement('div');
+      diagTitle.className = 'modal-section-title';
+      diagTitle.style.marginTop = '14px';
+      diagTitle.innerText = '🩺 Radiografía del Equipo (Qué hablar / entrenar con cada uno)';
+      container.appendChild(diagTitle);
+
+      ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'].forEach(comName => {
+        const s = statsMap[comName];
+        const avgDoorsDay = Math.round(s.totalTocadas / s.daysWorked);
+        const papelitoPct = s.totalTocadas > 0 ? Math.round((s.totalPapelito / s.totalTocadas) * 100) : 0;
+        const siPct = s.totalTocadas > 0 ? Math.round((s.totalSi / s.totalTocadas) * 100) : 0;
+        const totalValidLeads = s.totalSi;
+        const citaRatio = totalValidLeads > 0 ? Math.round((s.citasAgendadasCount / totalValidLeads) * 100) : 0;
+        const noAptoRatio = (totalValidLeads + s.totalNoAptas) > 0
+          ? Math.round((s.totalNoAptas / (totalValidLeads + s.totalNoAptas)) * 100)
+          : 0;
+
+        const alerts = [];
+        if (s.totalTocadas === 0) {
+          alerts.push('⚪ Sin actividad registrada todavía.');
+        } else {
+          if (avgDoorsDay < 35) {
+            alerts.push(`🐌 <strong>Ritmo bajo (${avgDoorsDay} puertas/día):</strong> Salir con él a dinamizar el paso entre portales.`);
+          }
+          if (papelitoPct >= 30 && siPct < 5) {
+            alerts.push(`📄 <strong>Mucho papelito (${papelitoPct}%) y poco cierre (${siPct}% SÍ):</strong> Practicar discurso en puerta para sacar teléfono.`);
+          }
+          if (totalValidLeads >= 3 && citaRatio < 25) {
+            alerts.push(`📞 <strong>Falla al cerrar cita por teléfono (${citaRatio}% citas):</strong> Revisar juntos sus llamadas.`);
+          }
+          if (noAptoRatio >= 25) {
+            alerts.push(`🏗️ <strong>Muchas caídas técnicas (${noAptoRatio}%):</strong> Recordarle mirar año ≤ 2006 en Catastro antes de llamar.`);
+          }
+          if (s.overdue48hCount > 0) {
+            alerts.push(`🚨 <strong>${s.overdue48hCount} lead(s) pasados de 48h</strong> sin cerrar ni actualizar.`);
+          }
+          if (s.lateDumpsCount > 0) {
+            alerts.push(`⏰ <strong>${s.lateDumpsCount} hoja(s) volcada(s) fuera de día:</strong> Exigir volcado antes de cerrar jornada.`);
+          }
+        }
+
+        const isHealthy = alerts.length === 0;
+        const card = document.createElement('div');
+        card.className = 'audit-card';
+        card.style.cursor = 'default';
+        card.style.borderLeft = `4px solid ${isHealthy ? '#10b981' : '#f59e0b'}`;
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:12.5px; color:#fff;">🏃 ${comName}</strong>
+            <span style="font-size:10px; font-weight:800; color:${isHealthy ? '#34d399' : '#fde047'};">
+              ${isHealthy ? '🔥 Rendimiento Óptimo' : '🎯 Puntos de Mejora'}
+            </span>
+          </div>
+          <div style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-top:3px;">
+            ${isHealthy
+              ? '✅ Buen ritmo en calle, volcados al día y llamadas dentro de las 48h.'
+              : alerts.map(a => `• ${a}`).join('<br>')}
+          </div>
+        `;
+        container.appendChild(card);
+      });
     }
 
     /* =====================================================================
@@ -4377,10 +4603,13 @@
               clientRows = `<div style="font-size:10px; color:#64748b;">Sin fichas aún.</div>`;
             }
 
+            const isLateDump = !zoneItem.isSingleHouse && !zoneItem.isHotMission && !zoneItem.isUrgentContinuation && zoneItem.dumpDate && zoneItem.date && zoneItem.dumpDate > zoneItem.date;
+            const lateBadge = isLateDump ? ` <span style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9px; padding:1px 5px; border-radius:5px;">⏰ Volcado tarde (era ${formatDate(zoneItem.date)})</span>` : '';
+
             detailsHtml += `
               <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})</span>
+                  <span style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})${lateBadge}</span>
                   <div style="display:flex; gap:4px;">
                     ${currentUserRole==='jefe' && zoneItem.status==='en_proceso' ? `<button onclick="openNoteModal(${originalIdx})" style="padding:2px 6px; font-size:9px; background:#7c3aed; border:none; border-radius:6px; color:#fff; cursor:pointer;">📌 Nota</button>` : ''}
                     ${currentUserRole==='jefe' ? `<button onclick="deleteZone(${originalIdx})" style="padding:2px 6px; font-size:9px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; border-radius:6px; color:#fca5a5; cursor:pointer;">🗑️ Borrar</button>` : ''}
