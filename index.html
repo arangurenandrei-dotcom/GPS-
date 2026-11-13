@@ -776,7 +776,7 @@
     <!-- BOTONES INFERIORES CON CONTROLES DE MAPA EN FILA SUPERIOR -->
     <div class="bottom-action-panel" style="flex-direction:column; gap:8px; bottom: max(12px, env(safe-area-inset-bottom));">
       <!-- Fila superior: Herramientas rápidas de mapa -->
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; width:100%;">
+      <div id="mapToolsRow" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; width:100%;">
         <button id="btnToggleCatastro" class="btn-hud layer-btn active" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
         <button id="btnToggleSatellite" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.45);" onclick="toggleSatelliteLayer()">🛰️ Satélite</button>
         <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">📐 Medir</button>
@@ -1373,27 +1373,40 @@
       const btnCommercialPlan = document.getElementById('btnCommercialPlan');
       const btnLeagueRanking = document.getElementById('btnLeagueRanking');
       const btnMikelRadarHud = document.getElementById('btnMikelRadarHud');
+      const btnMarkNoApto = document.getElementById('btnMarkNoAptoZone');
+      const mapToolsRow = document.getElementById('mapToolsRow');
       const hudNavGrid = document.getElementById('hudNavGrid');
+
+      const isMikelBlock = isMikelTeamMember(currentUserName);
+
       nameLbl.innerText = currentUserName === 'Andrei (Jefe)'
         ? 'Andrei'
         : (currentUserName === 'Mikel (Jefe)' ? 'Mikel' : currentUserName);
 
-     if (currentUserRole === 'jefe') {
-        const isMikelBoss = isMikelTeamMember(currentUserName);
+      // Para Mikel y su equipo: Catastro de serie (sin botones extra abajo ni botón No Apta)
+      if (mapToolsRow) mapToolsRow.style.display = isMikelBlock ? 'none' : 'grid';
+      if (btnMarkNoApto) btnMarkNoApto.style.display = isMikelBlock ? 'none' : 'flex';
+
+      if (currentUserRole === 'jefe') {
         roleBadge.className = 'role-badge jefe';
         roleBadge.innerText = '👑 JEFE';
         btnBossAssign.style.display = 'flex';
         btnBossAudit.style.display = 'flex';
-        if (btnCommercialPlan) btnCommercialPlan.style.display = isMikelBoss ? 'none' : 'flex';
-        if (btnMikelRadarHud) btnMikelRadarHud.style.display = isMikelBoss ? 'none' : 'flex';
-        btnLeagueRanking.innerHTML = '🏆 Liga';
-        hudNavGrid.className = isMikelBoss ? 'hud-nav-grid cols-4' : 'hud-nav-grid cols-3';
+        if (btnCommercialPlan) btnCommercialPlan.style.display = isMikelBlock ? 'none' : 'flex';
+        if (btnMikelRadarHud) btnMikelRadarHud.style.display = isMikelBlock ? 'none' : 'flex';
+        if (btnLeagueRanking) {
+          btnLeagueRanking.style.display = isMikelBlock ? 'none' : 'flex';
+          btnLeagueRanking.innerHTML = '🏆 Liga';
+        }
+        hudNavGrid.className = 'hud-nav-grid cols-3';
 
-        // Ocultar pestañas avanzadas (Semana, Obras y Pueblos) a Mikel
-        ['tabBtnSemana', 'tabBtnObras', 'tabBtnPueblos'].forEach(tabId => {
+        // Ocultar todas las pestañas avanzadas a Mikel (solo ve Resumen Básico)
+        ['tabBtnComerciales', 'tabBtnSemana', 'tabBtnObras', 'tabBtnPueblos'].forEach(tabId => {
           const el = document.getElementById(tabId);
-          if (el) el.style.display = isMikelBoss ? 'none' : 'block';
+          if (el) el.style.display = isMikelBlock ? 'none' : 'block';
         });
+        const tabKpis = document.getElementById('tabBtnKpis');
+        if (tabKpis) tabKpis.innerText = isMikelBlock ? '📊 Resumen Equipo' : '💰 Beneficio';
       } else {
         roleBadge.className = 'role-badge comercial';
         roleBadge.innerText = '🏃 COMERCIAL';
@@ -1401,8 +1414,11 @@
         btnBossAudit.style.display = 'none';
         if (btnCommercialPlan) btnCommercialPlan.style.display = 'flex';
         if (btnMikelRadarHud) btnMikelRadarHud.style.display = 'none';
-        btnLeagueRanking.innerHTML = '🏆 Ranking';
-        hudNavGrid.className = 'hud-nav-grid cols-4';
+        if (btnLeagueRanking) {
+          btnLeagueRanking.style.display = isMikelBlock ? 'none' : 'flex';
+          btnLeagueRanking.innerHTML = '🏆 Ranking';
+        }
+        hudNavGrid.className = isMikelBlock ? 'hud-nav-grid cols-3' : 'hud-nav-grid cols-4';
       }
     }
     function startSingleHouseDirect() {
@@ -1720,7 +1736,10 @@
       const container = document.getElementById('followUpsModalBody');
       const pendingCalls = [];
 
+     const viewerIsMikel = isMikelTeamMember(currentUserName);
+      const viewerIsMikel = isMikelTeamMember(currentUserName);
       savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
         if (!z.clients) return;
 
@@ -4136,6 +4155,10 @@
       renderAllSavedZones();
 
      if (currentUserRole === 'comercial') {
+        if (isMikelTeamMember(currentUserName)) {
+          alert(`✅ ¡Hoja volcada correctamente!`);
+          return;
+        }
         const piqueAfter = getCommercialPiqueAndAlerts(currentUserName);
         const zoneM2 = z.clients.reduce((acc, c) => (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) ? acc + getM2NumericValue(c.m2) : acc, 0);
         const zoneNeto = (zoneM2 * 0.85).toFixed(2);
@@ -4595,7 +4618,47 @@
       container.innerHTML = '';
 
       const viewingAsMikel = isMikelTeamMember(currentUserName);
-      const usersList = getActiveTeamUsers(viewingAsMikel);
+
+      // Vista ultra-básica para Mikel: solo Total Equipo, Total SÍ y Total NO
+      if (viewingAsMikel) {
+        const mikelUsers = getActiveTeamUsers(true);
+        let totalPuertas = 0;
+        let totalSi = 0;
+        let totalNo = 0;
+
+        savedZones.forEach(z => {
+          if (!mikelUsers.includes(z.comercial) || z.isNoAptoZone) return;
+          const st = z.stats || {};
+          totalSi += (st.si || 0);
+          totalNo += (st.no || 0);
+          totalPuertas += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0) + (st.yaAislado || 0);
+        });
+
+        container.innerHTML = `
+          <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+            <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase;">
+              📊 RESUMEN GENERAL DE TUS COMERCIALES
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center;">
+              <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 6px;">
+                <div style="font-size:9.5px; color:#cbd5e1; font-weight:800;">🚪 TOTAL EQUIPO</div>
+                <div style="font-size:20px; font-weight:900; color:#fff; margin-top:4px;">${totalPuertas}</div>
+              </div>
+              <div style="background:rgba(5,150,105,0.18); border:1px solid #10b981; border-radius:10px; padding:12px 6px;">
+                <div style="font-size:9.5px; color:#6ee7b7; font-weight:800;">✅ TOTAL SÍ</div>
+                <div style="font-size:20px; font-weight:900; color:#34d399; margin-top:4px;">${totalSi}</div>
+              </div>
+              <div style="background:rgba(220,38,38,0.18); border:1px solid #ef4444; border-radius:10px; padding:12px 6px;">
+                <div style="font-size:9.5px; color:#fca5a5; font-weight:800;">❌ TOTAL NO</div>
+                <div style="font-size:20px; font-weight:900; color:#f87171; margin-top:4px;">${totalNo}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const usersList = getActiveTeamUsers(false);
       const bossNameSelf = viewingAsMikel ? 'Mikel (Jefe)' : 'Andrei (Jefe)';
       const statsMap = {};
 
