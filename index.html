@@ -1099,6 +1099,9 @@
       if (currentUserName) {
         if (map) renderAllSavedZones();
         updateShiftUI();
+        if (currentUserRole === 'jefe' && key === 'comercial_custom_zones' && !bossEntrySummaryShown) {
+          showBossDailySummaryAndObras(false);
+        }
         const isEditingForm = document.getElementById('dumpModal')?.classList.contains('active') ||
                               document.getElementById('singleHouseModal')?.classList.contains('active');
         if (!isEditingForm) {
@@ -1890,13 +1893,21 @@
       checkAndShowBossTodayObras(false);
     }
 
-    function showBossDailySummaryAndObras() {
+    let bossEntrySummaryShown = false;
+
+    function showBossDailySummaryAndObras(forceShow = false) {
+      if (currentUserRole !== 'jefe') return;
+      if (!forceShow && bossEntrySummaryShown) return;
+
       const teamList = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       const statusLines = [];
 
       teamList.forEach(com => {
         const comZones = savedZones.filter(z => z.comercial === com && !z.isSingleHouse && !z.isHotMission);
-        if (comZones.length === 0) return;
+        if (comZones.length === 0) {
+          statusLines.push(`⚪ <strong>${com}:</strong> Sin zona asignada`);
+          return;
+        }
 
         const incomplete = comZones.filter(z => z.status === 'en_proceso');
         const completed = comZones.filter(z => z.status === 'completada');
@@ -1908,28 +1919,31 @@
         } else if (pendingNew.length > 0) {
           statusLines.push(`🔵 <strong>${com}:</strong> ${pendingNew.length} zona(s) nueva(s) por hacer`);
         } else if (completed.length > 0) {
-          statusLines.push(`✅ <strong>${com}:</strong> Ha terminado su zona`);
+          statusLines.push(`✅ <strong>${com}:</strong> Ya ha terminado su zona`);
         }
       });
 
-      const { totalObrasCount } = getTodayScheduledObrasGrouped();
+      bossEntrySummaryShown = true;
+      checkAndShowBossTodayObras(false);
 
-      if (statusLines.length > 0 || totalObrasCount > 0) {
-        checkAndShowBossTodayObras(false);
-        const container = document.getElementById('bossObrasHoyContainer');
-        if (container && statusLines.length > 0) {
-          const summaryBanner = `
-            <div style="background:rgba(30,41,59,0.95); border:1.5px solid #f59e0b; border-radius:14px; padding:12px; margin-bottom:12px;">
-              <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; margin-bottom:6px;">
-                📋 ESTADO DE ZONAS DEL EQUIPO
-              </div>
-              <div style="font-size:11.5px; color:#f8fafc; line-height:1.5;">
-                ${statusLines.join('<br>')}
-              </div>
+      const modalHeaderTitle = document.querySelector('#bossObrasHoyModal .modal-header span');
+      if (modalHeaderTitle) {
+        modalHeaderTitle.innerText = '👑 Parte del Equipo & Obras de Hoy';
+      }
+
+      const container = document.getElementById('bossObrasHoyContainer');
+      if (container) {
+        const summaryBanner = `
+          <div style="background:rgba(30,41,59,0.95); border:1.5px solid #f59e0b; border-radius:14px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; margin-bottom:6px;">
+              📋 ESTADO DE ZONAS DE TUS COMERCIALES
             </div>
-          `;
-          container.innerHTML = summaryBanner + container.innerHTML;
-        }
+            <div style="font-size:11.5px; color:#f8fafc; line-height:1.6;">
+              ${statusLines.join('<br>')}
+            </div>
+          </div>
+        `;
+        container.innerHTML = summaryBanner + container.innerHTML;
       }
     }
 
