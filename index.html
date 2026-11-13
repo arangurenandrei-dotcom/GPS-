@@ -903,8 +903,8 @@
   <!-- MODAL ASIGNACIÓN DE SECTOR -->
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
-      <div class="modal-header-sticky">
-        <div class="modal-header"><div class="modal-header">
+     <div class="modal-header-sticky">
+        <div class="modal-header">
           <span>📍 Asignar Sector a Comercial</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="cancelDrawing(); closeModal('assignModal')">✕</button>
         </div>
@@ -1967,8 +1967,6 @@
       checkAndShowBossTodayObras(false);
     }
 
-    function showBossDailySummaryAndObras(forceShow = false) {
-
     let bossEntrySummaryShown = false;
 
     function showBossDailySummaryAndObras(forceShow = false) {
@@ -2089,7 +2087,6 @@
       const myZones = savedZones.filter(z => z.comercial === currentUserName && !z.isSingleHouse && !z.isHotMission);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
       const assignedNew = myZones.filter(z => (z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer') && z.date <= todayIso);
-      const piqueData = getCommercialPiqueAndAlerts(currentUserName);
       const piqueData = getCommercialPiqueAndAlerts(currentUserName);
       let todayM2 = 0;
       let todaySiCount = 0;
@@ -5200,23 +5197,7 @@
           map.set(item.id, item);
         }
       });
-      return Array.from(map.values());
-    }
-
-    function mergeArraysById(localArr, cloudArr) {
-      if (!Array.isArray(cloudArr)) return localArr || [];
-      if (!Array.isArray(localArr) || localArr.length === 0) return cloudArr;
-      if (typeof cloudArr[0] !== 'object' || !cloudArr[0]?.id) return cloudArr;
-
-      const map = new Map();
-      cloudArr.forEach(item => map.set(item.id, item));
-      localArr.forEach(item => {
-        const cloudItem = map.get(item.id);
-        if (!cloudItem || (item._updatedAt || 0) > (cloudItem._updatedAt || 0)) {
-          map.set(item.id, item);
-        }
-      });
-      return Array.from(map.values());
+     return Array.from(map.values());
     }
 
     window.pushToFirestore = async function(key, data) {
