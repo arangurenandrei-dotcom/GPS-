@@ -715,6 +715,7 @@
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
         <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda</button>
+        <button id="btnCommercialPlan" class="btn-hud jefe-action" style="display:none;" onclick="showCommercialBriefing()">📋 Mi Plan</button>
         <button id="btnFollowUps" class="btn-hud followup-action" onclick="openFollowUpsModal()">📞 Llamar</button>
         <button id="btnLeagueRanking" class="btn-hud ranking-action" onclick="openLeagueRankingModal()">🏆 Ranking</button>
         <button id="btnCommercialStats" class="btn-hud stats-action" onclick="openCommercialStatsModal()">📈 Mis Stats</button>
@@ -762,6 +763,7 @@
       </div>
     </div>
   </div>
+
   <!-- MODAL VISOR IDENA NAVARRA INTEGRADO EN LA APP -->
   <div id="idenaViewerModal" class="modal-overlay">
     <div class="modal-card" style="max-width:600px; height:86vh; padding:10px;">
@@ -902,9 +904,9 @@
   <div id="assignModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
-        <div class="modal-header">
+        <div class="modal-header"><div class="modal-header">
           <span>📍 Asignar Sector a Comercial</span>
-          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('assignModal')">✕</button>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="cancelDrawing(); closeModal('assignModal')">✕</button>
         </div>
       </div>
 
@@ -1007,6 +1009,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
   <script>
     const PASSWORDS = {
@@ -1249,6 +1252,7 @@
       const nameLbl = document.getElementById('displayUserName');
       const btnBossAssign = document.getElementById('btnBossAssignMode');
       const btnBossAudit = document.getElementById('btnBossAudit');
+      const btnCommercialPlan = document.getElementById('btnCommercialPlan');
       const btnLeagueRanking = document.getElementById('btnLeagueRanking');
       const hudNavGrid = document.getElementById('hudNavGrid');
 
@@ -1259,6 +1263,7 @@
         roleBadge.innerText = '👑 JEFE';
         btnBossAssign.style.display = 'flex';
         btnBossAudit.style.display = 'flex';
+        if (btnCommercialPlan) btnCommercialPlan.style.display = 'none';
         btnLeagueRanking.innerHTML = '🏆 Liga';
         hudNavGrid.className = 'hud-nav-grid cols-4';
       } else {
@@ -1266,11 +1271,11 @@
         roleBadge.innerText = '🏃 COMERCIAL';
         btnBossAssign.style.display = 'none';
         btnBossAudit.style.display = 'none';
+        if (btnCommercialPlan) btnCommercialPlan.style.display = 'flex';
         btnLeagueRanking.innerHTML = '🏆 Ranking';
-        hudNavGrid.className = 'hud-nav-grid cols-3';
+        hudNavGrid.className = 'hud-nav-grid cols-4';
       }
     }
-
     function startSingleHouseDirect() {
       cancelDrawing();
       isDrawingMode = true;
@@ -1289,7 +1294,16 @@
     function initMap() {
       if (map) return;
       // Vista inicial general de Navarra mientras el dispositivo obtiene su GPS
-      map = L.map('map', { zoomControl: false, attributionControl: false, maxZoom: 20 }).setView([42.65, -1.65], 10);
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false,
+        maxZoom: 20,
+        rotate: true,
+        touchRotate: true,
+        rotateControl: {
+          closeOnZeroBearing: true
+        }
+      }).setView([42.65, -1.65], 10);
 
       osmStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxNativeZoom: 19,
@@ -1365,6 +1379,8 @@
         map.removeLayer(catastroNavarraLayer);
         isCatastroActive = false;
         btn.classList.remove('active');
+        btn.style.background = 'rgba(15, 23, 42, 0.92)';
+        btn.style.borderColor = 'rgba(255, 255, 255, 0.28)';
       } else {
         catastroNavarraLayer.addTo(map);
         catastroNavarraLayer.bringToFront();
@@ -1373,6 +1389,8 @@
         }
         isCatastroActive = true;
         btn.classList.add('active');
+        btn.style.background = '#059669';
+        btn.style.borderColor = '#34d399';
       }
     }
 
@@ -1824,8 +1842,9 @@
         let assignedBadgesHtml = '';
         existingMissions.forEach(m => {
           assignedBadgesHtml += `
-            <div style="font-size:10.5px; color:#34d399; font-weight:800; background:rgba(5,150,105,0.2); border:1px solid #059669; padding:5px 8px; border-radius:8px;">
-              ✅ Enviado hoy a reclamo: <strong>${m.comercial}</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:10.5px; color:#34d399; font-weight:800; background:rgba(5,150,105,0.2); border:1px solid #059669; padding:5px 8px; border-radius:8px;">
+              <span>✅ Enviado hoy a reclamo: <strong>${m.comercial}</strong></span>
+              <button onclick="removeHotLeadMission(${m.id})" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:10px; font-weight:900; padding:2px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
             </div>
           `;
         });
@@ -1862,7 +1881,20 @@
 
       html += `<button class="btn-modal-save" onclick="closeModal('bossObrasHoyModal')">Entendido, ir al Panel</button>`;
       container.innerHTML = html;
-      document.getElementById('bossObrasHoyModal').classList.add('active');
+      document.getElementById('briefingModal').classList.add('active');
+    }
+
+    function focusMapOnTownOrZone(townName, zoneIdx) {
+      closeModal('briefingModal');
+      if (zoneIdx !== null && savedZones[zoneIdx] && savedZones[zoneIdx].points && savedZones[zoneIdx].points.length >= 3) {
+        const bounds = L.latLngBounds(savedZones[zoneIdx].points);
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        return;
+      }
+      if (townName) {
+        document.getElementById('searchInput').value = townName;
+        searchLocation();
+      }
     }
 
     function dispatchCommercialToObra(townName, selectElementId) {
@@ -1911,6 +1943,31 @@
       renderAllSavedZones();
       checkAndShowBossTodayObras(false);
     }
+
+    function removeHotLeadMission(missionId) {
+      const target = hotLeadMissions.find(m => m.id === missionId);
+      const delList = safeLoadStorage('comercial_deleted_ids');
+      if (missionId && !delList.includes(missionId)) delList.push(missionId);
+
+      hotLeadMissions = hotLeadMissions.filter(m => m.id !== missionId);
+      saveAndSync('comercial_hot_lead_missions', hotLeadMissions);
+
+      if (target) {
+        savedZones.forEach(z => {
+          if (z.isHotMission && z.comercial === target.comercial && z.date === target.date && z.town === target.town && z.id) {
+            if (!delList.includes(z.id)) delList.push(z.id);
+          }
+        });
+        savedZones = savedZones.filter(z => !(z.isHotMission && z.comercial === target.comercial && z.date === target.date && z.town === target.town));
+        saveAndSync('comercial_custom_zones', savedZones);
+      }
+      localStorage.setItem('comercial_deleted_ids', JSON.stringify(delList));
+
+      renderAllSavedZones();
+      checkAndShowBossTodayObras(false);
+    }
+
+    function showBossDailySummaryAndObras(forceShow = false) {
 
     let bossEntrySummaryShown = false;
 
@@ -2033,14 +2090,48 @@
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
       const assignedNew = myZones.filter(z => (z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer') && z.date <= todayIso);
       const piqueData = getCommercialPiqueAndAlerts(currentUserName);
+      const piqueData = getCommercialPiqueAndAlerts(currentUserName);
+      let todayM2 = 0;
+      let todaySiCount = 0;
+      savedZones.forEach(z => {
+        if (z.comercial !== currentUserName) return;
+        const zDate = z.dumpDate || z.date;
+        if (zDate === todayIso) {
+          let validClientsToday = 0;
+          if (z.clients) {
+            z.clients.forEach(c => {
+              if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+                todayM2 += getM2NumericValue(c.m2);
+                validClientsToday++;
+              }
+            });
+          }
+          todaySiCount += validClientsToday > 0 ? validClientsToday : (z.stats?.si || 0);
+        }
+      });
+      const todayNeto = todayM2 * 0.85;
+      const goalSi = 10;
+      const goalPct = Math.min(100, Math.round((todaySiCount / goalSi) * 100));
 
       let html = `
         <div style="background:linear-gradient(135deg, #b45309 0%, #7c2d12 100%); border:1.5px solid #fbbf24; border-radius:12px; padding:10px 12px; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <span style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase;">💰 TU MARCADOR & PIQUE DE LIGA</span>
-            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:2px 7px; border-radius:6px;">Bolsillo: ${piqueData.me.bolsillo.toFixed(2)} €</span>
+            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:2px 7px; border-radius:6px;">Mes: ${piqueData.me.bolsillo.toFixed(2)} €</span>
           </div>
           <div style="font-size:11.5px; color:#fff; line-height:1.4;">${piqueData.piqueMsg}</div>
+          <div style="margin-top:8px; background:rgba(0,0,0,0.35); border-radius:8px; padding:6px 8px;">
+            <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:800; color:#fde047; margin-bottom:4px;">
+              <span>🎯 Reto Diario: ${todaySiCount} / ${goalSi} SÍ (Hoy: +${todayNeto.toFixed(2)} €)</span>
+              <span>${goalPct}%</span>
+            </div>
+            <div class="league-progress-bg">
+              <div class="league-progress-fill" style="width:${goalPct}%;"></div>
+            </div>
+            <div style="font-size:9.5px; color:#fef3c7; margin-top:4px;">
+              🔥 Objetivo top: <strong>10 SÍ al día</strong> (~600 € netos). ¡Cada puerta suma directo a tu bolsillo!
+            </div>
+          </div>
         </div>
 
         ${piqueData.overdue48hCount > 0 ? `
@@ -2065,7 +2156,10 @@
         myHotMissions.forEach(m => {
           html += `
             <div class="priority-card reclamo">
-              <span style="font-size:10px; font-weight:900; color:#34d399; text-transform:uppercase;">🔥 MISIÓN ESPECIAL EN CALIENTE (OBRA HOY)</span>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:900; color:#34d399; text-transform:uppercase;">🔥 MISIÓN ESPECIAL EN CALIENTE (OBRA HOY)</span>
+                <button onclick="focusMapOnTownOrZone('${m.town.replace(/'/g, "\\'")}', null)" style="background:#059669; border:1px solid #34d399; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">📍 Ir en Mapa</button>
+              </div>
               <strong style="font-size:13px; color:#fff;">📍 Acudir a Obra en ${m.town}</strong>
               <div style="font-size:11px; color:#e2e8f0; margin-top:2px;">Dirección y hora: <strong>${m.streetsSummary}</strong></div>
             </div>
@@ -2075,9 +2169,13 @@
 
       if (pendingIncomplete.length > 0) {
         pendingIncomplete.forEach(z => {
+          const zIdx = savedZones.indexOf(z);
           html += `
             <div class="priority-card p1">
-              <span style="font-size:10px; font-weight:900; color:#d97706; text-transform:uppercase;">🚨 PRIORIDAD 1: TERMINAR ZONA PENDIENTE</span>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:900; color:#d97706; text-transform:uppercase;">🚨 PRIORIDAD 1: TERMINAR ZONA PENDIENTE</span>
+                <button onclick="focusMapOnTownOrZone('${(z.town || '').replace(/'/g, "\\'")}', ${zIdx})" style="background:#d97706; border:1px solid #fde047; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">📍 Ir en Mapa</button>
+              </div>
               <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
               <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
               ${z.pendingNote ? `<div style="font-size:11px; color:#fde047; margin-top:4px;">✏️ <strong>Falta:</strong> "${z.pendingNote}"</div>` : ''}
@@ -2089,9 +2187,13 @@
 
       if (assignedNew.length > 0) {
         assignedNew.forEach(z => {
+          const zIdx = savedZones.indexOf(z);
           html += `
             <div class="priority-card p2">
-              <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">🔵 PRIORIDAD 2: NUEVA ZONA DE HOY</span>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">🔵 PRIORIDAD 2: NUEVA ZONA DE HOY</span>
+                <button onclick="focusMapOnTownOrZone('${(z.town || '').replace(/'/g, "\\'")}', ${zIdx})" style="background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">📍 Ir en Mapa</button>
+              </div>
               <strong style="font-size:13px; color:#fff;">📍 ${z.sectorName} (${z.town})</strong>
               <div style="font-size:11px; color:#cbd5e1;">Fecha Asignada: ${formatDate(z.date)}</div>
               ${z.bossNote ? `<div style="font-size:11px; color:#a78bfa; margin-top:4px;">💬 <strong>Nota del Jefe:</strong> "${z.bossNote}"</div>` : ''}
@@ -2122,6 +2224,7 @@
       if (!shift) return;
       shift.status = 'working';
       shift.endTime = null;
+      shift.lunchStart = null;
       shift._updatedAt = Date.now();
       saveAndSync('comercial_shifts', savedShifts);
       updateShiftUI();
@@ -3250,6 +3353,14 @@
       if (idx === null || idx === undefined || !savedZones[idx]) return;
       const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
       if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
+        const deletedZone = savedZones[idx];
+        if (deletedZone && deletedZone.id) {
+          const delList = safeLoadStorage('comercial_deleted_ids');
+          if (!delList.includes(deletedZone.id)) {
+            delList.push(deletedZone.id);
+            localStorage.setItem('comercial_deleted_ids', JSON.stringify(delList));
+          }
+        }
         savedZones.splice(idx, 1);
         saveAndSync('comercial_custom_zones', savedZones);
         closeModal('dumpModal');
@@ -3720,11 +3831,18 @@
       closeModal('dumpModal');
       renderAllSavedZones();
 
-      if (currentUserRole === 'comercial') {
+     if (currentUserRole === 'comercial') {
         const piqueAfter = getCommercialPiqueAndAlerts(currentUserName);
         const zoneM2 = z.clients.reduce((acc, c) => (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) ? acc + getM2NumericValue(c.m2) : acc, 0);
         const zoneNeto = (zoneM2 * 0.85).toFixed(2);
-        alert(`✅ ¡Hoja volcada!\n\n💰 Has sumado +${zoneNeto} € netos en este sector.\n🏆 Vas #${piqueAfter.myRank} en la liga con ${piqueAfter.me.bolsillo.toFixed(2)} € acumulados.`);
+        const todayIso = getTodayISO();
+        let todaySiTotal = 0;
+        savedZones.forEach(item => {
+          if (item.comercial === currentUserName && (item.dumpDate || item.date) === todayIso) {
+            todaySiTotal += (item.stats?.si || 0);
+          }
+        });
+        alert(`✅ ¡Hoja volcada!\n\n💰 Has sumado +${zoneNeto} € netos en este sector.\n🎯 Llevas ${todaySiTotal} / 10 SÍ del reto de hoy.\n🏆 Vas #${piqueAfter.myRank} en la liga con ${piqueAfter.me.bolsillo.toFixed(2)} € acumulados.`);
       }
     }
 
@@ -4664,6 +4782,46 @@
       const jefeStats = stats['Andrei (Jefe)'];
       const totalJefeDia = (jefeStats.m2TotalSi * 1.0) + totalOverridenCommission;
 
+      // Cuadro resumen de planificación y cumplimiento de zonas del día
+      const teamListOnly = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      let quickPlanRows = '';
+      teamListOnly.forEach(com => {
+        const dayZones = savedZones.filter(z => z.comercial === com && !z.isSingleHouse && !z.isHotMission && (z.date === selectedDate || z.dumpDate === selectedDate || z.status === 'en_proceso'));
+        const dayHot = hotLeadMissions.filter(m => m.comercial === com && m.date === selectedDate);
+
+        let statusSummary = '<span style="color:#64748b;">⚪ Sin zona asignada</span>';
+        if (dayZones.length > 0) {
+          statusSummary = dayZones.map(dz => {
+            const zIdx = savedZones.indexOf(dz);
+            let badge = '<span style="color:#60a5fa; font-weight:800;">⚪ Por hacer</span>';
+            if (dz.status === 'en_proceso') badge = '<span style="color:#fde047; font-weight:800;">🟡 Incompleta</span>';
+            if (dz.status === 'completada') badge = '<span style="color:#34d399; font-weight:800;">✅ Hecha</span>';
+            return `<span onclick="closeModal(\'auditModal\'); openDumpModal(${zIdx});" style="cursor:pointer; text-decoration:underline;">${dz.sectorName} (${dz.town})</span> → ${badge}`;
+          }).join('<br>');
+        }
+        if (dayHot.length > 0) {
+          statusSummary += `<br><span style="color:#34d399; font-weight:800;">🔥 Obra en caliente: ${dayHot.map(h => h.town).join(', ')}</span>`;
+        }
+
+        quickPlanRows += `
+          <div style="font-size:11px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+            <strong style="color:#fff; white-space:nowrap;">${com}:</strong>
+            <div style="text-align:right; line-height:1.35;">${statusSummary}</div>
+          </div>
+        `;
+      });
+
+      const teamPlanCard = document.createElement('div');
+      teamPlanCard.style.cssText = 'background:rgba(30,41,59,0.9); border:1px solid rgba(96,165,250,0.45); border-radius:14px; padding:12px; margin-bottom:10px;';
+      teamPlanCard.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">📋 PLANIFICACIÓN Y CUMPLIMIENTO (${formatDate(selectedDate)})</span>
+          <button onclick="closeModal('auditModal'); showBossDailySummaryAndObras(true);" style="background:#7c3aed; border:1px solid #a78bfa; color:#fff; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">🔔 Ver Parte</button>
+        </div>
+        ${quickPlanRows}
+      `;
+      container.prepend(teamPlanCard);
+
       const bossTotalCard = document.createElement('div');
       bossTotalCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
       bossTotalCard.style.border = '1px solid #a78bfa';
@@ -5076,10 +5234,15 @@
       onSnapshot(doc(db, 'gestion_navarra', key), (snap) => {
         if (snap.exists() && snap.data().payload) {
           try {
+            if (snap.metadata && snap.metadata.hasPendingWrites) return;
             const cloudParsed = JSON.parse(snap.data().payload);
             const localRaw = localStorage.getItem(key);
             const localParsed = localRaw ? JSON.parse(localRaw) : [];
-            const merged = mergeArraysById(localParsed, cloudParsed);
+            const deletedIds = JSON.parse(localStorage.getItem('comercial_deleted_ids') || '[]');
+            const filteredCloud = Array.isArray(cloudParsed)
+              ? cloudParsed.filter(item => !item || !item.id || !deletedIds.includes(item.id))
+              : cloudParsed;
+            const merged = mergeArraysById(localParsed, filteredCloud);
             if (typeof window.applyCloudDataUpdate === 'function') {
               window.applyCloudDataUpdate(key, merged);
             }
