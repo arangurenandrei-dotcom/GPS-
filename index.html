@@ -801,6 +801,7 @@
 
   <!-- MODAL VISOR IDENA NAVARRA INTEGRADO EN LA APP -->
   <div id="idenaViewerModal" class="modal-overlay" style="z-index: 10050;">
+    <div class="modal-card" style="height:88vh;">
       <div class="modal-header-sticky">
         <div class="modal-header" style="margin-bottom:6px; padding-bottom:6px;">
           <span>🏛️ Catastro / IDENA Navarra (En Vivo)</span>
@@ -1737,7 +1738,6 @@
       const pendingCalls = [];
 
      const viewerIsMikel = isMikelTeamMember(currentUserName);
-      const viewerIsMikel = isMikelTeamMember(currentUserName);
       savedZones.forEach((z, zIdx) => {
         if (isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
@@ -2603,9 +2603,27 @@
       const btnSingle = document.getElementById('btnToggleSingleHouseMode');
       const btnConfirm = document.getElementById('btnConfirmSectorPoly');
       if (btnSingle) btnSingle.style.display = 'none';
-      if (btnConfirm) btnConfirm.style.display = 'inline-block';
+     if (btnConfirm) btnConfirm.style.display = 'inline-block';
 
-      document.getElementById('drawingBannerText').innerText = "✂️ Toca las esquinas de la ZONA PENDIENTE para mañana...";
+      const assignSel = document.getElementById('assignComercial');
+      if (assignSel) {
+        const isMikel = isMikelTeamMember(currentUserName);
+        assignSel.innerHTML = isMikel
+          ? `<option value="Mikel (Jefe)">👑 Mikel (Trabajo Propio)</option>
+             <option value="Mikel Com. 1">Mikel Com. 1</option>
+             <option value="Mikel Com. 2">Mikel Com. 2</option>
+             <option value="Mikel Com. 3">Mikel Com. 3</option>
+             <option value="Mikel Com. 4">Mikel Com. 4</option>
+             <option value="Mikel Com. 5">Mikel Com. 5</option>`
+          : `<option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
+             <option value="Comercial 1">Comercial 1</option>
+             <option value="Comercial 2">Comercial 2</option>
+             <option value="Comercial 3">Comercial 3</option>
+             <option value="Comercial 4">Comercial 4</option>
+             <option value="Comercial 5">Comercial 5</option>`;
+      }
+
+      document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
     }
 
     async function inspectNavarraCadastreAtPoint(latlng) {
@@ -3261,7 +3279,9 @@
        ===================================================================== */
     function openSelectZoneToDumpModal() {
       const candidateIndices = [];
+      const viewerIsMikel = isMikelTeamMember(currentUserName);
       savedZones.forEach((z, idx) => {
+        if (z.isNoAptoZone || isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
         if (!z.isSingleHouse && (currentUserRole === 'jefe' || z.comercial === currentUserName)) {
           candidateIndices.push(idx);
         }
