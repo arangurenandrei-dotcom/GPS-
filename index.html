@@ -1120,6 +1120,12 @@
       return getLocalDateISO(new Date());
     }
 
+    function getTomorrowISO() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return getLocalDateISO(d);
+    }
+
     function isClientValidFilled(client) {
       if (!client) return false;
       const hasName = (client.name || '').trim().length > 0;
@@ -1884,6 +1890,49 @@
       checkAndShowBossTodayObras(false);
     }
 
+    function showBossDailySummaryAndObras() {
+      const teamList = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      const statusLines = [];
+
+      teamList.forEach(com => {
+        const comZones = savedZones.filter(z => z.comercial === com && !z.isSingleHouse && !z.isHotMission);
+        if (comZones.length === 0) return;
+
+        const incomplete = comZones.filter(z => z.status === 'en_proceso');
+        const completed = comZones.filter(z => z.status === 'completada');
+        const pendingNew = comZones.filter(z => z.status === 'sin_comprobar' || z.status === 'por_hacer');
+
+        if (incomplete.length > 0) {
+          const names = incomplete.map(z => `${z.sectorName} (${z.town})`).join(', ');
+          statusLines.push(`🟡 <strong>${com}:</strong> Zona incompleta pendiente para mañana → <em>${names}</em>`);
+        } else if (pendingNew.length > 0) {
+          statusLines.push(`🔵 <strong>${com}:</strong> ${pendingNew.length} zona(s) nueva(s) por hacer`);
+        } else if (completed.length > 0) {
+          statusLines.push(`✅ <strong>${com}:</strong> Ha terminado su zona`);
+        }
+      });
+
+      const { totalObrasCount } = getTodayScheduledObrasGrouped();
+
+      if (statusLines.length > 0 || totalObrasCount > 0) {
+        checkAndShowBossTodayObras(false);
+        const container = document.getElementById('bossObrasHoyContainer');
+        if (container && statusLines.length > 0) {
+          const summaryBanner = `
+            <div style="background:rgba(30,41,59,0.95); border:1.5px solid #f59e0b; border-radius:14px; padding:12px; margin-bottom:12px;">
+              <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; margin-bottom:6px;">
+                📋 ESTADO DE ZONAS DEL EQUIPO
+              </div>
+              <div style="font-size:11.5px; color:#f8fafc; line-height:1.5;">
+                ${statusLines.join('<br>')}
+              </div>
+            </div>
+          `;
+          container.innerHTML = summaryBanner + container.innerHTML;
+        }
+      }
+    }
+
     function showCommercialBriefing() {
       const container = document.getElementById('briefingContainer');
       container.innerHTML = '';
@@ -1892,7 +1941,7 @@
       const myHotMissions = hotLeadMissions.filter(m => m.comercial === currentUserName && m.date === todayIso);
       const myZones = savedZones.filter(z => z.comercial === currentUserName && !z.isSingleHouse && !z.isHotMission);
       const pendingIncomplete = myZones.filter(z => z.status === 'en_proceso');
-      const assignedNew = myZones.filter(z => z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer');
+      const assignedNew = myZones.filter(z => (z.status === 'pendiente' || z.status === 'sin_comprobar' || z.status === 'por_hacer') && z.date <= todayIso);
 
       let html = `
         <div class="routine-guide-box">
@@ -2496,7 +2545,12 @@
       document.getElementById('drawingBanner').classList.remove('active');
 
       if (isCropMode && selectedZoneIndexToDump !== null) {
-        savedZones[selectedZoneIndexToDump].points = tempPoints;
+        const z = savedZones[selectedZoneIndexToDump];
+        z.points = tempPoints;
+        z.status = 'en_proceso';
+        z.date = getTomorrowISO();
+        z.isUrgentContinuation = true;
+        z._updatedAt = Date.now();
         saveAndSync('comercial_custom_zones', savedZones);
         isCropMode = false;
         isDrawingMode = false;
@@ -2617,20 +2671,24 @@
         if (!z.points || z.points.length < 3) return;
 
         let borderStyleColor = comercialColor;
+        let fillStyleColor = comercialColor;
+        let fillOp = 0.35;
         let dashArray = null;
 
         if (z.status === 'sin_comprobar' || z.status === 'por_hacer') {
           dashArray = '6, 6';
         } else if (z.status === 'en_proceso') {
           borderStyleColor = '#f59e0b';
+          fillStyleColor = '#facc15';
+          fillOp = 0.50;
         }
 
         const polygon = L.polygon(z.points, {
           color: borderStyleColor,
-          weight: 3,
+          weight: z.status === 'en_proceso' ? 4 : 3,
           dashArray: dashArray,
-          fillColor: comercialColor,
-          fillOpacity: 0.35
+          fillColor: fillStyleColor,
+          fillOpacity: fillOp
         }).addTo(map);
 
         const displayName = z.sectorName || z.town || 'Sector Comercial';
@@ -3534,7 +3592,11 @@
         si: validFilledCount > 0 ? validFilledCount : reportedSi
       };
 
-      z.status = document.getElementById('dumpProgressState').value;
+      const newStatus = document.getElementById('dumpProgressState').value;
+      if (newStatus === 'en_proceso' && z.status !== 'en_proceso') {
+        z.date = getTomorrowISO();
+      }
+      z.status = newStatus;
       z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
       z._updatedAt = Date.now();
 
@@ -4681,7 +4743,7 @@
         if (currentUserRole === 'comercial') {
           showCommercialBriefing();
         } else if (currentUserRole === 'jefe') {
-          checkAndShowBossTodayObras(true);
+          showBossDailySummaryAndObras();
         }
       }
     };
