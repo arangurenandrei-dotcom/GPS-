@@ -4806,7 +4806,12 @@
       const teamListOnly = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       let quickPlanRows = '';
       teamListOnly.forEach(com => {
-        const dayZones = savedZones.filter(z => z.comercial === com && !z.isSingleHouse && !z.isHotMission && (z.date === selectedDate || z.dumpDate === selectedDate || z.status === 'en_proceso'));
+        const dayZones = savedZones.filter(z => {
+          if (z.comercial !== com || z.isSingleHouse || z.isHotMission) return false;
+          if (z.date === selectedDate || z.dumpDate === selectedDate) return true;
+          if (selectedDate === getTodayISO() && z.status !== 'completada' && z.date <= selectedDate) return true;
+          return false;
+        });
         const dayHot = hotLeadMissions.filter(m => m.comercial === com && m.date === selectedDate);
 
         let statusSummary = '<span style="color:#64748b;">⚪ Sin zona asignada</span>';
