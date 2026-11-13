@@ -634,6 +634,20 @@
       border-radius: 12px !important; padding: 4px !important; box-shadow: 0 10px 25px rgba(0,0,0,0.6);
     }
     .leaflet-popup-tip { background: #0f172a !important; }
+    .leaflet-bottom.leaflet-right {
+      bottom: 112px !important;
+      right: 10px !important;
+      z-index: 950 !important;
+    }
+    .leaflet-control-rotate a {
+      background-color: #0f172a !important;
+      color: #ffffff !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+      border-radius: 12px !important;
+      width: 38px !important;
+      height: 38px !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55) !important;
+    }
     .popup-zone-info { padding: 6px 8px; }
     .popup-zone-title { font-size: 12px; font-weight: 900; color: #fff; margin-bottom: 2px; }
     .popup-zone-sub { font-size: 10px; color: #94a3b8; margin-bottom: 6px; }
@@ -1301,7 +1315,8 @@
         rotate: true,
         touchRotate: true,
         rotateControl: {
-          closeOnZeroBearing: true
+          closeOnZeroBearing: false,
+          position: 'bottomright'
         }
       }).setView([42.65, -1.65], 10);
 
