@@ -760,12 +760,13 @@
         </div>
       </div>
 
-      <!-- Fila 4: Buscador Municipio + Buscador Global Clientes -->
-      <div class="search-row">
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Calle y nº o pueblo (ej. Mayor 14, Peralta)..." onkeypress="if(event.key==='Enter') searchLocation()">
+      <!-- Fila 4: Buscador Oficial Callejero/Catastro + Buscador Global Clientes -->
+      <div class="search-row" style="position:relative;">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Calle, nº y pueblo (ej. Carretera Lodosa 23 Mendavia)..." onkeypress="if(event.key==='Enter') searchLocation()">
         <button class="btn-search" onclick="searchLocation()">Ir</button>
         <button class="btn-global-crm" onclick="openGlobalClientSearchModal()" title="Buscar cliente por nombre, teléfono o calle">🔎 Fichas</button>
       </div>
+      <div id="searchCandidatesDropdown" style="display:none; flex-direction:column; gap:4px; background:#0f172a; border:1px solid #38bdf8; border-radius:12px; padding:6px; max-height:185px; overflow-y:auto; box-shadow:0 12px 28px rgba(0,0,0,0.85);"></div>
     </div>
 
     <!-- BRÚJULA FLOTANTE PARA ORIENTACIÓN NORTE -->
@@ -1646,64 +1647,149 @@
 
     let searchPinMarker = null;
 
+    let lastSearchCandidates = [];
+
+    async function queryCartoCiudadNavarra(searchStr) {
+      const url = `https://www.cartociudad.es/geocoder/api/geocoder/candidatesJsonp?q=${encodeURIComponent(searchStr)}&limit=10`;
+      const res = await fetch(url);
+      const rawText = await res.text();
+      // CartoCiudad responde JSON puro o envuelto en callback(...)
+      const jsonStr = rawText.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, '');
+      const list = JSON.parse(jsonStr);
+      if (!Array.isArray(list)) return [];
+
+      // Filtrar resultados de Navarra (código postal 31xxx o provincia Navarra)
+      const navarraOnly = list.filter(item => {
+        const prov = (item.province || '').toLowerCase();
+        const cp = String(item.postalCode || '');
+        return prov.includes('navarra') || cp.startsWith('31');
+      });
+
+      const finalPool = navarraOnly.length > 0 ? navarraOnly : list;
+      return finalPool.map(item => ({
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lng),
+        title: item.address || item.tip_via ? `${item.tip_via || ''} ${item.address || ''} ${item.portalNumber || ''}`.trim() : searchStr,
+        town: item.muni || item.poblacion || 'Navarra',
+        cp: item.postalCode || '',
+        isPortal: Boolean(item.portalNumber || item.type === 'portal'),
+        source: 'Catastro/IGN'
+      })).filter(x => !isNaN(x.lat) && !isNaN(x.lon));
+    }
+
     async function queryNominatimNavarra(searchStr) {
       const qFull = searchStr.toLowerCase().includes('navarra') ? searchStr : `${searchStr}, Navarra, España`;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=es&viewbox=-2.50,43.35,-0.70,41.90&bounded=0&limit=5&q=${encodeURIComponent(qFull)}`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=es&viewbox=-2.50,43.35,-0.70,41.90&bounded=0&limit=6&q=${encodeURIComponent(qFull)}`;
       const res = await fetch(url);
-      return await res.json();
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data.map(b => {
+        const addr = b.address || {};
+        const town = addr.village || addr.town || addr.city || addr.municipality || 'Navarra';
+        const road = addr.road || b.display_name.split(',')[0];
+        const num = addr.house_number ? ` ${addr.house_number}` : '';
+        return {
+          lat: parseFloat(b.lat),
+          lon: parseFloat(b.lon),
+          title: `${road}${num}`.trim(),
+          town,
+          cp: addr.postcode || '',
+          isPortal: Boolean(addr.road || addr.house_number),
+          source: 'Mapa'
+        };
+      });
+    }
+
+    function flyToSearchCandidate(idx) {
+      const c = lastSearchCandidates[idx];
+      if (!c || !map) return;
+      const dropdown = document.getElementById('searchCandidatesDropdown');
+      if (dropdown) dropdown.style.display = 'none';
+
+      const zoomLvl = c.isPortal ? 19 : 16;
+      map.setView([c.lat, c.lon], zoomLvl, { animate: true });
+
+      if (searchPinMarker) map.removeLayer(searchPinMarker);
+      searchPinMarker = L.marker([c.lat, c.lon]).addTo(map)
+        .bindPopup(`<div style="font-size:11px; font-weight:800; color:#fff; padding:2px 4px;">📍 ${c.title}<br><span style="color:#38bdf8;">${c.town}${c.cp ? ' (' + c.cp + ')' : ''}</span></div>`)
+        .openPopup();
     }
 
     async function searchLocation() {
       const query = document.getElementById('searchInput').value.trim();
+      const dropdown = document.getElementById('searchCandidatesDropdown');
       if (!query) return;
 
+      if (dropdown) {
+        dropdown.style.display = 'flex';
+        dropdown.innerHTML = `<div style="font-size:11px; color:#7dd3fc; padding:4px 6px;">⏳ Buscando en callejero oficial de Navarra...</div>`;
+      }
+
       try {
-        // 1º Intento: búsqueda exacta con calle y número
-        let results = await queryNominatimNavarra(query);
-        let fallbackNote = '';
+        // 1º: Callejero Oficial CartoCiudad (IGN / Catastro con números de portal reales)
+        let candidates = await queryCartoCiudadNavarra(query);
 
-        // 2º Intento: si no existe el número exacto en OSM, quitar el número y buscar la calle
-        if (!results || results.length === 0) {
-          const withoutNumber = query.replace(/\b(nº|num\.?|número)?\s*\d+[a-zA-Z]?\b/gi, '').replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim();
-          if (withoutNumber && withoutNumber.toLowerCase() !== query.toLowerCase()) {
-            results = await queryNominatimNavarra(withoutNumber);
-            if (results && results.length > 0) {
-              fallbackNote = ' (Calle localizada; número exacto no indexado)';
-            }
+        // 2º: Si CartoCiudad no devolvió nada (ej. formato con comas), probar con coma normalizada
+        if (candidates.length === 0 && !query.includes(',')) {
+          const parts = query.split(/\s+/);
+          if (parts.length >= 2) {
+            const lastWord = parts[parts.length - 1];
+            const rest = parts.slice(0, -1).join(' ');
+            candidates = await queryCartoCiudadNavarra(`${rest}, ${lastWord}`);
           }
         }
 
-        // 3º Intento: si tampoco reconoce la vía, centrar en el pueblo (última palabra o tras la coma)
-        if (!results || results.length === 0) {
-          const townCandidate = query.includes(',')
-            ? query.split(',').pop().trim()
-            : query.split(/\s+/).pop().trim();
-          if (townCandidate && townCandidate.length >= 3) {
-            results = await queryNominatimNavarra(townCandidate);
-            if (results && results.length > 0) {
-              fallbackNote = ' (Centrado en municipio)';
-            }
+        // 3º: Respaldo con OpenStreetMap si fuera un camino o paraje rural
+        if (candidates.length === 0) {
+          candidates = await queryNominatimNavarra(query);
+        }
+
+        // 4º: Último recurso: centrar al menos en el municipio si puso calle + pueblo
+        if (candidates.length === 0) {
+          const townOnly = query.includes(',') ? query.split(',').pop().trim() : query.split(/\s+/).pop().trim();
+          if (townOnly.length >= 3) {
+            candidates = await queryNominatimNavarra(townOnly);
           }
         }
 
-        if (results && results.length > 0) {
-          const best = results[0];
-          const lat = parseFloat(best.lat);
-          const lon = parseFloat(best.lon);
-          const isStreetOrHouse = Boolean(best.address && (best.address.road || best.address.house_number));
-          const targetZoom = isStreetOrHouse ? 18 : 16;
-
-          map.setView([lat, lon], targetZoom, { animate: true });
-
-          if (searchPinMarker) map.removeLayer(searchPinMarker);
-          searchPinMarker = L.marker([lat, lon]).addTo(map)
-            .bindPopup(`<div style="font-size:11px; font-weight:800; color:#fff; padding:2px 4px;">📍 ${best.display_name.split(',').slice(0, 3).join(',')}${fallbackNote}</div>`)
-            .openPopup();
-        } else {
+        if (candidates.length === 0) {
+          if (dropdown) dropdown.style.display = 'none';
           alert("No se encontró esa dirección ni municipio en Navarra.");
+          return;
+        }
+
+        // Eliminar duplicados muy cercanos
+        const unique = [];
+        candidates.forEach(cand => {
+          const dup = unique.some(u => Math.abs(u.lat - cand.lat) < 0.0002 && Math.abs(u.lon - cand.lon) < 0.0002);
+          if (!dup) unique.push(cand);
+        });
+        lastSearchCandidates = unique;
+
+        // Si solo hay 1 resultado exacto, vuela directamente; si hay varios (ej. varios pueblos), muestra lista para elegir
+        if (unique.length === 1) {
+          flyToSearchCandidate(0);
+        } else if (dropdown) {
+          let listHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 4px; font-size:9.5px; color:#94a3b8; font-weight:800;">
+              <span>📍 ${unique.length} ubicaciones encontradas (elige localidad):</span>
+              <button onclick="document.getElementById('searchCandidatesDropdown').style.display='none'" style="background:none; border:none; color:#fca5a5; font-weight:900; cursor:pointer;">✕</button>
+            </div>
+          `;
+          unique.forEach((u, i) => {
+            listHtml += `
+              <button onclick="flyToSearchCandidate(${i})" style="text-align:left; background:rgba(255,255,255,0.06); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:6px 8px; color:#fff; font-size:11px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                <span><strong>${u.title}</strong> • <span style="color:#38bdf8; font-weight:800;">${u.town}</span></span>
+                <span style="font-size:9px; color:#94a3b8; white-space:nowrap;">${u.source} →</span>
+              </button>
+            `;
+          });
+          dropdown.innerHTML = listHtml;
+          dropdown.style.display = 'flex';
         }
       } catch (e) {
-        alert("Error al conectar con el mapa.");
+        if (dropdown) dropdown.style.display = 'none';
+        alert("Error al conectar con el callejero.");
       }
     }
     /* =====================================================================
