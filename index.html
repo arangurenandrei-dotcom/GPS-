@@ -777,6 +777,39 @@
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
+
+    .live-salary-pill {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%);
+      border: 1px solid #34d399;
+      color: #6ee7b7;
+      font-size: 10.5px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 99px;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-voice-mic {
+      background: rgba(124, 58, 237, 0.25);
+      border: 1px solid #a78bfa;
+      color: #e9d5ff;
+      border-radius: 9px;
+      padding: 0 10px;
+      font-size: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-voice-mic.recording {
+      background: #dc2626;
+      border-color: #fca5a5;
+      color: #fff;
+      animation: gpsPulseRing 1.2s infinite;
+    }
   </style>
 </head>
 <body>
@@ -863,6 +896,7 @@
         <div class="user-pill">
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
+          <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">💰 0 €</span>
         </div>
         <div class="hud-utility-group" style="gap:5px;">
           <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">⚙️</button>
@@ -1575,6 +1609,7 @@
       if (currentUserName) {
         if (map) renderAllSavedZones();
         updateShiftUI();
+        updateHudLiveSalaryPill();
         if (currentUserRole === 'jefe' && key === 'comercial_custom_zones' && !bossEntrySummaryShown) {
           showBossDailySummaryAndObras(false);
         }
@@ -1851,6 +1886,7 @@
         }
         hudNavGrid.className = isMikelBlock ? 'hud-nav-grid cols-2' : 'hud-nav-grid cols-4';
       }
+      updateHudLiveSalaryPill();
     }
     function startSingleHouseDirect() {
       cancelDrawing();
@@ -2587,7 +2623,7 @@
             </div>
 
             <div style="display:flex; gap:5px; margin-top:4px;">
-              ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
+              ${cleanPhone ? `<a href="tel:${cleanPhone}" onclick="if('${item.callStatus}'==='pendiente') setTimeout(() => updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'ya_llamado'), 400);" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
               ${(cleanPhone && !viewerIsMikel) ? (() => {
                 const senderAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(z.comercial) : z.comercial;
                 const clientFirst = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
@@ -3164,6 +3200,17 @@
           • <strong>2. Filtra rápido:</strong> Pincha el tejado en el mapa para abrir su Catastro (≤ 2006) antes de insistir.<br>
           • <strong>3. Cierra seguimiento:</strong> Revisa <strong>📞 Llamar</strong> antes de 48h para cerrar citas y subir en el <strong>🏆 Ranking</strong>.<br>
           • <strong>4. Deja todo limpio:</strong> Al terminar el día, entra en <strong>📝 Volcar Hoja</strong> sobre tu zona.
+        </div>
+
+        <div style="background:rgba(16,185,129,0.12); border:1px solid #34d399; border-radius:12px; padding:9px 10px; margin-bottom:10px;">
+          <div style="font-size:10px; font-weight:900; color:#6ee7b7; text-transform:uppercase; margin-bottom:5px;">
+            📢 Aviso Rápido de Pueblo a Andrei (1 Toque WhatsApp):
+          </div>
+          <div style="display:flex; gap:5px; flex-wrap:wrap;">
+            <a href="https://wa.me/?text=${encodeURIComponent(`Hola Andrei, soy ${getDisplayAlias(currentUserName)}. En el pueblo donde estoy hoy vemos muchas casas YA AISLADAS / muy trabajado por competencia. ¿Cambiamos de zona o seguimos rematando?`)}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#dc2626; color:#fff; padding:6px 5px; border-radius:7px; font-size:9.5px; font-weight:800;">🧱 Muy quemado</a>
+            <a href="https://wa.me/?text=${encodeURIComponent(`Hola Andrei, soy ${getDisplayAlias(currentUserName)}. ¡Este pueblo está respondiendo genial y hay muchas casas aptas sin aislar! Si puedes manda refuerzos o más calles aquí.`)}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:6px 5px; border-radius:7px; font-size:9.5px; font-weight:800;">🔥 Pueblo buenísimo</a>
+            <a href="https://wa.me/?text=${encodeURIComponent(`Hola Andrei, soy ${getDisplayAlias(currentUserName)}. Ya estoy terminando mi sector de hoy, pásame otro sector por el mapa cuando puedas.`)}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:6px 5px; border-radius:7px; font-size:9.5px; font-weight:800;">➕ Pedir más zona</a>
+          </div>
         </div>
       `;
 
@@ -3805,6 +3852,7 @@
       pendingSingleHouseCoords = null;
       closeModal('singleHouseModal');
       renderAllSavedZones();
+      updateHudLiveSalaryPill();
     }
 
     function deleteSingleHouse(idx) {
@@ -4806,7 +4854,10 @@
 
       return `
         <div class="grid-row-2">
-          <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
+          <div style="display:flex; gap:4px; flex:1.15;">
+            <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
+            ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-name')" title="Dictar nombre">🎙️</button>` : ''}
+          </div>
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
 
@@ -4814,8 +4865,9 @@
           <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico (Opcional)" value="${existing.email || ''}">
         </div>
         
-        <div style="margin-bottom:6px;">
+        <div style="display:flex; gap:4px; margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+          ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
         </div>
 
         <div class="grid-row-2">
@@ -4921,6 +4973,13 @@
       const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
       const docs = existing.comunidadDocs || {};
+      const townCtxCom = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
+      const cpDisplayCom = existing.postalCode || cteAutoCom.cp || '';
+      const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
+      const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
 
       let docsCheckboxesHtml = '';
       COMUNIDAD_DOCS_SCHEMA.forEach(docItem => {
@@ -4947,16 +5006,9 @@
           </div>
         </div>
 
-       const townCtxCom = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
-        || document.getElementById('singleHouseTown')?.value
-        || '';
-      const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
-      const cpDisplayCom = existing.postalCode || cteAutoCom.cp || '';
-      const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
-      const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
-
-       <div style="margin-bottom:6px;">
+        <div style="display:flex; gap:4px; margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+          ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección">🎙️</button>` : ''}
         </div>
 
         <div class="grid-row-2">
@@ -5207,6 +5259,7 @@
       saveAndSync('comercial_custom_zones', savedZones);
       closeModal('dumpModal');
       renderAllSavedZones();
+      updateHudLiveSalaryPill();
       if (z.stats && z.stats.si > 0) {
         triggerHapticAndSound('success');
         showCelebrationToast(`🔥 ¡+${z.stats.si} SÍ volcado(s) en ${z.town}!`);
@@ -5278,6 +5331,55 @@
       const moneyPersonal = m2 * (isAndrei ? 1.0 : 0.85);
       const moneyBossShare = m2 * (isAndrei ? 1.0 : 0.15);
       return { m2, si, no, doors, days: daysSet.size, moneyPersonal, moneyBossShare };
+    }
+
+    function updateHudLiveSalaryPill() {
+      const pill = document.getElementById('hudLiveSalaryPill');
+      if (!pill || !currentUserName) return;
+      if (isMikelTeamMember(currentUserName)) {
+        pill.style.display = 'none';
+        return;
+      }
+      const curYm = getMonthKeyOffset(0);
+      if (currentUserName === 'Andrei (Jefe)') {
+        const usersList = getActiveTeamUsers(false);
+        let bossMonth = 0;
+        usersList.forEach(u => { bossMonth += computeUserMonthMetrics(u, curYm).moneyBossShare; });
+        pill.innerText = `💰 ${bossMonth.toFixed(0)} € mes`;
+      } else {
+        const myMonth = computeUserMonthMetrics(currentUserName, curYm).moneyPersonal;
+        pill.innerText = `💰 ${myMonth.toFixed(0)} € mes`;
+      }
+      pill.style.display = 'inline-block';
+    }
+
+    function startVoiceDictationForBtn(btnEl, targetSelector) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        alert("ℹ️ Tu navegador no soporta dictado directo desde este botón; usa el micrófono del teclado de tu móvil.");
+        return;
+      }
+      const container = btnEl.closest('.client-box, .comunidad-box, .input-group, .modal-card') || document;
+      const inputEl = container.querySelector(targetSelector);
+      if (!inputEl) return;
+
+      const rec = new SpeechRec();
+      rec.lang = 'es-ES';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+
+      btnEl.classList.add('recording');
+      triggerHapticAndSound('tap');
+
+      rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        inputEl.value = inputEl.value ? `${inputEl.value.trim()} ${transcript}` : transcript;
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        triggerHapticAndSound('success');
+      };
+      rec.onerror = () => { btnEl.classList.remove('recording'); };
+      rec.onend = () => { btnEl.classList.remove('recording'); };
+      rec.start();
     }
 
     /* =====================================================================
@@ -5825,6 +5927,69 @@
     /* =====================================================================
        EXPORTACIÓN A EXCEL (CSV) PARA LIQUIDACIÓN MENSUAL
        ===================================================================== */
+    function exportOfficialCrmJsonPackage() {
+      const selectedMonthCrm = document.getElementById('auditMonthSelect')?.value || 'ALL';
+      const records = [];
+
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial) || !z.clients || z.clients.length === 0) return;
+        const zDate = z.dumpDate || z.date || '';
+        if (selectedMonthCrm !== 'ALL' && !zDate.startsWith(selectedMonthCrm)) return;
+
+        z.clients.forEach(c => {
+          if (!isClientValidFilled(c) || c.obraStatus === 'no_apto') return;
+          const m2Val = getM2NumericValue(c.m2);
+          const cteInfo = detectCteZoneFromCpAndTown(c.postalCode || '', z.town || '');
+
+          records.push({
+            fecha_captacion: zDate,
+            comercial_captador: getDisplayAlias(z.comercial),
+            comercial_id: z.comercial,
+            tipo_inmueble: c.type === 'comunidad' ? 'COMUNIDAD' : 'VIVIENDA_UNIFAMILIAR',
+            cliente_nombre: c.name || '',
+            telefono: (c.phone || '').replace(/\s+/g, ''),
+            email: c.email || '',
+            direccion: c.street || '',
+            municipio: z.town || '',
+            provincia: 'Navarra',
+            codigo_postal: c.postalCode || cteInfo.cp || '',
+            zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'D2',
+            anio_construccion: parseInt(c.buildYear) || null,
+            superficie_m2: m2Val,
+            tipo_acceso: formatAccessDisplay(c),
+            estado_expediente: c.obraStatus === 'agendada' ? 'CITA_AGENDADA' : (c.obraStatus === 'realizada' ? 'OBRA_REALIZADA' : 'CAPTACION_SI'),
+            agendar_web_calendar: c.obraStatus === 'agendada',
+            fecha_obra: c.obraDate || null,
+            hora_obra: c.obraTime || null,
+            documentacion_comunidad: c.type === 'comunidad' ? (c.comunidadDocs || {}) : null
+          });
+        });
+      });
+
+      if (records.length === 0) {
+        alert("⚠️ No hay fichas válidas en el periodo seleccionado para exportar al CRM.");
+        return;
+      }
+
+      const payload = {
+        origen_app: "Konsor_Campo_Navarra_v2027",
+        exportado_en: new Date().toISOString(),
+        periodo: selectedMonthCrm,
+        total_fichas: records.length,
+        fichas: records
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Parte_CRM_Konsor_${selectedMonthCrm}_${getTodayISO()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      triggerHapticAndSound('success');
+    }
+
     function exportReportToCSV() {
       const headers = [
         'Fecha', 'Comercial', 'Pueblo', 'Sector', 'Tipo Inmueble',
@@ -6140,9 +6305,14 @@
             </div>
           </div>
           ${currentUserName === 'Andrei (Jefe)' ? `
-            <button onclick="exportReportToCSV()" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:10px; padding:7px 9px; font-size:10px; font-weight:900; cursor:pointer; flex-shrink:0;">
-              📥 Excel CSV
-            </button>
+            <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0;">
+              <button onclick="exportOfficialCrmJsonPackage()" style="background:#0284c7; color:#fff; border:1px solid #38bdf8; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
+                ⚡ CRM Oficial
+              </button>
+              <button onclick="exportReportToCSV()" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
+                📥 Excel CSV
+              </button>
+            </div>
           ` : ''}
         </div>
       `;
