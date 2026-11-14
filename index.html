@@ -1839,6 +1839,20 @@
       const dropdown = document.getElementById('searchCandidatesDropdown');
       if (!query) return;
 
+      // Para Mikel y su equipo: búsqueda básica solo por pueblo (sin localizador de portales exactos)
+      if (isMikelTeamMember(currentUserName)) {
+        try {
+          const basicTown = query.includes(',') ? query.split(',').pop().trim() : query.split(/\s+/).pop().trim();
+          const res = await queryNominatimNavarra(basicTown);
+          if (res && res.length > 0) {
+            map.setView([res[0].lat, res[0].lon], 15, { animate: false });
+          } else {
+            alert("Municipio no encontrado.");
+          }
+        } catch (e) {}
+        return;
+      }
+
       if (dropdown) {
         dropdown.style.display = 'flex';
         dropdown.innerHTML = `<div style="font-size:11px; color:#7dd3fc; padding:4px 6px;">⏳ Buscando en callejero oficial de Navarra...</div>`;
@@ -2027,9 +2041,9 @@
         const isOver48h = elapsedHours >= 48;
         const isWarning24h = elapsedHours >= 24 && elapsedHours < 48;
 
-        let slaBadge = `<span style="font-size:9.5px; font-weight:800; color:#34d399;">⏱️ ${elapsedHours}h</span>`;
-        if (isWarning24h) slaBadge = `<span style="font-size:9.5px; font-weight:900; color:#fde047;">⚠️ ${elapsedHours}h (Llamar hoy)</span>`;
-        if (isOver48h) slaBadge = `<span style="background:#dc2626; color:#fff; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px;">🚨 +48h (${elapsedHours}h)</span>`;
+        let slaBadge = viewerIsMikel ? '' : `<span style="font-size:9.5px; font-weight:800; color:#34d399;">⏱️ ${elapsedHours}h</span>`;
+        if (!viewerIsMikel && isWarning24h) slaBadge = `<span style="font-size:9.5px; font-weight:900; color:#fde047;">⚠️ ${elapsedHours}h (Llamar hoy)</span>`;
+        if (!viewerIsMikel && isOver48h) slaBadge = `<span style="background:#dc2626; color:#fff; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px;">🚨 +48h (${elapsedHours}h)</span>`;
 
         let badgeHtml = `<span class="call-status-pill pendiente">🔴 Por llamar</span>`;
         if (item.callStatus === 'ya_llamado') badgeHtml = `<span class="call-status-pill ya_llamado">🟡 Ya llamado</span>`;
@@ -2057,7 +2071,7 @@
 
             <div style="display:flex; gap:5px; margin-top:4px;">
               ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
-              ${cleanPhone ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:0.8; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
+              ${(cleanPhone && !viewerIsMikel) ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:0.8; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
             </div>
 
             <div style="display:flex; gap:4px; margin-top:2px;">
@@ -2776,7 +2790,7 @@
       const btnSingle = document.getElementById('btnToggleSingleHouseMode');
       const btnConfirm = document.getElementById('btnConfirmSectorPoly');
       if (btnSingle) {
-        btnSingle.style.display = 'inline-flex';
+        btnSingle.style.display = isMikelTeamMember(currentUserName) ? 'none' : 'inline-flex';
         btnSingle.classList.remove('active');
         btnSingle.innerHTML = '🏠 Vivienda única';
       }
@@ -2965,7 +2979,11 @@
     async function detectTownFromCoordinates(lat, lon) {
       const townInput = document.getElementById('assignTown');
       if (!townInput) return;
-
+      if (isMikelTeamMember(currentUserName)) {
+        townInput.value = '';
+        townInput.placeholder = 'Escribe el pueblo manualmente...';
+        return;
+      }
       townInput.value = 'Detectando localidad...';
       try {
         const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`);
@@ -3745,15 +3763,18 @@
       } else {
         document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
 
+       const isMikelUser = isMikelTeamMember(currentUserName);
         bodyContainer.innerHTML = `
-          <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
-            📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
-          </button>
-          <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
+          ${!isMikelUser ? `
+            <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
+              📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
+            </button>
+            <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
 
-          <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
-            ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
-          </div>
+            <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
+              ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
+            </div>
+          ` : ''}
 
           <div class="input-group">
             <span class="input-label">📅 Fecha Real de Volcado</span>
@@ -3801,9 +3822,11 @@
             <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
             <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." value="${z.pendingNote || ''}" style="width:100%;">
             
-            <button class="btn-modal-crop" onclick="startCropSubZone()">
-              ✂️ Redibujar zona pendiente en el mapa
-            </button>
+            ${!isMikelUser ? `
+              <button class="btn-modal-crop" onclick="startCropSubZone()">
+                ✂️ Redibujar zona pendiente en el mapa
+              </button>
+            ` : ''}
           </div>
 
           <div id="clientsContainer"></div>
@@ -3983,7 +4006,7 @@
       title.innerText = `🏡 / 🏢 Fichas de Captación (${siCount})`;
       container.appendChild(title);
 
-      if (siCount >= 2) {
+      if (siCount >= 2 && !isMikelTeamMember(currentUserName)) {
         const bulkStreetBox = document.createElement('div');
         bulkStreetBox.style.cssText = 'background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:10px; padding:8px 10px; margin-bottom:10px; display:flex; flex-direction:column; gap:5px;';
         bulkStreetBox.innerHTML = `
@@ -4025,6 +4048,7 @@
     }
 
     function propagateStreetToNextEmpty(inputEl) {
+      if (isMikelTeamMember(currentUserName)) return;
       const val = inputEl.value;
       const baseStreet = val.replace(/\s+\d+.*$/, '').trim();
       if (baseStreet.length < 3) return;
@@ -4124,11 +4148,13 @@
           <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
         </div>
 
-       <div style="margin-bottom:6px;">
-          <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
-            🏛️ Comprobar Catastro de esta casa (Año y m²)
-          </button>
-        </div>
+       ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-bottom:6px;">
+            <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
+              🏛️ Comprobar Catastro de esta casa (Año y m²)
+            </button>
+          </div>
+        ` : ''}
 
         <div class="grid-row-2">
           <div>
@@ -4221,11 +4247,13 @@
           <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
         </div>
 
-        <div style="margin-bottom:6px;">
-          <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
-            🏛️ Comprobar Catastro de este edificio (Año y m²)
-          </button>
-        </div>
+        ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-bottom:6px;">
+            <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
+              🏛️ Comprobar Catastro de este edificio (Año y m²)
+            </button>
+          </div>
+        ` : ''}
 
         <div class="grid-row-2">
           <input type="text" class="input-field client-name" placeholder="Nombre Presidente / Enlace" value="${existing.name || ''}">
