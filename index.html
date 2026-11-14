@@ -1667,23 +1667,47 @@
       });
 
       const finalPool = navarraOnly.length > 0 ? navarraOnly : list;
-    return finalPool.map(item => {
+      const mapped = [];
+
+      for (const item of finalPool) {
+        let lat = parseFloat(item.lat);
+        let lon = parseFloat(item.lng);
+
+        // Si es una calle/urbanización sin portal (CartoCiudad devuelve 0,0), pedir el centro exacto de la vía
+        if ((!lat || !lon || Math.abs(lat) < 1 || Math.abs(lon) < 1) && item.id) {
+          try {
+            const findRes = await fetch(`https://www.cartociudad.es/geocoder/api/geocoder/findJsonp?id=${encodeURIComponent(item.id)}&type=${encodeURIComponent(item.type || 'calle')}`);
+            const findRaw = await findRes.text();
+            const findJson = JSON.parse(findRaw.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, ''));
+            if (findJson && findJson.lat && findJson.lng) {
+              lat = parseFloat(findJson.lat);
+              lon = parseFloat(findJson.lng);
+            }
+          } catch (e) {}
+        }
+
+        // Descartar si sigue en (0,0) o fuera de España para que pase al respaldo de mapa
+        if (isNaN(lat) || isNaN(lon) || lat < 35 || lat > 44 || lon < -10 || lon > 5) continue;
+
         const rawAddr = (item.address || '').trim();
         const tipVia = (item.tip_via || '').trim();
         const viaBase = (tipVia && !rawAddr.toUpperCase().startsWith(tipVia.toUpperCase()))
           ? `${tipVia} ${rawAddr}`
           : rawAddr;
         const fullVia = `${viaBase} ${item.portalNumber || ''}`.trim();
-        return {
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lng),
+
+        mapped.push({
+          lat,
+          lon,
           title: fullVia || searchStr,
           town: item.muni || item.poblacion || 'Navarra',
           cp: item.postalCode || '',
           isPortal: Boolean(item.portalNumber || item.type === 'portal'),
           source: 'Catastro/IGN'
-        };
-      }).filter(x => !isNaN(x.lat) && !isNaN(x.lon));
+        });
+      }
+
+      return mapped;
     }
 
     async function queryNominatimNavarra(searchStr) {
