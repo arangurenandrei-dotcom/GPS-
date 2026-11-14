@@ -1554,15 +1554,49 @@
       }
     }
 
-    let activeFormModalToRestore = null;
+    function applyBulkBaseStreetToAll(rawBase) {
+      const base = rawBase.trim();
+      const streetInputs = document.querySelectorAll('#clientsContainer .client-street');
+      streetInputs.forEach(inp => {
+        const cur = inp.value.trim();
+        const prevBase = inp.dataset.lastBulkBase || '';
+        // Solo toca fichas vacías o fichas que aún no tienen número escrito (conserva las ya completadas)
+        const isOnlyPreviousBase = prevBase && cur === prevBase;
+        if (!cur || isOnlyPreviousBase) {
+          inp.value = base ? `${base} ` : '';
+          inp.dataset.lastBulkBase = base;
+        }
+      });
+    }
 
-    function returnToDraftFormFromMap() {
-      const bar = document.getElementById('returnToDraftBanner');
-      if (bar) bar.remove();
-      if (activeFormModalToRestore) {
-        document.getElementById(activeFormModalToRestore)?.classList.add('active');
-        activeFormModalToRestore = null;
-      }
+    async function fetchDirectCatastroUrlForCoords(lat, lon) {
+      const d = 0.0005;
+      const sw = L.CRS.EPSG3857.project(L.latLng(lat - d, lon - d));
+      const ne = L.CRS.EPSG3857.project(L.latLng(lat + d, lon + d));
+
+      const params = new URLSearchParams({
+        SERVICE: 'WMS',
+        VERSION: '1.1.1',
+        REQUEST: 'GetFeatureInfo',
+        LAYERS: 'catastro',
+        QUERY_LAYERS: 'catastro',
+        SRS: 'EPSG:3857',
+        BBOX: `${sw.x},${sw.y},${ne.x},${ne.y}`,
+        WIDTH: '200',
+        HEIGHT: '200',
+        X: '100',
+        Y: '100',
+        INFO_FORMAT: 'application/json',
+        FEATURE_COUNT: '5'
+      });
+
+      const res = await fetch(`https://idena.navarra.es/ogc/wms?${params.toString()}`);
+      const data = await res.json();
+      if (!data.features || data.features.length === 0) return '';
+      const featWithUrl = data.features.find(f => f.properties && f.properties.URL) || data.features[0];
+      const rawUrl = featWithUrl?.properties?.URL || '';
+      const hrefMatch = rawUrl.match(/href=['"]([^'"]+)['"]/i);
+      return hrefMatch ? hrefMatch[1] : (rawUrl.startsWith('http') ? rawUrl : '');
     }
 
     async function openCadastreFromClientBox(btn) {
@@ -1574,13 +1608,22 @@
         || '';
 
       if (!streetVal && !townVal) {
-        alert("⚠️ Escribe primero la calle y el número para localizar la casa en Catastro.");
+        alert("⚠️ Escribe primero la calle y el número para sacar su ficha de Catastro.");
         return;
       }
 
+      let resultSlot = btn.parentElement.querySelector('.inline-catastro-link-slot');
+      if (!resultSlot) {
+        resultSlot = document.createElement('div');
+        resultSlot.className = 'inline-catastro-link-slot';
+        resultSlot.style.marginTop = '6px';
+        btn.parentElement.appendChild(resultSlot);
+      }
+
       const origText = btn.innerHTML;
-      btn.innerHTML = '⏳ Localizando parcela en Catastro...';
+      btn.innerHTML = '⏳ Buscando ficha oficial...';
       btn.disabled = true;
+      resultSlot.innerHTML = '';
 
       try {
         const q = `${streetVal} ${townVal}`.trim();
@@ -1589,51 +1632,32 @@
           candidates = await queryNominatimNavarra(`${streetVal}, ${townVal}`);
         }
 
-        if (!candidates || candidates.length === 0 || !map) {
-          alert(`No se pudo ubicar "${q}". Revisa el nombre de la calle o el número.`);
+        if (!candidates || candidates.length === 0) {
+          resultSlot.innerHTML = `<div style="font-size:10.5px; color:#fca5a5; text-align:center;">⚠️ No se ubicó "${q}". Revisa el número de portal.</div>`;
           return;
         }
 
         const target = candidates[0];
-        const latlng = L.latLng(target.lat, target.lon);
+        const catastroUrl = await fetchDirectCatastroUrlForCoords(target.lat, target.lon);
 
-        // Guardar qué formulario estaba abierto para volver a él sin perder nada escrito
-        if (document.getElementById('dumpModal')?.classList.contains('active')) {
-          activeFormModalToRestore = 'dumpModal';
-          closeModal('dumpModal');
-        } else if (document.getElementById('singleHouseModal')?.classList.contains('active')) {
-          activeFormModalToRestore = 'singleHouseModal';
-          closeModal('singleHouseModal');
+        if (catastroUrl) {
+          resultSlot.innerHTML = `
+            <a href="${catastroUrl}" target="_blank" rel="noopener noreferrer"
+               style="display:block; text-align:center; background:linear-gradient(135deg,#059669,#047857); color:#fff; font-weight:900; text-decoration:none; padding:9px 10px; border-radius:9px; border:1px solid #34d399; font-size:11.5px;">
+              ↗️ Abrir Catastro (${target.title})
+            </a>
+          `;
+        } else {
+          const idenaFallback = `https://idena.navarra.es/navegar/?lat=${target.lat.toFixed(6)}&lon=${target.lon.toFixed(6)}&zoom=19`;
+          resultSlot.innerHTML = `
+            <a href="${idenaFallback}" target="_blank" rel="noopener noreferrer"
+               style="display:block; text-align:center; background:#0369a1; color:#fff; font-weight:800; text-decoration:none; padding:8px 10px; border-radius:9px; border:1px solid #38bdf8; font-size:11px;">
+              ↗️ Ver parcela en IDENA (${target.title})
+            </a>
+          `;
         }
-
-        // Activar modo Solo Catastro en tu propio mapa y centrar en la casa exacta
-        if (!isCatastroActive) toggleCatastroLayer();
-        map.invalidateSize();
-        map.setView(latlng, 19, { animate: false });
-
-        if (searchPinMarker) map.removeLayer(searchPinMarker);
-        searchPinMarker = L.marker(latlng).addTo(map);
-
-        // Barra flotante arriba para volver con 1 toque a la ficha sin perder ningún dato
-        let returnBar = document.getElementById('returnToDraftBanner');
-        if (!returnBar) {
-          returnBar = document.createElement('div');
-          returnBar.id = 'returnToDraftBanner';
-          returnBar.style.cssText = 'position:fixed; bottom:95px; left:10px; right:10px; z-index:9800; background:linear-gradient(135deg,#0284c7,#0369a1); border:1.5px solid #38bdf8; border-radius:14px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; box-shadow:0 10px 28px rgba(0,0,0,0.75);';
-          document.body.appendChild(returnBar);
-        }
-        returnBar.innerHTML = `
-          <span style="font-size:11px; font-weight:800; color:#fff;">🏛️ Toca la parcela o <strong>↗️ Abrir Catastro</strong></span>
-          <button onclick="returnToDraftFormFromMap()" style="background:#fde047; color:#0f172a; border:none; border-radius:9px; padding:7px 11px; font-size:11px; font-weight:900; cursor:pointer; white-space:nowrap;">
-            ↩️ Volver a Ficha
-          </button>
-        `;
-
-        // Lanzar automáticamente la consulta de ficha catastral sobre esa casa exacta
-        setTimeout(() => {
-          inspectNavarraCadastreAtPoint(latlng);
-        }, 250);
-
+      } catch (e) {
+        resultSlot.innerHTML = `<div style="font-size:10.5px; color:#fca5a5; text-align:center;">Error al consultar Catastro.</div>`;
       } finally {
         btn.innerHTML = origText;
         btn.disabled = false;
@@ -3954,10 +3978,22 @@
       container.innerHTML = '';
       if (siCount <= 0) return;
 
-      const title = document.createElement('div');
+     const title = document.createElement('div');
       title.className = 'modal-section-title';
       title.innerText = `🏡 / 🏢 Fichas de Captación (${siCount})`;
       container.appendChild(title);
+
+      if (siCount >= 2) {
+        const bulkStreetBox = document.createElement('div');
+        bulkStreetBox.style.cssText = 'background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:10px; padding:8px 10px; margin-bottom:10px; display:flex; flex-direction:column; gap:5px;';
+        bulkStreetBox.innerHTML = `
+          <label style="font-size:10px; font-weight:900; color:#93c5fd; text-transform:uppercase;">
+            🛣️ Calle rápida para las ${siCount} fichas (escribe la calle y luego pon solo el nº en cada ficha):
+          </label>
+          <input type="text" id="bulkBaseStreetInput" class="input-field" placeholder="Ej. Urbanización Caralahorza" oninput="applyBulkBaseStreetToAll(this.value)">
+        `;
+        container.appendChild(bulkStreetBox);
+      }
 
       for (let i = 0; i < siCount; i++) {
         const existing = inMemoryClients[i] || (z && z.clients && z.clients[i] ? z.clients[i] : {});
