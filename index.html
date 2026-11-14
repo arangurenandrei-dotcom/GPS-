@@ -675,39 +675,6 @@
       box-shadow: 0 14px 38px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
-    .live-salary-pill {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%);
-      border: 1px solid #34d399;
-      color: #6ee7b7;
-      font-size: 10.5px;
-      font-weight: 900;
-      padding: 3px 8px;
-      border-radius: 99px;
-      white-space: nowrap;
-      cursor: pointer;
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
-    }
-
-    .btn-voice-mic {
-      background: rgba(124, 58, 237, 0.25);
-      border: 1px solid #a78bfa;
-      color: #e9d5ff;
-      border-radius: 9px;
-      padding: 0 10px;
-      font-size: 13px;
-      cursor: pointer;
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .btn-voice-mic.recording {
-      background: #dc2626;
-      border-color: #fca5a5;
-      color: #fff;
-      animation: gpsPulseRing 1.2s infinite;
-    }
-
     .celebration-toast {
       position: fixed;
       top: max(18px, env(safe-area-inset-top));
@@ -896,7 +863,6 @@
         <div class="user-pill">
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
-          <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">💰 0 €</span>
         </div>
         <div class="hud-utility-group" style="gap:5px;">
           <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">⚙️</button>
@@ -1567,7 +1533,19 @@
         localStorage.setItem(key, JSON.stringify(newData));
       } catch (e) {}
 
-      if (key === 'comercial_custom_zones') savedZones = newData;
+      if (key === 'comercial_custom_zones') {
+        if (currentUserName === 'Andrei (Jefe)' && Array.isArray(savedZones) && savedZones.length > 0) {
+          const prevTotalSi = savedZones.reduce((acc, z) => acc + (!isMikelTeamMember(z.comercial) ? (z.stats?.si || 0) : 0), 0);
+          const nextTotalSi = newData.reduce((acc, z) => acc + (!isMikelTeamMember(z.comercial) ? (z.stats?.si || 0) : 0), 0);
+          if (nextTotalSi > prevTotalSi) {
+            const diffSi = nextTotalSi - prevTotalSi;
+            triggerHapticAndSound('success');
+            showCelebrationToast(`🚀 ¡Tu equipo acaba de sumar +${diffSi} SÍ!`);
+            sendLocalMobileNotification('🔥 ¡Nuevo SÍ en tu Equipo!', `Se ha registrado +${diffSi} nueva captación en Navarra.`);
+          }
+        }
+        savedZones = newData;
+      }
       else if (key === 'comercial_shifts') savedShifts = newData;
       else if (key === 'comercial_completed_towns') completedTowns = newData;
       else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
@@ -2381,105 +2359,6 @@
       return `https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
     }
 
-    /* =====================================================================
-       MOTOR DE CICLOS MENSUALES (MES ACTUAL DESDE 0 VS MES ANTERIOR)
-       ===================================================================== */
-    function getMonthKeyOffset(monthsBack = 0) {
-      const d = new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth() - monthsBack);
-      return getLocalDateISO(d).slice(0, 7);
-    }
-
-    function formatMonthLabelEs(ymStr) {
-      if (!ymStr || !ymStr.includes('-')) return ymStr;
-      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      const [y, m] = ymStr.split('-');
-      return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
-    }
-
-    function computeUserMonthMetrics(userName, monthYm) {
-      let m2 = 0, si = 0, no = 0, doors = 0;
-      const daysSet = new Set();
-
-      savedZones.forEach(z => {
-        if (z.comercial !== userName || z.isNoAptoZone) return;
-        const zDate = z.dumpDate || z.date || '';
-        if (monthYm && !zDate.startsWith(monthYm)) return;
-        if (zDate) daysSet.add(zDate);
-
-        const st = z.stats || {};
-        si += (st.si || 0);
-        no += (st.no || 0);
-        doors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
-
-        if (z.clients) {
-          z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
-              m2 += getM2NumericValue(c.m2);
-            }
-          });
-        }
-      });
-
-      const isAndrei = userName === 'Andrei (Jefe)';
-      const moneyPersonal = m2 * (isAndrei ? 1.0 : 0.85);
-      const moneyBossShare = m2 * (isAndrei ? 1.0 : 0.15);
-      return { m2, si, no, doors, days: daysSet.size, moneyPersonal, moneyBossShare };
-    }
-
-    function updateHudLiveSalaryPill() {
-      const pill = document.getElementById('hudLiveSalaryPill');
-      if (!pill || !currentUserName) return;
-      if (isMikelTeamMember(currentUserName)) {
-        pill.style.display = 'none';
-        return;
-      }
-      const curYm = getMonthKeyOffset(0);
-      if (currentUserName === 'Andrei (Jefe)') {
-        const usersList = getActiveTeamUsers(false);
-        let bossMonth = 0;
-        usersList.forEach(u => { bossMonth += computeUserMonthMetrics(u, curYm).moneyBossShare; });
-        pill.innerText = `💰 ${bossMonth.toFixed(0)} € mes`;
-      } else {
-        const myMonth = computeUserMonthMetrics(currentUserName, curYm).moneyPersonal;
-        pill.innerText = `💰 ${myMonth.toFixed(0)} € mes`;
-      }
-      pill.style.display = 'inline-block';
-    }
-
-    /* =====================================================================
-       DICTADO POR VOZ NATIVO (WEB SPEECH API) PARA CAPTURA RÁPIDA EN CALLE
-       ===================================================================== */
-    function startVoiceDictationForBtn(btnEl, targetSelector) {
-      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRec) {
-        alert("ℹ️ Tu navegador no soporta dictado directo desde este botón; usa el micrófono del teclado de tu móvil.");
-        return;
-      }
-      const container = btnEl.closest('.client-box, .comunidad-box, .input-group, .modal-card') || document;
-      const inputEl = container.querySelector(targetSelector);
-      if (!inputEl) return;
-
-      const rec = new SpeechRec();
-      rec.lang = 'es-ES';
-      rec.interimResults = false;
-      rec.maxAlternatives = 1;
-
-      btnEl.classList.add('recording');
-      triggerHapticAndSound('tap');
-
-      rec.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        inputEl.value = inputEl.value ? `${inputEl.value.trim()} ${transcript}` : transcript;
-        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-        triggerHapticAndSound('success');
-      };
-      rec.onerror = () => { btnEl.classList.remove('recording'); };
-      rec.onend = () => { btnEl.classList.remove('recording'); };
-      rec.start();
-    }
-
     function handleClientAtticPhotoUpload(inputEl) {
       const file = inputEl.files && inputEl.files[0];
       if (!file) return;
@@ -2702,9 +2581,38 @@
               ${(cleanPhone && !viewerIsMikel) ? (() => {
                 const senderAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(z.comercial) : z.comercial;
                 const clientFirst = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
-                const addrPart = (c.street || '').trim() ? ` en ${c.street.trim()} (${z.town || 'Navarra'})` : ` en ${z.town || 'Navarra'}`;
-                const waText = encodeURIComponent(`Hola${clientFirst}, soy ${senderAlias} de Konsor Energía. Estuvimos hablando sobre el aislamiento gratuito de tu buhardilla${addrPart} mediante el plan CAE. ¿Qué día y hora te viene bien para dejarlo cerrado?`);
-                return `<a href="https://wa.me/34${cleanPhone}?text=${waText}" target="_blank" style="flex:0.85; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>`;
+                const townName = z.town || 'Navarra';
+                const streetName = (c.street || '').trim() ? `${c.street.trim()}, ` : '';
+                const firmaOficial = `\n\n━━━━━━━━━━━━━━━━━━\n*KONSOR ENERGÍA* | Aislamiento Térmico & Certificación CAE\n👤 Gestor asignado: *${senderAlias}*\n🏢 Oficina Central: Calle San Fermín, 43, Pamplona (Navarra)\n🌐 Web Oficial: https://konsorenergia.com\n🛡️ Programa Oficial: Certificados de Ahorro Energético (CAE) - Directiva (UE) 2023/1791`;
+
+                const msgNoContesta = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\nTe he llamado hace un momento respecto al aislamiento térmico gratuito de tu buhardilla en *${streetName}${townName}* mediante el programa oficial CAE.\n\nCuando te venga bien dime una hora y te pego un toque rápido para informarte.${firmaOficial}`
+                );
+
+                const msgEnTramite = encodeURIComponent(
+                  `Hola${clientFirst},\n\nLe confirmamos que su solicitud de comprobación para la vivienda ubicada en *${streetName}${townName}* está en *proceso de verificación catastral y técnica*. En breve nos pondremos en contacto con usted para confirmar la aptitud de la vivienda y coordinar la instalación sin coste.${firmaOficial}`
+                );
+
+                const msgCita = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\nTe confirmo los datos de tu cita reservada para la instalación del aislamiento térmico:\n\n📅 *Fecha:* ${formatDate(c.obraDate || getTodayISO())}\n⏰ *Hora aproximada:* ${c.obraTime || '09:00'} h\n📍 *Dirección:* ${streetName}${townName}\n\nGuarda este mensaje como recordatorio. Cualquier cosa, me tienes disponible directamente por aquí.${firmaOficial}`
+                );
+
+                const msgPostObra = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\n¡Muchas gracias por abrirnos las puertas de tu casa en *${streetName}${townName}*! Esperamos que notes desde hoy mismo el confort térmico y el ahorro en calefacción y aire acondicionado.\n\nSeguimos trabajando para ser el equipo de referencia en toda Navarra: si algún vecino, familiar o amigo quiere comprobar si su vivienda entra gratuita en el plan CAE, pásale este contacto directamente y le atenderé personalmente.${firmaOficial}`
+                );
+
+                return `
+                  <div style="display:flex; flex-direction:column; gap:4px; flex:1.35;">
+                    <div style="display:flex; gap:4px;">
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgNoContesta}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">📵 No contesta</a>
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgEnTramite}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#7c3aed; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">🔍 En trámite</a>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgCita}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#d97706; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">📅 Recordar cita</a>
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgPostObra}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">⭐ Post-obra</a>
+                    </div>
+                  </div>
+                `;
               })() : ''}
             </div>
 
@@ -2932,7 +2840,7 @@
           <div class="today-town-card">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
               <strong style="font-size:14px; color:#fde047;">📍 ${tName} (${group.obras.length})</strong>
-              <a href="${routeMapsUrl}" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:900; padding:5px 9px; border-radius:7px; display:inline-block;">
+              <a href="${routeMapsUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:900; padding:5px 9px; border-radius:7px; display:inline-block;">
                 🧭 Ruta GPS
               </a>
             </div>
@@ -3757,7 +3665,7 @@
       const buildYearVal = box.querySelector('.client-build-year')?.value.trim() || '';
       const postalCodeVal = box.querySelector('.client-cp')?.value.trim() || '';
       const cteZoneRaw = box.querySelector('.client-cte-zone')?.value.trim() || '';
-      const cteZoneVal = (cteZoneRaw === 'Auto por CP' || cteZoneRaw === 'Sin detectar') ? '' : cteZoneRaw;
+      const cteZoneVal = cteZoneRaw === 'Auto por CP' || cteZoneRaw === 'Sin detectar' ? '' : cteZoneRaw;
       const emailVal = box.querySelector('.client-email')?.value.trim() || '';
       const accessTypeVal = box.querySelector('.client-access-type')?.value || 'Trampilla';
       const accessOtherVal = accessTypeVal === 'Otro' ? (box.querySelector('.client-access-other')?.value.trim() || '') : '';
@@ -4773,23 +4681,23 @@
       '31001':'D2','31002':'D2','31003':'D2','31004':'D2','31005':'D2','31006':'D2','31007':'D2','31008':'D2','31009':'D2','31010':'D2','31011':'D2','31012':'D2','31013':'D2','31014':'D2','31015':'D2','31016':'D2',
       '31180':'D2','31190':'D2','31191':'D2','31192':'D2','31194':'D2','31195':'D2','31600':'D2','31610':'D2','31620':'D2','31621':'D2',
       '31100':'D2','31110':'D2','31120':'D2','31130':'D2','31131':'D2','31132':'D2','31140':'D2','31150':'D2','31160':'D2','31170':'D2',
-      '31200':'D2','31210':'D2','31220':'D2','31230':'D1','31240':'D2','31241':'D2','31243':'D2','31250':'D2','31251':'D2','31252':'D2','31253':'D2','31260':'D2','31261':'D2','31262':'D2','31263':'D2','31264':'D2','31270':'D2','31280':'D2','31281':'D2','31290':'D2','31291':'D2','31292':'D2','31293':'D2',
+      '31200':'D2','31210':'D2','31220':'D2','31230':'D1','31240':'D2','31250':'D2','31260':'D2','31261':'D2','31262':'D2','31263':'D2','31264':'D2','31270':'D2','31280':'D2','31290':'D2','31291':'D2','31292':'D2',
       '31300':'D2','31310':'D2','31311':'D2','31312':'D2','31313':'D2','31314':'D2','31315':'D2','31320':'D2','31330':'D2','31340':'D2','31350':'D2','31360':'D2','31370':'D2','31380':'D2','31381':'D2','31382':'D2','31390':'D2','31391':'D2','31392':'D2','31393':'D2','31394':'D2','31395':'D2','31396':'D2','31397':'D2','31398':'D2',
-      '31400':'D2','31410':'D2','31415':'E1','31417':'E1','31420':'D2','31430':'D2','31440':'E1','31450':'E1','31460':'E1','31470':'E1','31480':'D2','31490':'D2',
-      '31500':'D2','31510':'D2','31511':'D2','31512':'D2','31513':'D2','31514':'D2','31515':'D2','31520':'D2','31521':'D2','31522':'D2','31523':'D2','31530':'D2','31540':'D2','31550':'D2','31560':'D2','31570':'D2','31579':'D1','31580':'D1','31587':'D1','31588':'D1','31589':'D1','31590':'D2','31591':'D2','31592':'D2','31593':'D2','31594':'D2',
-      '31630':'E1','31640':'E1','31650':'E1','31660':'E1','31670':'E1','31680':'E1','31690':'E1','31696':'E1',
-      '31700':'D1','31710':'D1','31720':'D1','31730':'D1','31740':'D1','31750':'D1','31754':'D1','31760':'D1','31770':'D1','31780':'D1','31790':'D1','31791':'D1','31793':'D1',
-      '31800':'D1','31809':'D1','31810':'D1','31820':'D1','31830':'D1','31839':'D1','31840':'D1','31850':'D1','31860':'D1','31866':'D1','31867':'D1','31868':'D1','31869':'D1','31870':'D1','31876':'D1','31877':'D1','31878':'D1','31879':'D1','31880':'D1','31890':'D1','31891':'D1','31892':'D1'
+      '31400':'D2','31410':'D2','31420':'D2','31430':'D2','31440':'E1','31450':'E1','31460':'E1','31470':'E1','31480':'D2','31490':'D2',
+      '31500':'D2','31510':'D2','31511':'D2','31512':'D2','31513':'D2','31514':'D2','31515':'D2','31520':'D2','31521':'D2','31522':'D2','31523':'D2','31530':'D2','31540':'D2','31550':'D2','31560':'D2','31570':'D2','31580':'D1','31587':'D1','31588':'D1','31589':'D1','31590':'D2','31591':'D2','31592':'D2','31593':'D2','31594':'D2',
+      '31630':'E1','31640':'E1','31650':'E1','31660':'E1','31670':'E1','31680':'E1','31690':'E1',
+      '31700':'D1','31710':'D1','31720':'D1','31730':'D1','31740':'D1','31750':'D1','31760':'D1','31770':'D1','31780':'D1','31790':'D1',
+      '31800':'D1','31810':'D1','31820':'D1','31830':'D1','31840':'D1','31850':'D1','31860':'D1','31866':'D1','31867':'D1','31868':'D1','31869':'D1','31870':'D1','31876':'D1','31877':'D1','31878':'D1','31879':'D1','31880':'D1','31890':'D1','31891':'D1','31892':'D1'
     };
 
     const NAVARRA_TOWN_TO_CP = {
       'pamplona':'31001','iruna':'31001','tudela':'31500','baranain':'31010','burlada':'31600','estella':'31200','zizur':'31180','zizur mayor':'31180','zizur menor':'31190',
       'tafalla':'31300','villava':'31610','ansoain':'31013','berriozar':'31013','arangoiti':'31192','mutilva':'31192','noain':'31110','cizur':'31190','egues':'31620','sarriguren':'31621',
       'huarte':'31620','peralta':'31350','funes':'31360','falces':'31370','san adrian':'31570','azagra':'31560','lodosa':'31580','mendavia':'31587','sesma':'31293','carcar':'31579',
-      'andosilla':'31261','lerin':'31260','milagro':'31320','cadreita':'31515','villafranca':'31330','marcilla':'31340','caparroso':'31380','oliete':'31390','olite':'31390',
+      'andosilla':'31261','lerín':'31260','lerin':'31260','milagro':'31320','cadreita':'31515','villafranca':'31330','marcilla':'31340','caparroso':'31380','oliete':'31390','olite':'31390',
       'corella':'31591','cintruenigo':'31592','fitero':'31593','cascante':'31520','murchante':'31521','castejon':'31590','valtierra':'31514','arguedas':'31513','ribaforada':'31550','cortes':'31530','bunuel':'31540','ablitas':'31523','monteagudo':'31522',
       'sanguesa':'31400','lumbier':'31440','aoiz':'31430','puente la reina':'31100','artajona':'31140','larraga':'31251','berbinzana':'31252','miranda de arga':'31253','mendigorria':'31150','maneru':'31130','cirauqui':'31131','oteiza':'31250','villatuerta':'31132',
-      'viana':'31230','los arcos':'31210','allo':'31262','dicastillo':'31263','arroniz':'31243','ayegui':'31240','murieta':'31280','ancin':'31281','zubielqui':'31241',
+      'viana':'31230','los arcos':'31210','alló':'31262','allo':'31262','dicastillo':'31263','arróniz':'31243','arroniz':'31243','ayegui':'31240','murieta':'31280','ancin':'31281','zubielqui':'31241',
       'alsasua':'31800','altsasu':'31800','olazti':'31809','olazagutia':'31809','etxarri aranatz':'31820','lakuntza':'31830','arbizu':'31839','uharte arakil':'31840','irurtzun':'31860','lekunberri':'31870','leitza':'31880','goizueta':'31754',
       'elizondo':'31700','baztan':'31700','doneztebe':'31740','santesteban':'31740','lesaka':'31770','bera':'31780','vera de bidasoa':'31780','etxalar':'31760','igantzi':'31790','arantza':'31790','sunbilla':'31791','bertizarana':'31793',
       'roncal':'31415','isaba':'31417','ochagavia':'31680','burguete':'31640','auritz':'31640','erro':'31696','zubiri':'31630','esteribar':'31630'
@@ -4797,7 +4705,7 @@
 
     function detectCteZoneFromCpAndTown(cpStr, townStr = '') {
       const cleanCp = String(cpStr || '').replace(/\D/g, '').slice(0, 5);
-      const normTown = String(townStr || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      const normTown = String(townStr || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
       let resolvedCp = cleanCp;
       if (resolvedCp.length !== 5 && normTown) {
@@ -4810,9 +4718,10 @@
           return { cp: resolvedCp, cteZone: z, isApto: /^[DE][123]$/.test(z) };
         }
         const prefix2 = resolvedCp.slice(0, 2);
+        // Provincias con zonas A, B o C (costa / sur / islas -> NO APTAS para D/E)
         const nonEligiblePrefixes = ['03','04','07','08','11','12','15','17','20','21','27','29','30','33','35','36','38','39','41','43','46','48','51','52'];
         if (nonEligiblePrefixes.includes(prefix2)) {
-          return { cp: resolvedCp, cteZone: 'Fuera D/E', isApto: false };
+          return { cp: resolvedCp, cteZone: 'C / B / A (Fuera D-E)', isApto: false };
         }
         if (prefix2 === '31') {
           return { cp: resolvedCp, cteZone: 'D2', isApto: true };
@@ -4834,7 +4743,7 @@
       const warnSlot = area.querySelector('.cte-warning-slot');
 
       if (cteInput) {
-        cteInput.value = info.cteZone || 'Auto por CP';
+        cteInput.value = info.cteZone || 'Sin detectar';
         cteInput.style.color = !info.cteZone ? '#94a3b8' : (info.isApto ? '#34d399' : '#fca5a5');
         cteInput.style.borderColor = !info.cteZone ? 'rgba(255,255,255,0.2)' : (info.isApto ? '#059669' : '#ef4444');
       }
@@ -4876,6 +4785,7 @@
       const buildYearVal = existing.buildYear || '';
       const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
+
       const townCtx = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
         || document.getElementById('singleHouseTown')?.value
         || '';
@@ -4886,10 +4796,7 @@
 
       return `
         <div class="grid-row-2">
-          <div style="display:flex; gap:4px; flex:1.15;">
-            <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
-            ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-name')" title="Dictar nombre por voz">🎙️</button>` : ''}
-          </div>
+          <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
 
@@ -4897,9 +4804,8 @@
           <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico (Opcional)" value="${existing.email || ''}">
         </div>
         
-        <div style="display:flex; gap:4px; margin-bottom:6px;">
+        <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
-          ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle por voz">🎙️</button>` : ''}
         </div>
 
         <div class="grid-row-2">
@@ -5005,13 +4911,6 @@
       const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
       const docs = existing.comunidadDocs || {};
-      const townCtxCom = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
-        || document.getElementById('singleHouseTown')?.value
-        || '';
-      const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
-      const cpDisplayCom = existing.postalCode || cteAutoCom.cp || '';
-      const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
-      const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
 
       let docsCheckboxesHtml = '';
       COMUNIDAD_DOCS_SCHEMA.forEach(docItem => {
@@ -5038,9 +4937,16 @@
           </div>
         </div>
 
-        <div style="display:flex; gap:4px; margin-bottom:6px;">
+       const townCtxCom = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
+      const cpDisplayCom = existing.postalCode || cteAutoCom.cp || '';
+      const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
+      const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
+
+       <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
-          ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección por voz">🎙️</button>` : ''}
         </div>
 
         <div class="grid-row-2">
@@ -5066,10 +4972,7 @@
         ` : ''}
 
         <div class="grid-row-2">
-          <div style="display:flex; gap:4px; flex:1.15;">
-            <input type="text" class="input-field client-name" placeholder="Nombre Presidente / Enlace" value="${existing.name || ''}">
-            ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-name')" title="Dictar nombre por voz">🎙️</button>` : ''}
-          </div>
+          <input type="text" class="input-field client-name" placeholder="Nombre Presidente / Enlace" value="${existing.name || ''}">
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
 
@@ -5294,6 +5197,12 @@
       saveAndSync('comercial_custom_zones', savedZones);
       closeModal('dumpModal');
       renderAllSavedZones();
+      if (z.stats && z.stats.si > 0) {
+        triggerHapticAndSound('success');
+        showCelebrationToast(`🔥 ¡+${z.stats.si} SÍ volcado(s) en ${z.town}!`);
+      } else {
+        triggerHapticAndSound('tap');
+      }
 
      if (currentUserRole === 'comercial') {
         if (isMikelTeamMember(currentUserName)) {
@@ -5315,7 +5224,54 @@
     }
 
     /* =====================================================================
-       MODAL LIGA VISUAL DE RANKING
+       MOTOR DE CICLOS MENSUALES (MES ACTUAL DESDE 0 VS MES ANTERIOR)
+       ===================================================================== */
+    function getMonthKeyOffset(monthsBack = 0) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - monthsBack);
+      return getLocalDateISO(d).slice(0, 7);
+    }
+
+    function formatMonthLabelEs(ymStr) {
+      if (!ymStr || !ymStr.includes('-')) return ymStr;
+      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const [y, m] = ymStr.split('-');
+      return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+    }
+
+    function computeUserMonthMetrics(userName, monthYm) {
+      let m2 = 0, si = 0, no = 0, doors = 0;
+      const daysSet = new Set();
+
+      savedZones.forEach(z => {
+        if (z.comercial !== userName || z.isNoAptoZone) return;
+        const zDate = z.dumpDate || z.date || '';
+        if (monthYm && !zDate.startsWith(monthYm)) return;
+        if (zDate) daysSet.add(zDate);
+
+        const st = z.stats || {};
+        si += (st.si || 0);
+        no += (st.no || 0);
+        doors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              m2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+      });
+
+      const isAndrei = userName === 'Andrei (Jefe)';
+      const moneyPersonal = m2 * (isAndrei ? 1.0 : 0.85);
+      const moneyBossShare = m2 * (isAndrei ? 1.0 : 0.15);
+      return { m2, si, no, doors, days: daysSet.size, moneyPersonal, moneyBossShare };
+    }
+
+    /* =====================================================================
+       MODAL LIGA VISUAL DE RANKING (CICLO MENSUAL DESDE 0)
        ===================================================================== */
     function openLeagueRankingModal() {
       const container = document.getElementById('leagueRankingContainer');
@@ -5330,12 +5286,15 @@
         ? '🏆 Liga Equipo • Facturación Bruta (SÍ)'
         : '🏆 Liga Comercial • Dinero en SÍ';
 
+      const currentYm = getMonthKeyOffset(0);
       const moneySiMap = {};
       participantsList.forEach(p => { moneySiMap[p] = 0; });
 
       savedZones.forEach(z => {
         const u = z.comercial;
         if (moneySiMap[u] === undefined) return;
+        const zDate = z.dumpDate || z.date || '';
+        if (!zDate.startsWith(currentYm)) return;
 
         if (z.clients) {
           z.clients.forEach(c => {
@@ -5662,7 +5621,7 @@
                   <span style="font-size:10px; color:#99f6e4; font-weight:800;">Desde ${formatDate(mt.lastDate)}</span>
                 </div>
                 <div style="font-size:10.5px; color:#cbd5e1; margin-top:2px;">
-                  Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> \vert{} SÍ sacados: <strong>${mt.si}</strong>
+                  Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> | SÍ sacados: <strong>${mt.si}</strong>
                 </div>
               </div>
             `;
@@ -5724,17 +5683,29 @@
       const container = document.getElementById('commercialStatsContainer');
       container.innerHTML = '';
 
-      let totalTocadas = 0;
-      let totalSi = 0;
-      let totalNo = 0;
-      let totalPapelito = 0;
-      let totalM2 = 0;
+      const curYm = getMonthKeyOffset(0);
+      const prevYm = getMonthKeyOffset(1);
+      const curLabel = formatMonthLabelEs(curYm);
+      const prevLabel = formatMonthLabelEs(prevYm);
+
+      let totalTocadas = 0, totalSi = 0, totalNo = 0, totalPapelito = 0, totalM2 = 0;
+      let histM2 = 0;
       const datesSet = new Set();
 
       savedZones.forEach(z => {
-        if (z.comercial !== currentUserName) return;
+        if (z.comercial !== currentUserName || z.isNoAptoZone) return;
         const st = z.stats || {};
-        const zDate = z.dumpDate || z.date;
+        const zDate = z.dumpDate || z.date || '';
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              histM2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+
+        if (!zDate.startsWith(curYm)) return;
         if (zDate) datesSet.add(zDate);
 
         const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
@@ -5752,17 +5723,26 @@
         }
       });
 
-      const totalDays = Math.max(1, datesSet.size);
+      const prevMetrics = computeUserMonthMetrics(currentUserName, prevYm);
       const factorComision = currentUserRole === 'jefe' ? 1.0 : 0.85;
-      const dineroTotalGenerado = totalM2 * factorComision;
-      const dineroMedioDia = (dineroTotalGenerado / totalDays).toFixed(2);
-      const proyeccionMes = (dineroTotalGenerado * (22 / totalDays)).toFixed(2);
+      const dineroMesActual = totalM2 * factorComision;
+      const dineroMesAnterior = prevMetrics.moneyPersonal;
+      const diffMesEuros = dineroMesActual - dineroMesAnterior;
+      const diffSign = diffMesEuros >= 0 ? '+' : '';
+      const diffColor = diffMesEuros >= 0 ? '#34d399' : '#fca5a5';
+
+      const totalDays = Math.max(1, datesSet.size);
+      const dineroMedioDia = (dineroMesActual / totalDays).toFixed(2);
+      const proyeccionMes = (dineroMesActual * (22 / totalDays)).toFixed(2);
       const puertasPorDiaMedio = Math.round(totalTocadas / totalDays);
       const successRate = totalTocadas > 0 ? Math.round((totalSi / totalTocadas) * 100) : 0;
       const noRate = totalTocadas > 0 ? Math.round((totalNo / totalTocadas) * 100) : 0;
       const infoRate = totalTocadas > 0 ? Math.round((totalPapelito / totalTocadas) * 100) : 0;
 
-      const userShifts = savedShifts.filter(s => s.user === currentUserName);
+      const userShifts = savedShifts.filter(s => {
+        const shDate = s.localDate || getLocalDateISO(new Date(s.date));
+        return s.user === currentUserName && shDate.startsWith(curYm);
+      });
       let avgHoursDay = 0;
       if (userShifts.length > 0) {
         const sumH = userShifts.reduce((acc, s) => acc + getShiftEffectiveHours(s), 0);
@@ -5773,17 +5753,28 @@
 
       const isMikelUser = isMikelTeamMember(currentUserName);
       const headerTitle = currentUserRole === 'jefe'
-        ? '👑 TU PRODUCCIÓN PERSONAL DE CALLE (HISTÓRICO)'
-        : '💰 TU DINERO ACUMULADO (MES / HISTÓRICO)';
+        ? `👑 TU PRODUCCIÓN PERSONAL • ${curLabel.toUpperCase()}`
+        : `💰 TU SUELDO ACUMULADO • ${curLabel.toUpperCase()}`;
 
       container.innerHTML = `
-        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:12px; border:1px solid #60a5fa;">
+        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:10px; border:1px solid #60a5fa;">
           <div style="font-size:10px; font-weight:800; color:#bfdbfe; text-transform:uppercase;">${headerTitle}</div>
-          <div style="font-size:24px; font-weight:900; color:#fff; margin:4px 0;">${dineroTotalGenerado.toFixed(2)} €</div>
+          <div style="font-size:26px; font-weight:900; color:#fff; margin:4px 0;">${dineroMesActual.toFixed(2)} €</div>
           <div style="font-size:11px; color:#e0f2fe;">
-            • Media diaria: <strong>${dineroMedioDia} € / día</strong><br>
-            ${!isMikelUser ? `• Proyección estimada mensual: <strong>${proyeccionMes} €</strong><br>` : ''}
-            • Volumen aportado: <strong>${totalM2} m²</strong> en ${datesSet.size > 0 ? datesSet.size : 1} jornadas registradas.
+            • Media este mes: <strong>${dineroMedioDia} € / día</strong> (${totalM2} m²)<br>
+            ${!isMikelUser ? `• Proyección cierre de ${curLabel}: <strong>${proyeccionMes} €</strong><br>` : ''}
+            • Jornadas trabajadas en ${curLabel}: <strong>${datesSet.size} días</strong>
+          </div>
+        </div>
+
+        <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(255,255,255,0.14); border-radius:12px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:9.5px; color:#94a3b8; font-weight:800; text-transform:uppercase;">📅 Mes Anterior (${prevLabel})</div>
+            <div style="font-size:15px; font-weight:900; color:#fff; margin-top:2px;">${dineroMesAnterior.toFixed(2)} € <small style="font-size:10px; color:#94a3b8; font-weight:700;">(${prevMetrics.m2} m²)</small></div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:9.5px; color:#94a3b8; font-weight:800; text-transform:uppercase;">Diferencia Mes</div>
+            <div style="font-size:14px; font-weight:900; color:${diffColor}; margin-top:2px;">${diffSign}${diffMesEuros.toFixed(2)} €</div>
           </div>
         </div>
 
@@ -5893,8 +5884,11 @@
     function populateAuditMonthOptions() {
       const sel = document.getElementById('auditMonthSelect');
       if (!sel) return;
-      const prevVal = sel.value || 'ALL';
-      const monthsSet = new Set([getTodayISO().slice(0, 7)]);
+      const currentMonthYm = getTodayISO().slice(0, 7);
+      const prevVal = sel.dataset.initialized ? sel.value : currentMonthYm;
+      sel.dataset.initialized = 'true';
+
+      const monthsSet = new Set([currentMonthYm, getMonthKeyOffset(1)]);
       savedZones.forEach(z => {
         if (isMikelTeamMember(z.comercial)) return;
         const d = (z.dumpDate || z.date || '').slice(0, 7);
@@ -5902,12 +5896,13 @@
       });
       const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
       const sortedMonths = Array.from(monthsSet).sort().reverse();
-      sel.innerHTML = `<option value="ALL">📊 Todo el Histórico Acumulado</option>` +
+      sel.innerHTML =
         sortedMonths.map(ym => {
           const [y, m] = ym.split('-');
-          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}${ym === currentMonthYm ? ' (Mes Actual)' : ''}`;
           return `<option value="${ym}" ${prevVal === ym ? 'selected' : ''}>📅 ${label}</option>`;
-        }).join('');
+        }).join('') +
+        `<option value="ALL" ${prevVal === 'ALL' ? 'selected' : ''}>📊 Todo el Histórico Acumulado</option>`;
     }
 
     function openAuditModal() {
@@ -6143,6 +6138,46 @@
       `;
       container.appendChild(summaryCard);
 
+      // Tarjeta comparativa Mes Actual vs Mes Anterior para el Jefe y el Equipo
+      if (selectedMonth !== 'ALL') {
+        const [selY, selM] = selectedMonth.split('-').map(Number);
+        const prevDateObj = new Date(selY, selM - 2, 1);
+        const prevMonthYm = getLocalDateISO(prevDateObj).slice(0, 7);
+
+        let prevBossTotal = 0;
+        let prevAndreiOwn = 0;
+        let prevTeamComs = 0;
+
+        usersList.forEach(u => {
+          const pm = computeUserMonthMetrics(u, prevMonthYm);
+          prevBossTotal += pm.moneyBossShare;
+          if (u === 'Andrei (Jefe)') prevAndreiOwn += pm.moneyBossShare;
+          else prevTeamComs += pm.moneyBossShare;
+        });
+
+        const curAndreiOwn = statsMap['Andrei (Jefe)'].dineroParaJefe;
+        const curTeamComs = totalBeneficioJefe - curAndreiOwn;
+        const diffGlobal = totalBeneficioJefe - prevBossTotal;
+        const diffOwn = curAndreiOwn - prevAndreiOwn;
+        const diffTeam = curTeamComs - prevTeamComs;
+
+        const fmtDiff = (val) => `<strong style="color:${val >= 0 ? '#34d399' : '#fca5a5'};">${val >= 0 ? '+' : ''}${val.toFixed(0)} €</strong>`;
+
+        const monthCompCard = document.createElement('div');
+        monthCompCard.style.cssText = 'background:rgba(30,41,59,0.92); border:1px solid rgba(167,139,250,0.4); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:10.5px; color:#e2e8f0;';
+        monthCompCard.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:9.5px; font-weight:900; color:#c4b5fd; text-transform:uppercase;">📈 Comparativa vs ${formatMonthLabelEs(prevMonthYm)}</span>
+            <span>Balance Global: ${fmtDiff(diffGlobal)}</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:rgba(0,0,0,0.28); padding:6px 8px; border-radius:8px;">
+            <div>👑 Tuyo: <strong>${curAndreiOwn.toFixed(0)} €</strong> <small style="color:#94a3b8;">(ant. ${prevAndreiOwn.toFixed(0)} € · ${fmtDiff(diffOwn)})</small></div>
+            <div>🏃 Equipo (15%): <strong>${curTeamComs.toFixed(0)} €</strong> <small style="color:#94a3b8;">(ant. ${prevTeamComs.toFixed(0)} € · ${fmtDiff(diffTeam)})</small></div>
+          </div>
+        `;
+        container.appendChild(monthCompCard);
+      }
+
       const subtabContainer = document.createElement('div');
       subtabContainer.className = 'subtab-bar';
       subtabContainer.innerHTML = `
@@ -6179,9 +6214,18 @@
         const gapWithLeader = (topContributor.dineroParaJefe - s.dineroParaJefe).toFixed(2);
         const gapText = rankIdx === 0 ? '---' : `-${gapWithLeader} € vs #1`;
 
+        let prevUserHint = '';
+        if (selectedMonth !== 'ALL') {
+          const [sy, sm] = selectedMonth.split('-').map(Number);
+          const pYm = getLocalDateISO(new Date(sy, sm - 2, 1)).slice(0, 7);
+          const pData = computeUserMonthMetrics(s.name, pYm);
+          const uDiff = s.dineroParaJefe - pData.moneyBossShare;
+          prevUserHint = `<div style="font-size:8.5px; color:#94a3b8; margin-top:1px;">Mes ant.: ${pData.moneyBossShare.toFixed(0)} € (<span style="color:${uDiff>=0?'#34d399':'#fca5a5'}; font-weight:800;">${uDiff>=0?'+':''}${uDiff.toFixed(0)} €</span>)</div>`;
+        }
+
         const sourceLabel = s.name === 'Andrei (Jefe)'
-          ? `<div style="font-size:9px; color:#34d399; margin-top:1px;">100% Obra Propia</div>`
-          : `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Tu 15% de comisión</div>`;
+          ? `<div style="font-size:9px; color:#34d399; margin-top:1px;">100% Obra Propia</div>${prevUserHint}`
+          : `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Tu 15% de comisión (Suyo: ${(s.m2SiCaptados * 0.85).toFixed(0)} €)</div>${prevUserHint}`;
 
         tableRows += `
           <tr class="${rowClass}">
@@ -6398,7 +6442,7 @@
                 ${wd.name} ${formatDate(wd.iso)} ${isToday ? '(HOY)' : ''}
               </strong>
               <div style="display:flex; align-items:center; gap:5px;">
-                ${wd.obras.length > 0 ? `<a href="${dayMapsUrl}" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px; display:inline-block;">🧭 Ruta</a>` : ''}
+                ${wd.obras.length > 0 ? `<a href="${dayMapsUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px; display:inline-block;">🧭 Ruta</a>` : ''}
                 <span style="background:${wd.totalM2 > 0 ? '#059669' : 'rgba(255,255,255,0.1)'}; color:#fff; font-size:10px; font-weight:900; padding:3px 8px; border-radius:7px;">
                   ${wd.totalM2} m²
                 </span>
@@ -6781,8 +6825,27 @@
             ? ` • <span style="color:${countComunidadDocs(c.comunidadDocs)===5?'#34d399':'#fca5a5'}; font-weight:800;">📋 Docs: ${countComunidadDocs(c.comunidadDocs)}/5</span>`
             : '';
 
+          const cleanTelObra = (c.phone || '').replace(/\s+/g, '');
+          const firstCli = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
+          const senderNameObra = typeof getDisplayAlias === 'function' ? getDisplayAlias(c.comercial) : c.comercial;
+          const firmaObra = `\n\n━━━━━━━━━━━━━━━━━━\n*KONSOR ENERGÍA* | Aislamiento Térmico & Certificación CAE\n👤 Gestor asignado: *${senderNameObra}*\n🏢 Oficina Central: Calle San Fermín, 43, Pamplona (Navarra)\n🌐 Web Oficial: https://konsorenergia.com\n🛡️ Programa Oficial: Certificados de Ahorro Energético (CAE) - Directiva (UE) 2023/1791`;
+
+          const waCitaUrl = cleanTelObra
+            ? `https://wa.me/34${cleanTelObra}?text=${encodeURIComponent(`Hola${firstCli}, soy *${senderNameObra}* de *Konsor Energía*.\n\nTe recuerdo los datos de tu cita reservada para la instalación del aislamiento térmico:\n\n📅 *Fecha:* ${formatDate(c.obraDate)}\n⏰ *Hora aproximada:* ${c.obraTime || '09:00'} h\n📍 *Dirección:* ${c.street}, ${item.town}\n\nGuarda este mensaje como recordatorio. Cualquier cosa, escríbeme directamente por aquí.${firmaObra}`)}`
+            : '';
+
+          const waPostUrl = cleanTelObra
+            ? `https://wa.me/34${cleanTelObra}?text=${encodeURIComponent(`Hola${firstCli}, soy *${senderNameObra}* de *Konsor Energía*.\n\n¡Muchas gracias por confiar en nuestro equipo para aislar tu vivienda en *${c.street}, ${item.town}*! Esperamos que disfrutes del confort y el ahorro energético.\n\nQueremos seguir siendo referentes en Navarra: si algún vecino, familiar o amigo quiere comprobar si su casa entra gratuita en el plan CAE, pásale mi contacto directamente.${firmaObra}`)}`
+            : '';
+
+          const waObraBtnHtml = cleanTelObra
+            ? (activeObrasSubFilter === 'agendadas'
+                ? `<a href="${waCitaUrl}" target="_blank" onclick="event.stopPropagation();" style="text-decoration:none; background:#d97706; color:#fff; border:1px solid #fbbf24; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:900; margin-left:5px; white-space:nowrap;">💬 Cita</a>`
+                : `<a href="${waPostUrl}" target="_blank" onclick="event.stopPropagation();" style="text-decoration:none; background:#0891b2; color:#fff; border:1px solid #22d3ee; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:900; margin-left:5px; white-space:nowrap;">⭐ Marca</a>`)
+            : '';
+
           const completeBtnHtml = activeObrasSubFilter === 'agendadas'
-            ? `<button onclick="event.stopPropagation(); markObraAsRealizada(${c.zoneIdx}, ${c.clientIdx});" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:6px; padding:4px 7px; font-size:9.5px; font-weight:900; cursor:pointer; margin-left:6px; white-space:nowrap;">✅ Hecha</button>`
+            ? `<button onclick="event.stopPropagation(); markObraAsRealizada(${c.zoneIdx}, ${c.clientIdx});" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:6px; padding:4px 7px; font-size:9.5px; font-weight:900; cursor:pointer; margin-left:5px; white-space:nowrap;">✅ Hecha</button>`
             : '';
 
           housesHtml += `
@@ -6790,6 +6853,7 @@
               <span>${typeIcon}: <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small>${dateBadge}${docsBadge}</span>
               <div style="display:flex; align-items:center;">
                 <span style="color:#34d399; font-weight:800; margin-left:6px; white-space:nowrap;">${c.m2Val} m²</span>
+                ${waObraBtnHtml}
                 ${completeBtnHtml}
               </div>
             </div>
@@ -7050,6 +7114,174 @@
       if (el) el.classList.toggle('open');
     }
 
+    /* =====================================================================
+       MOTOR SENSORIAL 2027: SONIDOS, VIBRACIÓN Y NOTIFICACIONES MÓVILES
+       ===================================================================== */
+    let sharedAudioCtx = null;
+    let isIosAudioUnlocked = false;
+
+    function unlockIosAudioEngine() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+        if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+        if (!isIosAudioUnlocked) {
+          const buf = sharedAudioCtx.createBuffer(1, 1, 22050);
+          const src = sharedAudioCtx.createBufferSource();
+          src.buffer = buf;
+          src.connect(sharedAudioCtx.destination);
+          src.start(0);
+          isIosAudioUnlocked = true;
+        }
+      } catch (e) {}
+    }
+
+    function playToneSchedule(type) {
+      if (!sharedAudioCtx) return;
+      const now = sharedAudioCtx.currentTime;
+
+      if (type === 'tap') {
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(620, now);
+        osc.frequency.exponentialRampToValueAtTime(920, now + 0.055);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      } else if (type === 'success') {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const o = sharedAudioCtx.createOscillator();
+          const g = sharedAudioCtx.createGain();
+          o.type = 'triangle';
+          o.frequency.setValueAtTime(freq, now + i * 0.065);
+          g.gain.setValueAtTime(0.28, now + i * 0.065);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.065 + 0.24);
+          o.connect(g);
+          g.connect(sharedAudioCtx.destination);
+          o.start(now + i * 0.065);
+          o.stop(now + i * 0.065 + 0.25);
+        });
+      } else if (type === 'alert') {
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(360, now);
+        osc.frequency.setValueAtTime(280, now + 0.12);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+    }
+
+    let iosHapticSwitchEl = null;
+
+    function triggerNativeHapticPulse(type = 'tap') {
+      if (appPrefs.vibrate === false) return;
+
+      // 1. Android / navegadores estándar
+      if (navigator.vibrate) {
+        if (type === 'tap') navigator.vibrate(15);
+        else if (type === 'success') navigator.vibrate([35, 55, 90]);
+        else if (type === 'alert') navigator.vibrate([70, 50, 70]);
+        return;
+      }
+
+      // 2. iPhone (iOS Taptic Engine mediante <input type="checkbox" switch>)
+      try {
+        if (!iosHapticSwitchEl) {
+          const label = document.createElement('label');
+          label.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+          const inp = document.createElement('input');
+          inp.type = 'checkbox';
+          inp.setAttribute('switch', '');
+          label.appendChild(inp);
+          document.body.appendChild(label);
+          iosHapticSwitchEl = label;
+        }
+        iosHapticSwitchEl.click();
+        if (type === 'success' || type === 'alert') {
+          setTimeout(() => { try { iosHapticSwitchEl.click(); } catch (e) {} }, 85);
+        }
+      } catch (e) {}
+    }
+
+    function triggerHapticAndSound(type = 'tap') {
+      triggerNativeHapticPulse(type);
+
+      if (appPrefs.sound === false) return;
+
+      try {
+        unlockIosAudioEngine();
+        if (!sharedAudioCtx) return;
+        if (sharedAudioCtx.state === 'suspended') {
+          sharedAudioCtx.resume().then(() => playToneSchedule(type));
+        } else {
+          playToneSchedule(type);
+        }
+      } catch (e) {}
+    }
+
+    document.addEventListener('touchstart', unlockIosAudioEngine, { passive: true });
+
+    function showCelebrationToast(msg) {
+      const old = document.querySelector('.celebration-toast');
+      if (old) old.remove();
+      const toast = document.createElement('div');
+      toast.className = 'celebration-toast';
+      toast.innerText = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3200);
+    }
+
+    async function requestMobileNotifications() {
+      triggerHapticAndSound('tap');
+      if (!('Notification' in window)) {
+        alert("ℹ️ En iPhone, asegúrate de tener la app añadida a la Pantalla de Inicio (Compartir → Añadir a pantalla de inicio) para recibir notificaciones.");
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      const btn = document.getElementById('btnEnableNotifs');
+      if (perm === 'granted') {
+        if (btn) {
+          btn.style.background = 'rgba(16,185,129,0.25)';
+          btn.style.borderColor = '#34d399';
+          btn.innerText = '🔔✓';
+        }
+        triggerHapticAndSound('success');
+        sendLocalMobileNotification('Konsor Energía • Navarra', '✅ Notificaciones activadas. Te avisaremos al instante de nuevos SÍ y obras de hoy.');
+      } else {
+        alert("⚠️ Permiso de notificaciones denegado en el navegador.");
+      }
+    }
+
+    function sendLocalMobileNotification(title, bodyText) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      try {
+        new Notification(title, {
+          body: bodyText,
+          tag: 'konsor-navarra-alert',
+          renotify: true
+        });
+      } catch (e) {}
+    }
+
+    // Feedback táctil y sonoro sutil en cualquier botón de la interfaz
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .tab-btn, .subtab-btn');
+      if (btn && !btn.classList.contains('btn-modal-save')) {
+        triggerHapticAndSound('tap');
+      }
+    }, true);
+
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
     function resetMapNorth() {
@@ -7066,6 +7298,7 @@
     }
 
     window.onload = () => {
+      applyAppVisualSettings();
       refreshLoginDropdownAliases();
       const savedRole = sessionStorage.getItem('auth_role');
       const savedName = sessionStorage.getItem('auth_name');
