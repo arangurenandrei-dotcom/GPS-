@@ -173,6 +173,7 @@
     }
     .hud-nav-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
     .hud-nav-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .hud-nav-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
 
     .btn-hud {
       padding: 7px 6px; border: 1px solid var(--border-panel); border-radius: 10px;
@@ -1425,7 +1426,7 @@
           btnLeagueRanking.style.display = isMikelBlock ? 'none' : 'flex';
           btnLeagueRanking.innerHTML = '🏆 Ranking';
         }
-        hudNavGrid.className = isMikelBlock ? 'hud-nav-grid cols-3' : 'hud-nav-grid cols-4';
+        hudNavGrid.className = isMikelBlock ? 'hud-nav-grid cols-2' : 'hud-nav-grid cols-4';
       }
     }
     function startSingleHouseDirect() {
@@ -1666,15 +1667,18 @@
       });
 
       const finalPool = navarraOnly.length > 0 ? navarraOnly : list;
-      return finalPool.map(item => ({
-        lat: parseFloat(item.lat),
-        lon: parseFloat(item.lng),
-        title: item.address || item.tip_via ? `${item.tip_via || ''} ${item.address || ''} ${item.portalNumber || ''}`.trim() : searchStr,
-        town: item.muni || item.poblacion || 'Navarra',
-        cp: item.postalCode || '',
-        isPortal: Boolean(item.portalNumber || item.type === 'portal'),
-        source: 'Catastro/IGN'
-      })).filter(x => !isNaN(x.lat) && !isNaN(x.lon));
+     return finalPool.map(item => {
+        const fullVia = `${item.tip_via || ''} ${item.address || ''} ${item.portalNumber || ''}`.trim();
+        return {
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lng),
+          title: fullVia || searchStr,
+          town: item.muni || item.poblacion || 'Navarra',
+          cp: item.postalCode || '',
+          isPortal: Boolean(item.portalNumber || item.type === 'portal'),
+          source: 'Catastro/IGN'
+        };
+      }).filter(x => !isNaN(x.lat) && !isNaN(x.lon));
     }
 
     async function queryNominatimNavarra(searchStr) {
@@ -2045,7 +2049,7 @@
       let totalObrasM2 = 0;
 
       savedZones.forEach((z, zIdx) => {
-        if (!z.clients) return;
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
         z.clients.forEach((c, cIdx) => {
           if (c.obraStatus === 'agendada' && c.obraDate === todayIso && isClientValidFilled(c)) {
             const townName = (z.town || 'Navarra').trim();
@@ -2190,7 +2194,7 @@
 
       html += `<button class="btn-modal-save" onclick="closeModal('bossObrasHoyModal')">Entendido, ir al Panel</button>`;
       container.innerHTML = html;
-      document.getElementById('briefingModal').classList.add('active');
+      document.getElementById('bossObrasHoyModal').classList.add('active');
     }
 
     function focusMapOnTownOrZone(townName, zoneIdx) {
@@ -2663,6 +2667,24 @@
       }
       if (btnConfirm) btnConfirm.style.display = 'inline-block';
 
+      const assignSel = document.getElementById('assignComercial');
+      if (assignSel) {
+        const isMikel = isMikelTeamMember(currentUserName);
+        assignSel.innerHTML = isMikel
+          ? `<option value="Mikel (Jefe)">👑 Mikel (Trabajo Propio)</option>
+             <option value="Mikel Com. 1">Mikel Com. 1</option>
+             <option value="Mikel Com. 2">Mikel Com. 2</option>
+             <option value="Mikel Com. 3">Mikel Com. 3</option>
+             <option value="Mikel Com. 4">Mikel Com. 4</option>
+             <option value="Mikel Com. 5">Mikel Com. 5</option>`
+          : `<option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
+             <option value="Comercial 1">Comercial 1</option>
+             <option value="Comercial 2">Comercial 2</option>
+             <option value="Comercial 3">Comercial 3</option>
+             <option value="Comercial 4">Comercial 4</option>
+             <option value="Comercial 5">Comercial 5</option>`;
+      }
+
       document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
     }
 
@@ -2722,27 +2744,9 @@
       const btnSingle = document.getElementById('btnToggleSingleHouseMode');
       const btnConfirm = document.getElementById('btnConfirmSectorPoly');
       if (btnSingle) btnSingle.style.display = 'none';
-     if (btnConfirm) btnConfirm.style.display = 'inline-block';
+      if (btnConfirm) btnConfirm.style.display = 'inline-block';
 
-      const assignSel = document.getElementById('assignComercial');
-      if (assignSel) {
-        const isMikel = isMikelTeamMember(currentUserName);
-        assignSel.innerHTML = isMikel
-          ? `<option value="Mikel (Jefe)">👑 Mikel (Trabajo Propio)</option>
-             <option value="Mikel Com. 1">Mikel Com. 1</option>
-             <option value="Mikel Com. 2">Mikel Com. 2</option>
-             <option value="Mikel Com. 3">Mikel Com. 3</option>
-             <option value="Mikel Com. 4">Mikel Com. 4</option>
-             <option value="Mikel Com. 5">Mikel Com. 5</option>`
-          : `<option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
-             <option value="Comercial 1">Comercial 1</option>
-             <option value="Comercial 2">Comercial 2</option>
-             <option value="Comercial 3">Comercial 3</option>
-             <option value="Comercial 4">Comercial 4</option>
-             <option value="Comercial 5">Comercial 5</option>`;
-      }
-
-      document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
+      document.getElementById('drawingBannerText').innerText = "✂️ Toca las esquinas de la ZONA PENDIENTE para mañana...";
     }
 
     async function inspectNavarraCadastreAtPoint(latlng) {
@@ -5317,7 +5321,7 @@
       }
 
       savedZones.forEach((z, zIdx) => {
-        if (!z.clients) return;
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
         z.clients.forEach(c => {
           if (c.obraStatus === 'agendada' && c.obraDate && isClientValidFilled(c)) {
             const targetDay = weekDays.find(wd => wd.iso === c.obraDate);
@@ -5640,7 +5644,7 @@
       const targetStatus = activeObrasSubFilter === 'realizadas' ? 'realizada' : 'agendada';
 
       savedZones.forEach((z, zIdx) => {
-        if (!z.clients) return;
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
 
         z.clients.forEach((c, cIdx) => {
           if (c.obraStatus !== targetStatus || !isClientValidFilled(c)) return;
@@ -5867,9 +5871,8 @@
       const townsMap = {};
 
       savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial) || z.isNoAptoZone) return;
         const t = z.town || 'Peralta';
-
-        if (z.isNoAptoZone) return;
         if (!townsMap[t]) {
           townsMap[t] = {
             name: t,
@@ -6090,7 +6093,7 @@
         updateShiftUI();
         initMap();
 
-        if (currentUserRole === 'comercial') {
+        if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
           showCommercialBriefing();
         } else if (currentUserName === 'Andrei (Jefe)') {
           showBossDailySummaryAndObras();
