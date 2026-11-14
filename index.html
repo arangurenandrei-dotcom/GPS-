@@ -34,11 +34,15 @@
     }
 
     html, body {
+      position: fixed;
+      inset: 0;
       width: 100%;
       height: 100%;
+      height: 100dvh;
       overflow: hidden;
       background: var(--bg-dark);
       color: #f8fafc;
+      overscroll-behavior: none;
     }
 
     /* MARCADOR GPS DE UBICACIÓN ACTUAL */
@@ -274,15 +278,18 @@
       color: #ffffff;
     }
 
-    /* MODALES Y CAPAS */
+    /* MODALES Y CAPAS ADAPTADOS A NOTCH / DYNAMIC ISLAND DE IPHONE */
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 10px;
+      backdrop-filter: blur(8px); z-index: 9999; align-items: flex-start; justify-content: center;
+      padding: calc(env(safe-area-inset-top, 44px) + 12px) 10px calc(env(safe-area-inset-bottom, 16px) + 10px) 10px;
     }
     .modal-overlay.active { display: flex; }
 
     .modal-card {
-      width: 100%; max-width: 520px; max-height: 91vh; background: #0f172a;
+      width: 100%; max-width: 520px;
+      max-height: calc(100dvh - env(safe-area-inset-top, 44px) - env(safe-area-inset-bottom, 16px) - 22px);
+      background: #0f172a;
       border: 1px solid var(--border-panel); border-radius: 20px; padding: 14px;
       color: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column;
       overflow: hidden; box-sizing: border-box;
@@ -1981,6 +1988,7 @@
 
       // Centra automáticamente en la ubicación GPS real de quien abra la app
       map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
+      setTimeout(() => { if (map) map.invalidateSize(); }, 250);
     }
 
     function toggleCatastroLayer() {
@@ -6828,46 +6836,87 @@
 
       if (currentUserName !== 'Andrei (Jefe)') return;
 
-      // Cuadro resumen de planificación y cumplimiento de zonas del día
+      // Cuadro limpio de planificación y cumplimiento (1 fila compacta por sector/tarea)
       const teamListOnly = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       let quickPlanRows = '';
+
       teamListOnly.forEach(com => {
+        const displayAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(com) : com;
         const dayZones = savedZones.filter(z => {
-          if (z.comercial !== com || z.isSingleHouse || z.isHotMission) return false;
+          if (z.comercial !== com || z.isSingleHouse || z.isHotMission || z.isNoAptoZone) return false;
           if (z.date === selectedDate || z.dumpDate === selectedDate) return true;
           if (selectedDate === getTodayISO() && z.status !== 'completada' && z.date <= selectedDate) return true;
           return false;
         });
         const dayHot = hotLeadMissions.filter(m => m.comercial === com && m.date === selectedDate);
+        const hasTasks = dayZones.length > 0 || dayHot.length > 0;
 
-        let statusSummary = '<span style="color:#64748b;">⚪ Sin zona asignada</span>';
-        if (dayZones.length > 0) {
-          statusSummary = dayZones.map(dz => {
+        let rowsHtml = '';
+        if (!hasTasks) {
+          rowsHtml = `<div style="font-size:10px; color:#64748b; padding:3px 6px;">⚪ Sin zona asignada</div>`;
+        } else {
+          rowsHtml += dayZones.map(dz => {
             const zIdx = savedZones.indexOf(dz);
-            let badge = '<span style="color:#60a5fa; font-weight:800;">⚪ Por hacer</span>';
-            if (dz.status === 'en_proceso') badge = '<span style="color:#fde047; font-weight:800;">🟡 Incompleta</span>';
-            if (dz.status === 'completada') badge = '<span style="color:#34d399; font-weight:800;">✅ Hecha</span>';
-           return `<span onclick="closeModal(\'auditModal\'); openDumpModal(${zIdx});" style="cursor:pointer; text-decoration:underline;">${dz.sectorName} (${dz.town})</span> ${badge} <button onclick="event.stopPropagation(); closeModal(\'auditModal\'); focusMapOnTownOrZone(\'${(dz.town||'').replace(/'/g, "\\'")}\', ${zIdx});" style="background:#2563eb; border:none; color:#fff; font-size:9px; font-weight:800; padding:2px 5px; border-radius:5px; cursor:pointer;">📍 Mapa</button>`;
-          }).join('<br>');
-        }
-        if (dayHot.length > 0) {
-          statusSummary += `<br><span style="color:#34d399; font-weight:800;">🔥 Obra en caliente: ${dayHot.map(h => h.town).join(', ')}</span>`;
+            let badgeBg = 'rgba(59,130,246,0.18)';
+            let badgeCol = '#93c5fd';
+            let badgeTxt = 'Por hacer';
+            if (dz.status === 'en_proceso') {
+              badgeBg = 'rgba(245,158,11,0.22)';
+              badgeCol = '#fde047';
+              badgeTxt = 'Incompleta';
+            } else if (dz.status === 'completada') {
+              badgeBg = 'rgba(16,185,129,0.22)';
+              badgeCol = '#6ee7b7';
+              badgeTxt = 'Hecha';
+            }
+            const cleanSector = (dz.sectorName || '').replace(/\s*\([^)]*\)\s*$/, '');
+            const townTag = dz.town ? ` · <span style="color:#94a3b8; font-weight:700;">${dz.town}</span>` : '';
+
+            return `
+              <div onclick="closeModal('auditModal'); openDumpModal(${zIdx});" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px; background:rgba(15,23,42,0.65); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:5px 7px; margin-top:4px;">
+                <div style="min-width:0; flex:1; font-size:11px; color:#f8fafc; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${cleanSector}${townTag}
+                </div>
+                <span style="background:${badgeBg}; color:${badgeCol}; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px; white-space:nowrap; flex-shrink:0;">
+                  ${badgeTxt}
+                </span>
+                <button onclick="event.stopPropagation(); closeModal('auditModal'); focusMapOnTownOrZone('${(dz.town||'').replace(/'/g, "\\'")}', ${zIdx});" style="background:#2563eb; border:none; color:#fff; font-size:10px; font-weight:900; padding:3px 6px; border-radius:6px; cursor:pointer; flex-shrink:0;" title="Ver en mapa">
+                  📍
+                </button>
+              </div>
+            `;
+          }).join('');
+
+          rowsHtml += dayHot.map(h => `
+            <div onclick="closeModal('auditModal'); focusMapOnTownOrZone('${(h.town||'').replace(/'/g, "\\'")}', null);" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px; background:rgba(16,185,129,0.14); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:5px 7px; margin-top:4px;">
+              <div style="min-width:0; flex:1; font-size:11px; color:#6ee7b7; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                🔥 Reclamo Obra · ${h.town}
+              </div>
+              <span style="background:rgba(16,185,129,0.25); color:#a7f3d0; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px; white-space:nowrap; flex-shrink:0;">
+                En caliente
+              </span>
+              <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:3px 6px; border-radius:6px; flex-shrink:0;">📍</span>
+            </div>
+          `).join('');
         }
 
         quickPlanRows += `
-          <div style="font-size:11px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-            <strong style="color:#fff; white-space:nowrap;">${com}:</strong>
-            <div style="text-align:right; line-height:1.35;">${statusSummary}</div>
+          <div style="padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:11.5px; color:${hasTasks ? '#e2e8f0' : '#64748b'};">${com === 'Andrei (Jefe)' ? '👑 ' + displayAlias : '🏃 ' + displayAlias}</strong>
+              ${hasTasks ? `<span style="font-size:9.5px; color:#60a5fa; font-weight:800;">${dayZones.length + dayHot.length} tarea(s)</span>` : ''}
+            </div>
+            ${rowsHtml}
           </div>
         `;
       });
 
       const teamPlanCard = document.createElement('div');
-      teamPlanCard.style.cssText = 'background:rgba(30,41,59,0.9); border:1px solid rgba(96,165,250,0.45); border-radius:14px; padding:12px; margin-bottom:10px;';
+      teamPlanCard.style.cssText = 'background:rgba(30,41,59,0.9); border:1px solid rgba(96,165,250,0.45); border-radius:14px; padding:11px 12px; margin-bottom:10px;';
       teamPlanCard.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">📋 PLANIFICACIÓN Y CUMPLIMIENTO (${formatDate(selectedDate)})</span>
-          <button onclick="closeModal('auditModal'); showBossDailySummaryAndObras(true);" style="background:#7c3aed; border:1px solid #a78bfa; color:#fff; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">🔔 Ver Parte</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">📋 PLANIFICACIÓN (${formatDate(selectedDate)})</span>
+          <button onclick="closeModal('auditModal'); showBossDailySummaryAndObras(true);" style="background:#7c3aed; border:1px solid #a78bfa; color:#fff; font-size:9.5px; font-weight:800; padding:3px 8px; border-radius:6px; cursor:pointer;">🔔 Ver Parte</button>
         </div>
         ${quickPlanRows}
       `;
@@ -7463,6 +7512,42 @@
     }, true);
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // Gesto nativo estilo iPhone: deslizar desde el borde izquierdo hacia la derecha para volver atrás
+    (function enableIosSwipeBackGesture() {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let isEdgeSwipe = false;
+
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        isEdgeSwipe = touchStartX <= 42;
+      }, { passive: true });
+
+      document.addEventListener('touchend', (e) => {
+        if (!isEdgeSwipe || e.changedTouches.length !== 1) return;
+        isEdgeSwipe = false;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = Math.abs(t.clientY - touchStartY);
+
+        if (dx > 75 && dy < 60) {
+          const activeModals = Array.from(document.querySelectorAll('.modal-overlay.active'));
+          if (activeModals.length > 0) {
+            const topModal = activeModals[activeModals.length - 1];
+            if (topModal.id === 'idenaViewerModal') closeIdenaModal();
+            else topModal.classList.remove('active');
+            triggerHapticAndSound('tap');
+          } else if (isDrawingMode) {
+            cancelDrawing();
+            triggerHapticAndSound('tap');
+          }
+        }
+      }, { passive: true });
+    })();
 
     function resetMapNorth() {
       if (map && typeof map.setBearing === 'function') {
