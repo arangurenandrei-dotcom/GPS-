@@ -1667,8 +1667,13 @@
       });
 
       const finalPool = navarraOnly.length > 0 ? navarraOnly : list;
-     return finalPool.map(item => {
-        const fullVia = `${item.tip_via || ''} ${item.address || ''} ${item.portalNumber || ''}`.trim();
+    return finalPool.map(item => {
+        const rawAddr = (item.address || '').trim();
+        const tipVia = (item.tip_via || '').trim();
+        const viaBase = (tipVia && !rawAddr.toUpperCase().startsWith(tipVia.toUpperCase()))
+          ? `${tipVia} ${rawAddr}`
+          : rawAddr;
+        const fullVia = `${viaBase} ${item.portalNumber || ''}`.trim();
         return {
           lat: parseFloat(item.lat),
           lon: parseFloat(item.lng),
@@ -1710,8 +1715,17 @@
       const dropdown = document.getElementById('searchCandidatesDropdown');
       if (dropdown) dropdown.style.display = 'none';
 
-      const zoomLvl = c.isPortal ? 19 : 16;
-      map.setView([c.lat, c.lon], zoomLvl, { animate: true });
+      const zoomLvl = c.isPortal ? 18 : 17;
+      map.invalidateSize();
+      map.setView([c.lat, c.lon], zoomLvl, { animate: false });
+
+      setTimeout(() => {
+        if (osmStreetLayer && !isSatelliteActive) osmStreetLayer.redraw();
+        if (catastroNavarraLayer && isCatastroActive) {
+          catastroNavarraLayer.redraw();
+          catastroNavarraLayer.bringToFront();
+        }
+      }, 150);
 
       if (searchPinMarker) map.removeLayer(searchPinMarker);
       searchPinMarker = L.marker([c.lat, c.lon]).addTo(map)
