@@ -745,7 +745,7 @@
         <button id="btnFollowUps" class="btn-hud followup-action" onclick="openFollowUpsModal()">📞 Llamar</button>
         <button id="btnLeagueRanking" class="btn-hud ranking-action" onclick="openLeagueRankingModal()">🏆 Ranking</button>
         <button id="btnCommercialStats" class="btn-hud stats-action" onclick="openCommercialStatsModal()">📈 Mis Stats</button>
-        <button id="btnMikelRadarHud" class="btn-hud" style="display:none; background:linear-gradient(135deg, #0d9488 0%, #115e59 100%); border-color:#2dd4bf;" onclick="openMikelRadarModal()">🔭 Mikel</button>
+        <button id="btnMikelRadarHud" class="btn-hud" style="display:none; background:linear-gradient(135deg, #0d9488 0%, #115e59 100%); border-color:#2dd4bf;" onclick="openMikelRadarModal()">⚔️ Equipos</button>
       </div>
       <!-- Fila 3: Control de Jornada -->
       <div class="shift-bar">
@@ -922,13 +922,18 @@
     </div>
   </div>
 
-  <!-- MODAL RADAR EQUIPO MIKEL (EXCLUSIVO ANDREI) -->
+  <!-- MODAL CENTRO INTELIGENCIA MULTI-EQUIPO (EXCLUSIVO ANDREI) -->
   <div id="mikelRadarModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>🔭 Radar Competencia • Equipo Mikel</span>
+          <span>⚔️ Inteligencia Multi-Equipo • Navarra</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('mikelRadarModal')">✕</button>
+        </div>
+        <div class="subtab-bar" style="margin-bottom:4px;">
+          <button id="radarTabCompare" class="subtab-btn active" onclick="switchRadarSubTab('compare')">📊 Cara a Cara</button>
+          <button id="radarTabTowns" class="subtab-btn" onclick="switchRadarSubTab('towns')">🗺️ Pueblos & Alertas</button>
+          <button id="radarTabOpps" class="subtab-btn" onclick="switchRadarSubTab('opps')">🎯 Oportunidades</button>
         </div>
       </div>
       <div class="modal-scrollable-content" id="mikelRadarModalBody"></div>
@@ -1351,7 +1356,7 @@
         updateShiftUI();
         initMap();
 
-        if (currentUserRole === 'comercial') {
+        if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
           showCommercialBriefing();
         } else if (currentUserName === 'Andrei (Jefe)') {
           checkAndShowBossTodayObras(true);
@@ -1413,7 +1418,7 @@
         roleBadge.innerText = '🏃 COMERCIAL';
         btnBossAssign.style.display = 'none';
         btnBossAudit.style.display = 'none';
-        if (btnCommercialPlan) btnCommercialPlan.style.display = 'flex';
+        if (btnCommercialPlan) btnCommercialPlan.style.display = isMikelBlock ? 'none' : 'flex';
         if (btnMikelRadarHud) btnMikelRadarHud.style.display = 'none';
         if (btnLeagueRanking) {
           btnLeagueRanking.style.display = isMikelBlock ? 'none' : 'flex';
@@ -1641,33 +1646,61 @@
 
     let searchPinMarker = null;
 
+    async function queryNominatimNavarra(searchStr) {
+      const qFull = searchStr.toLowerCase().includes('navarra') ? searchStr : `${searchStr}, Navarra, España`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=es&viewbox=-2.50,43.35,-0.70,41.90&bounded=0&limit=5&q=${encodeURIComponent(qFull)}`;
+      const res = await fetch(url);
+      return await res.json();
+    }
+
     async function searchLocation() {
       const query = document.getElementById('searchInput').value.trim();
       if (!query) return;
 
       try {
-        const qFull = query.toLowerCase().includes('navarra') ? query : `${query}, Navarra, España`;
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=es&viewbox=-2.50,43.35,-0.70,41.90&bounded=0&limit=5&q=${encodeURIComponent(qFull)}`;
-        const response = await fetch(url);
-        const results = await response.json();
+        // 1º Intento: búsqueda exacta con calle y número
+        let results = await queryNominatimNavarra(query);
+        let fallbackNote = '';
+
+        // 2º Intento: si no existe el número exacto en OSM, quitar el número y buscar la calle
+        if (!results || results.length === 0) {
+          const withoutNumber = query.replace(/\b(nº|num\.?|número)?\s*\d+[a-zA-Z]?\b/gi, '').replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim();
+          if (withoutNumber && withoutNumber.toLowerCase() !== query.toLowerCase()) {
+            results = await queryNominatimNavarra(withoutNumber);
+            if (results && results.length > 0) {
+              fallbackNote = ' (Calle localizada; número exacto no indexado)';
+            }
+          }
+        }
+
+        // 3º Intento: si tampoco reconoce la vía, centrar en el pueblo (última palabra o tras la coma)
+        if (!results || results.length === 0) {
+          const townCandidate = query.includes(',')
+            ? query.split(',').pop().trim()
+            : query.split(/\s+/).pop().trim();
+          if (townCandidate && townCandidate.length >= 3) {
+            results = await queryNominatimNavarra(townCandidate);
+            if (results && results.length > 0) {
+              fallbackNote = ' (Centrado en municipio)';
+            }
+          }
+        }
 
         if (results && results.length > 0) {
           const best = results[0];
           const lat = parseFloat(best.lat);
           const lon = parseFloat(best.lon);
           const isStreetOrHouse = Boolean(best.address && (best.address.road || best.address.house_number));
-          const targetZoom = isStreetOrHouse ? 19 : 16;
+          const targetZoom = isStreetOrHouse ? 18 : 16;
 
           map.setView([lat, lon], targetZoom, { animate: true });
 
           if (searchPinMarker) map.removeLayer(searchPinMarker);
-          if (isStreetOrHouse) {
-            searchPinMarker = L.marker([lat, lon]).addTo(map)
-              .bindPopup(`<div style="font-size:11px; font-weight:800; color:#fff; padding:2px 4px;">📍 ${best.display_name.split(',').slice(0, 3).join(',')}</div>`)
-              .openPopup();
-          }
+          searchPinMarker = L.marker([lat, lon]).addTo(map)
+            .bindPopup(`<div style="font-size:11px; font-weight:800; color:#fff; padding:2px 4px;">📍 ${best.display_name.split(',').slice(0, 3).join(',')}${fallbackNote}</div>`)
+            .openPopup();
         } else {
-          alert("No se encontró esa calle o municipio en Navarra. Prueba con 'Calle Número, Pueblo'.");
+          alert("No se encontró esa dirección ni municipio en Navarra.");
         }
       } catch (e) {
         alert("Error al conectar con el mapa.");
@@ -4333,85 +4366,267 @@
    /* =====================================================================
        MODAL RADAR COMPETENCIA: EQUIPO MIKEL (SOLO VISIBLE PARA ANDREI)
        ===================================================================== */
+   let activeRadarSubTab = 'compare';
+
+    function switchRadarSubTab(tabKey) {
+      activeRadarSubTab = tabKey;
+      document.getElementById('radarTabCompare').className = `subtab-btn ${tabKey==='compare'?'active':''}`;
+      document.getElementById('radarTabTowns').className = `subtab-btn ${tabKey==='towns'?'active':''}`;
+      document.getElementById('radarTabOpps').className = `subtab-btn ${tabKey==='opps'?'active':''}`;
+      renderMikelRadarContent();
+    }
+
     function openMikelRadarModal() {
       if (currentUserName !== 'Andrei (Jefe)') return;
-      const container = document.getElementById('mikelRadarModalBody');
-      const mikelTeam = getActiveTeamUsers(true);
+      activeRadarSubTab = 'compare';
+      switchRadarSubTab('compare');
+      document.getElementById('mikelRadarModal').classList.add('active');
+    }
 
-      let mkDoors = 0;
-      let mkSi = 0;
-      let mkM2Bruto = 0;
-      let mkM2Agendado = 0;
-      let mkM2Realizado = 0;
-      const mkActiveDaysSet = new Set();
+    function computeTeamMetrics(usersArr) {
+      let doors = 0, si = 0, no = 0, m2Bruto = 0, m2Realizado = 0;
+      const daysSet = new Set();
+      const perUser = {};
+      usersArr.forEach(u => {
+        perUser[u] = { name: u, doors: 0, si: 0, no: 0, m2Bruto: 0, m2Realizado: 0 };
+      });
 
       savedZones.forEach(z => {
-        if (!mikelTeam.includes(z.comercial) || z.isNoAptoZone) return;
+        if (!usersArr.includes(z.comercial) || z.isNoAptoZone) return;
         const st = z.stats || {};
         const zDate = z.dumpDate || z.date;
-        if (zDate) mkActiveDaysSet.add(`${z.comercial}_${zDate}`);
-        mkDoors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
-        mkSi += (st.si || 0);
+        if (zDate) daysSet.add(`${z.comercial}_${zDate}`);
+
+        const zDoors = (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
+        doors += zDoors;
+        si += (st.si || 0);
+        no += (st.no || 0);
+        perUser[z.comercial].doors += zDoors;
+        perUser[z.comercial].si += (st.si || 0);
+        perUser[z.comercial].no += (st.no || 0);
 
         if (z.clients) {
           z.clients.forEach(c => {
             if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
             const m2Val = getM2NumericValue(c.m2);
-            mkM2Bruto += m2Val;
-            if (c.obraStatus === 'agendada') mkM2Agendado += m2Val;
-            if (c.obraStatus === 'realizada') mkM2Realizado += m2Val;
+            m2Bruto += m2Val;
+            perUser[z.comercial].m2Bruto += m2Val;
+            if (c.obraStatus === 'realizada') {
+              m2Realizado += m2Val;
+              perUser[z.comercial].m2Realizado += m2Val;
+            }
           });
         }
       });
 
-      const mkShifts = savedShifts.filter(sh => mikelTeam.includes(sh.user));
-      let mkAvgHoursDay = '0.0';
-      if (mkShifts.length > 0) {
-        const sumHours = mkShifts.reduce((acc, sh) => acc + getShiftEffectiveHours(sh), 0);
-        mkAvgHoursDay = (sumHours / mkShifts.length).toFixed(1);
+      const teamShifts = savedShifts.filter(sh => usersArr.includes(sh.user));
+      let avgHours = '0.0';
+      if (teamShifts.length > 0) {
+        const sumH = teamShifts.reduce((acc, sh) => acc + getShiftEffectiveHours(sh), 0);
+        avgHours = (sumH / teamShifts.length).toFixed(1);
       }
 
-      const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
-      const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
-      const mkConversion = mkDoors > 0 ? ((mkSi / mkDoors) * 100).toFixed(1) : '0.0';
+      const personDays = Math.max(1, daysSet.size);
+      const avgDoors = Math.round(doors / personDays);
+      const convPct = doors > 0 ? ((si / doors) * 100).toFixed(1) : '0.0';
 
-      container.innerHTML = `
-        <div style="background:linear-gradient(135deg, #0f172a 0%, #134e4a 100%); border:1.5px solid #2dd4bf; border-radius:14px; padding:14px; margin-bottom:12px;">
-          <div style="font-size:10px; font-weight:900; color:#5eead4; text-transform:uppercase; letter-spacing:0.6px;">
-            🔒 INTELIGENCIA PRIVADA • BLOQUE MIKEL
-          </div>
-          <div style="font-size:22px; font-weight:900; color:#fff; margin:4px 0;">
-            ${mkM2Bruto.toFixed(2)} € <span style="font-size:12px; color:#99f6e4; font-weight:700;">Fact. Bruta (SÍ)</span>
-          </div>
-          <div style="font-size:11px; color:#ccfbf1;">
-            • Obras ejecutadas reales: <strong>${mkM2Realizado.toFixed(2)} €</strong> (${mkM2Realizado} m²)<br>
-            • Obras agendadas en cartera: <strong>${mkM2Agendado.toFixed(2)} €</strong> (${mkM2Agendado} m²)
-          </div>
-        </div>
+      return { doors, si, no, m2Bruto, m2Realizado, avgHours, avgDoors, convPct, perUser };
+    }
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(45,212,191,0.35); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">⏱️ HORAS MEDIA / DÍA</div>
-            <div style="font-size:18px; font-weight:900; color:#fff; margin-top:2px;">${mkAvgHoursDay} h/día</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(45,212,191,0.35); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">🚪 PUERTAS MEDIA / DÍA</div>
-            <div style="font-size:18px; font-weight:900; color:#38bdf8; margin-top:2px;">${mkAvgDoorsDay} puertas</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(45,212,191,0.35); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">✅ TOTAL "SÍ" CAPTADOS</div>
-            <div style="font-size:18px; font-weight:900; color:#fde047; margin-top:2px;">${mkSi} SÍ</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(45,212,191,0.35); padding:10px; border-radius:10px;">
-            <div style="font-size:9px; color:#94a3b8; font-weight:800;">🎯 EFECTIVIDAD EQUIPO</div>
-            <div style="font-size:18px; font-weight:900; color:#34d399; margin-top:2px;">${mkConversion}% SÍ</div>
-          </div>
-        </div>
+    function renderMikelRadarContent() {
+      const container = document.getElementById('mikelRadarModalBody');
+      const andreiTeam = getActiveTeamUsers(false);
+      const mikelTeam = getActiveTeamUsers(true);
 
-        <button class="btn-modal-save" onclick="closeModal('mikelRadarModal')">Cerrar Radar</button>
-      `;
+      // Análisis de pueblos por equipo (para Alertas de solape y Oportunidades)
+      const andreiTowns = {};
+      const mikelTowns = {};
 
-      document.getElementById('mikelRadarModal').classList.add('active');
+      savedZones.forEach(z => {
+        if (z.isNoAptoZone) return;
+        const t = (z.town || '').trim();
+        if (!t) return;
+        const key = t.toLowerCase();
+        const isMk = isMikelTeamMember(z.comercial);
+        const targetMap = isMk ? mikelTowns : andreiTowns;
+
+        if (!targetMap[key]) {
+          targetMap[key] = { name: t, zones: 0, doors: 0, si: 0, obrasHechas: 0, lastDate: z.dumpDate || z.date || '' };
+        }
+        const st = z.stats || {};
+        targetMap[key].zones += 1;
+        targetMap[key].doors += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        targetMap[key].si += (st.si||0);
+        const dStr = z.dumpDate || z.date || '';
+        if (dStr > targetMap[key].lastDate) targetMap[key].lastDate = dStr;
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus === 'realizada' && isClientValidFilled(c)) targetMap[key].obrasHechas += 1;
+          });
+        }
+      });
+
+      // Detectar conflictos / alertas (Mikel entra en pueblo de Andrei o abre pueblo nuevo)
+      const overlapTowns = [];
+      const newMikelOnlyTowns = [];
+      Object.keys(mikelTowns).forEach(k => {
+        if (andreiTowns[k]) {
+          overlapTowns.push({ town: mikelTowns[k].name, andrei: andreiTowns[k], mikel: mikelTowns[k] });
+        } else {
+          newMikelOnlyTowns.push(mikelTowns[k]);
+        }
+      });
+
+      if (activeRadarSubTab === 'compare') {
+        const aStats = computeTeamMetrics(andreiTeam);
+        const mStats = computeTeamMetrics(mikelTeam);
+
+        let allCommercialsRows = '';
+        const combinedUsers = [
+          ...Object.values(aStats.perUser).map(u => ({ ...u, team: 'Andrei' })),
+          ...Object.values(mStats.perUser).map(u => ({ ...u, team: 'Mikel' }))
+        ].sort((a, b) => b.m2Bruto - a.m2Bruto);
+
+        combinedUsers.forEach((u, idx) => {
+          const teamBadge = u.team === 'Andrei'
+            ? `<span style="background:#7c3aed; color:#fff; font-size:8.5px; font-weight:900; padding:1px 5px; border-radius:4px;">TÚ</span>`
+            : `<span style="background:#0d9488; color:#fff; font-size:8.5px; font-weight:900; padding:1px 5px; border-radius:4px;">MIKEL</span>`;
+          allCommercialsRows += `
+            <tr>
+              <td style="font-size:11px;">#${idx+1} <strong>${u.name}</strong> ${teamBadge}</td>
+              <td style="text-align:center; font-size:10.5px;">${u.si} / ${u.no}</td>
+              <td style="text-align:right; color:#34d399; font-weight:900; font-size:11px;">${u.m2Bruto.toFixed(0)} €</td>
+            </tr>
+          `;
+        });
+
+        container.innerHTML = `
+          ${overlapTowns.length > 0 ? `
+            <div onclick="switchRadarSubTab('towns')" style="cursor:pointer; background:rgba(220,38,38,0.22); border:1.5px solid #ef4444; border-radius:10px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#fca5a5;">
+              🚨 <strong>ALERTA DE SOLAPE:</strong> Equipo Mikel está pisando <strong>${overlapTowns.map(o => o.town).join(', ')}</strong> donde tú también trabajas. <u>Ver detalle →</u>
+            </div>
+          ` : ''}
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div style="background:linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%); border:1.5px solid #a78bfa; border-radius:12px; padding:10px;">
+              <div style="font-size:9.5px; font-weight:900; color:#ddd6fe;">👑 TU EQUIPO (ANDREI)</div>
+              <div style="font-size:18px; font-weight:900; color:#fff; margin:3px 0;">${aStats.m2Bruto.toFixed(0)} €</div>
+              <div style="font-size:10px; color:#c4b5fd; line-height:1.45;">
+                • Realizado: <strong>${aStats.m2Realizado.toFixed(0)} €</strong><br>
+                • Media: <strong>${aStats.avgHours} h/d</strong> | <strong>${aStats.avgDoors} p/d</strong><br>
+                • SÍ: <strong>${aStats.si}</strong> | NO: <strong>${aStats.no}</strong> (${aStats.convPct}%)
+              </div>
+            </div>
+
+            <div style="background:linear-gradient(135deg, #134e4a 0%, #0f172a 100%); border:1.5px solid #2dd4bf; border-radius:12px; padding:10px;">
+              <div style="font-size:9.5px; font-weight:900; color:#99f6e4;">🔭 EQUIPO MIKEL</div>
+              <div style="font-size:18px; font-weight:900; color:#fff; margin:3px 0;">${mStats.m2Bruto.toFixed(0)} €</div>
+              <div style="font-size:10px; color:#ccfbf1; line-height:1.45;">
+                • Realizado: <strong>${mStats.m2Realizado.toFixed(0)} €</strong><br>
+                • Media: <strong>${mStats.avgHours} h/d</strong> | <strong>${mStats.avgDoors} p/d</strong><br>
+                • SÍ: <strong>${mStats.si}</strong> | NO: <strong>${mStats.no}</strong> (${mStats.convPct}%)
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section-title">🏆 Ranking Individual Cruzado (Todos los Comerciales)</div>
+          <table class="ranking-table-container">
+            <thead>
+              <tr>
+                <th>Comercial</th>
+                <th style="text-align:center;">SÍ / NO</th>
+                <th style="text-align:right;">Fact. Bruta</th>
+              </tr>
+            </thead>
+            <tbody>${allCommercialsRows}</tbody>
+          </table>
+        `;
+      } else if (activeRadarSubTab === 'towns') {
+        let html = '';
+
+        if (overlapTowns.length > 0) {
+          html += `<div class="modal-section-title" style="color:#fca5a5;">🚨 Pueblos con Solape (Tú y Mikel trabajando a la vez)</div>`;
+          overlapTowns.forEach(o => {
+            html += `
+              <div class="audit-card" style="cursor:default; border-left:4px solid #ef4444; background:rgba(220,38,38,0.12);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="font-size:13px; color:#fff;">⚠️ ${o.town}</strong>
+                  <span style="font-size:9.5px; font-weight:900; color:#fca5a5;">¡Adelántate en calles clave!</span>
+                </div>
+                <div style="font-size:10.5px; color:#e2e8f0; margin-top:3px;">
+                  • <strong>Tu equipo:</strong> ${o.andrei.zones} zonas | ${o.andrei.si} SÍ (${o.andrei.obrasHechas} obras hechas)<br>
+                  • <strong>Equipo Mikel:</strong> ${o.mikel.zones} zonas | ${o.mikel.si} SÍ (Último mov.: ${formatDate(o.mikel.lastDate)})
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        html += `<div class="modal-section-title" style="color:#5eead4;">🆕 Pueblos Exclusivos de Mikel (Donde tú aún no has entrado)</div>`;
+        if (newMikelOnlyTowns.length === 0) {
+          html += `<div style="font-size:11px; color:#94a3b8; padding:8px;">Mikel no tiene ningún pueblo nuevo fuera de los tuyos todavía.</div>`;
+        } else {
+          newMikelOnlyTowns.forEach(mt => {
+            html += `
+              <div class="audit-card" style="cursor:default; border-left:4px solid #2dd4bf;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="font-size:13px; color:#5eead4;">📍 ${mt.name}</strong>
+                  <span style="font-size:10px; color:#99f6e4; font-weight:800;">Desde ${formatDate(mt.lastDate)}</span>
+                </div>
+                <div style="font-size:10.5px; color:#cbd5e1; margin-top:2px;">
+                  Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> | SÍ sacados: <strong>${mt.si}</strong>
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        container.innerHTML = html;
+      } else if (activeRadarSubTab === 'opps') {
+        const defendTowns = Object.keys(andreiTowns).filter(k => !mikelTowns[k]).map(k => andreiTowns[k]);
+        const attackTowns = newMikelOnlyTowns.filter(mt => mt.si >= 1);
+
+        let html = `
+          <div style="background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:12px; padding:10px; margin-bottom:10px; font-size:11px; color:#dbeafe;">
+            💡 <strong>Estrategia Territorial:</strong> Blinda primero los pueblos donde ya tienes obras hechas antes de que Mikel los descubra, y manda un explorador a los pueblos nuevos donde Mikel ya está sacando SÍ.
+          </div>
+
+          <div class="modal-section-title" style="color:#34d399;">🛡️ Pueblos Tuyos Vírgenes para Mikel (Blindar con Equipo)</div>
+        `;
+
+        if (defendTowns.length === 0) {
+          html += `<div style="font-size:11px; color:#94a3b8; padding:6px;">No hay pueblos exclusivos tuyos registrados aún.</div>`;
+        } else {
+          defendTowns.forEach(dt => {
+            html += `
+              <div class="audit-card" style="cursor:default; border-left:4px solid #10b981;">
+                <strong style="font-size:12.5px; color:#fff;">📍 ${dt.name}</strong>
+                <div style="font-size:10.5px; color:#cbd5e1;">
+                  Tienes <strong>${dt.si} SÍ</strong> y <strong>${dt.obrasHechas} obras hechas</strong>. Mikel aún no ha pisado este pueblo: ¡mete cuadrilla o barrido en caliente ya!
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        html += `<div class="modal-section-title" style="color:#fde047;">⚡ Pueblos Donde Mikel Saca SÍ (Mandar Explorador)</div>`;
+        if (attackTowns.length === 0) {
+          html += `<div style="font-size:11px; color:#94a3b8; padding:6px;">Mikel aún no ha sacado SÍ en pueblos fuera de tu radar.</div>`;
+        } else {
+          attackTowns.forEach(at => {
+            html += `
+              <div class="audit-card" style="cursor:default; border-left:4px solid #f59e0b;">
+                <strong style="font-size:12.5px; color:#fde047;">🔥 ${at.name} (${at.si} SÍ de Mikel)</strong>
+                <div style="font-size:10.5px; color:#cbd5e1;">
+                  Ese pueblo responde bien y tú no has ido todavía. Manda a 1 comercial a cazar 2-3 obras semilla antes de que lo quemen.
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        container.innerHTML = html;
+      }
     }
 
     /* =====================================================================
@@ -4468,6 +4683,7 @@
         avgHoursDay = (puertasPorDiaMedio / 20).toFixed(1);
       }
 
+      const isMikelUser = isMikelTeamMember(currentUserName);
       const headerTitle = currentUserRole === 'jefe'
         ? '👑 TU PRODUCCIÓN PERSONAL DE CALLE (HISTÓRICO)'
         : '💰 TU DINERO ACUMULADO (MES / HISTÓRICO)';
@@ -4478,7 +4694,7 @@
           <div style="font-size:24px; font-weight:900; color:#fff; margin:4px 0;">${dineroTotalGenerado.toFixed(2)} €</div>
           <div style="font-size:11px; color:#e0f2fe;">
             • Media diaria: <strong>${dineroMedioDia} € / día</strong><br>
-            • Proyección estimada mensual: <strong>${proyeccionMes} €</strong><br>
+            ${!isMikelUser ? `• Proyección estimada mensual: <strong>${proyeccionMes} €</strong><br>` : ''}
             • Volumen aportado: <strong>${totalM2} m²</strong> en ${datesSet.size > 0 ? datesSet.size : 1} jornadas registradas.
           </div>
         </div>
