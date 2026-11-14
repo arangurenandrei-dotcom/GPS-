@@ -123,7 +123,7 @@
     }
 
     #appContainer { display: none; width: 100vw; height: 100vh; height: 100dvh; position: relative; overflow: hidden; }
-    #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; background: #f8fafc; }
 
     /* HUD SUPERIOR ESTRUCTURADO Y ALINEADO */
     .hud-header {
@@ -778,9 +778,8 @@
     <!-- BOTONES INFERIORES CON CONTROLES DE MAPA EN FILA SUPERIOR -->
     <div class="bottom-action-panel" style="flex-direction:column; gap:8px; bottom: max(12px, env(safe-area-inset-bottom));">
       <!-- Fila superior: Herramientas rápidas de mapa -->
-      <div id="mapToolsRow" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; width:100%;">
-        <button id="btnToggleCatastro" class="btn-hud layer-btn active" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
-        <button id="btnToggleSatellite" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.45);" onclick="toggleSatelliteLayer()">🛰️ Satélite</button>
+      <div id="mapToolsRow" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; width:100%;">
+        <button id="btnToggleCatastro" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
         <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">📐 Medir</button>
       </div>
 
@@ -1115,12 +1114,11 @@
       { key: 'docDniPresi', label: '5. DNI presidente' }
     ];
 
-    let map;
-    let osmStreetLayer = null;
+   let map;
     let ignSatelliteLayer = null;
     let catastroNavarraLayer = null;
-    let isCatastroActive = true;
-    let isSatelliteActive = false;
+    let isCatastroActive = false;
+    let isSatelliteActive = true;
 
     let userLocationMarker = null;
     let userAccuracyCircle = null;
@@ -1462,28 +1460,23 @@
           needle.style.transform = `rotate(${-map.getBearing()}deg)`;
         }
       });
-      osmStreetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      ignSatelliteLayer = L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', {
         maxNativeZoom: 19,
         maxZoom: 20
       }).addTo(map);
 
-      ignSatelliteLayer = L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', {
-        maxNativeZoom: 19,
-        maxZoom: 20
-      });
-
-     // Capa agrupada oficial de Catastro de Navarra (parcelas + edificaciones + subparcelas)
+      // Capa agrupada oficial de Catastro de Navarra (parcelas + edificaciones + subparcelas)
       catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
         layers: 'catastro',
         format: 'image/png',
         transparent: true,
         version: '1.1.1',
-        opacity: 0.85,
+        opacity: 1.0,
         zIndex: 650,
         minZoom: 13,
         maxNativeZoom: 19,
         maxZoom: 20
-      }).addTo(map);
+      });
 
       const todayIso = getTodayISO();
       document.getElementById('assignDate').value = todayIso;
@@ -1530,24 +1523,34 @@
     }
 
     function toggleCatastroLayer() {
-      if (!map || !catastroNavarraLayer) return;
+      if (!map || !catastroNavarraLayer || !ignSatelliteLayer) return;
       const btn = document.getElementById('btnToggleCatastro');
       if (isCatastroActive) {
+        // Quita solo Catastro y vuelve a dejar Satélite
         map.removeLayer(catastroNavarraLayer);
+        if (!map.hasLayer(ignSatelliteLayer)) ignSatelliteLayer.addTo(map);
         isCatastroActive = false;
-        btn.classList.remove('active');
-        btn.style.background = 'rgba(15, 23, 42, 0.92)';
-        btn.style.borderColor = 'rgba(255, 255, 255, 0.28)';
+        isSatelliteActive = true;
+        if (btn) {
+          btn.classList.remove('active');
+          btn.style.background = 'rgba(15, 23, 42, 0.92)';
+          btn.style.borderColor = 'rgba(255, 255, 255, 0.28)';
+        }
       } else {
+        // Quita Satélite y deja el mapa de SOLO Catastro
+        if (map.hasLayer(ignSatelliteLayer)) map.removeLayer(ignSatelliteLayer);
         catastroNavarraLayer.addTo(map);
         catastroNavarraLayer.bringToFront();
         if (map.getZoom() < 16) {
           map.setZoom(17);
         }
         isCatastroActive = true;
-        btn.classList.add('active');
-        btn.style.background = '#059669';
-        btn.style.borderColor = '#34d399';
+        isSatelliteActive = false;
+        if (btn) {
+          btn.classList.add('active');
+          btn.style.background = '#059669';
+          btn.style.borderColor = '#34d399';
+        }
       }
     }
 
@@ -1611,8 +1614,8 @@
       isDrawingMode = true;
       isRoofMeasureMode = true;
 
-      // Activa automáticamente satélite si no estaba puesto para ver bien el tejado
-      if (!isSatelliteActive) toggleSatelliteLayer();
+      // Si estaba en modo solo Catastro, vuelve a Satélite para medir el tejado con precisión
+      if (isCatastroActive) toggleCatastroLayer();
 
       const banner = document.getElementById('drawingBanner');
       banner.className = 'banner-drawing active';
@@ -1628,22 +1631,7 @@
     }
 
     function toggleSatelliteLayer() {
-      const btn = document.getElementById('btnToggleSatellite');
-      if (isSatelliteActive) {
-        map.removeLayer(ignSatelliteLayer);
-        osmStreetLayer.addTo(map);
-        if (isCatastroActive) catastroNavarraLayer.bringToFront();
-        isSatelliteActive = false;
-        btn.classList.remove('active');
-        btn.style.background = 'rgba(15, 23, 42, 0.92)';
-      } else {
-        map.removeLayer(osmStreetLayer);
-        ignSatelliteLayer.addTo(map);
-        if (isCatastroActive) catastroNavarraLayer.bringToFront();
-        isSatelliteActive = true;
-        btn.classList.add('active');
-        btn.style.background = '#059669';
-      }
+      if (isCatastroActive) toggleCatastroLayer();
     }
 
     let searchPinMarker = null;
@@ -1744,7 +1732,7 @@
       map.setView([c.lat, c.lon], zoomLvl, { animate: false });
 
       setTimeout(() => {
-        if (osmStreetLayer && !isSatelliteActive) osmStreetLayer.redraw();
+        if (ignSatelliteLayer && isSatelliteActive) ignSatelliteLayer.redraw();
         if (catastroNavarraLayer && isCatastroActive) {
           catastroNavarraLayer.redraw();
           catastroNavarraLayer.bringToFront();
@@ -2788,7 +2776,7 @@
     }
 
     async function inspectNavarraCadastreAtPoint(latlng) {
-      if (!map || !isCatastroActive) return;
+      if (!map) return;
 
       const popup = L.popup({ maxWidth: 220 })
         .setLatLng(latlng)
