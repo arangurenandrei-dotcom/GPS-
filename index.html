@@ -5224,7 +5224,54 @@
     }
 
     /* =====================================================================
-       MODAL LIGA VISUAL DE RANKING
+       MOTOR DE CICLOS MENSUALES (MES ACTUAL DESDE 0 VS MES ANTERIOR)
+       ===================================================================== */
+    function getMonthKeyOffset(monthsBack = 0) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - monthsBack);
+      return getLocalDateISO(d).slice(0, 7);
+    }
+
+    function formatMonthLabelEs(ymStr) {
+      if (!ymStr || !ymStr.includes('-')) return ymStr;
+      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const [y, m] = ymStr.split('-');
+      return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+    }
+
+    function computeUserMonthMetrics(userName, monthYm) {
+      let m2 = 0, si = 0, no = 0, doors = 0;
+      const daysSet = new Set();
+
+      savedZones.forEach(z => {
+        if (z.comercial !== userName || z.isNoAptoZone) return;
+        const zDate = z.dumpDate || z.date || '';
+        if (monthYm && !zDate.startsWith(monthYm)) return;
+        if (zDate) daysSet.add(zDate);
+
+        const st = z.stats || {};
+        si += (st.si || 0);
+        no += (st.no || 0);
+        doors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              m2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+      });
+
+      const isAndrei = userName === 'Andrei (Jefe)';
+      const moneyPersonal = m2 * (isAndrei ? 1.0 : 0.85);
+      const moneyBossShare = m2 * (isAndrei ? 1.0 : 0.15);
+      return { m2, si, no, doors, days: daysSet.size, moneyPersonal, moneyBossShare };
+    }
+
+    /* =====================================================================
+       MODAL LIGA VISUAL DE RANKING (CICLO MENSUAL DESDE 0)
        ===================================================================== */
     function openLeagueRankingModal() {
       const container = document.getElementById('leagueRankingContainer');
@@ -5239,12 +5286,15 @@
         ? '🏆 Liga Equipo • Facturación Bruta (SÍ)'
         : '🏆 Liga Comercial • Dinero en SÍ';
 
+      const currentYm = getMonthKeyOffset(0);
       const moneySiMap = {};
       participantsList.forEach(p => { moneySiMap[p] = 0; });
 
       savedZones.forEach(z => {
         const u = z.comercial;
         if (moneySiMap[u] === undefined) return;
+        const zDate = z.dumpDate || z.date || '';
+        if (!zDate.startsWith(currentYm)) return;
 
         if (z.clients) {
           z.clients.forEach(c => {
@@ -5633,17 +5683,29 @@
       const container = document.getElementById('commercialStatsContainer');
       container.innerHTML = '';
 
-      let totalTocadas = 0;
-      let totalSi = 0;
-      let totalNo = 0;
-      let totalPapelito = 0;
-      let totalM2 = 0;
+      const curYm = getMonthKeyOffset(0);
+      const prevYm = getMonthKeyOffset(1);
+      const curLabel = formatMonthLabelEs(curYm);
+      const prevLabel = formatMonthLabelEs(prevYm);
+
+      let totalTocadas = 0, totalSi = 0, totalNo = 0, totalPapelito = 0, totalM2 = 0;
+      let histM2 = 0;
       const datesSet = new Set();
 
       savedZones.forEach(z => {
-        if (z.comercial !== currentUserName) return;
+        if (z.comercial !== currentUserName || z.isNoAptoZone) return;
         const st = z.stats || {};
-        const zDate = z.dumpDate || z.date;
+        const zDate = z.dumpDate || z.date || '';
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              histM2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+
+        if (!zDate.startsWith(curYm)) return;
         if (zDate) datesSet.add(zDate);
 
         const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
@@ -5661,17 +5723,26 @@
         }
       });
 
-      const totalDays = Math.max(1, datesSet.size);
+      const prevMetrics = computeUserMonthMetrics(currentUserName, prevYm);
       const factorComision = currentUserRole === 'jefe' ? 1.0 : 0.85;
-      const dineroTotalGenerado = totalM2 * factorComision;
-      const dineroMedioDia = (dineroTotalGenerado / totalDays).toFixed(2);
-      const proyeccionMes = (dineroTotalGenerado * (22 / totalDays)).toFixed(2);
+      const dineroMesActual = totalM2 * factorComision;
+      const dineroMesAnterior = prevMetrics.moneyPersonal;
+      const diffMesEuros = dineroMesActual - dineroMesAnterior;
+      const diffSign = diffMesEuros >= 0 ? '+' : '';
+      const diffColor = diffMesEuros >= 0 ? '#34d399' : '#fca5a5';
+
+      const totalDays = Math.max(1, datesSet.size);
+      const dineroMedioDia = (dineroMesActual / totalDays).toFixed(2);
+      const proyeccionMes = (dineroMesActual * (22 / totalDays)).toFixed(2);
       const puertasPorDiaMedio = Math.round(totalTocadas / totalDays);
       const successRate = totalTocadas > 0 ? Math.round((totalSi / totalTocadas) * 100) : 0;
       const noRate = totalTocadas > 0 ? Math.round((totalNo / totalTocadas) * 100) : 0;
       const infoRate = totalTocadas > 0 ? Math.round((totalPapelito / totalTocadas) * 100) : 0;
 
-      const userShifts = savedShifts.filter(s => s.user === currentUserName);
+      const userShifts = savedShifts.filter(s => {
+        const shDate = s.localDate || getLocalDateISO(new Date(s.date));
+        return s.user === currentUserName && shDate.startsWith(curYm);
+      });
       let avgHoursDay = 0;
       if (userShifts.length > 0) {
         const sumH = userShifts.reduce((acc, s) => acc + getShiftEffectiveHours(s), 0);
@@ -5682,17 +5753,28 @@
 
       const isMikelUser = isMikelTeamMember(currentUserName);
       const headerTitle = currentUserRole === 'jefe'
-        ? '👑 TU PRODUCCIÓN PERSONAL DE CALLE (HISTÓRICO)'
-        : '💰 TU DINERO ACUMULADO (MES / HISTÓRICO)';
+        ? `👑 TU PRODUCCIÓN PERSONAL • ${curLabel.toUpperCase()}`
+        : `💰 TU SUELDO ACUMULADO • ${curLabel.toUpperCase()}`;
 
       container.innerHTML = `
-        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:12px; border:1px solid #60a5fa;">
+        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:10px; border:1px solid #60a5fa;">
           <div style="font-size:10px; font-weight:800; color:#bfdbfe; text-transform:uppercase;">${headerTitle}</div>
-          <div style="font-size:24px; font-weight:900; color:#fff; margin:4px 0;">${dineroTotalGenerado.toFixed(2)} €</div>
+          <div style="font-size:26px; font-weight:900; color:#fff; margin:4px 0;">${dineroMesActual.toFixed(2)} €</div>
           <div style="font-size:11px; color:#e0f2fe;">
-            • Media diaria: <strong>${dineroMedioDia} € / día</strong><br>
-            ${!isMikelUser ? `• Proyección estimada mensual: <strong>${proyeccionMes} €</strong><br>` : ''}
-            • Volumen aportado: <strong>${totalM2} m²</strong> en ${datesSet.size > 0 ? datesSet.size : 1} jornadas registradas.
+            • Media este mes: <strong>${dineroMedioDia} € / día</strong> (${totalM2} m²)<br>
+            ${!isMikelUser ? `• Proyección cierre de ${curLabel}: <strong>${proyeccionMes} €</strong><br>` : ''}
+            • Jornadas trabajadas en ${curLabel}: <strong>${datesSet.size} días</strong>
+          </div>
+        </div>
+
+        <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(255,255,255,0.14); border-radius:12px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:9.5px; color:#94a3b8; font-weight:800; text-transform:uppercase;">📅 Mes Anterior (${prevLabel})</div>
+            <div style="font-size:15px; font-weight:900; color:#fff; margin-top:2px;">${dineroMesAnterior.toFixed(2)} € <small style="font-size:10px; color:#94a3b8; font-weight:700;">(${prevMetrics.m2} m²)</small></div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:9.5px; color:#94a3b8; font-weight:800; text-transform:uppercase;">Diferencia Mes</div>
+            <div style="font-size:14px; font-weight:900; color:${diffColor}; margin-top:2px;">${diffSign}${diffMesEuros.toFixed(2)} €</div>
           </div>
         </div>
 
@@ -5802,8 +5884,11 @@
     function populateAuditMonthOptions() {
       const sel = document.getElementById('auditMonthSelect');
       if (!sel) return;
-      const prevVal = sel.value || 'ALL';
-      const monthsSet = new Set([getTodayISO().slice(0, 7)]);
+      const currentMonthYm = getTodayISO().slice(0, 7);
+      const prevVal = sel.dataset.initialized ? sel.value : currentMonthYm;
+      sel.dataset.initialized = 'true';
+
+      const monthsSet = new Set([currentMonthYm, getMonthKeyOffset(1)]);
       savedZones.forEach(z => {
         if (isMikelTeamMember(z.comercial)) return;
         const d = (z.dumpDate || z.date || '').slice(0, 7);
@@ -5811,12 +5896,13 @@
       });
       const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
       const sortedMonths = Array.from(monthsSet).sort().reverse();
-      sel.innerHTML = `<option value="ALL">📊 Todo el Histórico Acumulado</option>` +
+      sel.innerHTML =
         sortedMonths.map(ym => {
           const [y, m] = ym.split('-');
-          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}${ym === currentMonthYm ? ' (Mes Actual)' : ''}`;
           return `<option value="${ym}" ${prevVal === ym ? 'selected' : ''}>📅 ${label}</option>`;
-        }).join('');
+        }).join('') +
+        `<option value="ALL" ${prevVal === 'ALL' ? 'selected' : ''}>📊 Todo el Histórico Acumulado</option>`;
     }
 
     function openAuditModal() {
@@ -6052,6 +6138,46 @@
       `;
       container.appendChild(summaryCard);
 
+      // Tarjeta comparativa Mes Actual vs Mes Anterior para el Jefe y el Equipo
+      if (selectedMonth !== 'ALL') {
+        const [selY, selM] = selectedMonth.split('-').map(Number);
+        const prevDateObj = new Date(selY, selM - 2, 1);
+        const prevMonthYm = getLocalDateISO(prevDateObj).slice(0, 7);
+
+        let prevBossTotal = 0;
+        let prevAndreiOwn = 0;
+        let prevTeamComs = 0;
+
+        usersList.forEach(u => {
+          const pm = computeUserMonthMetrics(u, prevMonthYm);
+          prevBossTotal += pm.moneyBossShare;
+          if (u === 'Andrei (Jefe)') prevAndreiOwn += pm.moneyBossShare;
+          else prevTeamComs += pm.moneyBossShare;
+        });
+
+        const curAndreiOwn = statsMap['Andrei (Jefe)'].dineroParaJefe;
+        const curTeamComs = totalBeneficioJefe - curAndreiOwn;
+        const diffGlobal = totalBeneficioJefe - prevBossTotal;
+        const diffOwn = curAndreiOwn - prevAndreiOwn;
+        const diffTeam = curTeamComs - prevTeamComs;
+
+        const fmtDiff = (val) => `<strong style="color:${val >= 0 ? '#34d399' : '#fca5a5'};">${val >= 0 ? '+' : ''}${val.toFixed(0)} €</strong>`;
+
+        const monthCompCard = document.createElement('div');
+        monthCompCard.style.cssText = 'background:rgba(30,41,59,0.92); border:1px solid rgba(167,139,250,0.4); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:10.5px; color:#e2e8f0;';
+        monthCompCard.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:9.5px; font-weight:900; color:#c4b5fd; text-transform:uppercase;">📈 Comparativa vs ${formatMonthLabelEs(prevMonthYm)}</span>
+            <span>Balance Global: ${fmtDiff(diffGlobal)}</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:rgba(0,0,0,0.28); padding:6px 8px; border-radius:8px;">
+            <div>👑 Tuyo: <strong>${curAndreiOwn.toFixed(0)} €</strong> <small style="color:#94a3b8;">(ant. ${prevAndreiOwn.toFixed(0)} € · ${fmtDiff(diffOwn)})</small></div>
+            <div>🏃 Equipo (15%): <strong>${curTeamComs.toFixed(0)} €</strong> <small style="color:#94a3b8;">(ant. ${prevTeamComs.toFixed(0)} € · ${fmtDiff(diffTeam)})</small></div>
+          </div>
+        `;
+        container.appendChild(monthCompCard);
+      }
+
       const subtabContainer = document.createElement('div');
       subtabContainer.className = 'subtab-bar';
       subtabContainer.innerHTML = `
@@ -6088,9 +6214,18 @@
         const gapWithLeader = (topContributor.dineroParaJefe - s.dineroParaJefe).toFixed(2);
         const gapText = rankIdx === 0 ? '---' : `-${gapWithLeader} € vs #1`;
 
+        let prevUserHint = '';
+        if (selectedMonth !== 'ALL') {
+          const [sy, sm] = selectedMonth.split('-').map(Number);
+          const pYm = getLocalDateISO(new Date(sy, sm - 2, 1)).slice(0, 7);
+          const pData = computeUserMonthMetrics(s.name, pYm);
+          const uDiff = s.dineroParaJefe - pData.moneyBossShare;
+          prevUserHint = `<div style="font-size:8.5px; color:#94a3b8; margin-top:1px;">Mes ant.: ${pData.moneyBossShare.toFixed(0)} € (<span style="color:${uDiff>=0?'#34d399':'#fca5a5'}; font-weight:800;">${uDiff>=0?'+':''}${uDiff.toFixed(0)} €</span>)</div>`;
+        }
+
         const sourceLabel = s.name === 'Andrei (Jefe)'
-          ? `<div style="font-size:9px; color:#34d399; margin-top:1px;">100% Obra Propia</div>`
-          : `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Tu 15% de comisión</div>`;
+          ? `<div style="font-size:9px; color:#34d399; margin-top:1px;">100% Obra Propia</div>${prevUserHint}`
+          : `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Tu 15% de comisión (Suyo: ${(s.m2SiCaptados * 0.85).toFixed(0)} €)</div>${prevUserHint}`;
 
         tableRows += `
           <tr class="${rowClass}">
