@@ -2118,13 +2118,14 @@
         return;
       }
       const cleanStops = stopsArray.map(s => `${s}, Navarra, España`.trim());
-      const firstStop = encodeURIComponent(cleanStops[0]);
       
+      // Si solo es una parada, abre la búsqueda directa de esa dirección en Google Maps
       if (cleanStops.length === 1) {
-        window.open(`https://www.google.com/maps/search/?api=1&query=${firstStop}`, '_blank');
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanStops[0])}`, '_blank');
         return;
       }
       
+      // Si son varias paradas (ruta multi-parada), monta origen/destino y waypoints intermedios
       const destination = encodeURIComponent(cleanStops[cleanStops.length - 1]);
       const waypoints = cleanStops.slice(0, -1).map(s => encodeURIComponent(s)).join('|');
       window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`, '_blank');
