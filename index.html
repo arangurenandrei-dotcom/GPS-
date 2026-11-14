@@ -656,6 +656,46 @@
       width: 100%; padding: 6px; background: #2563eb; color: #fff; border: none; border-radius: 6px;
       font-size: 10px; font-weight: 800; cursor: pointer; text-align: center;
     }
+
+    /* ESTÉTICA Y MICRO-INTERACCIONES 2027 */
+    .modal-overlay.active .modal-card {
+      animation: modalSpringIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes modalSpringIn {
+      0% { opacity: 0; transform: scale(0.92) translateY(14px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    button:active, .btn-hud:active, .btn-main-action:active, .audit-card:active {
+      transform: scale(0.96) !important;
+      transition: transform 0.08s ease;
+    }
+
+    .hud-header {
+      box-shadow: 0 14px 38px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .celebration-toast {
+      position: fixed;
+      top: max(18px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10099;
+      background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+      border: 1.5px solid #6ee7b7;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5);
+      animation: toastPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+    }
+    @keyframes toastPop {
+      0% { opacity: 0; transform: translate(-50%, -20px) scale(0.85); }
+      100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
   </style>
 </head>
 <body>
@@ -743,10 +783,11 @@
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
         </div>
-        <div class="hud-utility-group" style="gap:5px;">
-          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Cambiar mi nombre o PIN">⚙️</button>
-          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
-          <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒 Salir</button>
+        <div class="hud-utility-group" style="gap:4px;">
+          <button id="btnEnableNotifs" class="btn-hud" style="padding:6px 7px; background:rgba(14,165,233,0.22); border-color:#38bdf8;" onclick="requestMobileNotifications()" title="Activar notificaciones en el móvil">🔔</button>
+          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 7px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Cambiar mi nombre o PIN">⚙️</button>
+          <button class="btn-hud gps" style="padding:6px 8px;" onclick="centerOnUser()">🎯 GPS</button>
+          <button class="btn-hud logout" style="padding:6px 8px;" onclick="executeLogout()">🔒</button>
         </div>
       </div>
 
@@ -1317,7 +1358,19 @@
         localStorage.setItem(key, JSON.stringify(newData));
       } catch (e) {}
 
-      if (key === 'comercial_custom_zones') savedZones = newData;
+      if (key === 'comercial_custom_zones') {
+        if (currentUserName === 'Andrei (Jefe)' && Array.isArray(savedZones) && savedZones.length > 0) {
+          const prevTotalSi = savedZones.reduce((acc, z) => acc + (!isMikelTeamMember(z.comercial) ? (z.stats?.si || 0) : 0), 0);
+          const nextTotalSi = newData.reduce((acc, z) => acc + (!isMikelTeamMember(z.comercial) ? (z.stats?.si || 0) : 0), 0);
+          if (nextTotalSi > prevTotalSi) {
+            const diffSi = nextTotalSi - prevTotalSi;
+            triggerHapticAndSound('success');
+            showCelebrationToast(`🚀 ¡Tu equipo acaba de sumar +${diffSi} SÍ!`);
+            sendLocalMobileNotification('🔥 ¡Nuevo SÍ en tu Equipo!', `Se ha registrado +${diffSi} nueva captación en Navarra.`);
+          }
+        }
+        savedZones = newData;
+      }
       else if (key === 'comercial_shifts') savedShifts = newData;
       else if (key === 'comercial_completed_towns') completedTowns = newData;
       else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
@@ -4818,6 +4871,12 @@
       saveAndSync('comercial_custom_zones', savedZones);
       closeModal('dumpModal');
       renderAllSavedZones();
+      if (z.stats && z.stats.si > 0) {
+        triggerHapticAndSound('success');
+        showCelebrationToast(`🔥 ¡+${z.stats.si} SÍ volcado(s) en ${z.town}!`);
+      } else {
+        triggerHapticAndSound('tap');
+      }
 
      if (currentUserRole === 'comercial') {
         if (isMikelTeamMember(currentUserName)) {
@@ -6593,6 +6652,117 @@
       const el = document.getElementById(panelId);
       if (el) el.classList.toggle('open');
     }
+
+    /* =====================================================================
+       MOTOR SENSORIAL 2027: SONIDOS, VIBRACIÓN Y NOTIFICACIONES MÓVILES
+       ===================================================================== */
+    let sharedAudioCtx = null;
+
+    function triggerHapticAndSound(type = 'tap') {
+      // 1. Vibración háptica (Android y navegadores compatibles)
+      if (navigator.vibrate) {
+        if (type === 'tap') navigator.vibrate(14);
+        else if (type === 'success') navigator.vibrate([35, 55, 90]);
+        else if (type === 'alert') navigator.vibrate([70, 50, 70]);
+      }
+
+      // 2. Sonido sintetizado limpio sin archivos externos (funciona en iOS y Android)
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+        if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+
+        const now = sharedAudioCtx.currentTime;
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+
+        if (type === 'tap') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(760, now + 0.045);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.start(now);
+          osc.stop(now + 0.055);
+        } else if (type === 'success') {
+          // Acorde ascendente de cierre / venta (Do - Mi - Sol)
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, i) => {
+            const o = sharedAudioCtx.createOscillator();
+            const g = sharedAudioCtx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(freq, now + i * 0.065);
+            g.gain.setValueAtTime(0.11, now + i * 0.065);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.065 + 0.22);
+            o.connect(g);
+            g.connect(sharedAudioCtx.destination);
+            o.start(now + i * 0.065);
+            o.stop(now + i * 0.065 + 0.24);
+          });
+        } else if (type === 'alert') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(340, now);
+          osc.frequency.setValueAtTime(280, now + 0.12);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.26);
+        }
+      } catch (e) {}
+    }
+
+    function showCelebrationToast(msg) {
+      const old = document.querySelector('.celebration-toast');
+      if (old) old.remove();
+      const toast = document.createElement('div');
+      toast.className = 'celebration-toast';
+      toast.innerText = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3200);
+    }
+
+    async function requestMobileNotifications() {
+      triggerHapticAndSound('tap');
+      if (!('Notification' in window)) {
+        alert("ℹ️ En iPhone, asegúrate de tener la app añadida a la Pantalla de Inicio (Compartir → Añadir a pantalla de inicio) para recibir notificaciones.");
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      const btn = document.getElementById('btnEnableNotifs');
+      if (perm === 'granted') {
+        if (btn) {
+          btn.style.background = 'rgba(16,185,129,0.25)';
+          btn.style.borderColor = '#34d399';
+          btn.innerText = '🔔✓';
+        }
+        triggerHapticAndSound('success');
+        sendLocalMobileNotification('Konsor Energía • Navarra', '✅ Notificaciones activadas. Te avisaremos al instante de nuevos SÍ y obras de hoy.');
+      } else {
+        alert("⚠️ Permiso de notificaciones denegado en el navegador.");
+      }
+    }
+
+    function sendLocalMobileNotification(title, bodyText) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      try {
+        new Notification(title, {
+          body: bodyText,
+          tag: 'konsor-navarra-alert',
+          renotify: true
+        });
+      } catch (e) {}
+    }
+
+    // Feedback táctil y sonoro sutil en cualquier botón de la interfaz
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .tab-btn, .subtab-btn');
+      if (btn && !btn.classList.contains('btn-modal-save')) {
+        triggerHapticAndSound('tap');
+      }
+    }, true);
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
