@@ -1554,6 +1554,17 @@
       }
     }
 
+    let activeFormModalToRestore = null;
+
+    function returnToDraftFormFromMap() {
+      const bar = document.getElementById('returnToDraftBanner');
+      if (bar) bar.remove();
+      if (activeFormModalToRestore) {
+        document.getElementById(activeFormModalToRestore)?.classList.add('active');
+        activeFormModalToRestore = null;
+      }
+    }
+
     async function openCadastreFromClientBox(btn) {
       const box = btn.closest('.client-box, .comunidad-box');
       const streetVal = box?.querySelector('.client-street')?.value.trim() || '';
@@ -1562,17 +1573,71 @@
         || document.getElementById('searchInput')?.value.trim()
         || '';
 
-      if (streetVal || townVal) {
-        try {
-          const q = `${streetVal} ${townVal}, Navarra, España`.trim();
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&limit=1&q=${encodeURIComponent(q)}`);
-          const data = await res.json();
-          if (data && data.length > 0 && map) {
-            map.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 19);
-          }
-        } catch (e) {}
+      if (!streetVal && !townVal) {
+        alert("⚠️ Escribe primero la calle y el número para localizar la casa en Catastro.");
+        return;
       }
-      openIdenaOfficialViewer();
+
+      const origText = btn.innerHTML;
+      btn.innerHTML = '⏳ Localizando parcela en Catastro...';
+      btn.disabled = true;
+
+      try {
+        const q = `${streetVal} ${townVal}`.trim();
+        let candidates = await queryCartoCiudadNavarra(q);
+        if (candidates.length === 0) {
+          candidates = await queryNominatimNavarra(`${streetVal}, ${townVal}`);
+        }
+
+        if (!candidates || candidates.length === 0 || !map) {
+          alert(`No se pudo ubicar "${q}". Revisa el nombre de la calle o el número.`);
+          return;
+        }
+
+        const target = candidates[0];
+        const latlng = L.latLng(target.lat, target.lon);
+
+        // Guardar qué formulario estaba abierto para volver a él sin perder nada escrito
+        if (document.getElementById('dumpModal')?.classList.contains('active')) {
+          activeFormModalToRestore = 'dumpModal';
+          closeModal('dumpModal');
+        } else if (document.getElementById('singleHouseModal')?.classList.contains('active')) {
+          activeFormModalToRestore = 'singleHouseModal';
+          closeModal('singleHouseModal');
+        }
+
+        // Activar modo Solo Catastro en tu propio mapa y centrar en la casa exacta
+        if (!isCatastroActive) toggleCatastroLayer();
+        map.invalidateSize();
+        map.setView(latlng, 19, { animate: false });
+
+        if (searchPinMarker) map.removeLayer(searchPinMarker);
+        searchPinMarker = L.marker(latlng).addTo(map);
+
+        // Barra flotante arriba para volver con 1 toque a la ficha sin perder ningún dato
+        let returnBar = document.getElementById('returnToDraftBanner');
+        if (!returnBar) {
+          returnBar = document.createElement('div');
+          returnBar.id = 'returnToDraftBanner';
+          returnBar.style.cssText = 'position:fixed; bottom:95px; left:10px; right:10px; z-index:9800; background:linear-gradient(135deg,#0284c7,#0369a1); border:1.5px solid #38bdf8; border-radius:14px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; box-shadow:0 10px 28px rgba(0,0,0,0.75);';
+          document.body.appendChild(returnBar);
+        }
+        returnBar.innerHTML = `
+          <span style="font-size:11px; font-weight:800; color:#fff;">🏛️ Toca la parcela o <strong>↗️ Abrir Catastro</strong></span>
+          <button onclick="returnToDraftFormFromMap()" style="background:#fde047; color:#0f172a; border:none; border-radius:9px; padding:7px 11px; font-size:11px; font-weight:900; cursor:pointer; white-space:nowrap;">
+            ↩️ Volver a Ficha
+          </button>
+        `;
+
+        // Lanzar automáticamente la consulta de ficha catastral sobre esa casa exacta
+        setTimeout(() => {
+          inspectNavarraCadastreAtPoint(latlng);
+        }, 250);
+
+      } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
     }
 
     function openIdenaOfficialViewer() {
@@ -4023,9 +4088,9 @@
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
 
-        <div style="margin-bottom:6px;">
-          <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:6px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.2); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
-            🏛️ Consultar Año y m² en Catastro (sin salir de la ficha)
+       <div style="margin-bottom:6px;">
+          <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
+            🏛️ Comprobar Catastro de esta casa (Año y m²)
           </button>
         </div>
 
@@ -4118,6 +4183,12 @@
 
        <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+        </div>
+
+        <div style="margin-bottom:6px;">
+          <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
+            🏛️ Comprobar Catastro de este edificio (Año y m²)
+          </button>
         </div>
 
         <div class="grid-row-2">
