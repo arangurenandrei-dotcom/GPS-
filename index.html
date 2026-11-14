@@ -1434,10 +1434,11 @@
         window.pushToFirestore('comercial_user_profiles', customUserProfiles);
       }
 
+      refreshLoginDropdownAliases();
       document.getElementById('displayUserName').innerText = newAlias;
       triggerHapticAndSound('success');
       closeModal('userProfileModal');
-      showCelebrationToast(`✅ Ajustes guardados (${newAlias})`);
+      showCelebrationToast(`✅ Guardado: ${newAlias} · PIN ${newPin}`);
     }
 
     const COMMERCIAL_COLORS = {
@@ -1528,6 +1529,27 @@
     }
 
     window.applyCloudDataUpdate = function(key, newData) {
+      if (key === 'comercial_user_profiles') {
+        if (!newData || typeof newData !== 'object' || Array.isArray(newData)) return;
+        const mergedProfiles = { ...customUserProfiles };
+        Object.keys(newData).forEach(uKey => {
+          const localEntry = mergedProfiles[uKey];
+          const cloudEntry = newData[uKey];
+          if (cloudEntry && (!localEntry || (cloudEntry.updatedAt || 0) >= (localEntry.updatedAt || 0))) {
+            mergedProfiles[uKey] = cloudEntry;
+          }
+        });
+        customUserProfiles = mergedProfiles;
+        try { localStorage.setItem(key, JSON.stringify(customUserProfiles)); } catch (e) {}
+        refreshLoginDropdownAliases();
+        const activeKey = sessionStorage.getItem('auth_user_key');
+        if (activeKey && !isMikelTeamMember(currentUserName)) {
+          const nameLbl = document.getElementById('displayUserName');
+          if (nameLbl) nameLbl.innerText = getDisplayAlias(activeKey);
+        }
+        return;
+      }
+
       if (!Array.isArray(newData)) return;
       try {
         localStorage.setItem(key, JSON.stringify(newData));
@@ -1549,10 +1571,6 @@
       else if (key === 'comercial_shifts') savedShifts = newData;
       else if (key === 'comercial_completed_towns') completedTowns = newData;
       else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
-      else if (key === 'comercial_user_profiles' && newData && typeof newData === 'object') {
-        customUserProfiles = newData;
-        refreshLoginDropdownAliases();
-      }
 
       if (currentUserName) {
         if (map) renderAllSavedZones();
@@ -1724,14 +1742,7 @@
           toggleExtBtn.style.color = '#64748b';
         }
 
-        userSel.innerHTML = `
-          <option value="jefe">👑 Andrei (Jefe de Equipo)</option>
-          <option value="comercial1">🏃 Comercial 1</option>
-          <option value="comercial2">🏃 Comercial 2</option>
-          <option value="comercial3">🏃 Comercial 3</option>
-          <option value="comercial4">🏃 Comercial 4</option>
-          <option value="comercial5">🏃 Comercial 5</option>
-        `;
+        refreshLoginDropdownAliases();
       }
       document.getElementById('loginError').style.display = 'none';
     }
@@ -1739,10 +1750,9 @@
     function executeLogin() {
       const userVal = document.getElementById('userSelect').value;
       const passVal = document.getElementById('passInput').value.trim();
-      const expectedPin = getUserPassword(userVal);
-      const isLegacyBoss = (userVal === 'jefe' && passVal === 'jefe2026');
+      const expectedPin = String(getUserPassword(userVal) || '').trim();
 
-      if ((expectedPin && passVal === expectedPin) || isLegacyBoss) {
+      if (expectedPin && passVal === expectedPin) {
         sessionStorage.setItem('auth_user_key', userVal);
         if (userVal === 'jefe') {
           currentUserRole = 'jefe';
@@ -7392,7 +7402,9 @@
             const filteredCloud = Array.isArray(cloudParsed)
               ? cloudParsed.filter(item => !item || !item.id || !deletedIds.includes(item.id))
               : cloudParsed;
-            const merged = mergeArraysById(localParsed, filteredCloud);
+            const merged = (key === 'comercial_user_profiles')
+              ? filteredCloud
+              : mergeArraysById(localParsed, filteredCloud);
             if (typeof window.applyCloudDataUpdate === 'function') {
               window.applyCloudDataUpdate(key, merged);
             }
