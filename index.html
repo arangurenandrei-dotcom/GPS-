@@ -662,10 +662,23 @@
 
   <!-- LOGIN -->
   <div id="loginScreen">
-    <div class="login-card">
+    <div class="login-card" style="max-width:385px; gap:14px;">
       <div style="text-align:center;">
-        <div class="login-title" style="line-height:1.25; margin-bottom:8px;">Control Comercial Navarra</div>
-      <div class="login-subtitle" style="line-height:1.35; margin-top:4px; margin-bottom:18px;">Gestión de Zonas, Catastro IDENA y Obras CAE</div>
+        <div id="loginTeamBadge" style="display:inline-block; background:rgba(124,58,237,0.25); border:1px solid #a78bfa; color:#ddd6fe; font-size:9.5px; font-weight:900; padding:3px 10px; border-radius:99px; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px;">
+          👑 Plataforma Oficial • Equipo Andrei
+        </div>
+        <div class="login-title" style="line-height:1.2; margin-bottom:6px; font-size:21px;">Control Comercial Navarra</div>
+        <div class="login-subtitle" style="line-height:1.35; margin-top:2px; margin-bottom:4px;">Gestión de Zonas, Catastro IDENA y Obras CAE</div>
+      </div>
+
+      <!-- BANNER DE BIENVENIDA Y MENTALIDAD (EXCLUSIVO EQUIPO ANDREI) -->
+      <div id="andreiWelcomeBanner" style="background:linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(37,99,235,0.18) 100%); border:1px solid rgba(167,139,250,0.45); border-radius:14px; padding:11px 12px; text-align:left;">
+        <div style="font-size:11.5px; font-weight:900; color:#fde047; margin-bottom:4px;">
+          🔥 ¡Bienvenido al Equipo de Andrei, compañero!
+        </div>
+        <div style="font-size:11px; color:#e2e8f0; line-height:1.45;">
+          Aquí venimos a <strong>trabajar con ganas</strong>, tener <strong>foco en cada puerta</strong>, <strong>ganar mucha pasta</strong>, aprender cada día y, sobre todo, <strong>¡DISFRUTAR DE ESTE EQUIPO!</strong> 🚀
+        </div>
       </div>
 
       <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
@@ -673,19 +686,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Jefe de Equipo</label>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <button type="button" id="btnSelectTeamAndrei" onclick="selectLoginTeam('andrei')" style="padding:10px; border-radius:10px; border:1.5px solid #a78bfa; background:#7c3aed; color:#fff; font-size:12.5px; font-weight:900; cursor:pointer;">
-            👑 Andrei
-          </button>
-          <button type="button" id="btnSelectTeamMikel" onclick="selectLoginTeam('mikel')" style="padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:#0f172a; color:#94a3b8; font-size:12.5px; font-weight:800; cursor:pointer;">
-            👑 Mikel
-          </button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Perfil de Usuario</label>
+        <label class="form-label" id="loginProfileLabel">Selecciona tu Perfil (Equipo Andrei)</label>
         <select id="userSelect" class="form-select">
           <option value="jefe">👑 Andrei (Jefe de Equipo)</option>
           <option value="comercial1">🏃 Comercial 1</option>
@@ -701,7 +702,16 @@
         <input type="password" id="passInput" class="form-input" placeholder="Ingresa tu clave..." onkeypress="if(event.key==='Enter') executeLogin()">
       </div>
 
-      <button class="btn-login" onclick="executeLogin()">Acceder a la Aplicación</button>
+      <button class="btn-login" id="btnMainLoginSubmit" onclick="executeLogin()" style="background:linear-gradient(135deg, #7c3aed 0%, #2563eb 100%); box-shadow:0 6px 20px rgba(124,58,237,0.4);">
+        🚀 Entrar al Equipo Andrei
+      </button>
+
+      <!-- SEPARADOR Y ACCESO SECUNDARIO RELEGADO ABAJO PARA OTROS EQUIPOS -->
+      <div style="border-top:1px solid rgba(255,255,255,0.1); margin-top:6px; padding-top:10px; text-align:center;">
+        <button type="button" id="btnToggleExternalTeamLogin" onclick="toggleExternalTeamLogin()" style="background:transparent; border:none; color:#64748b; font-size:10.5px; font-weight:700; cursor:pointer; text-decoration:underline;">
+          Acceso otros equipos (Equipo Mikel) ▾
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1285,35 +1295,69 @@
       return acc;
     }
 
+    let isExternalTeamLoginMode = false;
+
+    function toggleExternalTeamLogin() {
+      isExternalTeamLoginMode = !isExternalTeamLoginMode;
+      selectLoginTeam(isExternalTeamLoginMode ? 'mikel' : 'andrei');
+    }
+
     function selectLoginTeam(teamKey) {
-      const btnAndrei = document.getElementById('btnSelectTeamAndrei');
-      const btnMikel = document.getElementById('btnSelectTeamMikel');
       const userSel = document.getElementById('userSelect');
+      const welcomeBanner = document.getElementById('andreiWelcomeBanner');
+      const teamBadge = document.getElementById('loginTeamBadge');
+      const profileLbl = document.getElementById('loginProfileLabel');
+      const submitBtn = document.getElementById('btnMainLoginSubmit');
+      const toggleExtBtn = document.getElementById('btnToggleExternalTeamLogin');
       if (!userSel) return;
 
       if (teamKey === 'mikel') {
-        btnMikel.style.background = '#0d9488';
-        btnMikel.style.border = '1.5px solid #5eead4';
-        btnMikel.style.color = '#fff';
-        btnAndrei.style.background = '#0f172a';
-        btnAndrei.style.border = '1px solid rgba(255,255,255,0.2)';
-        btnAndrei.style.color = '#94a3b8';
+        isExternalTeamLoginMode = true;
+        if (welcomeBanner) welcomeBanner.style.display = 'none';
+        if (teamBadge) {
+          teamBadge.innerText = '🔒 Acceso Externo • Bloque Mikel';
+          teamBadge.style.background = 'rgba(100,116,139,0.2)';
+          teamBadge.style.borderColor = '#64748b';
+          teamBadge.style.color = '#94a3b8';
+        }
+        if (profileLbl) profileLbl.innerText = 'Perfil de Usuario (Equipo Mikel)';
+        if (submitBtn) {
+          submitBtn.innerText = 'Acceder (Bloque Externo)';
+          submitBtn.style.background = '#334155';
+          submitBtn.style.boxShadow = 'none';
+        }
+        if (toggleExtBtn) {
+          toggleExtBtn.innerText = '← Volver al acceso principal (Equipo Andrei)';
+          toggleExtBtn.style.color = '#a78bfa';
+        }
 
         userSel.innerHTML = `
-          <option value="jefe_mikel">👑 Mikel (Jefe de Equipo)</option>
-          <option value="mikel_com1">🏃 Comercial 1 (Equipo Mikel)</option>
-          <option value="mikel_com2">🏃 Comercial 2 (Equipo Mikel)</option>
-          <option value="mikel_com3">🏃 Comercial 3 (Equipo Mikel)</option>
-          <option value="mikel_com4">🏃 Comercial 4 (Equipo Mikel)</option>
-          <option value="mikel_com5">🏃 Comercial 5 (Equipo Mikel)</option>
+          <option value="jefe_mikel">Mikel (Jefe de Equipo)</option>
+          <option value="mikel_com1">Comercial 1 (Equipo Mikel)</option>
+          <option value="mikel_com2">Comercial 2 (Equipo Mikel)</option>
+          <option value="mikel_com3">Comercial 3 (Equipo Mikel)</option>
+          <option value="mikel_com4">Comercial 4 (Equipo Mikel)</option>
+          <option value="mikel_com5">Comercial 5 (Equipo Mikel)</option>
         `;
       } else {
-        btnAndrei.style.background = '#7c3aed';
-        btnAndrei.style.border = '1.5px solid #a78bfa';
-        btnAndrei.style.color = '#fff';
-        btnMikel.style.background = '#0f172a';
-        btnMikel.style.border = '1px solid rgba(255,255,255,0.2)';
-        btnMikel.style.color = '#94a3b8';
+        isExternalTeamLoginMode = false;
+        if (welcomeBanner) welcomeBanner.style.display = 'block';
+        if (teamBadge) {
+          teamBadge.innerText = '👑 Plataforma Oficial • Equipo Andrei';
+          teamBadge.style.background = 'rgba(124,58,237,0.25)';
+          teamBadge.style.borderColor = '#a78bfa';
+          teamBadge.style.color = '#ddd6fe';
+        }
+        if (profileLbl) profileLbl.innerText = 'Selecciona tu Perfil (Equipo Andrei)';
+        if (submitBtn) {
+          submitBtn.innerText = '🚀 Entrar al Equipo Andrei';
+          submitBtn.style.background = 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)';
+          submitBtn.style.boxShadow = '0 6px 20px rgba(124,58,237,0.4)';
+        }
+        if (toggleExtBtn) {
+          toggleExtBtn.innerText = 'Acceso otros equipos (Equipo Mikel) ▾';
+          toggleExtBtn.style.color = '#64748b';
+        }
 
         userSel.innerHTML = `
           <option value="jefe">👑 Andrei (Jefe de Equipo)</option>
