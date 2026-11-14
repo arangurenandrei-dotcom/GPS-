@@ -857,6 +857,19 @@
       color: #fff;
       animation: gpsPulseRing 1.2s infinite;
     }
+     /* ===== AJUSTE PANTALLA COMPLETA IPHONE ===== */
+ :root { --app-h: 100dvh; --gap: 0px; }
+ html, body, #appContainer { height: var(--app-h) !important; }
+ .bottom-action-panel { bottom: calc(env(safe-area-inset-bottom, 0px) + 10px - var(--gap)) !important; }
+ #btnMapCompass { bottom: calc(108px + env(safe-area-inset-bottom, 0px) - var(--gap)) !important; }
+ .leaflet-bottom.leaflet-right { bottom: calc(112px - var(--gap)) !important; }
+ /* Sin sombras ni desenfoques alrededor de los paneles */
+ .hud-header {
+ box-shadow: none !important;
+ backdrop-filter: none !important;
+ -webkit-backdrop-filter: none !important;
+ }
+ .bottom-action-panel button { box-shadow: none !important; }
   </style>
 </head>
 <body>
@@ -7601,12 +7614,21 @@
       isManualGpsRequest = true;
       map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
     }
- function refitMapToScreen() {
+  function fitToFullScreen() {
+ const root = document.documentElement;
+ const portrait = window.innerHeight >= window.innerWidth;
+ const full = portrait
+ ? Math.max(window.innerHeight, window.screen.height)
+ : window.innerHeight;
+ const gap = Math.max(0, full - window.innerHeight);
+ root.style.setProperty('--app-h', full + 'px');
+ root.style.setProperty('--gap', gap + 'px');
  if (map) setTimeout(() => map.invalidateSize(), 120);
  }
- window.addEventListener('resize', refitMapToScreen);
- window.addEventListener('orientationchange', refitMapToScreen);
- window.addEventListener('pageshow', refitMapToScreen);
+ window.addEventListener('resize', fitToFullScreen);
+ window.addEventListener('orientationchange', () => setTimeout(fitToFullScreen, 300));
+ window.addEventListener('pageshow', fitToFullScreen);
+ fitToFullScreen();
     window.onload = () => {
       applyAppVisualSettings();
       refreshLoginDropdownAliases();
