@@ -2112,23 +2112,15 @@
         alert("Error al conectar con el callejero.");
       }
     }
-    function openMultiStopRouteMaps(stopsArray) {
-      if (!stopsArray || stopsArray.length === 0) {
-        alert("No hay direcciones válidas para trazar ruta.");
-        return;
-      }
+    function buildMultiStopMapsUrl(stopsArray) {
+      if (!stopsArray || stopsArray.length === 0) return '#';
       const cleanStops = stopsArray.map(s => `${s}, Navarra, España`.trim());
-      
-      // Si solo es una parada, abre la búsqueda directa de esa dirección en Google Maps
       if (cleanStops.length === 1) {
-        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanStops[0])}`, '_blank');
-        return;
+        return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cleanStops[0])}&travelmode=driving`;
       }
-      
-      // Si son varias paradas (ruta multi-parada), monta origen/destino y waypoints intermedios
       const destination = encodeURIComponent(cleanStops[cleanStops.length - 1]);
       const waypoints = cleanStops.slice(0, -1).map(s => encodeURIComponent(s)).join('|');
-      window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`, '_blank');
+      return `https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
     }
 
     function handleClientAtticPhotoUpload(inputEl) {
@@ -2353,9 +2345,38 @@
               ${(cleanPhone && !viewerIsMikel) ? (() => {
                 const senderAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(z.comercial) : z.comercial;
                 const clientFirst = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
-                const addrPart = (c.street || '').trim() ? ` en ${c.street.trim()} (${z.town || 'Navarra'})` : ` en ${z.town || 'Navarra'}`;
-                const waText = encodeURIComponent(`Hola${clientFirst}, soy ${senderAlias} de Konsor Energía. Estuvimos hablando sobre el aislamiento gratuito de tu buhardilla${addrPart} mediante el plan CAE. ¿Qué día y hora te viene bien para dejarlo cerrado?`);
-                return `<a href="https://wa.me/34${cleanPhone}?text=${waText}" target="_blank" style="flex:0.85; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>`;
+                const townName = z.town || 'Navarra';
+                const streetName = (c.street || '').trim() ? `${c.street.trim()}, ` : '';
+                const firmaOficial = `\n\n━━━━━━━━━━━━━━━━━━\n*KONSOR ENERGÍA* | Aislamiento Térmico & Certificación CAE\n👤 Gestor asignado: *${senderAlias}*\n🏢 Oficina Central: Calle San Fermín, 43, Pamplona (Navarra)\n🌐 Web Oficial: https://konsorenergia.com\n🛡️ Programa Oficial: Certificados de Ahorro Energético (CAE) - Directiva (UE) 2023/1791`;
+
+                const msgNoContesta = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\nTe he llamado hace un momento respecto al aislamiento térmico gratuito de tu buhardilla en *${streetName}${townName}* mediante el programa oficial CAE.\n\nCuando te venga bien dime una hora y te pego un toque rápido para informarte.${firmaOficial}`
+                );
+
+                const msgEnTramite = encodeURIComponent(
+                  `Hola${clientFirst},\n\nLe confirmamos que su solicitud de comprobación para la vivienda ubicada en *${streetName}${townName}* está en *proceso de verificación catastral y técnica*. En breve nos pondremos en contacto con usted para confirmar la aptitud de la vivienda y coordinar la instalación sin coste.${firmaOficial}`
+                );
+
+                const msgCita = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\nTe confirmo los datos de tu cita reservada para la instalación del aislamiento térmico:\n\n📅 *Fecha:* ${formatDate(c.obraDate || getTodayISO())}\n⏰ *Hora aproximada:* ${c.obraTime || '09:00'} h\n📍 *Dirección:* ${streetName}${townName}\n\nGuarda este mensaje como recordatorio. Cualquier cosa, me tienes disponible directamente por aquí.${firmaOficial}`
+                );
+
+                const msgPostObra = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\n¡Muchas gracias por abrirnos las puertas de tu casa en *${streetName}${townName}*! Esperamos que notes desde hoy mismo el confort térmico y el ahorro en calefacción y aire acondicionado.\n\nSeguimos trabajando para ser el equipo de referencia en toda Navarra: si algún vecino, familiar o amigo quiere comprobar si su vivienda entra gratuita en el plan CAE, pásale este contacto directamente y le atenderé personalmente.${firmaOficial}`
+                );
+
+                return `
+                  <div style="display:flex; flex-direction:column; gap:4px; flex:1.35;">
+                    <div style="display:flex; gap:4px;">
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgNoContesta}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">📵 No contesta</a>
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgEnTramite}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#7c3aed; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">🔍 En trámite</a>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgCita}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#d97706; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">📅 Recordar cita</a>
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgPostObra}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">⭐ Post-obra</a>
+                    </div>
+                  </div>
+                `;
               })() : ''}
             </div>
 
@@ -2577,15 +2598,15 @@
         });
 
         const townRouteStops = group.obras.map(o => `${o.street}, ${tName}`);
-        const routeStopsJson = JSON.stringify(townRouteStops).replace(/"/g, '"');
+        const routeMapsUrl = buildMultiStopMapsUrl(townRouteStops);
 
         html += `
           <div class="today-town-card">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
               <strong style="font-size:14px; color:#fde047;">📍 ${tName} (${group.obras.length})</strong>
-              <button onclick="openMultiStopRouteMaps(${routeStopsJson})" style="background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:7px; cursor:pointer;">
+              <a href="${routeMapsUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:900; padding:5px 9px; border-radius:7px; display:inline-block;">
                 🧭 Ruta GPS
-              </button>
+              </a>
             </div>
             ${obrasListHtml}
             ${assignedBadgesHtml}
@@ -5158,7 +5179,7 @@
                   <span style="font-size:10px; color:#99f6e4; font-weight:800;">Desde ${formatDate(mt.lastDate)}</span>
                 </div>
                 <div style="font-size:10.5px; color:#cbd5e1; margin-top:2px;">
-                  Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> \vert{} SÍ sacados: <strong>${mt.si}</strong>
+                  Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> | SÍ sacados: <strong>${mt.si}</strong>
                 </div>
               </div>
             `;
@@ -5885,7 +5906,7 @@
       weekDays.forEach(wd => {
         const isToday = wd.iso === todayIso;
         const dayStops = wd.obras.map(o => `${o.street}, ${o.town}`);
-        const dayStopsJson = JSON.stringify(dayStops).replace(/"/g, '"');
+        const dayMapsUrl = buildMultiStopMapsUrl(dayStops);
 
         html += `
           <div class="week-day-card ${isToday ? 'today' : ''}">
@@ -5894,7 +5915,7 @@
                 ${wd.name} ${formatDate(wd.iso)} ${isToday ? '(HOY)' : ''}
               </strong>
               <div style="display:flex; align-items:center; gap:5px;">
-                ${wd.obras.length > 0 ? `<button onclick="openMultiStopRouteMaps(${dayStopsJson})" style="background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px; cursor:pointer;">🧭 Ruta</button>` : ''}
+                ${wd.obras.length > 0 ? `<a href="${dayMapsUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px; display:inline-block;">🧭 Ruta</a>` : ''}
                 <span style="background:${wd.totalM2 > 0 ? '#059669' : 'rgba(255,255,255,0.1)'}; color:#fff; font-size:10px; font-weight:900; padding:3px 8px; border-radius:7px;">
                   ${wd.totalM2} m²
                 </span>
