@@ -36,12 +36,15 @@
 
     html, body {
  position: fixed;
- inset: 0;
+ top: 0;
+ left: 0;
+ right: 0;
+ bottom: 0;
  width: 100%;
- height: 100%;
- min-height: 100%;
+ height: 100vh;
+ height: 100dvh;
  overflow: hidden;
- background: var(--bg-dark);
+ background: #000;
  color: #f8fafc;
  overscroll-behavior: none;
  -webkit-text-size-adjust: 100%;
@@ -136,7 +139,8 @@
  right: 0;
  bottom: 0;
  width: 100%;
- height: 100%;
+ height: 100vh;
+ height: 100dvh;
  overflow: hidden;
 }
 
@@ -150,13 +154,13 @@
 }
 
     /* HUD SUPERIOR ESTRUCTURADO Y ALINEADO */
-    .hud-header {
-      position: fixed;
-      top: calc(env(safe-area-inset-top, 0px) + 6px);
-      left: max(8px, env(safe-area-inset-left, 8px));
-      right: max(8px, env(safe-area-inset-right, 8px));
-      z-index: 1000;
-      background: var(--bg-panel); backdrop-filter: blur(18px);
+     .hud-header {
+ position: fixed;
+ top: calc(env(safe-area-inset-top, 0px) + 6px);
+ left: max(8px, env(safe-area-inset-left, 8px));
+ right: max(8px, env(safe-area-inset-right, 8px));
+ z-index: 1000;
+ background: var(--bg-panel);
       border: 1px solid var(--border-panel); border-radius: 18px; padding: 8px 10px;
       display: flex; flex-direction: column; gap: 6px; box-shadow: 0 12px 32px rgba(0,0,0,0.55);
       max-width: 100%;
@@ -7597,7 +7601,12 @@
       isManualGpsRequest = true;
       map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
     }
-
+ function refitMapToScreen() {
+ if (map) setTimeout(() => map.invalidateSize(), 120);
+ }
+ window.addEventListener('resize', refitMapToScreen);
+ window.addEventListener('orientationchange', refitMapToScreen);
+ window.addEventListener('pageshow', refitMapToScreen);
     window.onload = () => {
       applyAppVisualSettings();
       refreshLoginDropdownAliases();
