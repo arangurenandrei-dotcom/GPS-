@@ -4115,13 +4115,13 @@
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
 
       return `
-        <div style="margin-bottom:6px;">
+        <div class="grid-row-2">
           <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
+          <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
         
-       <div class="grid-row-2">
-          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
-          <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
+        <div style="margin-bottom:6px;">
+          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
         </div>
 
        <div style="margin-bottom:6px;">
