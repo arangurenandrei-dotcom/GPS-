@@ -743,9 +743,10 @@
           <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
         </div>
-        <div class="hud-utility-group" style="gap:6px;">
-          <button class="btn-hud gps" style="padding:6px 10px;" onclick="centerOnUser()">🎯 GPS</button>
-          <button class="btn-hud logout" style="padding:6px 10px;" onclick="executeLogout()">🔒 Salir</button>
+        <div class="hud-utility-group" style="gap:5px;">
+          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Cambiar mi nombre o PIN">⚙️</button>
+          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
+          <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒 Salir</button>
         </div>
       </div>
 
@@ -807,6 +808,19 @@
           📝 VOLCAR
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIGURACIÓN NOMBRE Y PIN DE 4 DÍGITOS -->
+  <div id="userProfileModal" class="modal-overlay" style="z-index:10040;">
+    <div class="modal-card" style="max-width:390px;">
+      <div class="modal-header-sticky">
+        <div class="modal-header">
+          <span>⚙️ Mi Nombre y PIN de Acceso</span>
+          <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('userProfileModal')">✕</button>
+        </div>
+      </div>
+      <div class="modal-scrollable-content" id="userProfileModalBody"></div>
     </div>
   </div>
 
@@ -1062,6 +1076,13 @@
           <div id="tabBtnPueblos" class="tab-btn" onclick="switchAuditTab('pueblos')">🏘️ Pueblos</div>
         </div>
 
+        <div id="monthFilterGroup" class="input-group" style="display:flex; margin-bottom:4px;">
+          <span class="input-label">🗓️ Periodo / Mes</span>
+          <select id="auditMonthSelect" class="select-field" onchange="renderCurrentAuditView()">
+            <option value="ALL">📊 Todo el Histórico</option>
+          </select>
+        </div>
+
         <div id="dateSelectorGroup" class="input-group" style="display:none; margin-bottom:4px;">
           <span class="input-label">📅 Seleccionar Fecha Exacta</span>
           <input type="date" id="auditDateSelect" class="input-field" onchange="renderCurrentAuditView()">
@@ -1076,13 +1097,13 @@
   <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
   <script>
-    const PASSWORDS = {
-      jefe: 'jefe2026',
-      comercial1: 'comercial1',
-      comercial2: 'comercial2',
-      comercial3: 'comercial3',
-      comercial4: 'comercial4',
-      comercial5: 'comercial5',
+    const DEFAULT_PASSWORDS = {
+      jefe: '2026',
+      comercial1: '1111',
+      comercial2: '2222',
+      comercial3: '3333',
+      comercial4: '4444',
+      comercial5: '5555',
       jefe_mikel: 'mikel2026',
       mikel_com1: 'mikel1',
       mikel_com2: 'mikel2',
@@ -1090,6 +1111,118 @@
       mikel_com4: 'mikel4',
       mikel_com5: 'mikel5'
     };
+
+    const CANONICAL_USER_NAMES = {
+      jefe: 'Andrei (Jefe)',
+      comercial1: 'Comercial 1',
+      comercial2: 'Comercial 2',
+      comercial3: 'Comercial 3',
+      comercial4: 'Comercial 4',
+      comercial5: 'Comercial 5',
+      jefe_mikel: 'Mikel (Jefe)',
+      mikel_com1: 'Mikel Com. 1',
+      mikel_com2: 'Mikel Com. 2',
+      mikel_com3: 'Mikel Com. 3',
+      mikel_com4: 'Mikel Com. 4',
+      mikel_com5: 'Mikel Com. 5'
+    };
+
+    let customUserProfiles = safeLoadStorage('comercial_user_profiles');
+    if (Array.isArray(customUserProfiles)) customUserProfiles = {};
+
+    function getUserPassword(userKey) {
+      return (customUserProfiles[userKey] && customUserProfiles[userKey].pin) || DEFAULT_PASSWORDS[userKey];
+    }
+
+    function getDisplayAlias(canonicalOrKey) {
+      if (!canonicalOrKey) return '';
+      const entryByKey = customUserProfiles[canonicalOrKey];
+      if (entryByKey && entryByKey.alias) return entryByKey.alias;
+
+      const foundKey = Object.keys(CANONICAL_USER_NAMES).find(k => CANONICAL_USER_NAMES[k] === canonicalOrKey);
+      if (foundKey && customUserProfiles[foundKey] && customUserProfiles[foundKey].alias) {
+        return customUserProfiles[foundKey].alias;
+      }
+      return canonicalOrKey;
+    }
+
+    function refreshLoginDropdownAliases() {
+      const userSel = document.getElementById('userSelect');
+      if (!userSel || isExternalTeamLoginMode) return;
+      userSel.innerHTML = `
+        <option value="jefe">👑 ${getDisplayAlias('jefe')} (Jefe)</option>
+        <option value="comercial1">🏃 ${getDisplayAlias('comercial1')}</option>
+        <option value="comercial2">🏃 ${getDisplayAlias('comercial2')}</option>
+        <option value="comercial3">🏃 ${getDisplayAlias('comercial3')}</option>
+        <option value="comercial4">🏃 ${getDisplayAlias('comercial4')}</option>
+        <option value="comercial5">🏃 ${getDisplayAlias('comercial5')}</option>
+      `;
+    }
+
+    function openUserProfileModal() {
+      const userKey = sessionStorage.getItem('auth_user_key');
+      if (!userKey || isMikelTeamMember(currentUserName)) return;
+      const body = document.getElementById('userProfileModalBody');
+      const currentAlias = getDisplayAlias(userKey);
+      const currentPin = getUserPassword(userKey);
+
+      let bossResetHtml = '';
+      if (userKey === 'jefe') {
+        const teamKeys = ['comercial1', 'comercial2', 'comercial3', 'comercial4', 'comercial5'];
+        bossResetHtml = `
+          <div class="modal-section-title" style="margin-top:14px;">👑 Control de PINs de tu Equipo</div>
+          <div style="font-size:10.5px; color:#94a3b8; margin-bottom:6px;">Consulta o resetea el acceso de cualquier comercial si olvida su código:</div>
+          ${teamKeys.map(k => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:6px 8px; margin-bottom:5px; font-size:11px;">
+              <span>🏃 <strong>${getDisplayAlias(k)}</strong> <small style="color:#64748b;">(${CANONICAL_USER_NAMES[k]})</small></span>
+              <span style="background:#1e293b; color:#fde047; font-weight:900; padding:2px 7px; border-radius:6px;">PIN: ${getUserPassword(k)}</span>
+            </div>
+          `).join('')}
+        `;
+      }
+
+      body.innerHTML = `
+        <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:5px;">
+          <span class="input-label">👤 Tu Nombre Visible en la App</span>
+          <input type="text" id="profileAliasInput" class="input-field" maxlength="22" value="${currentAlias}" placeholder="Ej. Carlos">
+        </div>
+
+        <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:5px;">
+          <span class="input-label">🔢 Nuevo PIN de Acceso (4 números)</span>
+          <input type="tel" id="profilePinInput" class="input-field" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" value="${currentPin}" placeholder="Ej. 4829">
+        </div>
+
+        <button class="btn-modal-save" onclick="saveUserProfileSettings()">💾 Guardar Nombre y PIN</button>
+        ${bossResetHtml}
+      `;
+      document.getElementById('userProfileModal').classList.add('active');
+    }
+
+    function saveUserProfileSettings() {
+      const userKey = sessionStorage.getItem('auth_user_key');
+      if (!userKey) return;
+      const newAlias = document.getElementById('profileAliasInput').value.trim();
+      const newPin = document.getElementById('profilePinInput').value.trim();
+
+      if (!newAlias) {
+        alert("⚠️ Escribe un nombre válido.");
+        return;
+      }
+      if (!/^\d{4}$/.test(newPin)) {
+        alert("⚠️ El PIN debe tener exactamente 4 números (ej. 4580).");
+        return;
+      }
+
+      customUserProfiles[userKey] = { alias: newAlias, pin: newPin, updatedAt: Date.now() };
+      localStorage.setItem('comercial_user_profiles', JSON.stringify(customUserProfiles));
+      if (typeof window.pushToFirestore === 'function') {
+        window.pushToFirestore('comercial_user_profiles', customUserProfiles);
+      }
+
+      document.getElementById('displayUserName').innerText = newAlias;
+      closeModal('userProfileModal');
+      alert(`✅ Perfil actualizado: ${newAlias} (PIN: ${newPin})`);
+    }
 
     const COMMERCIAL_COLORS = {
       'Andrei (Jefe)': '#7c3aed',
@@ -1188,6 +1321,10 @@
       else if (key === 'comercial_shifts') savedShifts = newData;
       else if (key === 'comercial_completed_towns') completedTowns = newData;
       else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
+      else if (key === 'comercial_user_profiles' && newData && typeof newData === 'object') {
+        customUserProfiles = newData;
+        refreshLoginDropdownAliases();
+      }
 
       if (currentUserName) {
         if (map) renderAllSavedZones();
@@ -1375,7 +1512,8 @@
       const userVal = document.getElementById('userSelect').value;
       const passVal = document.getElementById('passInput').value.trim();
 
-      if (PASSWORDS[userVal] && passVal === PASSWORDS[userVal]) {
+      if (getUserPassword(userVal) && passVal === getUserPassword(userVal)) {
+        sessionStorage.setItem('auth_user_key', userVal);
         if (userVal === 'jefe') {
           currentUserRole = 'jefe';
           currentUserName = 'Andrei (Jefe)';
@@ -1429,9 +1567,12 @@
 
       const isMikelBlock = isMikelTeamMember(currentUserName);
 
-      nameLbl.innerText = currentUserName === 'Andrei (Jefe)'
-        ? 'Andrei'
-        : (currentUserName === 'Mikel (Jefe)' ? 'Mikel' : currentUserName);
+      const authKey = sessionStorage.getItem('auth_user_key');
+      nameLbl.innerText = isMikelBlock
+        ? (currentUserName === 'Mikel (Jefe)' ? 'Mikel' : currentUserName)
+        : getDisplayAlias(authKey || currentUserName);
+      const btnProf = document.getElementById('btnUserProfileConfig');
+      if (btnProf) btnProf.style.display = isMikelBlock ? 'none' : 'flex';
 
       // Para Mikel y su equipo: Catastro de serie (sin botones extra abajo ni botón No Apta)
       if (mapToolsRow) mapToolsRow.style.display = isMikelBlock ? 'none' : 'grid';
@@ -1969,6 +2110,94 @@
         alert("Error al conectar con el callejero.");
       }
     }
+    function openMultiStopRouteMaps(stopsArray) {
+      if (!stopsArray || stopsArray.length === 0) {
+        alert("No hay direcciones válidas para trazar ruta.");
+        return;
+      }
+      const cleanStops = stopsArray.map(s => encodeURIComponent(`${s}, Navarra, España`));
+      if (cleanStops.length === 1) {
+        window.open(`https://maps.apple.com/?daddr=${cleanStops[0]}&dirflg=d`, '_blank');
+        return;
+      }
+      const destination = cleanStops[cleanStops.length - 1];
+      const waypoints = cleanStops.slice(0, -1).join('|');
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`, '_blank');
+    }
+
+    function handleClientAtticPhotoUpload(inputEl) {
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      const box = inputEl.closest('.client-box, .comunidad-box');
+      if (!box) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 560;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.58);
+
+          box.dataset.atticPhoto = compressedDataUrl;
+          const previewSlot = box.querySelector('.attic-photo-preview-slot');
+          if (previewSlot) {
+            previewSlot.innerHTML = `
+              <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.15); border:1px solid #34d399; border-radius:8px; padding:5px 8px; margin-top:4px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <img src="${compressedDataUrl}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #fff;">
+                  <span style="font-size:10px; color:#6ee7b7; font-weight:800;">✅ Foto acceso guardada</span>
+                </div>
+                <button type="button" onclick="removeClientAtticPhoto(this)" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+              </div>
+            `;
+          }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeClientAtticPhoto(btn) {
+      const box = btn.closest('.client-box, .comunidad-box');
+      if (!box) return;
+      delete box.dataset.atticPhoto;
+      const previewSlot = box.querySelector('.attic-photo-preview-slot');
+      if (previewSlot) previewSlot.innerHTML = '';
+    }
+
+    function openAtticPhotoLightbox(dataUrl, captionText = 'Foto de Acceso / Buhardilla') {
+      if (!dataUrl) return;
+      let lb = document.getElementById('atticPhotoLightboxModal');
+      if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'atticPhotoLightboxModal';
+        lb.className = 'modal-overlay';
+        lb.style.zIndex = '10080';
+        lb.onclick = () => lb.classList.remove('active');
+        document.body.appendChild(lb);
+      }
+      lb.innerHTML = `
+        <div class="modal-card" style="max-width:420px; text-align:center;" onclick="event.stopPropagation();">
+          <div class="modal-header">
+            <span style="font-size:13px;">📸 ${captionText}</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="document.getElementById('atticPhotoLightboxModal').classList.remove('active')">✕</button>
+          </div>
+          <img src="${dataUrl}" style="width:100%; max-height:65vh; object-fit:contain; border-radius:12px; border:1px solid rgba(255,255,255,0.2);">
+        </div>
+      `;
+      lb.classList.add('active');
+    }
+
     /* =====================================================================
        APARTADO "📞 LLAMAR": SEGUIMIENTO DIRECTO DE CLIENTES VOLCADOS EN "SÍ"
        ===================================================================== */
@@ -2115,7 +2344,13 @@
 
             <div style="display:flex; gap:5px; margin-top:4px;">
               ${cleanPhone ? `<a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
-              ${(cleanPhone && !viewerIsMikel) ? `<a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:0.8; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>` : ''}
+              ${(cleanPhone && !viewerIsMikel) ? (() => {
+                const senderAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(z.comercial) : z.comercial;
+                const clientFirst = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
+                const addrPart = (c.street || '').trim() ? ` en ${c.street.trim()} (${z.town || 'Navarra'})` : ` en ${z.town || 'Navarra'}`;
+                const waText = encodeURIComponent(`Hola${clientFirst}, soy ${senderAlias} de Konsor Energía. Estuvimos hablando sobre el aislamiento gratuito de tu buhardilla${addrPart} mediante el plan CAE. ¿Qué día y hora te viene bien para dejarlo cerrado?`);
+                return `<a href="https://wa.me/34${cleanPhone}?text=${waText}" target="_blank" style="flex:0.85; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>`;
+              })() : ''}
             </div>
 
             <div style="display:flex; gap:4px; margin-top:2px;">
@@ -3154,7 +3389,7 @@
       const buildYearVal = box.querySelector('.client-build-year')?.value.trim() || '';
       const accessTypeVal = box.querySelector('.client-access-type')?.value || 'Trampilla';
       const accessOtherVal = accessTypeVal === 'Otro' ? (box.querySelector('.client-access-other')?.value.trim() || '') : '';
-
+      const atticPhotoVal = box.dataset.atticPhoto || existingMeta.atticPhoto || '';
       if (typeVal === 'comunidad') {
         const atticCards = box.querySelectorAll('.attic-item-card');
         const atticsDetails = [];
@@ -3185,6 +3420,7 @@
           buildYear: buildYearVal,
           accessType: accessTypeVal,
           accessOther: accessOtherVal,
+          atticPhoto: atticPhotoVal,
           numAttics: atticsDetails.length,
           atticsDetails: atticsDetails,
           m2: computedTotalM2,
@@ -3206,6 +3442,7 @@
           buildYear: buildYearVal,
           accessType: accessTypeVal,
           accessOther: accessOtherVal,
+          atticPhoto: atticPhotoVal,
           m2: box.querySelector('.client-m2').value,
           obraStatus: statusVal,
           obraDate: obraDateVal,
@@ -4069,6 +4306,7 @@
         const box = document.createElement('div');
         box.className = isComunidad ? 'comunidad-box' : 'client-box';
         box.setAttribute('data-client-index', i);
+        if (existing.atticPhoto) box.dataset.atticPhoto = existing.atticPhoto;
 
         box.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -4233,6 +4471,26 @@
           </select>
         </div>
 
+        ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-top:4px;">
+            <label style="display:block; text-align:center; background:rgba(124,58,237,0.18); border:1px dashed #a78bfa; color:#ddd6fe; font-size:10.5px; font-weight:800; padding:6px 8px; border-radius:8px; cursor:pointer;">
+              📸 ${existing.atticPhoto ? 'Cambiar Foto Trampilla / Acceso' : 'Adjuntar Foto Trampilla / Buhardilla'}
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleClientAtticPhotoUpload(this)">
+            </label>
+            <div class="attic-photo-preview-slot">
+              ${existing.atticPhoto ? `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.15); border:1px solid #34d399; border-radius:8px; padding:5px 8px; margin-top:4px;">
+                  <div style="display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="openAtticPhotoLightbox('${existing.atticPhoto}', '${(existing.street || 'Acceso').replace(/'/g, "\\'")}')">
+                    <img src="${existing.atticPhoto}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #fff;">
+                    <span style="font-size:10px; color:#6ee7b7; font-weight:800;">👁️ Ver foto guardada</span>
+                  </div>
+                  <button type="button" onclick="removeClientAtticPhoto(this)" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
         <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; flex-direction:column; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:7px 8px; margin-top:4px; gap:5px;">
           <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
           <div class="grid-row-2" style="margin-bottom:0;">
@@ -4354,6 +4612,26 @@
             <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica/Junta)</option>
           </select>
         </div>
+
+        ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-top:6px;">
+            <label style="display:block; text-align:center; background:rgba(124,58,237,0.18); border:1px dashed #a78bfa; color:#ddd6fe; font-size:10.5px; font-weight:800; padding:6px 8px; border-radius:8px; cursor:pointer;">
+              📸 ${existing.atticPhoto ? 'Cambiar Foto Acceso Cubierta' : 'Adjuntar Foto Acceso / Cubierta'}
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleClientAtticPhotoUpload(this)">
+            </label>
+            <div class="attic-photo-preview-slot">
+              ${existing.atticPhoto ? `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.15); border:1px solid #34d399; border-radius:8px; padding:5px 8px; margin-top:4px;">
+                  <div style="display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="openAtticPhotoLightbox('${existing.atticPhoto}', '${(existing.street || 'Acceso Edificio').replace(/'/g, "\\'")}')">
+                    <img src="${existing.atticPhoto}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #fff;">
+                    <span style="font-size:10px; color:#6ee7b7; font-weight:800;">👁️ Ver foto guardada</span>
+                  </div>
+                  <button type="button" onclick="removeClientAtticPhoto(this)" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
 
         <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; flex-direction:column; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:7px 8px; margin-top:6px; gap:5px;">
           <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
@@ -4862,12 +5140,17 @@
           html += `<div style="font-size:11px; color:#94a3b8; padding:8px;">Mikel no tiene ningún pueblo nuevo fuera de los tuyos todavía.</div>`;
         } else {
           newMikelOnlyTowns.forEach(mt => {
-            html += `
-              <div class="audit-card" style="cursor:default; border-left:4px solid #2dd4bf;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong style="font-size:13px; color:#5eead4;">📍 ${mt.name}</strong>
-                  <span style="font-size:10px; color:#99f6e4; font-weight:800;">Desde ${formatDate(mt.lastDate)}</span>
-                </div>
+            const townRouteStops = group.obras.map(o => `${o.street}, ${tName}`);
+        const routeStopsJson = JSON.stringify(townRouteStops).replace(/"/g, '"');
+
+        html += `
+          <div class="today-town-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:14px; color:#fde047;">📍 ${tName} (${group.obras.length})</strong>
+              <button onclick="openMultiStopRouteMaps(${routeStopsJson})" style="background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:7px; cursor:pointer;">
+                🧭 Ruta GPS
+              </button>
+            </div>
                 <div style="font-size:10.5px; color:#cbd5e1; margin-top:2px;">
                   Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> | SÍ sacados: <strong>${mt.si}</strong>
                 </div>
@@ -5041,8 +5324,12 @@
 
       const rows = [headers.join(';')];
 
+      const selectedMonthCsv = document.getElementById('auditMonthSelect')?.value || 'ALL';
+
       savedZones.forEach(z => {
-        if (!z.clients || z.clients.length === 0) return;
+        if (isMikelTeamMember(z.comercial) || !z.clients || z.clients.length === 0) return;
+        const zDateCsv = z.dumpDate || z.date || '';
+        if (selectedMonthCsv !== 'ALL' && !zDateCsv.startsWith(selectedMonthCsv)) return;
         z.clients.forEach(c => {
           if (!isClientValidFilled(c)) return;
           const m2Val = getM2NumericValue(c.m2);
@@ -5093,7 +5380,30 @@
     /* =====================================================================
        PANEL DE AUDITORÍA DEL JEFE
        ===================================================================== */
+    function populateAuditMonthOptions() {
+      const sel = document.getElementById('auditMonthSelect');
+      if (!sel) return;
+      const prevVal = sel.value || 'ALL';
+      const monthsSet = new Set([getTodayISO().slice(0, 7)]);
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial)) return;
+        const d = (z.dumpDate || z.date || '').slice(0, 7);
+        if (/^\d{4}-\d{2}$/.test(d)) monthsSet.add(d);
+      });
+      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sortedMonths = Array.from(monthsSet).sort().reverse();
+      sel.innerHTML = `<option value="ALL">📊 Todo el Histórico Acumulado</option>` +
+        sortedMonths.map(ym => {
+          const [y, m] = ym.split('-');
+          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+          return `<option value="${ym}" ${prevVal === ym ? 'selected' : ''}>📅 ${label}</option>`;
+        }).join('');
+    }
+
     function openAuditModal() {
+      populateAuditMonthOptions();
+      const monthGrp = document.getElementById('monthFilterGroup');
+      if (monthGrp) monthGrp.style.display = (!isMikelTeamMember(currentUserName) && activeAuditTab === 'kpis') ? 'flex' : 'none';
       renderCurrentAuditView();
       document.getElementById('auditModal').classList.add('active');
     }
@@ -5107,6 +5417,8 @@
       document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
 
       document.getElementById('dateSelectorGroup').style.display = (tab === 'comerciales') ? 'flex' : 'none';
+      const monthGrp = document.getElementById('monthFilterGroup');
+      if (monthGrp) monthGrp.style.display = (!isMikelTeamMember(currentUserName) && tab === 'kpis') ? 'flex' : 'none';
       renderCurrentAuditView();
     }
 
@@ -5213,12 +5525,15 @@
         };
       });
 
+      const selectedMonth = document.getElementById('auditMonthSelect')?.value || 'ALL';
+
       savedZones.forEach(z => {
         const u = z.comercial || 'Comercial 1';
         if (!statsMap[u]) return;
 
         const st = z.stats || {};
         const zDate = z.dumpDate || z.date;
+        if (selectedMonth !== 'ALL' && (!zDate || !zDate.startsWith(selectedMonth))) return;
         if (zDate) statsMap[u].datesSet.add(zDate);
 
         // Detectar volcado fuera del día asignado (si no venía como zona incompleta)
@@ -5564,14 +5879,21 @@
       weekDays.forEach(wd => {
         const isToday = wd.iso === todayIso;
         html += `
+         const dayStops = wd.obras.map(o => `${o.street}, ${o.town}`);
+        const dayStopsJson = JSON.stringify(dayStops).replace(/"/g, '"');
+
+        html += `
           <div class="week-day-card ${isToday ? 'today' : ''}">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
               <strong style="font-size:12.5px; color:${isToday ? '#fde047' : '#60a5fa'};">
                 ${wd.name} ${formatDate(wd.iso)} ${isToday ? '(HOY)' : ''}
               </strong>
-              <span style="background:${wd.totalM2 > 0 ? '#059669' : 'rgba(255,255,255,0.1)'}; color:#fff; font-size:10px; font-weight:900; padding:3px 8px; border-radius:7px;">
-                ${wd.totalM2} m²
-              </span>
+              <div style="display:flex; align-items:center; gap:5px;">
+                ${wd.obras.length > 0 ? `<button onclick="openMultiStopRouteMaps(${dayStopsJson})" style="background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px; cursor:pointer;">🧭 Ruta</button>` : ''}
+                <span style="background:${wd.totalM2 > 0 ? '#059669' : 'rgba(255,255,255,0.1)'}; color:#fff; font-size:10px; font-weight:900; padding:3px 8px; border-radius:7px;">
+                  ${wd.totalM2} m²
+                </span>
+              </div>
             </div>
         `;
 
@@ -6287,6 +6609,7 @@
     }
 
     window.onload = () => {
+      refreshLoginDropdownAliases();
       const savedRole = sessionStorage.getItem('auth_role');
       const savedName = sessionStorage.getItem('auth_name');
       if (savedRole && savedName) {
@@ -6336,7 +6659,8 @@
       'comercial_custom_zones',
       'comercial_shifts',
       'comercial_completed_towns',
-      'comercial_hot_lead_missions'
+      'comercial_hot_lead_missions',
+      'comercial_user_profiles'
     ];
 
     function mergeArraysById(localArr, cloudArr) {
