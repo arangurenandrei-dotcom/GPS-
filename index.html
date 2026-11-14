@@ -2115,6 +2115,13 @@
     function buildMultiStopMapsUrl(stopsArray) {
       if (!stopsArray || stopsArray.length === 0) return '#';
       const cleanStops = stopsArray.map(s => `${s}, Navarra, España`.trim());
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      if (isIOS) {
+        const chainedStops = cleanStops.map(s => encodeURIComponent(s)).join('+to:');
+        return `maps://?daddr=${chainedStops}&dirflg=d`;
+      }
+
       if (cleanStops.length === 1) {
         return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cleanStops[0])}&travelmode=driving`;
       }
@@ -6298,8 +6305,27 @@
             ? ` • <span style="color:${countComunidadDocs(c.comunidadDocs)===5?'#34d399':'#fca5a5'}; font-weight:800;">📋 Docs: ${countComunidadDocs(c.comunidadDocs)}/5</span>`
             : '';
 
+          const cleanTelObra = (c.phone || '').replace(/\s+/g, '');
+          const firstCli = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
+          const senderNameObra = typeof getDisplayAlias === 'function' ? getDisplayAlias(c.comercial) : c.comercial;
+          const firmaObra = `\n\n━━━━━━━━━━━━━━━━━━\n*KONSOR ENERGÍA* | Aislamiento Térmico & Certificación CAE\n👤 Gestor asignado: *${senderNameObra}*\n🏢 Oficina Central: Calle San Fermín, 43, Pamplona (Navarra)\n🌐 Web Oficial: https://konsorenergia.com\n🛡️ Programa Oficial: Certificados de Ahorro Energético (CAE) - Directiva (UE) 2023/1791`;
+
+          const waCitaUrl = cleanTelObra
+            ? `https://wa.me/34${cleanTelObra}?text=${encodeURIComponent(`Hola${firstCli}, soy *${senderNameObra}* de *Konsor Energía*.\n\nTe recuerdo los datos de tu cita reservada para la instalación del aislamiento térmico:\n\n📅 *Fecha:* ${formatDate(c.obraDate)}\n⏰ *Hora aproximada:* ${c.obraTime || '09:00'} h\n📍 *Dirección:* ${c.street}, ${item.town}\n\nGuarda este mensaje como recordatorio. Cualquier cosa, escríbeme directamente por aquí.${firmaObra}`)}`
+            : '';
+
+          const waPostUrl = cleanTelObra
+            ? `https://wa.me/34${cleanTelObra}?text=${encodeURIComponent(`Hola${firstCli}, soy *${senderNameObra}* de *Konsor Energía*.\n\n¡Muchas gracias por confiar en nuestro equipo para aislar tu vivienda en *${c.street}, ${item.town}*! Esperamos que disfrutes del confort y el ahorro energético.\n\nQueremos seguir siendo referentes en Navarra: si algún vecino, familiar o amigo quiere comprobar si su casa entra gratuita en el plan CAE, pásale mi contacto directamente.${firmaObra}`)}`
+            : '';
+
+          const waObraBtnHtml = cleanTelObra
+            ? (activeObrasSubFilter === 'agendadas'
+                ? `<a href="${waCitaUrl}" target="_blank" onclick="event.stopPropagation();" style="text-decoration:none; background:#d97706; color:#fff; border:1px solid #fbbf24; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:900; margin-left:5px; white-space:nowrap;">💬 Cita</a>`
+                : `<a href="${waPostUrl}" target="_blank" onclick="event.stopPropagation();" style="text-decoration:none; background:#0891b2; color:#fff; border:1px solid #22d3ee; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:900; margin-left:5px; white-space:nowrap;">⭐ Marca</a>`)
+            : '';
+
           const completeBtnHtml = activeObrasSubFilter === 'agendadas'
-            ? `<button onclick="event.stopPropagation(); markObraAsRealizada(${c.zoneIdx}, ${c.clientIdx});" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:6px; padding:4px 7px; font-size:9.5px; font-weight:900; cursor:pointer; margin-left:6px; white-space:nowrap;">✅ Hecha</button>`
+            ? `<button onclick="event.stopPropagation(); markObraAsRealizada(${c.zoneIdx}, ${c.clientIdx});" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:6px; padding:4px 7px; font-size:9.5px; font-weight:900; cursor:pointer; margin-left:5px; white-space:nowrap;">✅ Hecha</button>`
             : '';
 
           housesHtml += `
@@ -6307,6 +6333,7 @@
               <span>${typeIcon}: <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small>${dateBadge}${docsBadge}</span>
               <div style="display:flex; align-items:center;">
                 <span style="color:#34d399; font-weight:800; margin-left:6px; white-space:nowrap;">${c.m2Val} m²</span>
+                ${waObraBtnHtml}
                 ${completeBtnHtml}
               </div>
             </div>
