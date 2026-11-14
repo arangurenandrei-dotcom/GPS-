@@ -2117,13 +2117,16 @@
         alert("No hay direcciones válidas para trazar ruta.");
         return;
       }
-      const cleanStops = stopsArray.map(s => encodeURIComponent(`${s}, Navarra, España`));
+      const cleanStops = stopsArray.map(s => `${s}, Navarra, España`.trim());
+      const firstStop = encodeURIComponent(cleanStops[0]);
+      
       if (cleanStops.length === 1) {
-        window.open(`https://maps.apple.com/?daddr=${cleanStops[0]}&dirflg=d`, '_blank');
+        window.open(`https://www.google.com/maps/search/?api=1&query=${firstStop}`, '_blank');
         return;
       }
-      const destination = cleanStops[cleanStops.length - 1];
-      const waypoints = cleanStops.slice(0, -1).join('|');
+      
+      const destination = encodeURIComponent(cleanStops[cleanStops.length - 1]);
+      const waypoints = cleanStops.slice(0, -1).map(s => encodeURIComponent(s)).join('|');
       window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`, '_blank');
     }
 
@@ -6345,33 +6348,7 @@
         const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
         const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
 
-        const mikelRadarCard = document.createElement('div');
-        mikelRadarCard.style.cssText = 'background:linear-gradient(135deg, #0f172a 0%, #134e4a 100%); border:1.5px solid #2dd4bf; border-radius:14px; padding:12px; margin-top:14px;';
-        mikelRadarCard.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:10px; font-weight:900; color:#5eead4; text-transform:uppercase; letter-spacing:0.5px;">🔭 RADAR COMPETENCIA • EQUIPO MIKEL (SOLO TÚ)</span>
-            <span style="font-size:9.5px; color:#99f6e4; font-weight:800;">Datos agregados</span>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:11px;">
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">⏱️ HORAS MEDIA / DÍA</div>
-              <strong style="font-size:14px; color:#fff;">${mkAvgHoursDay} h/día</strong>
-            </div>
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">🚪 PUERTAS MEDIA / DÍA</div>
-              <strong style="font-size:14px; color:#38bdf8;">${mkAvgDoorsDay} puertas</strong>
-            </div>
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">✅ TOTAL "SÍ" CAPTADOS</div>
-              <strong style="font-size:14px; color:#fde047;">${mkSi} SÍ</strong>
-            </div>
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">💰 FACT. BRUTA / REALIZADA</div>
-              <strong style="font-size:12.5px; color:#34d399;">${mkM2Bruto.toFixed(0)} € / ${mkM2Realizado.toFixed(0)} €</strong>
-            </div>
-          </div>
-        `;
-        container.appendChild(mikelRadarCard);
+        
       }
     }
 
@@ -6545,33 +6522,7 @@
         const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
         const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
 
-        const mikelRadarCard = document.createElement('div');
-        mikelRadarCard.style.cssText = 'background:linear-gradient(135deg, #0f172a 0%, #134e4a 100%); border:1.5px solid #2dd4bf; border-radius:14px; padding:12px; margin-top:14px;';
-        mikelRadarCard.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:10px; font-weight:900; color:#5eead4; text-transform:uppercase; letter-spacing:0.5px;">🔭 RADAR COMPETENCIA • EQUIPO MIKEL (SOLO TÚ)</span>
-            <span style="font-size:9.5px; color:#99f6e4; font-weight:800;">Datos agregados</span>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:11px;">
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">⏱️ HORAS MEDIA / DÍA</div>
-              <strong style="font-size:14px; color:#fff;">${mkAvgHoursDay} h/día</strong>
-            </div>
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">🚪 PUERTAS MEDIA / DÍA</div>
-              <strong style="font-size:14px; color:#38bdf8;">${mkAvgDoorsDay} puertas</strong>
-            </div>
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">✅ TOTAL "SÍ" CAPTADOS</div>
-              <strong style="font-size:14px; color:#fde047;">${mkSi} SÍ</strong>
-            </div>
-            <div style="background:rgba(0,0,0,0.3); padding:7px 9px; border-radius:8px;">
-              <div style="font-size:9px; color:#94a3b8; font-weight:800;">💰 FACT. BRUTA / REALIZADA</div>
-              <strong style="font-size:12.5px; color:#34d399;">${mkM2Bruto.toFixed(0)} € / ${mkM2Realizado.toFixed(0)} €</strong>
-            </div>
-          </div>
-        `;
-        container.appendChild(mikelRadarCard);
+        
       }
     }
 
