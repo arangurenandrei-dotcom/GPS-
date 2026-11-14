@@ -696,6 +696,49 @@
       0% { opacity: 0; transform: translate(-50%, -20px) scale(0.85); }
       100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
     }
+
+    /* TEMAS DE COLOR CONFIGURABLES EN RUEDA DE AJUSTES */
+    body.theme-esmeralda {
+      --bg-dark: #022c22;
+      --bg-panel: rgba(6, 44, 34, 0.96);
+      --primary: #059669;
+    }
+    body.theme-oro {
+      --bg-dark: #09090b;
+      --bg-panel: rgba(18, 18, 22, 0.97);
+      --primary: #d97706;
+      --border-panel: rgba(251, 191, 36, 0.3);
+    }
+    body.theme-racing {
+      --bg-dark: #18080c;
+      --bg-panel: rgba(28, 10, 16, 0.96);
+      --primary: #e11d48;
+    }
+    body.theme-sol {
+      --bg-dark: #1e293b;
+      --bg-panel: rgba(15, 23, 42, 0.98);
+      --primary: #0284c7;
+      --border-panel: rgba(255, 255, 255, 0.35);
+    }
+
+    .settings-toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 9px 11px;
+      margin-bottom: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .settings-toggle-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #10b981;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1200,19 +1243,39 @@
       `;
     }
 
+    let appPrefs = Object.assign(
+      { theme: 'zafiro', sound: true, vibrate: true, navApp: 'auto' },
+      safeLoadStorage('konsor_app_prefs')
+    );
+
+    function applyAppTheme(themeKey) {
+      document.body.classList.remove('theme-esmeralda', 'theme-oro', 'theme-racing', 'theme-sol');
+      if (themeKey && themeKey !== 'zafiro') {
+        document.body.classList.add(`theme-${themeKey}`);
+      }
+    }
+
+    function updateAppPref(key, value) {
+      appPrefs[key] = value;
+      localStorage.setItem('konsor_app_prefs', JSON.stringify(appPrefs));
+      if (key === 'theme') applyAppTheme(value);
+      if (key === 'sound' && value) triggerHapticAndSound('tap');
+      if (key === 'vibrate' && value && navigator.vibrate) navigator.vibrate(25);
+    }
+
     function openUserProfileModal() {
       const userKey = sessionStorage.getItem('auth_user_key');
       if (!userKey || isMikelTeamMember(currentUserName)) return;
       const body = document.getElementById('userProfileModalBody');
       const currentAlias = getDisplayAlias(userKey);
       const currentPin = getUserPassword(userKey);
+      const notifGranted = ('Notification' in window && Notification.permission === 'granted');
 
       let bossResetHtml = '';
       if (userKey === 'jefe') {
         const teamKeys = ['comercial1', 'comercial2', 'comercial3', 'comercial4', 'comercial5'];
         bossResetHtml = `
           <div class="modal-section-title" style="margin-top:14px;">👑 Control de PINs de tu Equipo</div>
-          <div style="font-size:10.5px; color:#94a3b8; margin-bottom:6px;">Consulta o resetea el acceso de cualquier comercial si olvida su código:</div>
           ${teamKeys.map(k => `
             <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:6px 8px; margin-bottom:5px; font-size:11px;">
               <span>🏃 <strong>${getDisplayAlias(k)}</strong> <small style="color:#64748b;">(${CANONICAL_USER_NAMES[k]})</small></span>
@@ -1223,17 +1286,62 @@
       }
 
       body.innerHTML = `
-        <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:5px;">
-          <span class="input-label">👤 Tu Nombre Visible en la App</span>
-          <input type="text" id="profileAliasInput" class="input-field" maxlength="22" value="${currentAlias}" placeholder="Ej. Carlos">
+        <div class="modal-section-title" style="margin-top:2px;">🎨 Apariencia y Color de la App</div>
+        <div class="input-group">
+          <span class="input-label">Tema Visual</span>
+          <select class="select-field" style="max-width:190px;" onchange="updateAppPref('theme', this.value)">
+            <option value="zafiro" ${appPrefs.theme==='zafiro'?'selected':''}>🌌 Noche Zafiro (Oficial)</option>
+            <option value="esmeralda" ${appPrefs.theme==='esmeralda'?'selected':''}>🌿 Esmeralda Konsor</option>
+            <option value="oro" ${appPrefs.theme==='oro'?'selected':''}>👑 Oro Ejecutivo</option>
+            <option value="racing" ${appPrefs.theme==='racing'?'selected':''}>🏎️ Carmesí Racing</option>
+            <option value="sol" ${appPrefs.theme==='sol'?'selected':''}>☀️ Alto Contraste (Calle)</option>
+          </select>
         </div>
 
-        <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:5px;">
-          <span class="input-label">🔢 Nuevo PIN de Acceso (4 números)</span>
-          <input type="tel" id="profilePinInput" class="input-field" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" value="${currentPin}" placeholder="Ej. 4829">
+        <div class="modal-section-title">🔊 Sonidos, Vibración y Avisos Móvil</div>
+        <label class="settings-toggle-row">
+          <span>🔊 Efectos de sonido en botones y ventas</span>
+          <input type="checkbox" ${appPrefs.sound ? 'checked' : ''} onchange="updateAppPref('sound', this.checked)">
+        </label>
+
+        <label class="settings-toggle-row">
+          <span>📳 Vibración háptica al pulsar</span>
+          <input type="checkbox" ${appPrefs.vibrate ? 'checked' : ''} onchange="updateAppPref('vibrate', this.checked)">
+        </label>
+
+        <div class="settings-toggle-row">
+          <span>🔔 Notificaciones Push en el móvil</span>
+          <button type="button" onclick="requestMobileNotifications()" style="background:${notifGranted ? '#059669' : '#0284c7'}; border:none; color:#fff; font-size:10.5px; font-weight:900; padding:6px 10px; border-radius:8px; cursor:pointer;">
+            ${notifGranted ? '✅ Activas' : 'Activar ahora'}
+          </button>
         </div>
 
-        <button class="btn-modal-save" onclick="saveUserProfileSettings()">💾 Guardar Nombre y PIN</button>
+        <div class="input-group">
+          <span class="input-label">🧭 App GPS para Rutas</span>
+          <select class="select-field" style="max-width:190px;" onchange="updateAppPref('navApp', this.value)">
+            <option value="auto" ${appPrefs.navApp==='auto'?'selected':''}>📱 Automático (Según móvil)</option>
+            <option value="apple" ${appPrefs.navApp==='apple'?'selected':''}>🍎 Siempre Apple Maps</option>
+            <option value="google" ${appPrefs.navApp==='google'?'selected':''}>🗺️ Siempre Google Maps</option>
+          </select>
+        </div>
+
+        <button type="button" onclick="triggerHapticAndSound('success')" style="width:100%; padding:8px; border-radius:9px; border:1px dashed #34d399; background:rgba(16,185,129,0.14); color:#6ee7b7; font-size:11px; font-weight:800; cursor:pointer; margin-bottom:6px;">
+          🎵 Probar Sonido de Venta y Vibración
+        </button>
+
+        <div class="modal-section-title">👤 Mi Perfil y PIN de Acceso</div>
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9.5px; color:#94a3b8; font-weight:800;">NOMBRE VISIBLE</label>
+            <input type="text" id="profileAliasInput" class="input-field" maxlength="22" value="${currentAlias}">
+          </div>
+          <div>
+            <label style="font-size:9.5px; color:#94a3b8; font-weight:800;">PIN (4 DÍGITOS)</label>
+            <input type="tel" id="profilePinInput" class="input-field" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" value="${currentPin}">
+          </div>
+        </div>
+
+        <button class="btn-modal-save" onclick="saveUserProfileSettings()">💾 Guardar Cambios</button>
         ${bossResetHtml}
       `;
       document.getElementById('userProfileModal').classList.add('active');
@@ -1261,8 +1369,9 @@
       }
 
       document.getElementById('displayUserName').innerText = newAlias;
+      triggerHapticAndSound('success');
       closeModal('userProfileModal');
-      alert(`✅ Perfil actualizado: ${newAlias} (PIN: ${newPin})`);
+      showCelebrationToast(`✅ Ajustes guardados (${newAlias})`);
     }
 
     const COMMERCIAL_COLORS = {
@@ -2169,7 +2278,9 @@
       if (!stopsArray || stopsArray.length === 0) return '#';
       const cleanStops = stopsArray.map(s => `${s}, Navarra, España`.trim());
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const useAppleMaps = appPrefs.navApp === 'apple' || (appPrefs.navApp !== 'google' && isIOS);
 
+      if (useAppleMaps) {
       if (isIOS) {
         const chainedStops = cleanStops.map(s => encodeURIComponent(s)).join('+to:');
         return `maps://?daddr=${chainedStops}&dirflg=d`;
@@ -6657,62 +6768,91 @@
        MOTOR SENSORIAL 2027: SONIDOS, VIBRACIÓN Y NOTIFICACIONES MÓVILES
        ===================================================================== */
     let sharedAudioCtx = null;
+    let isIosAudioUnlocked = false;
 
-    function triggerHapticAndSound(type = 'tap') {
-      // 1. Vibración háptica (Android y navegadores compatibles)
-      if (navigator.vibrate) {
-        if (type === 'tap') navigator.vibrate(14);
-        else if (type === 'success') navigator.vibrate([35, 55, 90]);
-        else if (type === 'alert') navigator.vibrate([70, 50, 70]);
-      }
-
-      // 2. Sonido sintetizado limpio sin archivos externos (funciona en iOS y Android)
+    function unlockIosAudioEngine() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
         if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
-
-        const now = sharedAudioCtx.currentTime;
-        const osc = sharedAudioCtx.createOscillator();
-        const gain = sharedAudioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(sharedAudioCtx.destination);
-
-        if (type === 'tap') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(520, now);
-          osc.frequency.exponentialRampToValueAtTime(760, now + 0.045);
-          gain.gain.setValueAtTime(0.06, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-          osc.start(now);
-          osc.stop(now + 0.055);
-        } else if (type === 'success') {
-          // Acorde ascendente de cierre / venta (Do - Mi - Sol)
-          const notes = [523.25, 659.25, 783.99, 1046.5];
-          notes.forEach((freq, i) => {
-            const o = sharedAudioCtx.createOscillator();
-            const g = sharedAudioCtx.createGain();
-            o.type = 'triangle';
-            o.frequency.setValueAtTime(freq, now + i * 0.065);
-            g.gain.setValueAtTime(0.11, now + i * 0.065);
-            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.065 + 0.22);
-            o.connect(g);
-            g.connect(sharedAudioCtx.destination);
-            o.start(now + i * 0.065);
-            o.stop(now + i * 0.065 + 0.24);
-          });
-        } else if (type === 'alert') {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(340, now);
-          osc.frequency.setValueAtTime(280, now + 0.12);
-          gain.gain.setValueAtTime(0.08, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-          osc.start(now);
-          osc.stop(now + 0.26);
+        if (!isIosAudioUnlocked) {
+          const buf = sharedAudioCtx.createBuffer(1, 1, 22050);
+          const src = sharedAudioCtx.createBufferSource();
+          src.buffer = buf;
+          src.connect(sharedAudioCtx.destination);
+          src.start(0);
+          isIosAudioUnlocked = true;
         }
       } catch (e) {}
     }
+
+    function playToneSchedule(type) {
+      if (!sharedAudioCtx) return;
+      const now = sharedAudioCtx.currentTime;
+
+      if (type === 'tap') {
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(620, now);
+        osc.frequency.exponentialRampToValueAtTime(920, now + 0.055);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      } else if (type === 'success') {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const o = sharedAudioCtx.createOscillator();
+          const g = sharedAudioCtx.createGain();
+          o.type = 'triangle';
+          o.frequency.setValueAtTime(freq, now + i * 0.065);
+          g.gain.setValueAtTime(0.28, now + i * 0.065);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.065 + 0.24);
+          o.connect(g);
+          g.connect(sharedAudioCtx.destination);
+          o.start(now + i * 0.065);
+          o.stop(now + i * 0.065 + 0.25);
+        });
+      } else if (type === 'alert') {
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(360, now);
+        osc.frequency.setValueAtTime(280, now + 0.12);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+    }
+
+    function triggerHapticAndSound(type = 'tap') {
+      if (appPrefs.vibrate !== false && navigator.vibrate) {
+        if (type === 'tap') navigator.vibrate(14);
+        else if (type === 'success') navigator.vibrate([35, 55, 90]);
+        else if (type === 'alert') navigator.vibrate([70, 50, 70]);
+      }
+
+      if (appPrefs.sound === false) return;
+
+      try {
+        unlockIosAudioEngine();
+        if (!sharedAudioCtx) return;
+        if (sharedAudioCtx.state === 'suspended') {
+          sharedAudioCtx.resume().then(() => playToneSchedule(type));
+        } else {
+          playToneSchedule(type);
+        }
+      } catch (e) {}
+    }
+
+    document.addEventListener('touchstart', unlockIosAudioEngine, { passive: true });
 
     function showCelebrationToast(msg) {
       const old = document.querySelector('.celebration-toast');
@@ -6780,6 +6920,7 @@
     }
 
     window.onload = () => {
+      applyAppTheme(appPrefs.theme);
       refreshLoginDropdownAliases();
       const savedRole = sessionStorage.getItem('auth_role');
       const savedName = sessionStorage.getItem('auth_name');
