@@ -2281,7 +2281,6 @@
       const useAppleMaps = appPrefs.navApp === 'apple' || (appPrefs.navApp !== 'google' && isIOS);
 
       if (useAppleMaps) {
-      if (isIOS) {
         const chainedStops = cleanStops.map(s => encodeURIComponent(s)).join('+to:');
         return `maps://?daddr=${chainedStops}&dirflg=d`;
       }
@@ -3573,6 +3572,14 @@
           if (streetInput && !streetInput.value && road) {
             streetInput.value = `${road}${houseNum}`;
           }
+          const cpInput = body.querySelector('.client-cp');
+          if (cpInput && !cpInput.value) {
+            const autoCp = addr.postcode || detectCteZoneFromCpAndTown('', detectedTown).cp;
+            if (autoCp) {
+              cpInput.value = autoCp;
+              updateClientCteFromCp(cpInput);
+            }
+          }
         } catch (e) {
           if (townInput && townInput.value === 'Detectando...') townInput.value = 'Peralta';
         }
@@ -3590,6 +3597,10 @@
       const obraTimeVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-time')?.value || '09:30') : '';
 
       const buildYearVal = box.querySelector('.client-build-year')?.value.trim() || '';
+      const postalCodeVal = box.querySelector('.client-cp')?.value.trim() || '';
+      const cteZoneRaw = box.querySelector('.client-cte-zone')?.value.trim() || '';
+      const cteZoneVal = cteZoneRaw === 'Auto por CP' || cteZoneRaw === 'Sin detectar' ? '' : cteZoneRaw;
+      const emailVal = box.querySelector('.client-email')?.value.trim() || '';
       const accessTypeVal = box.querySelector('.client-access-type')?.value || 'Trampilla';
       const accessOtherVal = accessTypeVal === 'Otro' ? (box.querySelector('.client-access-other')?.value.trim() || '') : '';
       const atticPhotoVal = box.dataset.atticPhoto || existingMeta.atticPhoto || '';
@@ -3619,7 +3630,10 @@
           isPresi: box.querySelector('.client-is-presi').value === 'si',
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
+          postalCode: postalCodeVal,
+          cteZone: cteZoneVal,
           phone: box.querySelector('.client-phone').value.trim(),
+          email: emailVal,
           buildYear: buildYearVal,
           accessType: accessTypeVal,
           accessOther: accessOtherVal,
@@ -3641,7 +3655,10 @@
           type: 'vivienda',
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
+          postalCode: postalCodeVal,
+          cteZone: cteZoneVal,
           phone: box.querySelector('.client-phone').value.trim(),
+          email: emailVal,
           buildYear: buildYearVal,
           accessType: accessTypeVal,
           accessOther: accessOtherVal,
@@ -4564,8 +4581,11 @@
 
       const preserved = {
         street: parentBox.querySelector('.client-street')?.value || '',
+        postalCode: parentBox.querySelector('.client-cp')?.value || '',
+        cteZone: parentBox.querySelector('.client-cte-zone')?.value || '',
         name: parentBox.querySelector('.client-name')?.value || '',
         phone: parentBox.querySelector('.client-phone')?.value || '',
+        email: parentBox.querySelector('.client-email')?.value || '',
         buildYear: parentBox.querySelector('.client-build-year')?.value || '',
         accessType: parentBox.querySelector('.client-access-type')?.value || 'Trampilla',
         accessOther: parentBox.querySelector('.client-access-other')?.value || '',
@@ -4588,6 +4608,83 @@
       const otherBox = area ? area.querySelector('.access-other-box') : null;
       if (otherBox) {
         otherBox.style.display = selectEl.value === 'Otro' ? 'block' : 'none';
+      }
+    }
+
+    const NAVARRA_CTE_BY_CP = {
+      '31001':'D2','31002':'D2','31003':'D2','31004':'D2','31005':'D2','31006':'D2','31007':'D2','31008':'D2','31009':'D2','31010':'D2','31011':'D2','31012':'D2','31013':'D2','31014':'D2','31015':'D2','31016':'D2',
+      '31180':'D2','31190':'D2','31191':'D2','31192':'D2','31194':'D2','31195':'D2','31600':'D2','31610':'D2','31620':'D2','31621':'D2',
+      '31100':'D2','31110':'D2','31120':'D2','31130':'D2','31131':'D2','31132':'D2','31140':'D2','31150':'D2','31160':'D2','31170':'D2',
+      '31200':'D2','31210':'D2','31220':'D2','31230':'D1','31240':'D2','31250':'D2','31260':'D2','31261':'D2','31262':'D2','31263':'D2','31264':'D2','31270':'D2','31280':'D2','31290':'D2','31291':'D2','31292':'D2',
+      '31300':'D2','31310':'D2','31311':'D2','31312':'D2','31313':'D2','31314':'D2','31315':'D2','31320':'D2','31330':'D2','31340':'D2','31350':'D2','31360':'D2','31370':'D2','31380':'D2','31381':'D2','31382':'D2','31390':'D2','31391':'D2','31392':'D2','31393':'D2','31394':'D2','31395':'D2','31396':'D2','31397':'D2','31398':'D2',
+      '31400':'D2','31410':'D2','31420':'D2','31430':'D2','31440':'E1','31450':'E1','31460':'E1','31470':'E1','31480':'D2','31490':'D2',
+      '31500':'D2','31510':'D2','31511':'D2','31512':'D2','31513':'D2','31514':'D2','31515':'D2','31520':'D2','31521':'D2','31522':'D2','31523':'D2','31530':'D2','31540':'D2','31550':'D2','31560':'D2','31570':'D2','31580':'D1','31587':'D1','31588':'D1','31589':'D1','31590':'D2','31591':'D2','31592':'D2','31593':'D2','31594':'D2',
+      '31630':'E1','31640':'E1','31650':'E1','31660':'E1','31670':'E1','31680':'E1','31690':'E1',
+      '31700':'D1','31710':'D1','31720':'D1','31730':'D1','31740':'D1','31750':'D1','31760':'D1','31770':'D1','31780':'D1','31790':'D1',
+      '31800':'D1','31810':'D1','31820':'D1','31830':'D1','31840':'D1','31850':'D1','31860':'D1','31866':'D1','31867':'D1','31868':'D1','31869':'D1','31870':'D1','31876':'D1','31877':'D1','31878':'D1','31879':'D1','31880':'D1','31890':'D1','31891':'D1','31892':'D1'
+    };
+
+    const NAVARRA_TOWN_TO_CP = {
+      'pamplona':'31001','iruna':'31001','tudela':'31500','baranain':'31010','burlada':'31600','estella':'31200','zizur':'31180','zizur mayor':'31180','zizur menor':'31190',
+      'tafalla':'31300','villava':'31610','ansoain':'31013','berriozar':'31013','arangoiti':'31192','mutilva':'31192','noain':'31110','cizur':'31190','egues':'31620','sarriguren':'31621',
+      'huarte':'31620','peralta':'31350','funes':'31360','falces':'31370','san adrian':'31570','azagra':'31560','lodosa':'31580','mendavia':'31587','sesma':'31293','carcar':'31579',
+      'andosilla':'31261','lerín':'31260','lerin':'31260','milagro':'31320','cadreita':'31515','villafranca':'31330','marcilla':'31340','caparroso':'31380','oliete':'31390','olite':'31390',
+      'corella':'31591','cintruenigo':'31592','fitero':'31593','cascante':'31520','murchante':'31521','castejon':'31590','valtierra':'31514','arguedas':'31513','ribaforada':'31550','cortes':'31530','bunuel':'31540','ablitas':'31523','monteagudo':'31522',
+      'sanguesa':'31400','lumbier':'31440','aoiz':'31430','puente la reina':'31100','artajona':'31140','larraga':'31251','berbinzana':'31252','miranda de arga':'31253','mendigorria':'31150','maneru':'31130','cirauqui':'31131','oteiza':'31250','villatuerta':'31132',
+      'viana':'31230','los arcos':'31210','alló':'31262','allo':'31262','dicastillo':'31263','arróniz':'31243','arroniz':'31243','ayegui':'31240','murieta':'31280','ancin':'31281','zubielqui':'31241',
+      'alsasua':'31800','altsasu':'31800','olazti':'31809','olazagutia':'31809','etxarri aranatz':'31820','lakuntza':'31830','arbizu':'31839','uharte arakil':'31840','irurtzun':'31860','lekunberri':'31870','leitza':'31880','goizueta':'31754',
+      'elizondo':'31700','baztan':'31700','doneztebe':'31740','santesteban':'31740','lesaka':'31770','bera':'31780','vera de bidasoa':'31780','etxalar':'31760','igantzi':'31790','arantza':'31790','sunbilla':'31791','bertizarana':'31793',
+      'roncal':'31415','isaba':'31417','ochagavia':'31680','burguete':'31640','auritz':'31640','erro':'31696','zubiri':'31630','esteribar':'31630'
+    };
+
+    function detectCteZoneFromCpAndTown(cpStr, townStr = '') {
+      const cleanCp = String(cpStr || '').replace(/\D/g, '').slice(0, 5);
+      const normTown = String(townStr || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+      let resolvedCp = cleanCp;
+      if (resolvedCp.length !== 5 && normTown) {
+        resolvedCp = NAVARRA_TOWN_TO_CP[normTown] || '';
+      }
+
+      if (resolvedCp.length === 5) {
+        if (NAVARRA_CTE_BY_CP[resolvedCp]) {
+          const z = NAVARRA_CTE_BY_CP[resolvedCp];
+          return { cp: resolvedCp, cteZone: z, isApto: /^[DE][123]$/.test(z) };
+        }
+        const prefix2 = resolvedCp.slice(0, 2);
+        // Provincias con zonas A, B o C (costa / sur / islas -> NO APTAS para D/E)
+        const nonEligiblePrefixes = ['03','04','07','08','11','12','15','17','20','21','27','29','30','33','35','36','38','39','41','43','46','48','51','52'];
+        if (nonEligiblePrefixes.includes(prefix2)) {
+          return { cp: resolvedCp, cteZone: 'C / B / A (Fuera D-E)', isApto: false };
+        }
+        if (prefix2 === '31') {
+          return { cp: resolvedCp, cteZone: 'D2', isApto: true };
+        }
+        return { cp: resolvedCp, cteZone: 'D2 / D3', isApto: true };
+      }
+
+      return { cp: resolvedCp, cteZone: '', isApto: true };
+    }
+
+    function updateClientCteFromCp(inputEl) {
+      const area = inputEl.closest('.client-fields-dynamic-area');
+      if (!area) return;
+      const townContext = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const info = detectCteZoneFromCpAndTown(inputEl.value, townContext);
+      const cteInput = area.querySelector('.client-cte-zone');
+      const warnSlot = area.querySelector('.cte-warning-slot');
+
+      if (cteInput) {
+        cteInput.value = info.cteZone || 'Sin detectar';
+        cteInput.style.color = !info.cteZone ? '#94a3b8' : (info.isApto ? '#34d399' : '#fca5a5');
+        cteInput.style.borderColor = !info.cteZone ? 'rgba(255,255,255,0.2)' : (info.isApto ? '#059669' : '#ef4444');
+      }
+      if (warnSlot) {
+        warnSlot.innerHTML = (info.cteZone && !info.isApto)
+          ? `<div class="year-warning-alert">🚫 NO APTA CTE: Zona ${info.cteZone}. Solo trabajamos zonas D (D1, D2, D3) y E (E1, E2, E3).</div>`
+          : '';
       }
     }
 
@@ -4623,14 +4720,40 @@
       const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
 
+      const townCtx = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const cteAuto = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtx);
+      const cpDisplay = existing.postalCode || cteAuto.cp || '';
+      const cteDisplay = existing.cteZone || cteAuto.cteZone || '';
+      const isCteInvalid = cteDisplay && !/^[DE][123]$/.test(cteDisplay);
+
       return `
         <div class="grid-row-2">
           <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
         </div>
+
+        <div style="margin-bottom:6px;">
+          <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico (Opcional)" value="${existing.email || ''}">
+        </div>
         
         <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+        </div>
+
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
+            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplay}" oninput="updateClientCteFromCp(this)">
+          </div>
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">🌡️ ZONA CTE (D1-D3 / E1-E3)</label>
+            <input type="text" class="input-field client-cte-zone" readonly value="${cteDisplay || 'Auto por CP'}" style="color:${!cteDisplay ? '#94a3b8' : (isCteInvalid ? '#fca5a5' : '#34d399')}; border-color:${!cteDisplay ? 'rgba(255,255,255,0.2)' : (isCteInvalid ? '#ef4444' : '#059669')};">
+          </div>
+        </div>
+        <div class="cte-warning-slot">
+          ${isCteInvalid ? `<div class="year-warning-alert">🚫 NO APTA CTE: Zona ${cteDisplay}. Solo trabajamos zonas D (D1, D2, D3) y E (E1, E2, E3).</div>` : ''}
         </div>
 
        ${!isMikelTeamMember(currentUserName) ? `
@@ -4748,8 +4871,30 @@
           </div>
         </div>
 
+       const townCtxCom = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
+      const cpDisplayCom = existing.postalCode || cteAutoCom.cp || '';
+      const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
+      const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
+
        <div style="margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+        </div>
+
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
+            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplayCom}" oninput="updateClientCteFromCp(this)">
+          </div>
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">🌡️ ZONA CTE (D1-D3 / E1-E3)</label>
+            <input type="text" class="input-field client-cte-zone" readonly value="${cteDisplayCom || 'Auto por CP'}" style="color:${!cteDisplayCom ? '#94a3b8' : (isCteInvalidCom ? '#fca5a5' : '#34d399')}; border-color:${!cteDisplayCom ? 'rgba(255,255,255,0.2)' : (isCteInvalidCom ? '#ef4444' : '#059669')};">
+          </div>
+        </div>
+        <div class="cte-warning-slot">
+          ${isCteInvalidCom ? `<div class="year-warning-alert">🚫 NO APTA CTE: Zona ${cteDisplayCom}. Solo trabajamos zonas D (D1, D2, D3) y E (E1, E2, E3).</div>` : ''}
         </div>
 
         ${!isMikelTeamMember(currentUserName) ? `
@@ -4763,6 +4908,10 @@
         <div class="grid-row-2">
           <input type="text" class="input-field client-name" placeholder="Nombre Presidente / Enlace" value="${existing.name || ''}">
           <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
+        </div>
+
+        <div style="margin-bottom:6px;">
+          <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico presidente / administrador" value="${existing.email || ''}">
         </div>
 
         <div class="grid-row-2">
