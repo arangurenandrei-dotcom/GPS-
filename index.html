@@ -2973,10 +2973,35 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       updateObraDayInfo(dateInpId);
     }
 
+       function obraSlotsUsage(iso) {
+      const used = {};
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial)) return;
+        (z.clients || []).forEach(c => {
+          if (c.obraStatus === 'agendada' && c.obraDate === iso && c.obraTime) {
+            used[c.obraTime] = (used[c.obraTime] || 0) + 1;
+          }
+        });
+      });
+      return used;
+    }
+
+    function obraSlotOptionsForDate(iso) {
+      const used = obraSlotsUsage(iso);
+      const firstFree = OBRA_SLOTS.find(s => !used[s.start]);
+      return OBRA_SLOTS.map(s => {
+        const busy = used[s.start];
+        const isSel = firstFree && firstFree.start === s.start;
+        return `<option value="${s.start}" ${busy ? 'disabled' : ''} ${isSel ? 'selected' : ''}>${busy ? '⛔ Ocupada' : '✅ Libre'} · ${s.start} – ${s.end}</option>`;
+      }).join('');
+    }
+
     function updateObraDayInfo(dateInpId) {
       const inp = document.getElementById(dateInpId);
       const info = document.getElementById(dateInpId + '_info');
       if (inp && info && inp.value) info.innerText = obraDayInfoText(inp.value);
+      const sel = document.getElementById(dateInpId.replace('sched_date_', 'sched_time_'));
+      if (inp && sel && inp.value) sel.innerHTML = obraSlotOptionsForDate(inp.value);
     }
 
     function renderFollowUpsModal() {
@@ -3143,7 +3168,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
                   </div>
                   <div id="${dateInpId}_info" style="font-size:9.5px; color:#a7f3d0; font-weight:800;">${obraDayInfoText(findFreeObraDay(getTomorrowISO(), 1))}</div>
                 </div>
-                    <select id="${timeInpId}" class="select-field" style="padding:6px 8px;">${obraSlotOptions('09:00')}</select>
+                    <select id="${timeInpId}" class="select-field" style="padding:6px 8px;">${obraSlotOptionsForDate(findFreeObraDay(getTomorrowISO(), 1))}</select>
               </div>
               <button onclick="confirmScheduleFromFollowUp(${item.zoneIdx}, ${item.clientIdx}, '${dateInpId}', '${timeInpId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">
                 ✅ Confirmar Cita de Obra
@@ -7686,7 +7711,8 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       container.prepend(bossTotalCard);
     }
 
-    function renderObrasOptimizationAudit() {
+        function renderObrasOptimizationAudit() {
+      if (activeObrasSubFilter === 'porAgendar') { renderPorAgendarView(); return; }
       const container = document.getElementById('auditContainer');
       container.innerHTML = '';
 
@@ -7765,6 +7791,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       subFilterBar.innerHTML = `
         <button class="subtab-btn ${activeObrasSubFilter==='agendadas'?'active':''}" onclick="setObrasSubFilter('agendadas')">📅 Citas Agendadas</button>
         <button class="subtab-btn ${activeObrasSubFilter==='realizadas'?'active':''}" onclick="setObrasSubFilter('realizadas')">✅ Obras Realizadas</button>
+        <button class="subtab-btn" onclick="setObrasSubFilter('porAgendar')">🧩 Por agendar</button>
       `;
       container.appendChild(subFilterBar);
 
@@ -7893,6 +7920,172 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
         
       }
+    }
+
+    let ficheroGeoCache = {};
+    try { ficheroGeoCache = JSON.parse(localStorage.getItem('konsor_geo_cache') || '{}'); } catch (e) {}
+
+    function geoKeyFor(street, town) {
+      return `${(street || '').toLowerCase().trim()}|${(town || '').toLowerCase().trim()}`;
+    }
+
+    function distKm(a, b) {
+      const R = 6371, rad = Math.PI / 180;
+      const dLat = (b.lat - a.lat) * rad;
+      const dLon = (b.lon - a.lon) * rad;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    function getPendingFichas() {
+      const list = [];
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial)) return;
+        (z.clients || []).forEach((c, cIdx) => {
+          if (!isClientValidFilled(c)) return;
+          if (c.obraStatus && c.obraStatus !== 'a_poner') return;
+          list.push({
+            town: (z.town || 'Navarra').trim(),
+            street: (c.street || '').trim(),
+            name: c.name || 'Cliente',
+            m2: getM2NumericValue(c.m2),
+            comercial: z.comercial,
+            zIdx, cIdx
+          });
+        });
+      });
+      return list;
+    }
+
+    function findDayForN(n) {
+      const counts = countObrasByDate();
+      const d = new Date(getTomorrowISO() + 'T12:00:00');
+      for (let i = 0; i < 150; i++) {
+        const iso = getLocalDateISO(d);
+        if (d.getDay() !== 0 && (counts[iso] || 0) + n <= 4) return iso;
+        d.setDate(d.getDate() + 1);
+      }
+      return null;
+    }
+
+    async function geocodeTownFichas(townName, btn) {
+      if (btn) { btn.innerText = '⏳ Calculando...'; btn.disabled = true; }
+      const items = getPendingFichas().filter(it => it.town === townName && it.street);
+      for (const it of items) {
+        const key = geoKeyFor(it.street, townName);
+        if (ficheroGeoCache[key]) continue;
+        try {
+          const cands = await queryCartoCiudadNavarra(`${it.street} ${townName}`);
+          const best = (cands || []).find(c => (c.town || '').toLowerCase().includes(townName.toLowerCase())) || (cands || [])[0];
+          ficheroGeoCache[key] = best ? { lat: best.lat, lon: best.lon } : { fail: true };
+        } catch (e) {}
+      }
+      try { localStorage.setItem('konsor_geo_cache', JSON.stringify(ficheroGeoCache)); } catch (e) {}
+      renderPorAgendarView();
+    }
+
+    function groupByProximity(items) {
+      const pts = [];
+      const noGeo = [];
+      items.forEach(it => {
+        const g = ficheroGeoCache[geoKeyFor(it.street, it.town)];
+        if (g && !g.fail) pts.push({ it, lat: g.lat, lon: g.lon });
+        else noGeo.push(it);
+      });
+      pts.sort((a, b) => a.lon - b.lon);
+      const groups = [];
+      while (pts.length) {
+        let cur = pts.shift();
+        const group = [{ ...cur, dPrev: null }];
+        while (group.length < 4 && pts.length) {
+          let bi = 0, bd = Infinity;
+          pts.forEach((p, i) => {
+            const d = distKm(cur, p);
+            if (d < bd) { bd = d; bi = i; }
+          });
+          cur = pts.splice(bi, 1)[0];
+          group.push({ ...cur, dPrev: bd });
+        }
+        groups.push(group);
+      }
+      return { groups, noGeo };
+    }
+
+    function renderPorAgendarView() {
+      const container = document.getElementById('auditContainer');
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pending = getPendingFichas();
+      const byTown = {};
+      pending.forEach(it => { (byTown[it.town] = byTown[it.town] || []).push(it); });
+      const towns = Object.keys(byTown).sort((a, b) => byTown[b].length - byTown[a].length);
+
+      let html = `
+        <div class="subtab-bar">
+          <button class="subtab-btn" onclick="setObrasSubFilter('agendadas')">📅 Citas Agendadas</button>
+          <button class="subtab-btn" onclick="setObrasSubFilter('realizadas')">✅ Obras Realizadas</button>
+          <button class="subtab-btn active" onclick="setObrasSubFilter('porAgendar')">🧩 Por agendar</button>
+        </div>
+        <div style="background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:12px; padding:9px 10px; margin-bottom:10px; font-size:11px; color:#dbeafe;">
+          Fichas captadas <strong>sin cita</strong> (${pending.length}), por pueblo. Pulsa <strong>Calcular cercanía</strong> para agruparlas de 4 en 4 según lo cerca que están las calles.
+        </div>
+      `;
+
+      if (towns.length === 0) {
+        html += `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">No hay fichas pendientes de cita.</div>`;
+        container.innerHTML = html;
+        return;
+      }
+
+      towns.forEach(town => {
+        const items = byTown[town];
+        const missing = items.filter(it => it.street && !ficheroGeoCache[geoKeyFor(it.street, town)]).length;
+        const totalM2 = items.reduce((a, it) => a + it.m2, 0);
+        const safeTown = town.replace(/'/g, "\\'");
+        html += `
+          <div class="audit-card" style="cursor:default; border-left:4px solid #38bdf8;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:13px; color:#38bdf8;">📍 ${esc(town)} · ${items.length} ficha(s) · ${totalM2} m²</strong>
+              ${missing > 0 ? `<button onclick="geocodeTownFichas('${safeTown}', this)" style="background:#0284c7; border:1px solid #38bdf8; color:#fff; font-size:10px; font-weight:900; padding:5px 8px; border-radius:7px; cursor:pointer; white-space:nowrap;">📍 Calcular cercanía</button>` : ''}
+            </div>
+        `;
+
+        const { groups, noGeo } = groupByProximity(items);
+        groups.forEach((g, gi) => {
+          const gM2 = g.reduce((a, p) => a + p.it.m2, 0);
+          const day = findDayForN(g.length);
+          const stops = g.map(p => `${p.it.street}, ${p.it.town}`);
+          const routeUrl = buildMultiStopMapsUrl(stops);
+          html += `
+            <div style="background:rgba(0,0,0,0.28); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:7px 9px; margin-top:7px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:11px; font-weight:900; color:#fde047;">
+                <span>🧩 Grupo ${gi + 1} · ${g.length} obra(s) · ${gM2} m²</span>
+                <a href="${routeUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px;">🧭 Ruta</a>
+              </div>
+              <div style="font-size:10px; color:#a7f3d0; margin:2px 0 4px 0;">${day ? '📅 Primer día con hueco para todo el grupo: <strong>' + formatDate(day) + '</strong>' : 'Sin día libre próximo'}</div>
+          `;
+          g.forEach(p => {
+            const far = p.dPrev !== null && p.dPrev > 1.5;
+            const distTxt = p.dPrev === null ? 'Inicio' : (p.dPrev < 1 ? Math.round(p.dPrev * 1000) + ' m del anterior' : p.dPrev.toFixed(1) + ' km del anterior');
+            html += `
+              <div style="font-size:11px; background:rgba(255,255,255,0.05); padding:5px 7px; border-radius:6px; margin-top:3px; display:flex; justify-content:space-between; gap:6px;">
+                <span>🏠 <strong>${esc(p.it.name)}</strong> · ${esc(p.it.street)} <small style="color:#94a3b8;">(${esc(p.it.comercial)})</small></span>
+                <span style="white-space:nowrap; color:${far ? '#fca5a5' : '#94a3b8'}; font-weight:800;">${far ? '⚠️ ' : ''}${distTxt} · ${p.it.m2} m²</span>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        });
+
+        if (noGeo.length > 0) {
+          html += `<div style="font-size:10px; color:#94a3b8; margin-top:6px;">Sin ubicar todavía (${noGeo.length}): ${noGeo.map(it => esc(it.street || it.name)).join(' · ')}</div>`;
+        }
+        html += `
+            <button onclick="closeModal('auditModal'); openFollowUpsModal();" style="width:100%; margin-top:7px; padding:7px; border:none; border-radius:8px; background:#059669; color:#fff; font-size:10.5px; font-weight:900; cursor:pointer;">📞 Ir a Llamar para citarlas</button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
     }
 
     function openNoteModal(zoneIdx) {
