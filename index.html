@@ -3598,7 +3598,9 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
     }
 
     function getCommercialPiqueAndAlerts(comName) {
-      const team = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+            const team = comName === 'Andrei (Jefe)'
+        ? ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5']
+        : ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       const scores = team.map(name => {
         let m2 = 0;
         savedZones.forEach(z => {
@@ -3609,7 +3611,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
             }
           });
         });
-        return { name, bruto: m2 * 1.0, bolsillo: m2 * 0.85 };
+        return { name, bruto: m2 * 1.0, bolsillo: m2 * (name === 'Andrei (Jefe)' ? 1.0 : 0.85) };
       }).sort((a, b) => b.bruto - a.bruto);
 
       const myIdx = scores.findIndex(s => s.name === comName);
@@ -3689,7 +3691,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
           todaySiCount += validClientsToday > 0 ? validClientsToday : (z.stats?.si || 0);
         }
       });
-      const todayNeto = todayM2 * 0.85;
+      const todayNeto = todayM2 * (currentUserName === 'Andrei (Jefe)' ? 1.0 : 0.85);
       const goalSi = 10;
       const goalPct = Math.min(100, Math.round((todaySiCount / goalSi) * 100));
 
