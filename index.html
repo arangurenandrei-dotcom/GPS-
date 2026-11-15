@@ -4472,7 +4472,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         z.town = townVal;
         z.sectorName = sectorTitle;
         z.comercial = comercialVal;
-        z.stats = { no: 0, ausente: 0, papelito: 0, si: 1 };
+        z.stats = { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 };
         z.clients = [clientObj];
       } else {
         savedZones.push({
@@ -4488,7 +4488,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
           pendingNote: '',
           status: 'completada',
           points: [],
-          stats: { no: 0, ausente: 0, papelito: 0, si: 1 },
+          stats: { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 },
           clients: [clientObj]
         });
       }
@@ -5023,7 +5023,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
             <input type="text" id="supervisionBossNoteInput" class="input-field" placeholder="Ej. Remata esa acera mañana primera hora..." value="${z.bossNote || ''}" style="width:100%;">
           </div>
 
-          <div class="modal-section-title">🏡 Fichas Técnicas Captadas (${z.clients ? z.clients.length : 0})</div>
+          <div class="modal-section-title">🏡 Fichas Técnicas Captadas (${z.clients ? z.clients.filter(c => c.obraStatus !== 'no_apto').length : 0})</div>
           ${clientsHtml}
 
           <div style="display:flex; gap:8px; margin-top:14px;">
@@ -5911,7 +5911,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
         papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
         yaAislado: parseInt(document.getElementById('dumpYaAislado')?.value) || 0,
-        si: validFilledCount > 0 ? validFilledCount : reportedSi
+        si: validFilledCount > 0 ? z.clients.filter(c => isClientValidFilled(c) && c.obraStatus !== 'no_apto').length : reportedSi
       };
 
       const newStatus = document.getElementById('dumpProgressState').value;
@@ -8202,7 +8202,30 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
+    function repairNoAptoSiCounts() {
+      let fixed = 0;
+      savedZones.forEach(z => {
+        if (!z.clients || z.clients.length === 0 || !z.stats) return;
+        const valid = z.clients.filter(c => isClientValidFilled(c)).length;
+        if (valid === 0) return;
+        const apto = z.clients.filter(c => isClientValidFilled(c) && c.obraStatus !== 'no_apto').length;
+        if ((z.stats.si || 0) !== apto) {
+          z.stats.si = apto;
+          z._updatedAt = Date.now();
+          fixed++;
+        }
+      });
+      if (fixed > 0) saveAndSync('comercial_custom_zones', savedZones);
+      return fixed;
+    }
+
     function openComplianceModal() {
+      const n = repairNoAptoSiCounts();
+      openComplianceModalBase();
+      if (n > 0) setTimeout(() => alert(`🛠️ He corregido el contador de SÍ en ${n} zona(s): las fichas no aptas ya no cuentan como SÍ.`), 300);
+    }
+
+    function openComplianceModalBase() {
       let modal = document.getElementById('complianceModal');
       if (!modal) {
         modal = document.createElement('div');
