@@ -2703,6 +2703,7 @@
       c.statusChangedAt = Date.now();
       c.nextContactAt = (!isMikel && newCallStatus !== 'pendiente') ? Date.now() + 48 * 3600 * 1000 : null;
       c.callLog = (c.callLog || []).concat([{ t: Date.now(), s: newCallStatus, r: c.waitReason || '' }]).slice(-20);
+      logActivity('llamada', `${newCallStatus === 'ya_llamado' ? '🟡 Ya llamado' : (newCallStatus === 'esperando_confirmacion' ? '🟣 Esperando confirmación' : '🔴 Por llamar')}: ${c.name || 'Cliente'}${c.waitReason ? ' (' + c.waitReason + ')' : ''} · ${z.town || ''}`, z.comercial);
       z._updatedAt = Date.now();
       saveAndSync('comercial_custom_zones', savedZones);
       renderFollowUpsModal();
@@ -2811,8 +2812,9 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       const z = savedZones[zIdx];
       if (!z || !z.clients || !z.clients[cIdx]) return;
       if (!confirm("¿Marcar esta obra como REALIZADA?")) return;
-      z.clients[cIdx].obraStatus = 'realizada';
+           z.clients[cIdx].obraStatus = 'realizada';
       z.clients[cIdx].statusChangedAt = Date.now();
+      logActivity('obra', `✅ Obra realizada: ${z.clients[cIdx].name || 'Cliente'} · ${z.town || ''}`, z.comercial);
       setTimeout(() => { if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults(); }, 50);
       z._updatedAt = Date.now();
       saveAndSync('comercial_custom_zones', savedZones);
@@ -2938,9 +2940,10 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       if (!ensureCrmUpload(testClient, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) return;
       Object.assign(client, testClient);
 
-      client.obraStatus = 'agendada';
+           client.obraStatus = 'agendada';
       client.obraDate = dateVal;
       client.obraTime = timeVal;
+      logActivity('cita', `📅 Cita de obra: ${client.name || 'Cliente'} · ${z.town || ''} · ${formatDate(dateVal)} ${obraSlotLabel(timeVal)}`, z.comercial);
       saveAndSync('comercial_custom_zones', savedZones);
       renderFollowUpsModal();
     }
@@ -4591,6 +4594,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       }
 
       saveAndSync('comercial_custom_zones', savedZones);
+           logActivity('ficha', `🏠 Registró ${clientObj.type === 'comunidad' ? 'una comunidad' : 'una vivienda'}: ${clientObj.name || clientObj.street || 'sin nombre'} · ${townVal}`, comercialVal);
       editingSingleHouseIndex = null;
       pendingSingleHouseCoords = null;
       closeModal('singleHouseModal');
@@ -6023,6 +6027,20 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       closeModal('dumpModal');
       renderAllSavedZones();
       updateHudLiveSalaryPill();
+           try {
+        const nuevasFichas = z.clients.filter((cl, i) => isClientValidFilled(cl) && !isClientValidFilled(prevClients[i] || {})).length;
+        const totalPuertas = (z.stats.no || 0) + (z.stats.ausente || 0) + (z.stats.papelito || 0) + (z.stats.si || 0);
+        logActivity('hoja', `📋 Volcó hoja en ${z.town || ''}: ${z.stats.si || 0} SÍ · ${totalPuertas} puertas${nuevasFichas ? ' · ' + nuevasFichas + ' ficha(s) nueva(s)' : ''}`, z.comercial);
+        z.clients.forEach((cl, i) => {
+          const pv = prevClients[i] || {};
+          if (cl.obraStatus === 'agendada' && pv.obraStatus !== 'agendada') {
+            logActivity('cita', `📅 Cita de obra: ${cl.name || 'Cliente'} · ${z.town || ''} · ${formatDate(cl.obraDate)} ${obraSlotLabel(cl.obraTime)}`, z.comercial);
+          }
+          if (cl.obraStatus === 'realizada' && pv.obraStatus !== 'realizada') {
+            logActivity('obra', `✅ Obra realizada: ${cl.name || 'Cliente'} · ${z.town || ''}`, z.comercial);
+          }
+        });
+      } catch (e) {}
       if (z.stats && z.stats.si > 0) {
         triggerHapticAndSound('success');
         showCelebrationToast(`🔥 ¡+${z.stats.si} SÍ volcado(s) en ${z.town}!`);
@@ -6909,6 +6927,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       if (confirm('¿Confirmas que esta obra ya se ha ejecutado y pasa a "✅ Obra Realizada"?')) {
         z.clients[clientIdx].obraStatus = 'realizada';
+        logActivity('obra', `✅ Obra realizada: ${z.clients[clientIdx].name || 'Cliente'} · ${z.town || ''}`, z.comercial);
         saveAndSync('comercial_custom_zones', savedZones);
         renderObrasOptimizationAudit();
       }
