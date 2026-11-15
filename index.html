@@ -2800,6 +2800,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       if (!confirm("¿Marcar esta obra como REALIZADA?")) return;
       z.clients[cIdx].obraStatus = 'realizada';
       z.clients[cIdx].statusChangedAt = Date.now();
+      setTimeout(() => { if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults(); }, 50);
       z._updatedAt = Date.now();
       saveAndSync('comercial_custom_zones', savedZones);
       renderFollowUpsModal();
@@ -2854,7 +2855,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
               ${wa ? `<a href="${wa}" target="_blank" style="${bt} background:#059669;">💬 Recordar fecha</a>` : ''}
               ${(!viewerIsMikel && mode !== 'done') ? `<button onclick="downloadCitaFromList(${zIdx}, ${cIdx})" style="${bt} background:#0284c7;">📄 Archivo CRM</button>` : ''}
               <button onclick="closeModal('followUpsModal'); openDumpModal(${zIdx});" style="${bt} background:#7c3aed;">✏️ Editar</button>
-              ${(isBoss && mode !== 'done') ? `<button onclick="markObraRealizada(${zIdx}, ${cIdx})" style="${bt} background:#d97706;">✅ Realizada</button>` : ''}
+              ${(mode !== 'done') ? `<button onclick="markObraRealizada(${zIdx}, ${cIdx})" style="${bt} background:#d97706;">✅ Realizada</button>` : ''}
             </div>
           </div>`;
       };
@@ -3110,7 +3111,125 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       document.getElementById('globalSearchModal').classList.add('active');
     }
 
+    let globalFichaFilter = 'all';
+    function setGlobalFichaFilter(k) {
+      globalFichaFilter = k;
+      renderGlobalClientSearchResults();
+    }
+
     function renderGlobalClientSearchResults() {
+      const q = (document.getElementById('globalClientQuery').value || '').toLowerCase().trim();
+      const container = document.getElementById('globalClientSearchResults');
+      const viewerIsMikel = isMikelTeamMember(currentUserName);
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const NO_APTO = {
+        'año_post_2006': 'Construida después de 2006',
+        'm2_insuficiente': 'Superficie insuficiente',
+        'ya_aislado': 'Ya aislada',
+        'suelo_forjado': 'Problema de suelo / forjado',
+        'acceso_imposible': 'Acceso imposible',
+        'rechazo_junta': 'Rechazada en junta',
+        'ninguno': 'Sin motivo indicado'
+      };
+      const stOf = c => c.obraStatus === 'agendada' ? 'agendada' : (c.obraStatus === 'realizada' ? 'realizada' : (c.obraStatus === 'no_apto' ? 'no_apto' : 'pendiente'));
+
+      const all = [];
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
+        (z.clients || []).forEach((c, cIdx) => {
+          if (!isClientValidFilled(c)) return;
+          const hay = `${c.name || ''} ${c.phone || ''} ${c.street || ''} ${z.town || ''} ${z.comercial || ''}`.toLowerCase();
+          if (q && !hay.includes(q)) return;
+          all.push({ z, zIdx, c, cIdx, st: stOf(c) });
+        });
+      });
+
+      const count = { all: all.length, pendiente: 0, agendada: 0, realizada: 0, no_apto: 0 };
+      all.forEach(m => count[m.st]++);
+
+      const chipDefs = [
+        ['all', '📋 Todas'], ['pendiente', '🔴 En SÍ'], ['agendada', '📅 Citas'],
+        ['realizada', '✅ Hechas'], ['no_apto', '🚫 No aptas']
+      ];
+      const chips = `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">` +
+        chipDefs.map(([k, lbl]) => `<button class="subtab-btn ${globalFichaFilter === k ? 'active' : ''}" onclick="setGlobalFichaFilter('${k}')">${lbl} (${count[k]})</button>`).join('') +
+        `</div>`;
+
+      const list = all.filter(m => globalFichaFilter === 'all' || m.st === globalFichaFilter)
+        .sort((a, b) => ((b.c.createdAt || b.z.id || 0) - (a.c.createdAt || a.z.id || 0)));
+
+      if (list.length === 0) {
+        container.innerHTML = chips + `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">No hay fichas${q ? ' con "' + esc(q) + '"' : ' en este apartado'}.</div>`;
+        return;
+      }
+
+      const bt = 'flex:1; text-align:center; text-decoration:none; border:none; color:#fff; padding:6px 4px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer;';
+      let html = chips;
+      list.slice(0, 60).forEach(m => {
+        const { z, zIdx, c, cIdx, st } = m;
+        const isCom = c.type === 'comunidad';
+        const phone = (c.phone || '').replace(/\s+/g, '');
+        let badge = '';
+        let border = 'rgba(255,255,255,0.12)';
+        if (st === 'agendada') {
+          badge = `<span style="color:#fde047; font-weight:900;">📅 ${citaDateLong(c.obraDate)} · ⏰ ${obraSlotLabel(c.obraTime)}</span>`;
+          border = '#f59e0b';
+        } else if (st === 'realizada') {
+          badge = `<span style="color:#6ee7b7; font-weight:900;">✅ Obra realizada</span>`;
+          border = '#34d399';
+        } else if (st === 'no_apto') {
+          badge = `<span style="color:#fca5a5; font-weight:900;">🚫 No apta · ${NO_APTO[c.obraReason] || 'Sin motivo indicado'}</span>`;
+          border = '#ef4444';
+        } else {
+          const cs = c.callStatus || 'pendiente';
+          badge = cs === 'ya_llamado' ? '<span style="color:#fde047; font-weight:900;">🟡 Ya llamado</span>'
+            : (cs === 'esperando_confirmacion' ? '<span style="color:#d8b4fe; font-weight:900;">🟣 Esperando</span>'
+            : '<span style="color:#fca5a5; font-weight:900;">🔴 Por llamar</span>');
+        }
+
+        let waBtns = '';
+        if (phone) {
+          if (viewerIsMikel) {
+            waBtns = `<a href="https://wa.me/34${phone}" target="_blank" style="${bt} background:#059669;">💬 WhatsApp</a>`;
+          } else {
+            if (st === 'agendada') {
+              waBtns = `<a href="${citaWaLink(c, z.town, z.comercial)}" target="_blank" style="${bt} background:#059669;">💬 Recordar fecha</a>`;
+            } else if (st === 'no_apto' || st === 'realizada') {
+              const alias = getDisplayAlias(z.comercial);
+              const first = (c.name || '').trim() ? ' ' + c.name.trim().split(' ')[0] : '';
+              const msg = st === 'no_apto'
+                ? `Hola${first}, soy *${alias}* de *Konsor Energía*.\n\nGracias por atendernos. Aunque tu vivienda no cumple los requisitos de la ayuda, si conoces a algún vecino o familiar con buhardilla sin aislar, puedes pasarnos su contacto o decirle que nos escriba. ¡Muchas gracias!`
+                : `Hola${first}, soy *${alias}* de *Konsor Energía*.\n\nGracias por confiar en nosotros. Si conoces a algún vecino o familiar al que le pueda interesar aislar su buhardilla, puedes pasarnos su contacto o decirle que nos escriba. ¡Muchas gracias!`;
+              waBtns = `<a href="https://wa.me/34${phone}?text=${encodeURIComponent(msg)}" target="_blank" style="${bt} background:#7c3aed;">💬 Pedir contactos</a>`;
+            } else {
+              waBtns = `<a href="https://wa.me/34${phone}" target="_blank" style="${bt} background:#059669;">💬 WhatsApp</a>`;
+            }
+          }
+        }
+
+        html += `
+          <div class="audit-card" style="cursor:pointer; border:1px solid ${border};" onclick="closeModal('globalSearchModal'); openDumpModal(${zIdx});">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:12.5px; color:#fff;">${isCom ? '🏢' : '🏠'} ${esc(c.name) || 'Cliente sin nombre'}</strong>
+              <span style="font-size:10px; font-weight:800; color:#34d399;">${getM2NumericValue(c.m2)} m²</span>
+            </div>
+            <div style="font-size:11px; color:#cbd5e1;">📍 ${esc(c.street) || 'Sin calle'} • <strong>${esc(z.town)}</strong></div>
+            <div style="font-size:10.5px; margin:2px 0;">${badge}</div>
+            <div style="font-size:10px; color:#94a3b8;">📞 ${esc(c.phone) || 'Sin tel'} | 👤 ${esc(z.comercial)}${isCom ? ' | 📋 Docs CAE: ' + countComunidadDocs(c.comunidadDocs) + '/5' : ''}</div>
+            <div style="display:flex; gap:5px; margin-top:5px; flex-wrap:wrap;" onclick="event.stopPropagation();">
+              ${phone ? `<a href="tel:${phone}" style="${bt} background:#2563eb;">📞 Llamar</a>` : ''}
+              ${waBtns}
+              ${st === 'agendada' ? `<button onclick="markObraRealizada(${zIdx}, ${cIdx})" style="${bt} background:#d97706;">✅ Obra realizada</button>` : ''}
+            </div>
+          </div>
+        `;
+      });
+      if (list.length > 60) html += `<div style="text-align:center; font-size:10.5px; color:#94a3b8; padding:6px;">Mostrando 60 de ${list.length}. Usa el buscador para afinar.</div>`;
+      container.innerHTML = html;
+    }
+
+    function renderGlobalClientSearchResultsOld() {
       const q = (document.getElementById('globalClientQuery').value || '').toLowerCase().trim();
       const container = document.getElementById('globalClientSearchResults');
       const matches = [];
