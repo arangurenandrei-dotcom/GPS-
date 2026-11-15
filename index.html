@@ -1772,6 +1772,18 @@
       else if (key === 'comercial_shifts') savedShifts = newData;
       else if (key === 'comercial_completed_towns') completedTowns = newData;
       else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
+      else if (key === 'comercial_activity') {
+        const prevIds = new Set((activityLog || []).map(a => a.id));
+        const isBossMe = currentUserName === 'Andrei (Jefe)';
+        const fresh = newData.filter(a => !prevIds.has(a.id) && a.user !== currentUserName && (Date.now() - a.t) < 120000 && (isBossMe || a.owner === currentUserName));
+        activityLog = newData;
+        if (fresh.length > 0 && currentUserName && !isMikelTeamMember(currentUserName)) {
+          const last = fresh[fresh.length - 1];
+          triggerHapticAndSound(last.type === 'cancelada' ? 'alert' : 'success');
+          showCelebrationToast(last.text.length > 60 ? last.text.slice(0, 57) + '...' : last.text);
+          sendLocalMobileNotification('Konsor Navarra', last.text);
+        }
+      }
 
       if (currentUserName) {
         if (map) renderAllSavedZones();
@@ -6081,6 +6093,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
     }
 
     function updateHudLiveSalaryPill() {
+      try { updateMiPlanBadge(); } catch (e) {}
       const pill = document.getElementById('hudLiveSalaryPill');
       if (!pill || !currentUserName) return;
       if (isMikelTeamMember(currentUserName)) {
@@ -8160,6 +8173,151 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       if (c && c.obraStatus === 'agendada') renderPorAgendarView();
     }
 
+    let activityLog = safeLoadStorage('comercial_activity');
+
+    function logActivity(type, text, owner) {
+      try {
+        if (!currentUserName || isMikelTeamMember(currentUserName)) return;
+        if (!Array.isArray(activityLog)) activityLog = [];
+        activityLog.push({
+          id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+          t: Date.now(),
+          user: currentUserName,
+          owner: owner || currentUserName,
+          type,
+          text
+        });
+        const limit = Date.now() - 45 * 24 * 3600 * 1000;
+        activityLog = activityLog.filter(a => a.t >= limit).slice(-250);
+        saveAndSync('comercial_activity', activityLog);
+      } catch (e) {}
+    }
+
+    function activityForMe() {
+      const isBossMe = currentUserName === 'Andrei (Jefe)';
+      return (Array.isArray(activityLog) ? activityLog : [])
+        .filter(a => isBossMe ? true : (a.owner === currentUserName && a.user !== currentUserName))
+        .slice()
+        .sort((x, y) => y.t - x.t);
+    }
+
+    function updateMiPlanBadge() {
+      const btn = document.getElementById('btnCommercialPlan');
+      if (!btn || !currentUserName || isMikelTeamMember(currentUserName)) return;
+      const seen = parseInt(localStorage.getItem('konsor_activity_seen_' + currentUserName) || '0', 10);
+      const n = activityForMe().filter(a => a.t > seen && a.user !== currentUserName).length;
+      btn.innerHTML = n > 0
+        ? `📋 Mi Plan <span style="background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:9px; margin-left:3px;">${n}</span>`
+        : '📋 Mi Plan';
+    }
+
+    function buildMiPlanActivityHtml() {
+      const seenKey = 'konsor_activity_seen_' + currentUserName;
+      const seen = parseInt(localStorage.getItem(seenKey) || '0', 10);
+      const list = activityForMe().slice(0, 40);
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const colors = { ficha: '#38bdf8', hoja: '#60a5fa', llamada: '#fde047', cita: '#fbbf24', obra: '#34d399', cancelada: '#f87171' };
+      const isBossMe = currentUserName === 'Andrei (Jefe)';
+      const newCount = list.filter(a => a.t > seen && a.user !== currentUserName).length;
+
+      let rows = list.map(a => {
+        const isNew = a.t > seen && a.user !== currentUserName;
+        const when = new Date(a.t).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const who = a.user === currentUserName ? 'Tú' : getDisplayAlias(a.user);
+        return `
+          <div style="border-left:3px solid ${colors[a.type] || '#94a3b8'}; background:${isNew ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)'}; border-radius:7px; padding:5px 8px; margin-top:4px; font-size:10.5px; color:#e2e8f0;">
+            <div style="display:flex; justify-content:space-between; gap:6px;">
+              <strong style="color:#fff;">${esc(who)}${isNew ? ' <span style="background:#ef4444; color:#fff; font-size:8.5px; padding:1px 5px; border-radius:5px;">NUEVO</span>' : ''}</strong>
+              <span style="color:#94a3b8; font-size:9.5px;">${when}</span>
+            </div>
+            <div>${esc(a.text)}</div>
+          </div>`;
+      }).join('');
+
+      if (!rows) rows = `<div style="font-size:11px; color:#94a3b8; padding:6px;">${isBossMe ? 'Todavía no hay actividad registrada. Irá apareciendo según se use la app.' : 'No tienes avisos nuevos.'}</div>`;
+
+      localStorage.setItem(seenKey, String(Date.now()));
+      setTimeout(() => { try { updateMiPlanBadge(); } catch (e) {} }, 0);
+
+      const title = isBossMe ? '🔔 Actividad del equipo' : '🔔 Avisos para ti';
+      return `
+        <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(251,191,36,0.45); border-radius:12px; padding:9px 10px; margin-bottom:10px;">
+          <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase;">${title}${newCount ? ' · ' + newCount + ' nueva(s)' : ''}</div>
+          <div style="max-height:260px; overflow-y:auto;">${rows}</div>
+        </div>`;
+    }
+
+    function buildMyObrasHtml() {
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const up = [], done = [], canc = [];
+      savedZones.forEach(z => {
+        if (z.comercial !== currentUserName) return;
+        (z.clients || []).forEach(c => {
+          if (!isClientValidFilled(c)) return;
+          if (c.obraStatus === 'agendada') up.push({ z, c });
+          else if (c.obraStatus === 'realizada') done.push({ z, c });
+          else if ((c.obraStatus === 'a_poner' || !c.obraStatus) && c.cancelInfo) canc.push({ z, c });
+        });
+      });
+      up.sort((a, b) => ((a.c.obraDate || '') + (a.c.obraTime || '')).localeCompare((b.c.obraDate || '') + (b.c.obraTime || '')));
+      done.sort((a, b) => (b.c.statusChangedAt || 0) - (a.c.statusChangedAt || 0));
+
+      if (up.length + done.length + canc.length === 0) return '';
+
+      const line = (it, color, extra) => `
+        <div style="font-size:10.5px; color:#e2e8f0; background:rgba(0,0,0,0.25); border-left:3px solid ${color}; border-radius:6px; padding:5px 7px; margin-top:4px;">
+          <strong>${esc(it.c.name || 'Cliente')}</strong> · ${esc(it.c.street)} · ${esc(it.z.town)}<br>${extra}
+        </div>`;
+
+      let html = `<div style="background:rgba(30,41,59,0.9); border:1px solid rgba(52,211,153,0.45); border-radius:12px; padding:9px 10px; margin-bottom:10px;">
+        <div style="font-size:10px; font-weight:900; color:#6ee7b7; text-transform:uppercase;">🏗️ Mis obras</div>`;
+
+      if (canc.length) {
+        html += `<div style="font-size:10px; font-weight:900; color:#fca5a5; margin-top:6px;">❌ CANCELADAS (${canc.length}) · vuelven a estar pendientes de nueva cita</div>`;
+        canc.forEach(it => {
+          const ci = it.c.cancelInfo || {};
+          html += line(it, '#ef4444', `<span style="color:#fca5a5;">Era el ${formatDate(ci.date)} · Motivo: ${esc(ci.reason)}</span>`);
+        });
+      }
+      if (up.length) {
+        html += `<div style="font-size:10px; font-weight:900; color:#fde047; margin-top:6px;">📅 PRÓXIMAS (${up.length})</div>`;
+        up.forEach(it => {
+          html += line(it, '#f59e0b', `📅 ${citaDateLong(it.c.obraDate)} · ⏰ ${obraSlotLabel(it.c.obraTime)}`);
+        });
+      }
+      if (done.length) {
+        html += `<div style="font-size:10px; font-weight:900; color:#6ee7b7; margin-top:6px;">✅ HECHAS (${done.length}${done.length > 8 ? ', últimas 8' : ''})</div>`;
+        done.slice(0, 8).forEach(it => {
+          html += line(it, '#34d399', `✅ Obra realizada · ${getM2NumericValue(it.c.m2)} m²`);
+        });
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    function cancelObra(zIdx, cIdx) {
+      const z = savedZones[zIdx];
+      const c = z && z.clients && z.clients[cIdx];
+      if (!c) return;
+      const reason = (prompt("❌ ¿Por qué se cancela la obra?\n(ej: los técnicos no pueden, cliente no estaba, problema en la cubierta)", '') || '').trim();
+      if (reason.length < 3) {
+        alert("⚠️ Escribe el motivo para guardar la cancelación.");
+        return;
+      }
+      const oldDate = c.obraDate || '';
+      const oldTime = c.obraTime || '';
+      c.obraStatus = 'a_poner';
+      c.cancelInfo = { reason, date: oldDate, time: oldTime, at: Date.now() };
+      c.obraDate = '';
+      c.obraTime = '';
+      c.crmUploaded = false;
+      c.statusChangedAt = Date.now();
+      z._updatedAt = Date.now();
+      saveAndSync('comercial_custom_zones', savedZones);
+      logActivity('cancelada', `❌ Obra cancelada: ${c.name || 'Cliente'} · ${z.town || ''} (era el ${formatDate(oldDate)}). Motivo: ${reason}`, z.comercial);
+      renderFollowUpsModal();
+    }
+
     function openNoteModal(zoneIdx) {
       selectedZoneIndexForNote = zoneIdx;
       document.getElementById('modalNoteText').value = savedZones[zoneIdx].bossNote || '';
@@ -8707,12 +8865,13 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
     });
 
-    const SYNC_KEYS = [
+       const SYNC_KEYS = [
       'comercial_custom_zones',
       'comercial_shifts',
       'comercial_completed_towns',
       'comercial_hot_lead_missions',
-      'comercial_user_profiles'
+      'comercial_user_profiles',
+      'comercial_activity'
     ];
 
     function mergeArraysById(localArr, cloudArr) {
