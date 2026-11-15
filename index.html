@@ -1344,6 +1344,79 @@
       return canonicalOrKey;
     }
 
+    /* ===== NOMBRE (ALIAS) EN TODA LA APP · solo equipo de Andrei: Comercial 1 a 5 ===== */
+    const ALIAS_TEST_RE = /\bComercial [1-5]\b/;
+    const ALIAS_RE = /\bComercial ([1-5])\b/g;
+    let aliasObs = null, aliasTimer = null, aliasSig = '';
+    const aliasPending = new Set();
+
+    function aliasText(orig) {
+      return orig.replace(ALIAS_RE, (m, n) => getDisplayAlias('Comercial ' + n) || m);
+    }
+
+    function aliasProcessNode(root) {
+      if (!root) return;
+      const base = root.nodeType === 3 ? root.parentNode : root;
+      if (!base || base.nodeType !== 1 && base.nodeType !== 9 && base.nodeType !== 11) return;
+      const walker = document.createTreeWalker(base, NodeFilter.SHOW_TEXT, {
+        acceptNode(n) {
+          const p = n.parentNode;
+          if (!p || /^(SCRIPT|STYLE|TEXTAREA|NOSCRIPT)$/.test(p.nodeName)) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      let n;
+      while ((n = walker.nextNode())) {
+        let orig = n.__aliasOrig;
+        if (orig !== undefined && n.nodeValue !== n.__aliasOut) orig = undefined; // la app cambió ese texto
+        if (orig === undefined) {
+          if (!ALIAS_TEST_RE.test(n.nodeValue)) continue;
+          orig = n.nodeValue;
+        }
+        const out = aliasText(orig);
+        n.__aliasOrig = orig;
+        n.__aliasOut = out;
+        if (n.nodeValue !== out) n.nodeValue = out;
+      }
+    }
+
+    function aliasObserveOn() {
+      if (aliasObs && document.body) aliasObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+
+    function aliasRefreshAll() {
+      if (!aliasObs) return;
+      aliasObs.disconnect();
+      aliasProcessNode(document.body);
+      aliasObserveOn();
+    }
+
+    function startAliasObserver() {
+      if (aliasObs || !document.body) return;
+      aliasObs = new MutationObserver(muts => {
+        muts.forEach(m => {
+          if (m.type === 'characterData') aliasPending.add(m.target);
+          else m.addedNodes.forEach(nd => aliasPending.add(nd));
+        });
+        if (aliasTimer) return;
+        aliasTimer = setTimeout(() => {
+          aliasTimer = null;
+          aliasObs.disconnect();
+          aliasPending.forEach(nd => { if (nd.isConnected) aliasProcessNode(nd); });
+          aliasPending.clear();
+          aliasObserveOn();
+        }, 60);
+      });
+      aliasSig = [1, 2, 3, 4, 5].map(i => getDisplayAlias('Comercial ' + i)).join('|');
+      aliasRefreshAll();
+      // Si alguien cambia su nombre (aquí o desde otro móvil), se actualiza todo
+      setInterval(() => {
+        const sig = [1, 2, 3, 4, 5].map(i => getDisplayAlias('Comercial ' + i)).join('|');
+        if (sig !== aliasSig) { aliasSig = sig; aliasRefreshAll(); }
+      }, 1500);
+    }
+    setTimeout(startAliasObserver, 0);
+
     function refreshLoginDropdownAliases() {
       const userSel = document.getElementById('userSelect');
       if (!userSel || isExternalTeamLoginMode) return;
