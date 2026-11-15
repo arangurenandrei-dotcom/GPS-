@@ -3894,6 +3894,10 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         `;
       }
 
+            const isBossPlan = currentUserName === 'Andrei (Jefe)';
+      const extraFeed = buildMiPlanActivityHtml();
+      const extraObras = buildMyObrasHtml();
+      html = isBossPlan ? (extraFeed + html + extraObras) : (html + extraFeed + extraObras);
       container.innerHTML = html;
       document.getElementById('briefingModal').classList.add('active');
     }
