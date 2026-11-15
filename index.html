@@ -2546,6 +2546,33 @@
     function updateClientCallStatus(zoneIdx, clientIdx, newCallStatus) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
+      const c = z.clients[clientIdx];
+      const isMikel = isMikelTeamMember(z.comercial);
+      if (!isMikel && newCallStatus === 'esperando_confirmacion') {
+        const reason = (prompt("🟣 ESPERANDO INFO — motivo obligatorio.\n¿Qué está esperando o pensando el cliente?\n(ej: lo habla con su mujer, espera presupuesto, quiere más info)", c.waitReason || '') || '').trim();
+        if (reason.length < 3) {
+          alert("⚠️ Tienes que escribir el motivo para poder guardar este estado.");
+          return;
+        }
+        const mustCall = confirm("¿Qué toca dentro de 48 h?\n\nACEPTAR = Volver a LLAMARLE\nCANCELAR = Basta un WHATSAPP de recordatorio");
+        c.waitReason = reason;
+        c.waitType = mustCall ? 'llamar' : 'whatsapp';
+      } else if (!isMikel) {
+        c.waitReason = '';
+        c.waitType = newCallStatus === 'ya_llamado' ? 'llamar' : '';
+      }
+      c.callStatus = newCallStatus;
+      c.statusChangedAt = Date.now();
+      c.nextContactAt = (!isMikel && newCallStatus !== 'pendiente') ? Date.now() + 48 * 3600 * 1000 : null;
+      c.callLog = (c.callLog || []).concat([{ t: Date.now(), s: newCallStatus, r: c.waitReason || '' }]).slice(-20);
+      z._updatedAt = Date.now();
+      saveAndSync('comercial_custom_zones', savedZones);
+      renderFollowUpsModal();
+    }
+
+    function updateClientCallStatusOld(zoneIdx, clientIdx, newCallStatus) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
       z.clients[clientIdx].callStatus = newCallStatus;
       z.clients[clientIdx].statusChangedAt = Date.now();
       z._updatedAt = Date.now();
@@ -2572,6 +2599,9 @@
 
       const dateVal = document.getElementById(dateInputId)?.value || getTodayISO();
       const timeVal = document.getElementById(timeInputId)?.value || '09:30';
+      const testClient = Object.assign({}, client, { obraStatus: 'agendada', obraDate: dateVal, obraTime: timeVal });
+      if (!ensureCrmUpload(testClient, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) return;
+      Object.assign(client, testClient);
 
       client.obraStatus = 'agendada';
       client.obraDate = dateVal;
@@ -2651,7 +2681,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
               <strong style="font-size:13px; color:#fff;">${c.type === 'comunidad' ? '🏢' : '🏠'} ${c.name || 'Ficha sin nombre'}</strong>
               <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
-                ${slaBadge}
+                ${slaBadge} ${fuExtraHtml(c)}
                 ${!isFilled ? `<span class="blank-draft-pill">⚠️ Ficha Incompleta</span>` : ''}
                 ${badgeHtml}
               </div>
@@ -3751,7 +3781,104 @@
       }
     }
 
+        /* ===== CITA → CRM OBLIGATORIA + SEGUIMIENTO ===== */
+    function buildCrmRecord(c, ctx) {
+      const m2Val = getM2NumericValue(c.m2);
+      const cteInfo = detectCteZoneFromCpAndTown(c.postalCode || '', ctx.town || '');
+      return {
+        id_ficha: `${c.createdAt || ''}_${(c.phone || '').replace(/\D/g, '')}`,
+        fecha_captacion: ctx.date || '',
+        comercial_captador: getDisplayAlias(ctx.comercial),
+        comercial_id: ctx.comercial,
+        origen_captacion: c.origen || 'puerta',
+        tipo_inmueble: c.type === 'comunidad' ? 'COMUNIDAD' : 'VIVIENDA_UNIFAMILIAR',
+        cliente_nombre: c.name || '',
+        telefono: (c.phone || '').replace(/\s+/g, ''),
+        email: c.email || '',
+        direccion: c.street || '',
+        municipio: ctx.town || '',
+        provincia: 'Navarra',
+        codigo_postal: c.postalCode || cteInfo.cp || '',
+        zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'D2',
+        anio_construccion: parseInt(c.buildYear) || null,
+        superficie_m2: m2Val,
+        tipo_acceso: formatAccessDisplay(c),
+        estado_expediente: 'CITA_AGENDADA',
+        agendar_web_calendar: true,
+        fecha_obra: c.obraDate || null,
+        hora_obra: c.obraTime || null,
+        documentacion_comunidad: c.type === 'comunidad' ? (c.comunidadDocs || {}) : null
+      };
+    }
+
+    function downloadCrmCita(c, ctx) {
+      const payload = {
+        origen_app: "Konsor_Campo_Navarra_v2027",
+        exportado_en: new Date().toISOString(),
+        periodo: (ctx.date || '').slice(0, 7),
+        total_fichas: 1,
+        fichas: [buildCrmRecord(c, ctx)]
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safe = (c.name || 'cliente').replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 30);
+      link.href = url;
+      link.download = `Cita_CRM_${safe}_${c.obraDate || ''}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function needsCrmUpload(c) {
+      if (!c || c.obraStatus !== 'agendada') return false;
+      return !(c.crmUploaded && c.crmDate === c.obraDate && c.crmTime === c.obraTime);
+    }
+
+    function ensureCrmUpload(c, ctx) {
+      if (isMikelTeamMember(ctx.comercial)) return true;
+      if (!needsCrmUpload(c)) return true;
+      if (!c.obraDate || !c.obraTime) {
+        alert("⚠️ Pon la fecha y la hora de la cita de obra para poder guardar.");
+        return false;
+      }
+      if (!confirm("📅 CITA DE OBRA: " + (c.name || 'cliente') + " (" + c.obraDate + " " + c.obraTime + ")\n\nPara guardar la cita hay que subirla a la CRM oficial.\n\nPulsa ACEPTAR para generar el archivo de la cita.")) return false;
+      downloadCrmCita(c, ctx);
+      if (!confirm("¿Has subido ya ese archivo a la CRM oficial?\n\nACEPTAR = Sí, ya está subida (se guarda la cita)\nCANCELAR = Todavía no (NO se guarda)")) return false;
+      c.crmUploaded = true;
+      c.crmUploadedAt = Date.now();
+      c.crmDate = c.obraDate;
+      c.crmTime = c.obraTime;
+      return true;
+    }
+
+    function fuExtraHtml(c) {
+      if (!c || !c.nextContactAt) return '';
+      const d = new Date(c.nextContactAt);
+      const lbl = d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const late = Date.now() >= c.nextContactAt;
+      const what = c.waitType === 'whatsapp' ? '💬 WhatsApp' : '📞 Llamar';
+      const reason = (c.waitReason || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<span style="font-size:9.5px; font-weight:900; color:${late ? '#fca5a5' : '#c4b5fd'};">⏰ ${what} ${late ? 'YA TOCA' : 'el ' + lbl}</span>${reason ? ` <span style="font-size:9.5px; color:#e9d5ff;">· ${reason}</span>` : ''}`;
+    }
+
     function extractClientFromBox(box, existingCallStatus = 'pendiente', existingMeta = {}) {
+      const m = existingMeta || {};
+      const c = extractClientFromBoxBase(box, existingCallStatus, m);
+      c.crmUploaded = !!m.crmUploaded;
+      c.crmUploadedAt = m.crmUploadedAt || null;
+      c.crmDate = m.crmDate || '';
+      c.crmTime = m.crmTime || '';
+      c.origen = box.querySelector('.client-origen')?.value || m.origen || 'puerta';
+      c.waitType = m.waitType || '';
+      c.waitReason = m.waitReason || '';
+      c.nextContactAt = m.nextContactAt || null;
+      c.callLog = m.callLog || [];
+      return c;
+    }
+
+    function extractClientFromBoxBase(box, existingCallStatus = 'pendiente', existingMeta = {}) {
       const nowMs = Date.now();
       const createdAt = existingMeta.createdAt || nowMs;
       const statusChangedAt = existingMeta.statusChangedAt || nowMs;
@@ -3846,8 +3973,8 @@
       if (!box) return;
 
       const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
-      const clientObj = extractClientFromBox(box, prevCallStatus);
-
+           const prevClientMeta = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]) || {};
+      const clientObj = extractClientFromBox(box, prevCallStatus, prevClientMeta);
       if (!isClientValidFilled(clientObj)) {
         alert("⚠️ Rellena al menos el nombre, la calle o el teléfono antes de guardar esta vivienda.");
         return;
@@ -4959,6 +5086,13 @@
             <option value="150+" ${existing.m2==='150+'?'selected':''}>+150 m² (Premium 🔥)</option>
           </select>
           
+          <div style="grid-column:1 / -1; margin-bottom:6px;">
+            <select class="select-field client-origen">
+              <option value="puerta" ${(!existing.origen || existing.origen==='puerta')?'selected':''}>🚪 Captado puerta a puerta</option>
+              <option value="llamada_cliente" ${existing.origen==='llamada_cliente'?'selected':''}>📞 Me llamó el cliente (vio / oyó)</option>
+              <option value="exterior" ${existing.origen==='exterior'?'selected':''}>🏠 Exterior / cartel / otro</option>
+            </select>
+          </div>
           <select class="select-field client-obra-status" onchange="handleObraStatusChange(this)">
             <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>📝 Captación SÍ (Automática)</option>
             <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Cita Agendada</option>
@@ -5127,6 +5261,13 @@
         </div>
 
         <div style="margin-top:8px;">
+          <div style="grid-column:1 / -1; margin-bottom:6px;">
+            <select class="select-field client-origen">
+              <option value="puerta" ${(!existing.origen || existing.origen==='puerta')?'selected':''}>🚪 Captado puerta a puerta</option>
+              <option value="llamada_cliente" ${existing.origen==='llamada_cliente'?'selected':''}>📞 Me llamó el cliente (vio / oyó)</option>
+              <option value="exterior" ${existing.origen==='exterior'?'selected':''}>🏠 Exterior / cartel / otro</option>
+            </select>
+          </div>
           <select class="select-field client-obra-status" onchange="handleObraStatusChange(this)">
             <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>📝 Captación SÍ (Automática)</option>
             <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Cita Agendada (Obra)</option>
@@ -5279,6 +5420,12 @@
         z.clients.push(extractClientFromBox(box, preservedCallStatus, prev));
       });
 
+            for (const cl of z.clients) {
+        if (!ensureCrmUpload(cl, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) {
+          z.clients = prevClients;
+          return;
+        }
+      }
       const validFilledCount = z.clients.filter(c => isClientValidFilled(c)).length;
       const reportedSi = parseInt(document.getElementById('dumpSi').value) || 0;
 
@@ -5970,6 +6117,34 @@
        EXPORTACIÓN A EXCEL (CSV) PARA LIQUIDACIÓN MENSUAL
        ===================================================================== */
     function exportOfficialCrmJsonPackage() {
+      const month = document.getElementById('auditMonthSelect')?.value || 'ALL';
+      const records = [];
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
+        z.clients.forEach(c => {
+          if (c.obraStatus !== 'agendada' || !isClientValidFilled(c)) return;
+          const d = c.obraDate || z.dumpDate || z.date || '';
+          if (month !== 'ALL' && !d.startsWith(month)) return;
+          records.push(buildCrmRecord(c, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial }));
+        });
+      });
+      if (records.length === 0) {
+        alert("⚠️ No hay citas agendadas en este periodo.");
+        return;
+      }
+      const payload = { origen_app: "Konsor_Campo_Navarra_v2027", exportado_en: new Date().toISOString(), periodo: month, total_fichas: records.length, fichas: records };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Citas_CRM_Konsor_${month}_${getTodayISO()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function exportOfficialCrmJsonPackageOld() {
       const selectedMonthCrm = document.getElementById('auditMonthSelect')?.value || 'ALL';
       const records = [];
 
@@ -6350,6 +6525,9 @@
             <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0;">
               <button onclick="exportOfficialCrmJsonPackage()" style="background:#0284c7; color:#fff; border:1px solid #38bdf8; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
                 ⚡ CRM Oficial
+              </button>
+                            <button onclick="openComplianceModal()" style="background:#7c3aed; color:#fff; border:1px solid #a78bfa; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
+                🕵️ Control
               </button>
               <button onclick="exportReportToCSV()" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
                 📥 Excel CSV
@@ -7546,6 +7724,70 @@
     }, true);
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function openComplianceModal() {
+      let modal = document.getElementById('complianceModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'complianceModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `<div class="modal-card"><div class="modal-header-sticky"><div class="modal-header"><span>🕵️ Control de Cumplimiento</span><button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('complianceModal')">✕</button></div></div><div class="modal-scrollable-content" id="complianceModalBody"></div></div>`;
+        document.body.appendChild(modal);
+      }
+      const localIso = (ms) => new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      const now = Date.now();
+      const stats = {};
+      const getS = (k) => stats[k] || (stats[k] = { name: getDisplayAlias(k), fichas: 0, mismoDia: 0, tarde: 0, siSinFicha: 0, over48: 0, esperandoSinMotivo: 0, citasSinCrm: 0, puerta: 0, llamada: 0, exterior: 0 });
+
+      savedZones.forEach(z => {
+        if (!z.comercial || isMikelTeamMember(z.comercial)) return;
+        const s = getS(z.comercial);
+        const zDate = z.dumpDate || z.date || '';
+        let valid = 0;
+        (z.clients || []).forEach(c => {
+          if (!isClientValidFilled(c)) return;
+          valid++;
+          s.fichas++;
+          const createdIso = c.createdAt ? localIso(c.createdAt) : '';
+          if (createdIso && zDate) { if (createdIso <= zDate) s.mismoDia++; else s.tarde++; }
+          if (c.origen === 'llamada_cliente') s.llamada++; else if (c.origen === 'exterior') s.exterior++; else s.puerta++;
+          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+            const st = c.callStatus || 'pendiente';
+            const ref = st === 'pendiente' ? (c.createdAt || z.id || now) : (c.statusChangedAt || c.createdAt || z.id || now);
+            if (now - ref >= 48 * 3600000) s.over48++;
+            if (st === 'esperando_confirmacion' && !c.waitReason) s.esperandoSinMotivo++;
+          }
+          if (needsCrmUpload(c)) s.citasSinCrm++;
+        });
+        const reported = (z.stats && z.stats.si) || 0;
+        if (reported > valid) s.siSinFicha += (reported - valid);
+      });
+
+      const rows = Object.keys(stats).map(k => {
+        const s = stats[k];
+        const tot = s.mismoDia + s.tarde;
+        const pct = tot > 0 ? Math.round(s.mismoDia * 100 / tot) : null;
+        const pctColor = pct === null ? '#94a3b8' : (pct >= 90 ? '#34d399' : (pct >= 60 ? '#fde047' : '#f87171'));
+        const flag = (n, txt) => n > 0 ? `<div style="color:#fca5a5; font-weight:800;">🚨 ${n} ${txt}</div>` : '';
+        const msg = encodeURIComponent(`Hola ${s.name}, revisa tu app: tienes pendientes (fichas por subir, llamadas de más de 48h o citas sin subir a la CRM). Ponte al día hoy, por favor.`);
+        return `
+          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:11px; color:#e2e8f0;">
+            <div style="display:flex; justify-content:space-between; font-weight:900; font-size:12px;">
+              <span>🏃 ${s.name}</span>
+              <span style="color:${pctColor};">${pct === null ? 'Sin datos' : pct + '% fichas el mismo día'}</span>
+            </div>
+            <div style="color:#94a3b8; margin:3px 0;">Fichas: ${s.fichas} · Puerta ${s.puerta} · Cliente llamó ${s.llamada} · Exterior ${s.exterior}</div>
+            ${flag(s.siSinFicha, 'SÍ declarados sin ficha subida')}
+            ${flag(s.over48, 'fichas con +48h sin seguimiento')}
+            ${flag(s.esperandoSinMotivo, 'en Esperando sin motivo')}
+            ${flag(s.citasSinCrm, 'citas sin confirmar en la CRM')}
+            <a href="https://wa.me/?text=${msg}" target="_blank" style="display:inline-block; margin-top:5px; background:#059669; color:#fff; padding:4px 9px; border-radius:7px; font-size:10px; font-weight:800; text-decoration:none;">💬 Recordatorio por WhatsApp</a>
+          </div>`;
+      }).join('');
+
+      document.getElementById('complianceModalBody').innerHTML = rows || '<div style="padding:14px; color:#94a3b8;">Aún no hay datos de comerciales.</div>';
+      modal.classList.add('active');
+    }
 
     // Gesto nativo estilo iPhone: deslizar desde el borde izquierdo hacia la derecha para volver atrás
     (function enableIosSwipeBackGesture() {
