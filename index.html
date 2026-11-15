@@ -1484,8 +1484,132 @@
 
         <button class="btn-modal-save" onclick="saveUserProfileSettings()">💾 Guardar Cambios</button>
         ${bossResetHtml}
+        ${helpSectionHtml()}
       `;
       document.getElementById('userProfileModal').classList.add('active');
+    }
+
+    /* ===== AYUDA Y CONTACTO ===== */
+    // 👉 PON AQUÍ TU NÚMERO con el 34 delante y sin espacios (ejemplo: '34600123456')
+    const BOSS_WHATSAPP = '34648231318';
+
+    function helpWaLink(text) {
+      return `https://wa.me/${BOSS_WHATSAPP}?text=${encodeURIComponent(text)}`;
+    }
+
+    function helpSectionHtml() {
+      const key = sessionStorage.getItem('auth_user_key');
+      const alias = getDisplayAlias(key || currentUserName);
+      const hoy = new Date().toLocaleDateString('es-ES');
+      const ios = (navigator.userAgent.match(/OS (\d+[_\d]*)/) || [])[1];
+      const movil = ios ? 'iPhone iOS ' + ios.replace(/_/g, '.') : 'No detectado';
+
+      const msgMejora =
+`💡 *SUGERENCIA DE MEJORA* — App Konsor Navarra
+👤 De: ${alias}
+📅 ${hoy}
+
+*¿Qué te gustaría que hiciera la app?*
+(escribe aquí)
+
+*¿Para qué te serviría en tu día a día?*
+(escribe aquí)`;
+
+      const msgFallo =
+`🐞 *FALLO EN LA APP* — Konsor Navarra
+👤 De: ${alias}
+📅 ${hoy}
+📱 ${movil}
+
+*¿En qué pantalla estabas?*
+(escribe aquí)
+
+*¿Qué hiciste justo antes?*
+(escribe aquí)
+
+*¿Qué pasó? ¿Y qué esperabas que pasara?*
+(escribe aquí)
+
+(Si puedes, manda también una captura de pantalla)`;
+
+      const msgDuda =
+`❓ *NO ENTIENDO ALGO* — Konsor Navarra
+👤 De: ${alias}
+📅 ${hoy}
+
+*¿De qué parte de la app se trata?*
+(escribe aquí)
+
+*¿Qué es lo que no entiendes?*
+(escribe aquí)`;
+
+      const btn = 'display:block; text-align:center; text-decoration:none; padding:9px; border-radius:9px; font-size:11.5px; font-weight:900; margin-bottom:6px; color:#fff;';
+      return `
+        <div class="modal-section-title" style="margin-top:14px;">📚 Ayuda y Contacto</div>
+        <div style="font-size:10.5px; color:#94a3b8; margin-bottom:7px;">
+          Los botones de abajo abren WhatsApp con un mensaje ya empezado. Escribe tu respuesta debajo de cada pregunta y envíalo.
+        </div>
+        <button type="button" onclick="openHelpGuide()" style="${btn} width:100%; border:1px solid #38bdf8; background:#0284c7; cursor:pointer;">📖 Instrucciones: cómo usar la app</button>
+        <a href="${helpWaLink(msgMejora)}" target="_blank" style="${btn} background:#7c3aed; border:1px solid #a78bfa;">💡 Sugerir una mejora</a>
+        <a href="${helpWaLink(msgFallo)}" target="_blank" style="${btn} background:#dc2626; border:1px solid #f87171;">🐞 Informar de un fallo</a>
+        <a href="${helpWaLink(msgDuda)}" target="_blank" style="${btn} background:#059669; border:1px solid #34d399;">❓ No entiendo algo</a>
+      `;
+    }
+
+    function openHelpGuide() {
+      let modal = document.getElementById('helpGuideModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'helpGuideModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+      }
+      const sec = 'background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:8px 10px; margin-bottom:7px; font-size:11.5px; color:#e2e8f0; line-height:1.5;';
+      const sum = 'font-weight:900; cursor:pointer; font-size:12px;';
+      modal.innerHTML = `
+        <div class="modal-card">
+          <div class="modal-header-sticky">
+            <div class="modal-header">
+              <span>📖 Cómo usar la app</span>
+              <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('helpGuideModal')">✕</button>
+            </div>
+          </div>
+          <div class="modal-scrollable-content">
+            <details style="${sec}" open><summary style="${sum}">1. Tu día de trabajo, paso a paso</summary>
+              <br>① Abre la app y entra con tu nombre y tu PIN.<br>
+              ② Pulsa para empezar tu jornada.<br>
+              ③ Abre el mapa y mira la zona que te ha asignado Andrei.<br>
+              ④ Trabaja la zona puerta a puerta y apunta cada casa donde te digan SÍ.<br>
+              ⑤ Al terminar, guarda las fichas de ese mismo día y cierra la jornada.
+            </details>
+            <details style="${sec}"><summary style="${sum}">2. El mapa y las zonas</summary>
+              <br>El mapa es una vista de satélite. Las zonas son los trozos de pueblo que te asigna el jefe. Tócalas para ver su estado: por hacer, incompleta o terminada. Si no terminas una zona, queda para el día siguiente.
+            </details>
+            <details style="${sec}"><summary style="${sum}">3. Las fichas de cliente</summary>
+              <br>Cada SÍ lleva su ficha: nombre, calle, teléfono, metros aproximados, tipo de acceso al desván y foto de la trampilla. Indica también <strong>cómo lo captaste</strong>: puerta a puerta, te llamó el cliente, o exterior/cartel. Sube las fichas <strong>el mismo día</strong>. Tu jefe ve quién las sube a tiempo.
+            </details>
+            <details style="${sec}"><summary style="${sum}">4. Llamar a los clientes (Seguimiento)</summary>
+              <br>Todos los SÍ hay que llamarlos <strong>el mismo día</strong>. Dentro de Seguimiento de Llamadas:<br>
+              🔴 <strong>Por llamar</strong>: aún no le has llamado.<br>
+              🟡 <strong>Ya llamado</strong>: no contestó. Mándale el WhatsApp ya preparado. Se te recordará a las 48 h.<br>
+              🟣 <strong>Esperando</strong>: lo tiene que pensar o hablar. Es obligatorio escribir el motivo y elegir si toca volver a llamar o basta un WhatsApp. También a las 48 h.<br>
+              📅 <strong>Citar obra</strong>: si consigues cita, pon día y hora.
+            </details>
+            <details style="${sec}"><summary style="${sum}">5. Cita de obra y subida a la CRM</summary>
+              <br>Cuando una ficha pasa a <strong>Cita Agendada</strong>, la app genera un archivo de esa cita. Súbelo a la CRM oficial y confirma que ya está subida. <strong>Sin ese paso no se puede guardar la cita.</strong> Así la cita llega a la CRM con su fecha y hora para que se programe la obra.
+            </details>
+            <details style="${sec}"><summary style="${sum}">6. Jornada y ranking</summary>
+              <br>Marca el inicio, la comida y el final de tu jornada. El ranking compara los resultados de todo el equipo.
+            </details>
+            <details style="${sec}"><summary style="${sum}">7. Ajustes y tu PIN</summary>
+              <br>En tu perfil puedes cambiar tu nombre visible y tu PIN de 4 dígitos, activar o quitar sonidos y vibración, y activar los avisos del móvil. <strong>Cambia el PIN de inicio por uno tuyo.</strong>
+            </details>
+            <details style="${sec}"><summary style="${sum}">8. ¿Algo no funciona o no lo entiendes?</summary>
+              <br>En Ajustes, sección "Ayuda y Contacto", tienes tres botones para escribir directamente a Andrei por WhatsApp: sugerir una mejora, informar de un fallo, o preguntar si no entiendes algo.
+            </details>
+          </div>
+        </div>`;
+      modal.classList.add('active');
     }
 
     function saveUserProfileSettings() {
