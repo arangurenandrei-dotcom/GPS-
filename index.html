@@ -8096,6 +8096,8 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
                     </div>
                     <select id="${timeId}" class="select-field" style="padding:6px 8px;">${obraSlotOptionsForDate(startDay)}</select>
                   </div>
+                  <input type="email" id="pa_email_${p.it.zIdx}_${p.it.cIdx}" class="input-field" placeholder="✉️ Correo electrónico del cliente" value="${String((savedZones[p.it.zIdx].clients[p.it.cIdx].email) || '').replace(/"/g, '&quot;')}" style="padding:6px 8px;">
+                  <input type="text" id="pa_dni_${p.it.zIdx}_${p.it.cIdx}" class="input-field" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${String((savedZones[p.it.zIdx].clients[p.it.cIdx].dni) || '').replace(/"/g, '&quot;')}" style="padding:6px 8px; text-transform:uppercase;">
                   <button onclick="confirmFromPorAgendar(${p.it.zIdx}, ${p.it.cIdx}, '${dateId}', '${timeId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">✅ Confirmar Cita de Obra</button>
                 </div>
               </div>
@@ -8136,7 +8138,23 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
     }
 
-    function confirmFromPorAgendar(zIdx, cIdx, dateId, timeId) {
+        function confirmFromPorAgendar(zIdx, cIdx, dateId, timeId) {
+      const c0 = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
+      if (!c0) return;
+      const key = `${zIdx}_${cIdx}`;
+      const em = (document.getElementById('pa_email_' + key)?.value || '').trim();
+      const dni = (document.getElementById('pa_dni_' + key)?.value || '').trim().toUpperCase();
+      if (dni && !isValidDni(dni)) {
+        alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+        return;
+      }
+      if (em) c0.email = em;
+      if (dni) c0.dni = dni;
+      const fuEm = document.getElementById('fu_email_' + key);
+      if (fuEm) fuEm.value = c0.email || '';
+      const fuDni = document.getElementById('fu_dni_' + key);
+      if (fuDni) fuDni.value = c0.dni || '';
+
       confirmScheduleFromFollowUp(zIdx, cIdx, dateId, timeId);
       const c = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
       if (c && c.obraStatus === 'agendada') renderPorAgendarView();
