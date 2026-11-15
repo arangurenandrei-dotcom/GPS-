@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -7614,21 +7615,12 @@
       isManualGpsRequest = true;
       map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
     }
-  function fitToFullScreen() {
- const root = document.documentElement;
- const portrait = window.innerHeight >= window.innerWidth;
- const full = portrait
- ? Math.max(window.innerHeight, window.screen.height)
- : window.innerHeight;
- const gap = Math.max(0, full - window.innerHeight);
- root.style.setProperty('--app-h', full + 'px');
- root.style.setProperty('--gap', gap + 'px');
+   function fitToFullScreen() {
  if (map) setTimeout(() => map.invalidateSize(), 120);
  }
  window.addEventListener('resize', fitToFullScreen);
  window.addEventListener('orientationchange', () => setTimeout(fitToFullScreen, 300));
  window.addEventListener('pageshow', fitToFullScreen);
- fitToFullScreen();
     window.onload = () => {
       applyAppVisualSettings();
       refreshLoginDropdownAliases();
