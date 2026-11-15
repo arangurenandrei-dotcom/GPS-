@@ -2221,10 +2221,28 @@
         authSetMsg('⚠️ No se pudo leer tu ficha. Revisa la conexión.', 'err');
         return;
       }
-      if (!prof) {
-        authSetMsg('⚠️ Tu cuenta no tiene ficha. Pide acceso a Andrei.', 'err');
-        try { await window.authApi.logout(); } catch (e) {}
-        return;
+           if (!prof) {
+        const isBossEmail = BOSS_EMAIL.includes('@') && (user.email || '').toLowerCase() === BOSS_EMAIL.trim().toLowerCase();
+        const nm = (user.email || '').split('@')[0];
+        try {
+          await window.authApi.setProfile(user.uid, {
+            email: user.email,
+            nombre: nm,
+            estado: isBossEmail ? 'aprobado' : 'pendiente',
+            userKey: isBossEmail ? 'jefe' : '',
+            createdAt: Date.now()
+          });
+          prof = await window.authApi.getProfile(user.uid);
+        } catch (e) {
+          authSetMsg('⚠️ No se pudo crear tu ficha: ' + ((e && e.message) || e), 'err');
+          try { await window.authApi.logout(); } catch (e2) {}
+          return;
+        }
+        if (!prof) {
+          authSetMsg('⚠️ Tu cuenta no tiene ficha. Pide acceso a Andrei.', 'err');
+          try { await window.authApi.logout(); } catch (e) {}
+          return;
+        }
       }
       if (prof.estado === 'pendiente') {
         authSetMsg('⏳ Tu cuenta está pendiente de aprobación por Andrei.', 'warn');
