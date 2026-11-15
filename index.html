@@ -2704,6 +2704,19 @@
       renderFollowUpsModal();
     }
 
+    function saveCallNotes(zoneIdx, clientIdx, emailId, notesId) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      const c = z.clients[clientIdx];
+      const em = (document.getElementById(emailId)?.value || '').trim();
+      const nt = (document.getElementById(notesId)?.value || '').trim();
+      c.email = em;
+      c.callNotes = nt;
+      z._updatedAt = Date.now();
+      saveAndSync('comercial_custom_zones', savedZones);
+      alert("✅ Datos guardados en la ficha.");
+    }
+
     function toggleInlineScheduleBox(boxId) {
       const el = document.getElementById(boxId);
       if (el) {
@@ -2722,6 +2735,10 @@
       }
 
       const dateVal = document.getElementById(dateInputId)?.value || getTodayISO();
+      const emInp = document.getElementById(`fu_email_${zoneIdx}_${clientIdx}`);
+      const ntInp = document.getElementById(`fu_notes_${zoneIdx}_${clientIdx}`);
+      if (emInp && emInp.value.trim()) client.email = emInp.value.trim();
+      if (ntInp && ntInp.value.trim()) client.callNotes = ntInp.value.trim();
       const timeVal = document.getElementById(timeInputId)?.value || '09:30';
       const testClient = Object.assign({}, client, { obraStatus: 'agendada', obraDate: dateVal, obraTime: timeVal });
       if (!ensureCrmUpload(testClient, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) return;
@@ -2870,6 +2887,15 @@
               </button>
             </div>
 
+            ${viewerIsMikel ? '' : `
+            <details style="background:rgba(56,189,248,0.10); border:1px solid #38bdf8; border-radius:9px; padding:6px 8px; margin-top:4px;">
+              <summary style="font-size:10.5px; font-weight:900; color:#7dd3fc; cursor:pointer;">📝 Datos de la llamada (email, notas)</summary>
+              <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+                <input type="email" id="fu_email_${item.zoneIdx}_${item.clientIdx}" class="input-field" placeholder="✉️ Correo electrónico del cliente" value="${(c.email || '').replace(/"/g, '&quot;')}" style="padding:6px 8px;">
+                <textarea id="fu_notes_${item.zoneIdx}_${item.clientIdx}" class="input-field" rows="2" placeholder="Notas de la llamada (horarios, quién decide, dudas...)" style="padding:6px 8px;">${(c.callNotes || '').replace(/</g, '&lt;')}</textarea>
+                <button onclick="saveCallNotes(${item.zoneIdx}, ${item.clientIdx}, 'fu_email_${item.zoneIdx}_${item.clientIdx}', 'fu_notes_${item.zoneIdx}_${item.clientIdx}')" style="padding:7px; border:none; border-radius:8px; background:#0284c7; color:#fff; font-size:11px; font-weight:900; cursor:pointer;">💾 Guardar datos</button>
+              </div>
+            </details>`}
             <div id="${schedBoxId}" style="display:none; flex-direction:column; gap:6px; background:rgba(5,150,105,0.16); border:1px solid #34d399; border-radius:9px; padding:8px; margin-top:4px;">
               <div style="font-size:10px; font-weight:800; color:#a7f3d0;">Selecciona día y hora exacta de la obra:</div>
               <div class="grid-row-2" style="margin-bottom:0;">
@@ -3915,6 +3941,7 @@
         comercial_captador: getDisplayAlias(ctx.comercial),
         comercial_id: ctx.comercial,
         origen_captacion: c.origen || 'puerta',
+        notas_llamada: c.callNotes || '',
         tipo_inmueble: c.type === 'comunidad' ? 'COMUNIDAD' : 'VIVIENDA_UNIFAMILIAR',
         cliente_nombre: c.name || '',
         telefono: (c.phone || '').replace(/\s+/g, ''),
@@ -3999,6 +4026,7 @@
       c.waitReason = m.waitReason || '';
       c.nextContactAt = m.nextContactAt || null;
       c.callLog = m.callLog || [];
+      c.callNotes = m.callNotes || '';
       return c;
     }
 
