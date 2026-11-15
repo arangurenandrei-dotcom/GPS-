@@ -4399,7 +4399,11 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
     }
 
     function ensureCrmUpload(c, ctx) {
-      if (isMikelTeamMember(ctx.comercial)) return true;
+            if (isMikelTeamMember(ctx.comercial)) return true;
+      if (c.dni && !isValidDni(c.dni)) {
+        alert("⚠️ El DNI/NIE de " + (c.name || 'un cliente') + " no parece válido. Revisa los números y la letra.");
+        return false;
+      }
       if (!needsCrmUpload(c)) return true;
       if (c.obraDate && new Date(c.obraDate + 'T12:00:00').getDay() === 0) {
         alert("⚠️ Los domingos no se trabaja. Elige un día de lunes a sábado.");
@@ -4452,7 +4456,8 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       c.nextContactAt = m.nextContactAt || null;
       c.callLog = m.callLog || [];
       c.callNotes = m.callNotes || '';
-      c.dni = m.dni || '';
+      const dniField = box.querySelector('.client-dni');
+      c.dni = dniField ? dniField.value.trim().toUpperCase() : (m.dni || '');
       return c;
     }
 
@@ -4558,6 +4563,10 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         return;
       }
 
+      if (clientObj.dni && !isValidDni(clientObj.dni)) {
+        alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+        return;
+      }
       const dateVal = document.getElementById('singleHouseDate').value || getTodayISO();
       let townVal = document.getElementById('singleHouseTown').value.trim();
       if (!townVal || townVal === 'Detectando...') townVal = 'Peralta';
@@ -5458,6 +5467,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         name: parentBox.querySelector('.client-name')?.value || '',
         phone: parentBox.querySelector('.client-phone')?.value || '',
         email: parentBox.querySelector('.client-email')?.value || '',
+        dni: parentBox.querySelector('.client-dni')?.value || '',
         buildYear: parentBox.querySelector('.client-build-year')?.value || '',
         accessType: parentBox.querySelector('.client-access-type')?.value || 'Trampilla',
         accessOther: parentBox.querySelector('.client-access-other')?.value || '',
@@ -5611,6 +5621,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
         <div style="margin-bottom:6px;">
           <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico (Opcional)" value="${existing.email || ''}">
+          ${!isMikelTeamMember(currentUserName) ? `<input type="text" class="input-field client-dni" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${String(existing.dni || '').replace(/"/g, '&quot;')}" style="margin-top:5px; text-transform:uppercase;" oninput="validateDniField(this)">` : ''}
         </div>
         
         <div style="display:flex; gap:4px; margin-bottom:6px;">
@@ -5795,6 +5806,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
         <div style="margin-bottom:6px;">
           <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico presidente / administrador" value="${existing.email || ''}">
+          ${!isMikelTeamMember(currentUserName) ? `<input type="text" class="input-field client-dni" placeholder="🪪 DNI / NIE del presidente" maxlength="10" value="${String(existing.dni || '').replace(/"/g, '&quot;')}" style="margin-top:5px; text-transform:uppercase;" oninput="validateDniField(this)">` : ''}
         </div>
 
         <div class="grid-row-2">
@@ -8340,6 +8352,13 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       saveAndSync('comercial_custom_zones', savedZones);
       logActivity('cancelada', `❌ Obra cancelada: ${c.name || 'Cliente'} · ${z.town || ''} (era el ${formatDate(oldDate)}). Motivo: ${reason}`, z.comercial);
       renderFollowUpsModal();
+    }
+
+    function validateDniField(el) {
+      const v = (el.value || '').trim();
+      if (!v) { el.style.borderColor = ''; return; }
+      if (v.length < 9) { el.style.borderColor = '#f59e0b'; return; }
+      el.style.borderColor = isValidDni(v) ? '#10b981' : '#ef4444';
     }
 
     function openNoteModal(zoneIdx) {
