@@ -2871,6 +2871,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
               ${(!viewerIsMikel && mode !== 'done') ? `<button onclick="downloadCitaFromList(${zIdx}, ${cIdx})" style="${bt} background:#0284c7;">📄 Archivo CRM</button>` : ''}
               <button onclick="closeModal('followUpsModal'); openDumpModal(${zIdx});" style="${bt} background:#7c3aed;">✏️ Editar</button>
               ${(mode !== 'done') ? `<button onclick="markObraRealizada(${zIdx}, ${cIdx})" style="${bt} background:#d97706;">✅ Realizada</button>` : ''}
+              ${(mode !== 'done' && isBoss) ? `<button onclick="cancelObra(${zIdx}, ${cIdx})" style="${bt} background:#dc2626;">❌ Cancelada</button>` : ''}
             </div>
           </div>`;
       };
