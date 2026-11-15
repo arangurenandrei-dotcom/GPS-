@@ -7949,7 +7949,9 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
             street: (c.street || '').trim(),
             name: c.name || 'Cliente',
             m2: getM2NumericValue(c.m2),
-            comercial: z.comercial,
+                        comercial: z.comercial,
+            phone: c.phone || '',
+            callStatus: c.callStatus || 'pendiente',
             zIdx, cIdx
           });
         });
@@ -8066,10 +8068,36 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
           g.forEach(p => {
             const far = p.dPrev !== null && p.dPrev > 1.5;
             const distTxt = p.dPrev === null ? 'Inicio' : (p.dPrev < 1 ? Math.round(p.dPrev * 1000) + ' m del anterior' : p.dPrev.toFixed(1) + ' km del anterior');
+                        const stIcon = p.it.callStatus === 'ya_llamado' ? '🟡' : (p.it.callStatus === 'esperando_confirmacion' ? '🟣' : '🔴');
+            const boxId = `pa_box_${p.it.zIdx}_${p.it.cIdx}`;
+            const dateId = `sched_date_pa_${p.it.zIdx}_${p.it.cIdx}`;
+            const timeId = `sched_time_pa_${p.it.zIdx}_${p.it.cIdx}`;
+            const startDay = day || findFreeObraDay(getTomorrowISO(), 1);
+            const cleanPh = (p.it.phone || '').replace(/\s+/g, '');
             html += `
-              <div style="font-size:11px; background:rgba(255,255,255,0.05); padding:5px 7px; border-radius:6px; margin-top:3px; display:flex; justify-content:space-between; gap:6px;">
-                <span>🏠 <strong>${esc(p.it.name)}</strong> · ${esc(p.it.street)} <small style="color:#94a3b8;">(${esc(p.it.comercial)})</small></span>
-                <span style="white-space:nowrap; color:${far ? '#fca5a5' : '#94a3b8'}; font-weight:800;">${far ? '⚠️ ' : ''}${distTxt} · ${p.it.m2} m²</span>
+              <div style="background:rgba(255,255,255,0.05); padding:6px 7px; border-radius:6px; margin-top:3px;">
+                <div style="font-size:11px; display:flex; justify-content:space-between; gap:6px;">
+                  <span>${stIcon} <strong>${esc(p.it.name)}</strong> · ${esc(p.it.street)} <small style="color:#94a3b8;">(${esc(p.it.comercial)})</small></span>
+                  <span style="white-space:nowrap; color:${far ? '#fca5a5' : '#94a3b8'}; font-weight:800;">${far ? '⚠️ ' : ''}${distTxt} · ${p.it.m2} m²</span>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                  ${cleanPh ? `<a href="tel:${cleanPh}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:6px 4px; border-radius:7px; font-size:10.5px; font-weight:800;">📞 Llamar</a>` : `<span style="flex:1; text-align:center; font-size:10px; color:#fde047; padding:6px 4px;">Sin teléfono</span>`}
+                  <button onclick="togglePaBox('${boxId}')" style="flex:1.2; border:1px solid #34d399; background:#059669; color:#fff; padding:6px 4px; border-radius:7px; font-size:10.5px; font-weight:900; cursor:pointer;">📅 Citar</button>
+                </div>
+                <div id="${boxId}" style="display:none; flex-direction:column; gap:6px; background:rgba(5,150,105,0.16); border:1px solid #34d399; border-radius:9px; padding:8px; margin-top:6px;">
+                  <div class="grid-row-2" style="margin-bottom:0;">
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                      <div style="display:flex; gap:3px; align-items:center;">
+                        <button type="button" onclick="moveObraDay('${dateId}', -1)" style="background:#1e293b; border:1px solid #34d399; color:#fff; border-radius:7px; padding:6px 8px; font-weight:900; cursor:pointer;">◀</button>
+                        <input type="date" id="${dateId}" class="input-field" value="${startDay}" style="padding:6px 4px;" onchange="updateObraDayInfo('${dateId}')">
+                        <button type="button" onclick="moveObraDay('${dateId}', 1)" style="background:#1e293b; border:1px solid #34d399; color:#fff; border-radius:7px; padding:6px 8px; font-weight:900; cursor:pointer;">▶</button>
+                      </div>
+                      <div id="${dateId}_info" style="font-size:9.5px; color:#a7f3d0; font-weight:800;">${obraDayInfoText(startDay)}</div>
+                    </div>
+                    <select id="${timeId}" class="select-field" style="padding:6px 8px;">${obraSlotOptionsForDate(startDay)}</select>
+                  </div>
+                  <button onclick="confirmFromPorAgendar(${p.it.zIdx}, ${p.it.cIdx}, '${dateId}', '${timeId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">✅ Confirmar Cita de Obra</button>
+                </div>
               </div>
             `;
           });
@@ -8080,12 +8108,38 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
           html += `<div style="font-size:10px; color:#94a3b8; margin-top:6px;">Sin ubicar todavía (${noGeo.length}): ${noGeo.map(it => esc(it.street || it.name)).join(' · ')}</div>`;
         }
         html += `
-            <button onclick="closeModal('auditModal'); openFollowUpsModal();" style="width:100%; margin-top:7px; padding:7px; border:none; border-radius:8px; background:#059669; color:#fff; font-size:10.5px; font-weight:900; cursor:pointer;">📞 Ir a Llamar para citarlas</button>
+            ${(() => {
+              const todayIso = getTodayISO();
+              const done = [];
+              savedZones.forEach(zz => {
+                if (isMikelTeamMember(zz.comercial) || (zz.town || 'Navarra').trim() !== town) return;
+                (zz.clients || []).forEach(cc => {
+                  if (cc.obraStatus === 'agendada' && cc.obraDate && cc.obraDate >= todayIso && isClientValidFilled(cc)) done.push(cc);
+                });
+              });
+              if (done.length === 0) return '';
+              done.sort((a, b) => (a.obraDate + a.obraTime).localeCompare(b.obraDate + b.obraTime));
+              return `<div style="margin-top:8px; background:rgba(16,185,129,0.12); border:1px solid #34d399; border-radius:9px; padding:6px 8px;">
+                <div style="font-size:10px; font-weight:900; color:#6ee7b7; text-transform:uppercase; margin-bottom:3px;">✅ Ya agendadas en este pueblo (${done.length})</div>
+                ${done.map(cc => `<div style="font-size:10.5px; color:#e2e8f0; margin-top:2px;">📅 ${formatDate(cc.obraDate)} · ⏰ ${obraSlotLabel(cc.obraTime)} · <strong>${esc(cc.name || 'Cliente')}</strong> · ${esc(cc.street)}</div>`).join('')}
+              </div>`;
+            })()}
           </div>
         `;
       });
 
       container.innerHTML = html;
+    }
+
+    function togglePaBox(boxId) {
+      const el = document.getElementById(boxId);
+      if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function confirmFromPorAgendar(zIdx, cIdx, dateId, timeId) {
+      confirmScheduleFromFollowUp(zIdx, cIdx, dateId, timeId);
+      const c = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
+      if (c && c.obraStatus === 'agendada') renderPorAgendarView();
     }
 
     function openNoteModal(zoneIdx) {
