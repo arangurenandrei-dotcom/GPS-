@@ -1067,6 +1067,7 @@
           <button id="fuFilterPendiente" class="subtab-btn" onclick="setFollowUpFilter('pendiente')">🔴 Por llamar</button>
           <button id="fuFilterLlamado" class="subtab-btn" onclick="setFollowUpFilter('ya_llamado')">🟡 Ya llamado</button>
           <button id="fuFilterEsperando" class="subtab-btn" onclick="setFollowUpFilter('esperando_confirmacion')">🟣 Esperando</button>
+          <button id="fuFilterCitas" class="subtab-btn" onclick="setFollowUpFilter('citas')">📅 Citas</button>
         </div>
       </div>
       <div class="modal-scrollable-content" id="followUpsModalBody"></div>
@@ -2704,6 +2705,171 @@
       renderFollowUpsModal();
     }
 
+    /* ===== FRANJAS DE OBRA, CITAS Y WHATSAPP AL CLIENTE ===== */
+    const OBRA_SLOTS = [
+      { start: '09:00', end: '11:00' },
+      { start: '11:00', end: '13:00' },
+      { start: '15:00', end: '17:00' },
+      { start: '17:00', end: '19:00' }
+    ];
+
+    function obraSlotLabel(t) {
+      const s = OBRA_SLOTS.find(x => x.start === t);
+      return s ? `${s.start} a ${s.end}` : (t || '');
+    }
+
+    function obraSlotOptions(sel) {
+      return OBRA_SLOTS.map(s => `<option value="${s.start}" ${s.start === sel ? 'selected' : ''}>⏰ ${s.start} – ${s.end}</option>`).join('');
+    }
+
+    function isValidDni(v) {
+      v = (v || '').toUpperCase().replace(/[\s-]/g, '');
+      if (!/^[XYZ0-9][0-9]{7}[A-Z]$/.test(v)) return false;
+      const letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+      const n = v.slice(0, 8).replace(/^X/, '0').replace(/^Y/, '1').replace(/^Z/, '2');
+      return letras[parseInt(n, 10) % 23] === v[8];
+    }
+
+    function citaDateLong(iso) {
+      if (!iso) return '';
+      return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function citaWaLink(c, town, comercial) {
+      const phone = (c.phone || '').replace(/\s+/g, '');
+      if (!phone) return '';
+      const alias = getDisplayAlias(comercial);
+      const first = (c.name || '').trim() ? ' ' + c.name.trim().split(' ')[0] : '';
+      const street = (c.street || '').trim() ? c.street.trim() + ', ' : '';
+      const msg =
+`Hola${first}, soy *${alias}* de *Konsor Energía*.
+
+Te confirmo tu cita para la instalación del aislamiento térmico:
+
+📅 *Fecha:* ${citaDateLong(c.obraDate)}
+⏰ *Franja:* de ${obraSlotLabel(c.obraTime).replace(' a ', ' a ')} (el equipo llegará dentro de esa franja)
+📍 *Dirección:* ${street}${town || 'Navarra'}
+
+Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la buhardilla. Si necesitas cambiar algo, respóndeme a este mensaje. ¡Gracias!`;
+      return `https://wa.me/34${phone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function showCitaSavedModal(c, ctx) {
+      let modal = document.getElementById('citaSavedModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'citaSavedModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+      }
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const wa = citaWaLink(c, ctx.town, ctx.comercial);
+      modal.innerHTML = `
+        <div class="modal-card">
+          <div class="modal-header-sticky">
+            <div class="modal-header">
+              <span>✅ Cita guardada</span>
+              <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('citaSavedModal')">✕</button>
+            </div>
+          </div>
+          <div class="modal-scrollable-content">
+            <div style="background:rgba(16,185,129,0.14); border:1px solid #34d399; border-radius:10px; padding:10px; font-size:12px; color:#e2e8f0; line-height:1.6; margin-bottom:10px;">
+              👤 <strong>${esc(c.name) || 'Cliente'}</strong><br>
+              📅 ${citaDateLong(c.obraDate)}<br>
+              ⏰ ${obraSlotLabel(c.obraTime)}<br>
+              📍 ${esc(c.street)} ${esc(ctx.town)}
+            </div>
+            ${wa
+              ? `<a href="${wa}" target="_blank" style="display:block; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:11px; border-radius:10px; font-size:12.5px; font-weight:900; margin-bottom:8px;">💬 Enviar WhatsApp de confirmación al cliente</a>`
+              : `<div style="font-size:11px; color:#fde047; margin-bottom:8px;">⚠️ Esta ficha no tiene teléfono, no se puede mandar WhatsApp.</div>`}
+            <button class="btn-modal-save" onclick="closeModal('citaSavedModal')">Cerrar</button>
+          </div>
+        </div>`;
+      modal.classList.add('active');
+    }
+
+    function downloadCitaFromList(zIdx, cIdx) {
+      const z = savedZones[zIdx];
+      if (!z || !z.clients || !z.clients[cIdx]) return;
+      downloadCrmCita(z.clients[cIdx], { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial });
+    }
+
+    function markObraRealizada(zIdx, cIdx) {
+      const z = savedZones[zIdx];
+      if (!z || !z.clients || !z.clients[cIdx]) return;
+      if (!confirm("¿Marcar esta obra como REALIZADA?")) return;
+      z.clients[cIdx].obraStatus = 'realizada';
+      z.clients[cIdx].statusChangedAt = Date.now();
+      z._updatedAt = Date.now();
+      saveAndSync('comercial_custom_zones', savedZones);
+      renderFollowUpsModal();
+    }
+
+    function renderCitasView() {
+      const container = document.getElementById('followUpsModalBody');
+      const viewerIsMikel = isMikelTeamMember(currentUserName);
+      const isBoss = currentUserRole !== 'comercial';
+      const today = getTodayISO();
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const upcoming = [], past = [], done = [];
+
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
+        (z.clients || []).forEach((c, cIdx) => {
+          if (!isClientValidFilled(c)) return;
+          const it = { z, zIdx, c, cIdx };
+          if (c.obraStatus === 'agendada') { ((c.obraDate || '') >= today ? upcoming : past).push(it); }
+          else if (c.obraStatus === 'realizada') { done.push(it); }
+        });
+      });
+
+      const k = it => (it.c.obraDate || '') + (it.c.obraTime || '');
+      upcoming.sort((a, b) => k(a) < k(b) ? -1 : 1);
+      past.sort((a, b) => k(a) < k(b) ? -1 : 1);
+      done.sort((a, b) => k(a) < k(b) ? 1 : -1);
+
+      const bt = 'flex:1; text-align:center; text-decoration:none; border:none; color:#fff; padding:6px 4px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer;';
+      const card = (it, mode) => {
+        const { z, zIdx, c, cIdx } = it;
+        const phone = (c.phone || '').replace(/\s+/g, '');
+        const wa = (mode !== 'done' && phone) ? citaWaLink(c, z.town, z.comercial) : '';
+        const crm = (viewerIsMikel || mode === 'done') ? '' : (needsCrmUpload(c)
+          ? '<span style="color:#fca5a5; font-weight:900;">⚠️ Sin subir a CRM</span>'
+          : '<span style="color:#6ee7b7; font-weight:900;">✅ En CRM</span>');
+        const border = mode === 'past' ? '#ef4444' : (mode === 'done' ? '#34d399' : '#f59e0b');
+        return `
+          <div style="background:rgba(255,255,255,0.05); border:1px solid ${border}; border-radius:11px; padding:9px 10px; margin-bottom:8px; font-size:11.5px; color:#e2e8f0;">
+            <div style="display:flex; justify-content:space-between; gap:6px; font-weight:900;">
+              <span>${esc(c.name) || 'Cliente sin nombre'}</span>
+              <span style="color:#fde047;">${mode === 'done' ? '✅ Realizada' : '⏰ ' + obraSlotLabel(c.obraTime)}</span>
+            </div>
+            <div style="color:#94a3b8; font-size:10.5px; margin:2px 0;">
+              📅 ${citaDateLong(c.obraDate)}${mode === 'past' ? ' <strong style="color:#fca5a5;">· ¿Se hizo? Pasó la fecha</strong>' : ''}<br>
+              📍 ${esc(c.street) || 'Sin dirección'} · ${esc(z.town)} · 👤 ${esc(z.comercial)}<br>
+              ${crm}
+            </div>
+            <div style="display:flex; gap:4px; margin-top:5px; flex-wrap:wrap;">
+              ${phone ? `<a href="tel:${phone}" style="${bt} background:#2563eb;">📞 Llamar</a>` : ''}
+              ${wa ? `<a href="${wa}" target="_blank" style="${bt} background:#059669;">💬 Recordar fecha</a>` : ''}
+              ${(!viewerIsMikel && mode !== 'done') ? `<button onclick="downloadCitaFromList(${zIdx}, ${cIdx})" style="${bt} background:#0284c7;">📄 Archivo CRM</button>` : ''}
+              <button onclick="closeModal('followUpsModal'); openDumpModal(${zIdx});" style="${bt} background:#7c3aed;">✏️ Editar</button>
+              ${(isBoss && mode !== 'done') ? `<button onclick="markObraRealizada(${zIdx}, ${cIdx})" style="${bt} background:#d97706;">✅ Realizada</button>` : ''}
+            </div>
+          </div>`;
+      };
+
+      const section = (title, arr, mode) => arr.length
+        ? `<div class="modal-section-title">${title} (${arr.length})</div>` + arr.map(it => card(it, mode)).join('')
+        : '';
+
+      const html = section('📅 Próximas citas de obra', upcoming, 'upcoming')
+        + section('⚠️ Fecha pasada: ¿se hicieron?', past, 'past')
+        + section('✅ Obras realizadas', done, 'done');
+
+      container.innerHTML = html || '<div style="text-align:center; padding:22px; color:#94a3b8; font-size:12px;">Todavía no hay citas de obra agendadas.</div>';
+    }
+
     function saveCallNotes(zoneIdx, clientIdx, emailId, notesId) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
@@ -2711,6 +2877,12 @@
       const em = (document.getElementById(emailId)?.value || '').trim();
       const nt = (document.getElementById(notesId)?.value || '').trim();
       c.email = em;
+      const dniRaw = (document.getElementById(`fu_dni_${zoneIdx}_${clientIdx}`)?.value || '').trim().toUpperCase();
+      if (dniRaw && !isValidDni(dniRaw)) {
+        alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+        return;
+      }
+      c.dni = dniRaw;
       c.callNotes = nt;
       z._updatedAt = Date.now();
       saveAndSync('comercial_custom_zones', savedZones);
@@ -2739,6 +2911,14 @@
       const ntInp = document.getElementById(`fu_notes_${zoneIdx}_${clientIdx}`);
       if (emInp && emInp.value.trim()) client.email = emInp.value.trim();
       if (ntInp && ntInp.value.trim()) client.callNotes = ntInp.value.trim();
+      const dniInp = document.getElementById(`fu_dni_${zoneIdx}_${clientIdx}`);
+      if (dniInp && dniInp.value.trim()) {
+        if (!isValidDni(dniInp.value)) {
+          alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+          return;
+        }
+        client.dni = dniInp.value.trim().toUpperCase();
+      }
       const timeVal = document.getElementById(timeInputId)?.value || '09:30';
       const testClient = Object.assign({}, client, { obraStatus: 'agendada', obraDate: dateVal, obraTime: timeVal });
       if (!ensureCrmUpload(testClient, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) return;
@@ -2752,6 +2932,13 @@
     }
 
     function renderFollowUpsModal() {
+      const bCitas = document.getElementById('fuFilterCitas');
+      if (bCitas) bCitas.className = `subtab-btn ${activeFollowUpFilter === 'citas' ? 'active' : ''}`;
+      if (activeFollowUpFilter === 'citas') { renderCitasView(); return; }
+      renderFollowUpsModalBase();
+    }
+
+    function renderFollowUpsModalBase() {
       const container = document.getElementById('followUpsModalBody');
       const pendingCalls = [];
 
@@ -2892,6 +3079,7 @@
               <summary style="font-size:10.5px; font-weight:900; color:#7dd3fc; cursor:pointer;">📝 Datos de la llamada (email, notas)</summary>
               <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
                 <input type="email" id="fu_email_${item.zoneIdx}_${item.clientIdx}" class="input-field" placeholder="✉️ Correo electrónico del cliente" value="${(c.email || '').replace(/"/g, '&quot;')}" style="padding:6px 8px;">
+                <input type="text" id="fu_dni_${item.zoneIdx}_${item.clientIdx}" class="input-field" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${(c.dni || '').replace(/"/g, '&quot;')}" style="padding:6px 8px; text-transform:uppercase;">
                 <textarea id="fu_notes_${item.zoneIdx}_${item.clientIdx}" class="input-field" rows="2" placeholder="Notas de la llamada (horarios, quién decide, dudas...)" style="padding:6px 8px;">${(c.callNotes || '').replace(/</g, '&lt;')}</textarea>
                 <button onclick="saveCallNotes(${item.zoneIdx}, ${item.clientIdx}, 'fu_email_${item.zoneIdx}_${item.clientIdx}', 'fu_notes_${item.zoneIdx}_${item.clientIdx}')" style="padding:7px; border:none; border-radius:8px; background:#0284c7; color:#fff; font-size:11px; font-weight:900; cursor:pointer;">💾 Guardar datos</button>
               </div>
@@ -2900,7 +3088,7 @@
               <div style="font-size:10px; font-weight:800; color:#a7f3d0;">Selecciona día y hora exacta de la obra:</div>
               <div class="grid-row-2" style="margin-bottom:0;">
                 <input type="date" id="${dateInpId}" class="input-field" value="${getTodayISO()}" style="padding:6px 8px;">
-                <input type="time" id="${timeInpId}" class="input-field" value="09:30" style="padding:6px 8px;">
+                    <select id="${timeInpId}" class="select-field" style="padding:6px 8px;">${obraSlotOptions('09:00')}</select>
               </div>
               <button onclick="confirmScheduleFromFollowUp(${item.zoneIdx}, ${item.clientIdx}, '${dateInpId}', '${timeInpId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">
                 ✅ Confirmar Cita de Obra
@@ -3942,6 +4130,9 @@
         comercial_id: ctx.comercial,
         origen_captacion: c.origen || 'puerta',
         notas_llamada: c.callNotes || '',
+        dni: c.dni || '',
+        hora_fin_obra: (OBRA_SLOTS.find(s => s.start === c.obraTime) || {}).end || null,
+        franja_obra: obraSlotLabel(c.obraTime),
         tipo_inmueble: c.type === 'comunidad' ? 'COMUNIDAD' : 'VIVIENDA_UNIFAMILIAR',
         cliente_nombre: c.name || '',
         telefono: (c.phone || '').replace(/\s+/g, ''),
@@ -3990,6 +4181,19 @@
     function ensureCrmUpload(c, ctx) {
       if (isMikelTeamMember(ctx.comercial)) return true;
       if (!needsCrmUpload(c)) return true;
+      if (c.obraDate && new Date(c.obraDate + 'T12:00:00').getDay() === 0) {
+        alert("⚠️ Los domingos no se trabaja. Elige un día de lunes a sábado.");
+        return false;
+      }
+      if (c.obraDate && c.obraTime) {
+        const myId = `${c.createdAt || ''}_${(c.phone || '').replace(/\D/g, '')}`;
+        let clash = 0;
+        savedZones.forEach(zz => (zz.clients || []).forEach(o => {
+          const oId = `${o.createdAt || ''}_${(o.phone || '').replace(/\D/g, '')}`;
+          if (o.obraStatus === 'agendada' && o.obraDate === c.obraDate && o.obraTime === c.obraTime && oId !== myId && !isMikelTeamMember(zz.comercial)) clash++;
+        }));
+        if (clash > 0 && !confirm(`⚠️ Ya hay ${clash} obra(s) agendada(s) el ${c.obraDate} en la franja ${obraSlotLabel(c.obraTime)}.\n\n¿Quieres agendar esta también en esa franja?`)) return false;
+      }
       if (!c.obraDate || !c.obraTime) {
         alert("⚠️ Pon la fecha y la hora de la cita de obra para poder guardar.");
         return false;
@@ -4001,6 +4205,7 @@
       c.crmUploadedAt = Date.now();
       c.crmDate = c.obraDate;
       c.crmTime = c.obraTime;
+      setTimeout(() => showCitaSavedModal(c, ctx), 150);
       return true;
     }
 
@@ -4027,6 +4232,7 @@
       c.nextContactAt = m.nextContactAt || null;
       c.callLog = m.callLog || [];
       c.callNotes = m.callNotes || '';
+      c.dni = m.dni || '';
       return c;
     }
 
@@ -5277,7 +5483,7 @@
           <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
           <div class="grid-row-2" style="margin-bottom:0;">
             <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px;">
-            <input type="time" class="input-field client-obra-time" value="${defaultObraTime}" style="padding:6px 8px;">
+            <select class="select-field client-obra-time" style="padding:6px 8px;">${obraSlotOptions(defaultObraTime)}</select>
           </div>
         </div>
         
@@ -5452,7 +5658,7 @@
           <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
           <div class="grid-row-2" style="margin-bottom:0;">
             <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px;">
-            <input type="time" class="input-field client-obra-time" value="${defaultObraTime}" style="padding:6px 8px;">
+            <select class="select-field client-obra-time" style="padding:6px 8px;">${obraSlotOptions(defaultObraTime)}</select>
           </div>
         </div>
 
