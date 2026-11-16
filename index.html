@@ -9594,146 +9594,472 @@ const labelStreet = clientObj.street ||
     /* =====================================================================
        MODAL LIGA VISUAL DE RANKING (CICLO MENSUAL DESDE 0)
        ===================================================================== */
-    function openLeagueRankingModal() {
-      const container = document.getElementById('leagueRankingContainer');
-      const modalTitle = document.getElementById('leagueModalTitle');
-      container.innerHTML = '';
+    let leaguePeriod = 'month';
+let leagueDate = '';
+let leagueMetric = 'captadas';
 
-      const participantsList = currentUserRole === 'jefe'
-        ? ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5']
-        : ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+function leagueRows(
+  period,
+  date,
+  metric,
+  previous = false
+) {
+  const fields = {
+    captadas: ['m2Captado', 'validas'],
+    citas: ['m2Citas', 'citas'],
+    realizadas: ['m2Hechas', 'hechas']
+  };
 
-      modalTitle.innerText = currentUserRole === 'jefe'
-        ? '🏆 Liga Equipo • Facturación Bruta (SÍ)'
-        : '🏆 Liga Comercial • Dinero en SÍ';
+  const [areaField, countField] =
+    fields[metric] || fields.captadas;
 
-      const currentYm = getMonthKeyOffset(0);
-      const moneySiMap = {};
-      participantsList.forEach(p => { moneySiMap[p] = 0; });
+  const range = personalStatsRange(
+    period,
+    date,
+    previous
+  );
 
-      savedZones.forEach(z => {
-        const u = z.comercial;
-        if (moneySiMap[u] === undefined) return;
-        const zDate = z.dumpDate || z.date || '';
-        if (!zDate.startsWith(currentYm)) return;
+  const rows = getActiveTeamUsers(false)
+    .map(name => {
+      const data = personalStatsMetrics(
+        name,
+        ...range
+      );
 
-        if (z.clients) {
-          z.clients.forEach(c => {
-            if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
-            const m2Val = getM2NumericValue(c.m2);
-            moneySiMap[u] += m2Val * 1.0;
-          });
-        }
-      });
+      return {
+        name,
+        area: data[areaField],
+        count: data[countField],
+        personal: data[areaField] * (
+          name === 'Andrei (Jefe)' ? 1 : 0.85
+        ),
+        unknownDone: data.antiguasSinFecha,
+        rank: null
+      };
+    })
+    .sort((a, b) =>
+      b.area - a.area ||
+      getDisplayAlias(a.name).localeCompare(
+        getDisplayAlias(b.name),
+        'es'
+      )
+    );
 
-      const rankingArray = participantsList
-        .map(name => ({ name, moneySi: moneySiMap[name] }))
-        .sort((a, b) => b.moneySi - a.moneySi);
+  rows.forEach((row, i) => {
+    if (row.area <= 0) return;
 
-      const leaderAmount = rankingArray[0].moneySi;
-      const totalLeagueMoney = rankingArray.reduce((acc, item) => acc + item.moneySi, 0);
-      const myRankIndex = rankingArray.findIndex(item => item.name === currentUserName);
-      const myData = myRankIndex !== -1 ? rankingArray[myRankIndex] : null;
+    row.rank =
+      i > 0 && row.area === rows[i - 1].area
+        ? rows[i - 1].rank
+        : i + 1;
+  });
 
-      let motivationalTopMsg = '';
-      if (currentUserRole === 'jefe') {
-        motivationalTopMsg = `Facturación bruta acumulada de todo el equipo: <strong>${totalLeagueMoney.toFixed(2)} €</strong>.`;
-      } else {
-        if (leaderAmount === 0) {
-          motivationalTopMsg = '🚀 ¡El marcador está a cero! Sé el primero en romper el hielo y liderar la tabla.';
-        } else if (myRankIndex === 0) {
-          motivationalTopMsg = '👑 ¡VAS #1 EN CABEZA! Mantén el ritmo que te quieren quitar el trono.';
-        } else {
-          const diffToFirst = (leaderAmount - myData.moneySi).toFixed(2);
-          motivationalTopMsg = `🔥 Estás a solo <strong>${diffToFirst} €</strong> del #1 (${rankingArray[0].name}). ¡A por el sorpasso!`;
-        }
-      }
+  return rows;
+}
 
-      const heroSubTitle = currentUserRole === 'jefe'
-        ? '👑 CLASIFICACIÓN GLOBAL • DINERO BRUTO EN "SÍ"'
-        : '⚡ COMPETICIÓN DIRECTA • SOLO DINERO MOVIDO EN "SÍ"';
+function openLeagueRankingModal() {
+  if (
+    !currentUserName ||
+    isMikelTeamMember(currentUserName)
+  ) return;
 
-      let html = `
-        <div class="league-hero-banner">
-          <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; letter-spacing:1px;">
-            ${heroSubTitle}
-          </div>
-          <div style="font-size:20px; font-weight:900; color:#fff; margin:4px 0;">
-            ${rankingArray[0].name} lidera con ${leaderAmount.toFixed(2)} €
-          </div>
-          <div style="font-size:11px; color:#fef3c7; line-height:1.35;">
-            ${motivationalTopMsg}
-          </div>
-        </div>
-      `;
+  const modal = document.getElementById(
+    'leagueRankingModal'
+  );
 
-      rankingArray.forEach((item, idx) => {
-        const isMe = item.name === currentUserName;
-        const pctWidth = leaderAmount > 0 ? Math.max(6, Math.round((item.moneySi / leaderAmount) * 100)) : 0;
+  if (!modal.classList.contains('active')) {
+    leaguePeriod = 'month';
+    leagueDate = getTodayISO();
+    leagueMetric = 'captadas';
+  }
 
-        let rankBadge = `<span style="font-size:14px; font-weight:900; color:#94a3b8;">#${idx + 1}</span>`;
-        let cardClass = 'league-card';
-        let statusTag = '';
+  renderLeagueRanking();
+  modal.classList.add('active');
+}
 
-        if (idx === 0) {
-          rankBadge = '<span style="font-size:20px;">🥇</span>';
-          cardClass += ' rank-1';
-          statusTag = '<span style="background:#f59e0b; color:#0f172a; font-size:9px; font-weight:900; padding:2px 6px; border-radius:6px;">🔥 LÍDER</span>';
-        } else if (idx === 1) {
-          rankBadge = '<span style="font-size:19px;">🥈</span>';
-          cardClass += ' rank-2';
-          statusTag = '<span style="background:rgba(203,213,225,0.2); color:#e2e8f0; font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px;">⚡ ASPIRANTE</span>';
-        } else if (idx === 2) {
-          rankBadge = '<span style="font-size:18px;">🥉</span>';
-          cardClass += ' rank-3';
-          statusTag = '<span style="background:rgba(217,119,6,0.25); color:#fde047; font-size:9px; font-weight:800; padding:2px 6px; border-radius:6px;">💪 PODIO</span>';
-        }
+function renderLeagueRanking() {
+  const root = document.getElementById(
+    'leagueRankingContainer'
+  );
 
-        if (isMe) cardClass += ' is-me';
+  if (!root || !currentUserName) return;
 
-        const amountLabel = currentUserRole === 'jefe' ? 'FACT. BRUTA SÍ' : 'DINERO EN SÍ';
+  document.getElementById('leagueModalTitle')
+    .textContent = '🏆 Liga del equipo Andrei';
 
-        html += `
-          <div class="${cardClass}">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                ${rankBadge}
-                <div>
-                  <div style="font-size:13px; font-weight:900; color:#fff; display:flex; align-items:center; gap:6px;">
-                    ${item.name}
-                    ${isMe ? '<span style="background:#0284c7; color:#fff; font-size:9px; font-weight:900; padding:2px 6px; border-radius:6px;">TÚ</span>' : ''}
-                    ${statusTag}
-                  </div>
-                </div>
-              </div>
-              <div style="text-align:right;">
-                <div style="font-size:16px; font-weight:900; color:${idx === 0 ? '#fde047' : '#34d399'};">
-                  ${item.moneySi.toFixed(2)} €
-                </div>
-                <div style="font-size:9px; color:#94a3b8; font-weight:700;">${amountLabel}</div>
-              </div>
-            </div>
+  const date = leagueDate || getTodayISO();
 
-            <div class="league-progress-bg">
-              <div class="league-progress-fill" style="width:${pctWidth}%;"></div>
-            </div>
-          </div>
-        `;
-      });
+  const range = personalStatsRange(
+    leaguePeriod,
+    date
+  );
 
-      const closeBtnLabel = currentUserRole === 'jefe'
-        ? 'Cerrar Liga de Equipo'
-        : '🔥 ¡A reventar puertas para subir!';
+  const rows = leagueRows(
+    leaguePeriod,
+    date,
+    leagueMetric
+  );
 
-      html += `<button class="btn-modal-save" style="margin-top:8px;" onclick="closeModal('leagueRankingModal')">${closeBtnLabel}</button>`;
+  const previousRows = leagueRows(
+    leaguePeriod,
+    date,
+    leagueMetric,
+    true
+  );
 
-      container.innerHTML = html;
-      document.getElementById('leagueRankingModal').classList.add('active');
+  const previousRange = personalStatsRange(
+    leaguePeriod,
+    date,
+    true
+  );
+
+  const me = rows.find(
+    r => r.name === currentUserName
+  );
+
+  const before = previousRows.find(
+    r => r.name === currentUserName
+  );
+
+  const total = rows.reduce(
+    (sum, r) => sum + r.area,
+    0
+  );
+
+  const best = rows[0]?.area || 0;
+
+  const leaders = rows.filter(
+    r => r.rank === 1
+  );
+
+  const labels = {
+    captadas: 'Captaciones no descartadas',
+    citas: 'Citas pendientes de ejecutar',
+    realizadas: 'Obras realizadas'
+  };
+
+  const money = amount =>
+    amount.toLocaleString('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    });
+
+  root.replaceChildren();
+
+  function node(
+    tag,
+    text,
+    parent = root,
+    css = ''
+  ) {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function tabs(items, selected, onSelect) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      const button = node(
+        'button',
+        label,
+        row,
+        'flex:1;min-width:0;padding:10px 4px;' +
+        'border:1px solid #475569;border-radius:9px;' +
+        'color:#fff;font-size:11px;font-weight:800;'
+      );
+
+      button.type = 'button';
+
+      button.style.background = selected === key
+        ? '#b45309'
+        : '#1e293b';
+
+      button.setAttribute(
+        'aria-pressed',
+        String(selected === key)
+      );
+
+      button.onclick = () => {
+        onSelect(key);
+        renderLeagueRanking();
+      };
+    });
+  }
+
+  tabs(
+    [
+      ['day', 'Día'],
+      ['week', 'Semana'],
+      ['month', 'Mes']
+    ],
+    leaguePeriod,
+    value => {
+      leaguePeriod = value;
+    }
+  );
+
+  tabs(
+    [
+      ['captadas', '📝 Captaciones'],
+      ['citas', '📅 Citas'],
+      ['realizadas', '✅ Hechas']
+    ],
+    leagueMetric,
+    value => {
+      leagueMetric = value;
+    }
+  );
+
+  const input = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border-radius:9px;' +
+    'border:1px solid #475569;background:#1e293b;color:#fff;'
+  );
+
+  input.type = 'date';
+  input.value = date;
+  input.max = getTodayISO();
+
+  input.setAttribute(
+    'aria-label',
+    'Fecha hasta la que consultar la liga'
+  );
+
+  input.onchange = () => {
+    const d = new Date(
+      input.value + 'T12:00:00'
+    );
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      input.value > getTodayISO()
+    ) return;
+
+    leagueDate = input.value;
+    renderLeagueRanking();
+  };
+
+  node(
+    'p',
+    `${formatDate(range[0])} a ` +
+    `${formatDate(range[1])} · ` +
+    labels[leagueMetric],
+    root,
+    'font-size:11px;color:#cbd5e1;' +
+    'margin:10px 0;line-height:1.5;'
+  );
+
+  const hero = node(
+    'div',
+    null,
+    root,
+    'padding:13px;border:1px solid #fbbf24;' +
+    'border-radius:13px;background:#422006;' +
+    'margin-bottom:10px;'
+  );
+
+  node(
+    'strong',
+    best > 0
+      ? (
+          leaders.length > 1
+            ? '🤝 Empate en cabeza'
+            : '👑 ' +
+              getDisplayAlias(leaders[0].name) +
+              ' lidera'
+        )
+      : '🏁 Liga sin puntuación en este periodo',
+    hero,
+    'display:block;font-size:15px;color:#fde047;'
+  );
+
+  node(
+    'p',
+    `Equipo: ${total} m² estimados · ` +
+    `${money(total)} de producción base`,
+    hero,
+    'font-size:12px;color:#fef3c7;' +
+    'line-height:1.5;margin-top:6px;'
+  );
+
+  if (me) {
+    const delta = me.area - (before?.area || 0);
+
+    let position = me.rank
+      ? `Tu puesto: #${me.rank}`
+      : 'Todavía sin puntuación';
+
+    if (me.rank && before?.rank) {
+      const movement = before.rank - me.rank;
+
+      position += movement > 0
+        ? ` · ↑ ${movement} puesto(s)`
+        : (
+            movement < 0
+              ? ` · ↓ ${Math.abs(movement)} puesto(s)`
+              : ' · mismo puesto'
+          );
     }
 
-   /* =====================================================================
-       MODAL RADAR COMPETENCIA: EQUIPO MIKEL (SOLO VISIBLE PARA ANDREI)
-       ===================================================================== */
+    node(
+      'strong',
+      position,
+      hero,
+      'display:block;font-size:12px;' +
+      'color:#fff;margin-top:9px;'
+    );
+
+    node(
+      'p',
+      `${delta > 0 ? '+' : ''}${delta} m² frente a ` +
+      `${formatDate(previousRange[0])}–` +
+      formatDate(previousRange[1]),
+      hero,
+      'font-size:11px;color:#fef3c7;' +
+      'line-height:1.5;margin-top:4px;'
+    );
+  }
+
+  rows.forEach(row => {
+    const isMe = row.name === currentUserName;
+
+    const card = node(
+      'div',
+      null,
+      root,
+      'padding:12px;margin-bottom:8px;' +
+      'border-radius:12px;background:#1e293b;' +
+      `border:1px solid ${isMe ? '#38bdf8' : '#475569'};`
+    );
+
+    const badge = row.rank === 1
+      ? '🥇'
+      : (
+          row.rank === 2
+            ? '🥈'
+            : (
+                row.rank === 3
+                  ? '🥉'
+                  : (row.rank ? '#' + row.rank : '—')
+              )
+        );
+
+    node(
+      'strong',
+      `${badge} ${getDisplayAlias(row.name)}` +
+      (isMe ? ' · TÚ' : ''),
+      card,
+      'display:block;font-size:13px;color:#fff;'
+    );
+
+    node(
+      'p',
+      `${row.area} m² · ${row.count} ficha(s) · ` +
+      `${money(row.area)} de producción base`,
+      card,
+      'font-size:12px;color:#fde047;' +
+      'line-height:1.5;margin:6px 0;'
+    );
+
+    node(
+      'p',
+      `Parte personal estimada: ${money(row.personal)}`,
+      card,
+      'font-size:11px;color:#94a3b8;margin-bottom:7px;'
+    );
+
+    const track = node(
+      'div',
+      null,
+      card,
+      'height:7px;background:#0f172a;' +
+      'border-radius:8px;overflow:hidden;'
+    );
+
+    const width = best
+      ? Math.min(100, row.area / best * 100)
+      : 0;
+
+    node(
+      'div',
+      null,
+      track,
+      `height:100%;width:${width}%;` +
+      `background:${row.rank === 1 ? '#fbbf24' : '#10b981'};` +
+      'border-radius:8px;'
+    );
+
+    if (row.rank === 1 && leaders.length > 1) {
+      node(
+        'p',
+        'Empate en el primer puesto',
+        card,
+        'font-size:10px;color:#fde047;margin-top:5px;'
+      );
+    }
+  });
+
+  node(
+    'p',
+    'Se compara la misma producción base para todos, ' +
+    'Andrei incluido. El reparto personal es 100% ' +
+    'para Andrei y 85% para cada comercial. ' +
+    'Los importes son estimaciones; no acreditan cobros.',
+    root,
+    'font-size:10px;color:#94a3b8;' +
+    'line-height:1.5;margin-top:10px;'
+  );
+
+  if (
+    leagueMetric === 'realizadas' &&
+    rows.some(r => r.unknownDone > 0)
+  ) {
+    node(
+      'p',
+      'Hay obras antiguas sin fecha de ejecución. ' +
+      'No se incluyen en la clasificación del periodo ' +
+      'hasta registrar su fecha.',
+      root,
+      'font-size:11px;color:#fde047;' +
+      'line-height:1.5;margin-top:8px;'
+    );
+  }
+
+  const detail = node(
+    'button',
+    '📈 Ver mis estadísticas en este periodo',
+    root,
+    'width:100%;padding:12px;border:1px solid #60a5fa;' +
+    'border-radius:10px;background:#1d4ed8;color:#fff;' +
+    'font-weight:800;margin-top:10px;'
+  );
+
+  detail.type = 'button';
+
+  detail.onclick = () => {
+    closeModal('leagueRankingModal');
+    openCommercialStatsModal();
+
+    personalStatsMode = leaguePeriod;
+    personalStatsDate = date;
+
+    renderPersonalStats();
+  };
+}
+
    let activeRadarSubTab = 'compare';
 
     function switchRadarSubTab(tabKey) {
