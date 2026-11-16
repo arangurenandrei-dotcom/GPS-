@@ -1,6 +1,5 @@
 /**
- * Konsor Navarra · Puente v2 Conectado a operaciones-v2.js y firestore.rules
- * Sincroniza altas nuevas en 'fichas' (rev: 1) y ediciones mediante 'guardarFichaTransaccional'.
+ * Konsor Navarra · Puente v2 con diagnóstico visible en móvil
  */
 (function(window) {
   'use strict';
@@ -28,13 +27,22 @@
     return map[comercialName] || sessionStorage.getItem('auth_user_key') || 'jefe';
   }
 
-  // Sincroniza automáticamente todas las fichas nuevas o editadas hacia la colección 'fichas'
   async function syncZonesToFichasV2(zonesArray) {
     if (!Array.isArray(zonesArray)) return;
-    if (!window.db || !window.doc || !window.getDoc || !window.setDoc) return;
+
+    if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
+      alert('⚠️ Puente v2: window.db no está disponible. Revisa el <script type="module"> de index.html.');
+      return;
+    }
 
     const uid = window.auth?.currentUser?.uid || '';
-    if (!uid) return;
+    if (!uid) {
+      alert('⚠️ Puente v2: No hay sesión activa en Firebase Auth (uid vacío).');
+      return;
+    }
+
+    let creadas = 0;
+    let actualizadas = 0;
 
     for (const zona of zonesArray) {
       if (!zona || !Array.isArray(zona.clients)) continue;
@@ -46,11 +54,9 @@
         const cliente = zona.clients[idx];
         if (!cliente || typeof cliente !== 'object') continue;
 
-        // Ignorar fichas totalmente vacías
         const hasData = (cliente.name || '').trim() || (cliente.street || '').trim() || (cliente.phone || '').trim();
         if (!hasData) continue;
 
-        // Usar ID permanente si lo tiene, o generar uno determinista limpio (sin DNI/teléfono)
         if (!cliente.clientUid || !/^f_[a-zA-Z0-9_-]+$/.test(cliente.clientUid)) {
           cliente.clientUid = `f_${zonaId}_c${idx}`;
         }
@@ -62,9 +68,8 @@
           const snap = await window.getDoc(fichaRef);
 
           if (!snap.exists()) {
-            // ALTA NUEVA: cumple exactamente puedeCrearDoc() de firestore.rules (rev == 1)
-            const { atticPhoto, ...datosSinFotoBase64 } = cliente;
-            const nuevoDoc = {
+            const { atticPhoto, ...datosSinFoto } = cliente;
+            await window.setDoc(fichaRef, {
               fichaId,
               zonaId,
               teamId,
@@ -74,35 +79,38 @@
               createdAt: cliente.createdAt || Date.now(),
               updatedAt: Date.now(),
               datos: {
-                ...datosSinFotoBase64,
+                ...datosSinFoto,
                 _updatedAt: Date.now()
               }
-            };
-            await window.setDoc(fichaRef, nuevoDoc);
-            cliente._v2Rev = 1;
-            console.log(`✅ Ficha nueva creada en Firestore v2: ${fichaId} (rev: 1)`);
+            });
+            creadas++;
           } else {
-            // EDICIÓN EXISTENTE: comprobar si cambió respecto al servidor y usar transacción
             const serverDoc = snap.data();
             const serverUpdated = serverDoc.datos?._updatedAt || serverDoc.updatedAt || 0;
             const localUpdated = cliente._updatedAt || 0;
 
             if (localUpdated > serverUpdated && typeof window.callGuardarFichaTransaccional === 'function') {
               const { atticPhoto, ...cambiosSinFoto } = cliente;
-              const res = await window.callGuardarFichaTransaccional({
+              await window.callGuardarFichaTransaccional({
                 fichaId,
                 expectedRev: serverDoc.rev || 1,
                 cambiosDatos: cambiosSinFoto
               });
-              if (res?.data?.rev) {
-                cliente._v2Rev = res.data.rev;
-                console.log(`🔄 Ficha actualizada por transacción: ${fichaId} (rev: ${res.data.rev})`);
-              }
+              actualizadas++;
             }
           }
         } catch (err) {
-          console.warn(`⚠️ No se pudo sincronizar ficha ${fichaId} en v2:`, err.message);
+          alert(`❌ Error Firestore v2 en ${fichaId}: ${err.message}`);
+          return;
         }
+      }
+    }
+
+    if (creadas > 0 || actualizadas > 0) {
+      if (typeof window.showCelebrationToast === 'function') {
+        window.showCelebrationToast(`☁️ v2 OK: ${creadas} nuevas, ${actualizadas} editadas`);
+      } else {
+        alert(`✅ v2 OK: ${creadas} fichas creadas, ${actualizadas} actualizadas`);
       }
     }
   }
