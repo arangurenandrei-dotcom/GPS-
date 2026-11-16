@@ -1,124 +1,116 @@
 /**
- * Konsor Navarra · Módulo Puente v2 (Bloque D)
- * Conecta el frontend con las nuevas colecciones (zonas, fichas, jornadas)
- * con control transaccional (rev) y modo espejo seguro hacia gestion_navarra.
+ * Konsor Navarra · Puente v2 Conectado a operaciones-v2.js y firestore.rules
+ * Sincroniza altas nuevas en 'fichas' (rev: 1) y ediciones mediante 'guardarFichaTransaccional'.
  */
 (function(window) {
   'use strict';
 
-  // Determinar equipo según el usuario activo
-  function getTeamScope(userName) {
-    if (!userName) return 'andrei';
-    return userName.startsWith('Mikel') ? 'mikel' : 'andrei';
+  function getTeamId(comercialName) {
+    if (!comercialName) return 'andrei';
+    return String(comercialName).startsWith('Mikel') ? 'mikel' : 'andrei';
   }
 
-  // 1. Carga de datos desde las nuevas colecciones con filtrado por rol/equipo
-  async function cargarDatosBridge(key, currentUser) {
-    if (!window.db || !window.getDocs || !window.collection) {
-      try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; }
-    }
-
-    try {
-      const team = getTeamScope(currentUser);
-      let colName = key;
-      if (key === 'comercial_custom_zones') colName = 'zonas';
-      if (key === 'comercial_shifts') colName = 'jornadas';
-
-      const qRef = window.collection(window.db, colName);
-      const snapshot = await window.getDocs(qRef);
-      const results = [];
-
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        // Filtrado por equipo automático
-        if (data.team && data.team !== team && currentUser !== 'Andrei (Jefe)' && currentUser !== 'Mikel (Jefe)') {
-          return;
-        }
-        results.push({ id: docSnap.id, ...data });
-      });
-
-      return results.length > 0 ? results : (JSON.parse(localStorage.getItem(key)) || []);
-    } catch (e) {
-      console.warn('Bridge: Error leyendo de Firestore, usando caché local', e);
-      return JSON.parse(localStorage.getItem(key)) || [];
-    }
+  function getOwnerKeyFromComercial(comercialName) {
+    const map = {
+      'Andrei (Jefe)': 'jefe',
+      'Comercial 1': 'comercial1',
+      'Comercial 2': 'comercial2',
+      'Comercial 3': 'comercial3',
+      'Comercial 4': 'comercial4',
+      'Comercial 5': 'comercial5',
+      'Mikel (Jefe)': 'jefe_mikel',
+      'Mikel Com. 1': 'mikel_com1',
+      'Mikel Com. 2': 'mikel_com2',
+      'Mikel Com. 3': 'mikel_com3',
+      'Mikel Com. 4': 'mikel_com4',
+      'Mikel Com. 5': 'mikel_com5'
+    };
+    return map[comercialName] || sessionStorage.getItem('auth_user_key') || 'jefe';
   }
 
-  // 2. Guardado transaccional con control de conflicto (rev) y Modo Espejo hacia gestion_navarra
-  async function guardarFichaTransaccional(zonaId, clientIndex, clientData, currentUser) {
-    if (!window.db || !window.doc || !window.runTransaction) {
-      console.warn('Transacciones no disponibles, ejecutando guardado estándar.');
-      return false;
-    }
+  // Sincroniza automáticamente todas las fichas nuevas o editadas hacia la colección 'fichas'
+  async function syncZonesToFichasV2(zonesArray) {
+    if (!Array.isArray(zonesArray)) return;
+    if (!window.db || !window.doc || !window.getDoc || !window.setDoc) return;
 
-    const team = getTeamScope(currentUser);
-    const fichaId = clientData.clientUid || `${zonaId}_c${clientIndex}`;
-    const fichaRef = window.doc(window.db, 'fichas', fichaId);
-    const espejoRef = window.doc(window.db, 'gestion_navarra', 'datos_globales');
+    const uid = window.auth?.currentUser?.uid || '';
+    if (!uid) return;
 
-    try {
-      await window.runTransaction(window.db, async (transaction) => {
-        const docSnap = await transaction.get(fichaRef);
-        const serverRev = docSnap.exists() ? (docSnap.data().rev || 1) : 1;
-        const localRev = clientData.rev || 1;
+    for (const zona of zonesArray) {
+      if (!zona || !Array.isArray(zona.clients)) continue;
+      const zonaId = String(zona.id || '');
+      const teamId = getTeamId(zona.comercial);
+      const ownerKey = getOwnerKeyFromComercial(zona.comercial);
 
-        if (docSnap.exists() && serverRev > localRev) {
-          throw new Error('CONFLICTO_EDICION: Otro dispositivo modificó esta ficha previamente. Actualiza para ver los cambios.');
+      for (let idx = 0; idx < zona.clients.length; idx++) {
+        const cliente = zona.clients[idx];
+        if (!cliente || typeof cliente !== 'object') continue;
+
+        // Ignorar fichas totalmente vacías
+        const hasData = (cliente.name || '').trim() || (cliente.street || '').trim() || (cliente.phone || '').trim();
+        if (!hasData) continue;
+
+        // Usar ID permanente si lo tiene, o generar uno determinista limpio (sin DNI/teléfono)
+        if (!cliente.clientUid || !/^f_[a-zA-Z0-9_-]+$/.test(cliente.clientUid)) {
+          cliente.clientUid = `f_${zonaId}_c${idx}`;
         }
 
-        const payload = {
-          ...clientData,
-          rev: serverRev + 1,
-          team: team,
-          updatedBy: currentUser,
-          _updatedAt: Date.now()
-        };
+        const fichaId = cliente.clientUid;
+        const fichaRef = window.doc(window.db, 'fichas', fichaId);
 
-        // Escritura principal en la colección 'fichas'
-        transaction.set(fichaRef, payload, { merge: true });
+        try {
+          const snap = await window.getDoc(fichaRef);
 
-        // Modo espejo de respaldo hacia 'gestion_navarra' durante la transición
-        transaction.set(espejoRef, {
-          [zonaId]: { clients: { [clientIndex]: payload }, _updatedAt: Date.now() }
-        }, { merge: true });
-      });
+          if (!snap.exists()) {
+            // ALTA NUEVA: cumple exactamente puedeCrearDoc() de firestore.rules (rev == 1)
+            const { atticPhoto, ...datosSinFotoBase64 } = cliente;
+            const nuevoDoc = {
+              fichaId,
+              zonaId,
+              teamId,
+              ownerKey,
+              ownerUid: uid,
+              rev: 1,
+              createdAt: cliente.createdAt || Date.now(),
+              updatedAt: Date.now(),
+              datos: {
+                ...datosSinFotoBase64,
+                _updatedAt: Date.now()
+              }
+            };
+            await window.setDoc(fichaRef, nuevoDoc);
+            cliente._v2Rev = 1;
+            console.log(`✅ Ficha nueva creada en Firestore v2: ${fichaId} (rev: 1)`);
+          } else {
+            // EDICIÓN EXISTENTE: comprobar si cambió respecto al servidor y usar transacción
+            const serverDoc = snap.data();
+            const serverUpdated = serverDoc.datos?._updatedAt || serverDoc.updatedAt || 0;
+            const localUpdated = cliente._updatedAt || 0;
 
-      return true;
-    } catch (e) {
-      console.error('Error en guardarFichaTransaccional:', e.message);
-      alert(`⚠️ ${e.message}`);
-      return false;
+            if (localUpdated > serverUpdated && typeof window.callGuardarFichaTransaccional === 'function') {
+              const { atticPhoto, ...cambiosSinFoto } = cliente;
+              const res = await window.callGuardarFichaTransaccional({
+                fichaId,
+                expectedRev: serverDoc.rev || 1,
+                cambiosDatos: cambiosSinFoto
+              });
+              if (res?.data?.rev) {
+                cliente._v2Rev = res.data.rev;
+                console.log(`🔄 Ficha actualizada por transacción: ${fichaId} (rev: ${res.data.rev})`);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`⚠️ No se pudo sincronizar ficha ${fichaId} en v2:`, err.message);
+        }
+      }
     }
-  }
-
-  // 3. Agendar obra respetando los equipos y técnicos
-  async function agendarObraEquipo(zonaId, clientIndex, obraData, currentUser) {
-    const success = await guardarFichaTransaccional(zonaId, clientIndex, {
-      ...obraData,
-      obraStatus: 'agendada'
-    }, currentUser);
-
-    if (success && window.db && window.setDoc && window.doc) {
-      try {
-        const jornadaRef = window.doc(window.db, 'jornadas', `${currentUser}_${obraData.obraDate || Date.now()}`);
-        await window.setDoc(jornadaRef, {
-          user: currentUser,
-          team: getTeamScope(currentUser),
-          obraDate: obraData.obraDate,
-          obraTime: obraData.obraTime,
-          clientName: obraData.name,
-          _updatedAt: Date.now()
-        }, { merge: true });
-      } catch (e) {}
-    }
-    return success;
   }
 
   window.KonsorBridge = {
-    cargarDatosBridge,
-    guardarFichaTransaccional,
-    agendarObraEquipo,
-    getTeamScope
+    syncZonesToFichasV2,
+    getTeamId,
+    getOwnerKeyFromComercial
   };
 
 })(window);
