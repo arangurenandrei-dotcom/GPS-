@@ -2461,13 +2461,23 @@ function openUserProfileModal() {
     }
 
         function executeLogout() {
-      sessionStorage.clear();
-      const done = () => location.reload();
-      try {
-        if (window.authApi) { window.authApi.logout().then(done, done); return; }
-      } catch (e) {}
-      done();
-    }
+   sessionStorage.clear();
+   [
+     'comercial_custom_zones',
+     'comercial_shifts',
+     'comercial_completed_towns',
+     'comercial_hot_lead_missions',
+     'comercial_user_profiles',
+     'comercial_activity',
+     'comercial_boss_tasks',
+     'comercial_deleted_ids'
+   ].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+   const done = () => location.reload();
+   try {
+     if (window.authApi) { window.authApi.logout().then(done, done); return; }
+   } catch (e) {}
+   done();
+ }
 
     /* ===== CUENTAS CON CORREO Y CONTRASEÑA ===== */
     const BOSS_EMAIL = 'arangurenandrei@gmail.com';
