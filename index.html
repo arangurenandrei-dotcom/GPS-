@@ -2682,29 +2682,1125 @@ function openWorkMenu(title, description, actions) {
 function openCaptureWorkMenu() {
   openWorkMenu(
     '📝 Fichas y llamadas',
-    'Registra las captaciones y trabaja el seguimiento hasta cerrar la cita.',
+    'Registra captaciones y organiza jornadas completas para llamar y cerrar citas.',
     [
       [
+        '🧩 Organizar fichas por jornadas',
+        'Pueblos, grupos de cuatro franjas y huecos compartidos.',
+        openGroupedAppointments
+      ],
+      [
         '📋 Volcar una zona',
-        'Introduce los resultados y las fichas de un sector asignado.',
+        'Resultados y fichas de un sector.',
         openSelectZoneToDumpModal
       ],
       [
         '🏠 Crear una captación individual',
-        'Sitúa la vivienda en el mapa y registra su ficha y origen.',
+        'Sitúa la vivienda y registra su ficha.',
         startSingleHouseDirect
       ],
       [
-        '📞 Llamar y conseguir citas',
-        'Revisa clientes pendientes, notas y disponibilidad de obra.',
+        '📞 Seguimiento de llamadas',
+        'Estados, notas y citas individuales.',
         openFollowUpsModal
       ],
       [
         '📂 Consultar fichas',
-        'Busca por nombre, teléfono, calle o pueblo.',
+        'Busca clientes y zonas.',
         openGlobalClientSearchModal
       ]
     ]
+  );
+}
+
+let groupedScope = 'mine';
+let groupedTown = '';
+let groupedPlan = null;
+const groupedEdits = new Map();
+
+function groupedKey(z, c) {
+  return JSON.stringify([z.id, routeFingerprint(c)]);
+}
+
+function groupedResolve(key) {
+  const matches = [];
+
+  savedZones.forEach(z => {
+    (z.clients || []).forEach(c => {
+      if (groupedKey(z, c) === key) {
+        matches.push({ z, c });
+      }
+    });
+  });
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function groupedPending(c) {
+  return !c.obraStatus || c.obraStatus === 'a_poner';
+}
+
+function groupedStreet(c) {
+  return normalizeStreetClusterKey(c.street || '');
+}
+
+function groupedCandidates() {
+  const rows = [];
+
+  savedZones.forEach(z => {
+    if (isMikelTeamMember(z.comercial)) return;
+
+    if (
+      currentUserRole !== 'jefe' ||
+      groupedScope !== 'team'
+    ) {
+      if (z.comercial !== currentUserName) return;
+    }
+
+    (z.clients || []).forEach(c => {
+      if (groupedPending(c) && isClientValidFilled(c)) {
+        rows.push({
+          z,
+          c,
+          key: groupedKey(z, c),
+          town: routeTown(z.town)
+        });
+      }
+    });
+  });
+
+  return rows;
+}
+
+function groupedNearest(pool, previous) {
+  return pool.slice().sort((a, b) => {
+    if (previous) {
+      const sameA =
+        groupedStreet(a.c) === groupedStreet(previous.c);
+
+      const sameB =
+        groupedStreet(b.c) === groupedStreet(previous.c);
+
+      if (sameA !== sameB) return sameA ? -1 : 1;
+
+      const p = routePoint(previous.z, previous.c);
+      const ap = routePoint(a.z, a.c);
+      const bp = routePoint(b.z, b.c);
+
+      if (p && ap && bp) {
+        const diff =
+          routeDistance(p, ap) - routeDistance(p, bp);
+
+        if (Math.abs(diff) > 0.001) return diff;
+      }
+    }
+
+    return groupedStreet(a.c).localeCompare(
+      groupedStreet(b.c),
+      'es'
+    ) || String(a.c.street || '').localeCompare(
+      String(b.c.street || ''),
+      'es',
+      { numeric: true }
+    );
+  })[0];
+}
+
+function buildGroupedAppointments() {
+  const proposals = [];
+  const unplaced = [];
+  const towns = new Map();
+  const all = groupedCandidates();
+  const counts = new Map();
+
+  all.forEach(it => {
+    counts.set(it.key, (counts.get(it.key) || 0) + 1);
+  });
+
+  all.forEach(it => {
+    let reason = '';
+
+    if (counts.get(it.key) > 1) {
+      reason =
+        'Ficha con identificación duplicada: revisa su zona.';
+    } else if (
+      !it.town ||
+      ![it.c.name, it.c.street, it.c.phone].every(
+        v => String(v || '').trim()
+      )
+    ) {
+      reason =
+        'Completa municipio, nombre, dirección y teléfono.';
+    }
+
+    if (!towns.has(it.town)) {
+      towns.set(it.town, {
+        label: it.z.town || 'Sin municipio',
+        rows: []
+      });
+    }
+
+    if (reason) {
+      unplaced.push({ ...it, reason });
+    } else {
+      towns.get(it.town).rows.push(it);
+    }
+  });
+
+  const ordered = [...towns.entries()].sort(
+    (a, b) => b[1].rows.length - a[1].rows.length
+  );
+
+  const first = new Date(
+    getTomorrowISO() + 'T12:00:00'
+  );
+
+  ordered.forEach(([town, group]) => {
+    const pool = group.rows.slice();
+
+    while (pool.length) {
+      const seed = groupedNearest(pool, null);
+      const options = [];
+
+      for (let day = 0; day < 14; day++) {
+        const d = new Date(first);
+        d.setDate(first.getDate() + day);
+
+        const date = getLocalDateISO(d);
+
+        OBRA_SLOTS.forEach(slot => {
+          const plan = routeSlotPlan(
+            date,
+            slot.start,
+            seed.z,
+            seed.c,
+            seed.c,
+            proposals
+          );
+
+          if (!plan.ok) return;
+
+          let category = plan.category;
+
+          if (pool.length >= 4) {
+            category = plan.category === 0
+              ? 0
+              : (
+                  plan.category === 2
+                    ? 1
+                    : (plan.category === 1 ? 2 : 3)
+                );
+          }
+
+          options.push({
+            date,
+            time: slot.start,
+            category,
+            score: plan.score,
+            day
+          });
+        });
+      }
+
+      options.sort((a, b) =>
+        a.category - b.category ||
+        a.score - b.score ||
+        a.day - b.day ||
+        a.time.localeCompare(b.time)
+      );
+
+      const best = options[0];
+
+      if (!best) {
+        pool.forEach(it => {
+          unplaced.push({
+            ...it,
+            reason:
+              'Sin hueco compatible en los próximos 14 días.'
+          });
+        });
+        break;
+      }
+
+      let previous = null;
+      let placed = 0;
+
+      while (pool.length) {
+        const item = groupedNearest(pool, previous);
+
+        const slots = OBRA_SLOTS.map(slot => ({
+          time: slot.start,
+          ...routeSlotPlan(
+            best.date,
+            slot.start,
+            item.z,
+            item.c,
+            item.c,
+            proposals
+          )
+        }))
+          .filter(p => p.ok)
+          .sort((a, b) =>
+            a.score - b.score ||
+            a.time.localeCompare(b.time)
+          );
+
+        if (!slots.length) break;
+
+        const chosen = slots[0];
+
+        proposals.push({
+          ...item,
+          date: best.date,
+          time: chosen.time,
+          reason: chosen.reason
+        });
+
+        pool.splice(pool.indexOf(item), 1);
+        previous = item;
+        placed++;
+      }
+
+      if (!placed) {
+        unplaced.push({
+          ...seed,
+          reason:
+            'No se pudo completar una propuesta compatible.'
+        });
+        pool.splice(pool.indexOf(seed), 1);
+      }
+    }
+  });
+
+  return {
+    proposals,
+    unplaced,
+    towns: [...towns.entries()].map(([key, info]) => ({
+      key,
+      label: info.label
+    }))
+  };
+}
+
+function openGroupedAppointments() {
+  if (isMikelTeamMember(currentUserName)) return;
+
+  let modal = document.getElementById(
+    'groupedAppointmentsModal'
+  );
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'groupedAppointmentsModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '9998';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:760px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>🧩 Jornadas por grupos de fichas</span>
+            <button type="button"
+              onclick="closeModal('groupedAppointmentsModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="groupedAppointmentsBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  renderGroupedAppointments();
+  modal.classList.add('active');
+}
+
+function groupedNode(tag, text, parent, css = '') {
+  const node = document.createElement(tag);
+
+  if (text !== null) node.textContent = text;
+  if (css) node.style.cssText = css;
+  if (parent) parent.appendChild(node);
+
+  return node;
+}
+
+function groupedButton(parent, text, action) {
+  const b = groupedNode(
+    'button',
+    text,
+    parent,
+    'padding:9px;border-radius:9px;border:1px solid #475569;' +
+    'background:#1e293b;color:#fff;font-size:11px;' +
+    'font-weight:800;cursor:pointer;'
+  );
+
+  b.type = 'button';
+  b.onclick = action;
+
+  return b;
+}
+
+function generateGroupedAppointments() {
+  if (
+    groupedPlan &&
+    !confirm(
+      'Se recalcularán las propuestas sin confirmar. ' +
+      'Las citas ya confirmadas se conservan. ¿Continuar?'
+    )
+  ) return;
+
+  groupedPlan = buildGroupedAppointments();
+  groupedTown = groupedPlan.towns[0]?.key ?? '';
+  groupedEdits.clear();
+
+  renderGroupedAppointments();
+}
+
+function groupedViewSource(key) {
+  const found = groupedResolve(key);
+
+  if (!found) {
+    alert(
+      'La ficha ha cambiado. Vuelve a generar las propuestas.'
+    );
+    return;
+  }
+
+  const index = savedZones.indexOf(found.z);
+  openDumpModal(index);
+}
+
+function confirmGroupedAppointment(proposal) {
+  const found = groupedResolve(proposal.key);
+
+  if (!found || !groupedPending(found.c)) {
+    alert(
+      'Esta ficha ha cambiado o ya tiene cita. ' +
+      'Actualiza el estado de los grupos.'
+    );
+    renderGroupedAppointments();
+    return;
+  }
+
+  const { z, c } = found;
+
+  if (
+    isMikelTeamMember(z.comercial) ||
+    (
+      currentUserRole !== 'jefe' &&
+      z.comercial !== currentUserName
+    )
+  ) return;
+
+  const plan = routeSlotPlan(
+    proposal.date,
+    proposal.time,
+    z,
+    c
+  );
+
+  if (!plan.ok) {
+    alert(
+      'La propuesta ya no está disponible: ' + plan.reason
+    );
+    renderGroupedAppointments();
+    return;
+  }
+
+  if (!confirm(
+    `¿El cliente ha aceptado el ${formatDate(proposal.date)} ` +
+    `de ${obraSlotLabel(proposal.time)}?`
+  )) return;
+
+  const draft = {
+    ...c,
+    ...(groupedEdits.get(proposal.key) || {}),
+    obraStatus: 'agendada',
+    obraDate: proposal.date,
+    obraTime: proposal.time
+  };
+
+  if (draft.dni && !isValidDni(draft.dni)) {
+    alert('Revisa el DNI/NIE antes de confirmar.');
+    return;
+  }
+
+  if (!ensureCrmUpload(draft, {
+    date: z.dumpDate || z.date,
+    town: z.town,
+    comercial: z.comercial
+  })) return;
+
+  Object.assign(c, draft, {
+    statusChangedAt: Date.now()
+  });
+
+  z._updatedAt = Date.now();
+
+  saveAndSync('comercial_custom_zones', savedZones);
+
+  logActivity(
+    'cita',
+    `📅 Cita de grupo: ${c.name} · ${z.town} · ` +
+    `${formatDate(c.obraDate)} ${obraSlotLabel(c.obraTime)}`,
+    z.comercial
+  );
+
+  groupedEdits.delete(proposal.key);
+  renderGroupedAppointments();
+}
+
+function moveGroupedProposal(proposal) {
+  const found = groupedResolve(proposal.key);
+
+  if (!found || !groupedPending(found.c)) return;
+
+  let modal = document.getElementById('moveGroupedModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'moveGroupedModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '10060';
+    document.body.appendChild(modal);
+  }
+
+  modal.replaceChildren();
+
+  const body = groupedNode(
+    'div',
+    null,
+    modal,
+    'width:100%;max-width:400px;padding:16px;' +
+    'background:#0f172a;border:1px solid #475569;' +
+    'border-radius:15px;'
+  );
+
+  groupedNode(
+    'strong',
+    'Cambiar propuesta · ' + found.c.name,
+    body
+  );
+
+  const date = groupedNode(
+    'input',
+    null,
+    body,
+    'display:block;width:100%;padding:10px;margin:12px 0;' +
+    'background:#1e293b;color:#fff;border:1px solid #475569;' +
+    'border-radius:8px;'
+  );
+
+  date.type = 'date';
+  date.min = getTomorrowISO();
+  date.value = proposal.date;
+
+  const select = groupedNode(
+    'select',
+    null,
+    body,
+    'width:100%;padding:10px;background:#1e293b;color:#fff;' +
+    'border:1px solid #475569;border-radius:8px;'
+  );
+
+  const info = groupedNode(
+    'p',
+    '',
+    body,
+    'font-size:11px;color:#cbd5e1;line-height:1.5;margin:9px 0;'
+  );
+
+  const otherProposals = () =>
+    groupedPlan.proposals.filter(p => {
+      const current = groupedResolve(p.key);
+
+      return p.key !== proposal.key &&
+        current &&
+        groupedPending(current.c);
+    });
+
+  function update() {
+    select.replaceChildren();
+
+    OBRA_SLOTS.forEach(slot => {
+      const plan = routeSlotPlan(
+        date.value,
+        slot.start,
+        found.z,
+        found.c,
+        found.c,
+        otherProposals()
+      );
+
+      const option = groupedNode(
+        'option',
+        `${plan.ok ? '✅' : '⛔'} ${slot.start}–${slot.end}`,
+        select
+      );
+
+      option.value = slot.start;
+      option.disabled = !plan.ok;
+    });
+
+    const options = [...select.options].filter(
+      o => !o.disabled
+    );
+
+    select.value =
+      options.find(o => o.value === proposal.time)?.value ||
+      options[0]?.value ||
+      '';
+
+    info.textContent = options.length
+      ? 'Solo cambia la propuesta; la cita sigue sin reservar.'
+      : 'No hay franja compatible. Prueba otro día.';
+
+    save.disabled = !options.length;
+  }
+
+  const save = groupedButton(
+    body,
+    'Guardar propuesta',
+    () => {
+      const fresh = groupedResolve(proposal.key);
+
+      if (!fresh || !groupedPending(fresh.c)) {
+        alert('La ficha ha cambiado.');
+        return;
+      }
+
+      const plan = routeSlotPlan(
+        date.value,
+        select.value,
+        fresh.z,
+        fresh.c,
+        fresh.c,
+        otherProposals()
+      );
+
+      if (!plan.ok) {
+        alert(plan.reason);
+        update();
+        return;
+      }
+
+      proposal.date = date.value;
+      proposal.time = select.value;
+      proposal.reason = plan.reason;
+
+      closeModal('moveGroupedModal');
+      renderGroupedAppointments();
+    }
+  );
+
+  groupedButton(
+    body,
+    'Cancelar',
+    () => closeModal('moveGroupedModal')
+  );
+
+  date.onchange = update;
+  update();
+  modal.classList.add('active');
+}
+
+function groupedSaveNotes(key) {
+  const found = groupedResolve(key);
+
+  if (
+    !found ||
+    (
+      currentUserRole !== 'jefe' &&
+      found.z.comercial !== currentUserName
+    )
+  ) return;
+
+  const edit = groupedEdits.get(key) || {};
+
+  if (edit.dni && !isValidDni(edit.dni)) {
+    alert('Revisa el DNI/NIE antes de guardar.');
+    return;
+  }
+
+  ['email', 'dni', 'callNotes'].forEach(field => {
+    if (field in edit) {
+      found.c[field] = String(edit[field]).trim();
+    }
+  });
+
+  found.z._updatedAt = Date.now();
+
+  saveAndSync('comercial_custom_zones', savedZones);
+  groupedEdits.delete(key);
+  renderGroupedAppointments();
+}
+
+function renderGroupedAppointments() {
+  const root = document.getElementById(
+    'groupedAppointmentsBody'
+  );
+
+  if (!root) return;
+  root.replaceChildren();
+
+  groupedNode(
+    'p',
+    'Organiza las fichas pendientes en jornadas. ' +
+    'Cada cuadrícula muestra las cuatro franjas: ' +
+    'propuestas, citas confirmadas y huecos libres.',
+    root,
+    'font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:10px;'
+  );
+
+  if (currentUserRole === 'jefe') {
+    const select = groupedNode(
+      'select',
+      null,
+      root,
+      'width:100%;padding:10px;background:#1e293b;color:#fff;' +
+      'border:1px solid #475569;border-radius:9px;margin-bottom:8px;'
+    );
+
+    [
+      ['mine', 'Mis fichas'],
+      ['team', 'Mi equipo, yo incluido']
+    ].forEach(([value, label]) => {
+      const option = groupedNode('option', label, select);
+      option.value = value;
+      option.selected = value === groupedScope;
+    });
+
+    select.onchange = () => {
+      groupedScope = select.value;
+      groupedPlan = null;
+      groupedEdits.clear();
+      renderGroupedAppointments();
+    };
+  }
+
+  const tools = groupedNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;'
+  );
+
+  groupedButton(
+    tools,
+    groupedPlan
+      ? '🧩 Regenerar propuestas'
+      : '🧩 Organizar fichas pendientes',
+    generateGroupedAppointments
+  );
+
+  groupedButton(
+    tools,
+    '↻ Actualizar estado',
+    renderGroupedAppointments
+  );
+
+  if (!groupedPlan) {
+    groupedNode(
+      'p',
+      'Pulsa Organizar para generar los grupos por pueblo ' +
+      'y calle. No se reserva ninguna cita hasta ' +
+      'confirmarla con el cliente.',
+      root,
+      'font-size:12px;color:#94a3b8;line-height:1.5;'
+    );
+    return;
+  }
+
+  if (!groupedPlan.towns.length) {
+    groupedNode(
+      'p',
+      'No hay fichas pendientes de cita en este ámbito.',
+      root
+    );
+    return;
+  }
+
+  const tabs = groupedNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;'
+  );
+
+  groupedPlan.towns.forEach(town => {
+    const total = groupedPlan.proposals.filter(
+      p => p.town === town.key
+    ).length;
+
+    const b = groupedButton(
+      tabs,
+      `${town.label} (${total})`,
+      () => {
+        groupedTown = town.key;
+        renderGroupedAppointments();
+      }
+    );
+
+    b.style.whiteSpace = 'nowrap';
+
+    if (town.key === groupedTown) {
+      b.style.background = '#0369a1';
+      b.setAttribute('aria-pressed', 'true');
+    }
+  });
+
+  const dates = [
+    ...new Set(
+      groupedPlan.proposals
+        .filter(p => p.town === groupedTown)
+        .map(p => p.date)
+    )
+  ].sort();
+
+  dates.forEach((date, index) => {
+    const confirmed = routeRecords(date);
+
+    const proposed = groupedPlan.proposals.filter(
+      p => p.date === date
+    );
+
+    groupedNode(
+      'h3',
+      `Grupo ${index + 1} · ${citaDateLong(date)}`,
+      root,
+      'font-size:13px;color:#7dd3fc;margin:16px 0 7px;'
+    );
+
+    const occupied = confirmed.length;
+
+    const pending = proposed.filter(p => {
+      const f = groupedResolve(p.key);
+      return f && groupedPending(f.c);
+    }).length;
+
+    groupedNode(
+      'p',
+      `${occupied} confirmada(s) · ${pending} propuesta(s). ` +
+      'Las jornadas compartidas aparecen también en ' +
+      'la pestaña del otro pueblo.',
+      root,
+      'font-size:10px;color:#94a3b8;margin-bottom:7px;'
+    );
+
+    const grid = groupedNode(
+      'div',
+      null,
+      root,
+      'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' +
+      'gap:8px;margin-bottom:16px;'
+    );
+
+    OBRA_SLOTS.forEach((slot, slotIndex) => {
+      const cell = groupedNode(
+        'div',
+        null,
+        grid,
+        'min-width:0;padding:10px;border-radius:12px;' +
+        'border:1px solid #475569;background:#1e293b;' +
+        'overflow-wrap:anywhere;'
+      );
+
+      groupedNode(
+        'strong',
+        `${slot.start}–${slot.end}`,
+        cell,
+        'display:block;font-size:13px;color:#fde047;margin-bottom:7px;'
+      );
+
+      const real = confirmed.filter(
+        r => r.slot === slotIndex
+      );
+
+      if (real.length) {
+        cell.style.borderColor = '#34d399';
+
+        real.forEach(r => {
+          const visible =
+            currentUserRole === 'jefe' ||
+            r.z.comercial === currentUserName;
+
+          groupedNode(
+            'strong',
+            '✅ ' + (
+              visible
+                ? r.c.name || 'Cliente'
+                : 'Obra confirmada'
+            ),
+            cell,
+            'font-size:12px;color:#6ee7b7;'
+          );
+
+          groupedNode(
+            'p',
+            `${r.z.town || ''}` +
+            (visible ? '\n' + (r.c.street || '') : ''),
+            cell,
+            'white-space:pre-line;font-size:11px;margin-top:5px;'
+          );
+        });
+
+        return;
+      }
+
+      const proposal = proposed.find(
+        p => p.time === slot.start
+      );
+
+      if (!proposal) {
+        groupedNode(
+          'p',
+          'Hueco libre',
+          cell,
+          'font-size:12px;color:#94a3b8;'
+        );
+        return;
+      }
+
+      const found = groupedResolve(proposal.key);
+
+      if (!found || !groupedPending(found.c)) {
+        groupedNode(
+          'p',
+          'Ficha modificada o movida. Regenera las propuestas.',
+          cell,
+          'font-size:11px;color:#fca5a5;'
+        );
+        return;
+      }
+
+      const { z, c } = found;
+
+      const available = routeSlotPlan(
+        date,
+        slot.start,
+        z,
+        c
+      );
+
+      groupedNode(
+        'strong',
+        `📝 ${c.name}`,
+        cell,
+        'font-size:12px;'
+      );
+
+      groupedNode(
+        'p',
+        `${c.street}\n${z.town}\n` +
+        getDisplayAlias(z.comercial),
+        cell,
+        'white-space:pre-line;font-size:11px;color:#cbd5e1;' +
+        'line-height:1.5;margin:6px 0;'
+      );
+
+      if (!available.ok) {
+        groupedNode(
+          'p',
+          available.reason,
+          cell,
+          'font-size:11px;color:#fca5a5;'
+        );
+      }
+
+      const phone = String(c.phone || '')
+        .replace(/[^\d+]/g, '');
+
+      if (/^\+?\d{7,15}$/.test(phone)) {
+        const a = groupedNode(
+          'a',
+          '📞 Llamar',
+          cell,
+          'display:block;text-align:center;padding:9px;' +
+          'background:#2563eb;color:#fff;text-decoration:none;' +
+          'border-radius:8px;font-size:11px;font-weight:800;' +
+          'margin-bottom:6px;'
+        );
+
+        a.href = 'tel:' + phone;
+      }
+
+      const details = groupedNode(
+        'details',
+        null,
+        cell,
+        'margin:7px 0;font-size:11px;'
+      );
+
+      groupedNode(
+        'summary',
+        'Datos y notas',
+        details,
+        'cursor:pointer;color:#7dd3fc;'
+      );
+
+      [
+        ['email', 'Correo electrónico'],
+        ['dni', 'DNI / NIE'],
+        ['callNotes', 'Notas de llamada']
+      ].forEach(([key, label]) => {
+        const input = groupedNode(
+          key === 'callNotes' ? 'textarea' : 'input',
+          null,
+          details,
+          'width:100%;box-sizing:border-box;margin-top:6px;' +
+          'padding:8px;background:#0f172a;color:#fff;' +
+          'border:1px solid #475569;border-radius:7px;font-size:12px;'
+        );
+
+        if (key !== 'callNotes') {
+          input.type = key === 'email' ? 'email' : 'text';
+        }
+
+        input.placeholder = label;
+        input.setAttribute('aria-label', label);
+
+        input.value =
+          (groupedEdits.get(proposal.key) || {})[key] ??
+          c[key] ??
+          '';
+
+        input.oninput = () => {
+          const edit = groupedEdits.get(proposal.key) || {};
+          edit[key] = input.value;
+          groupedEdits.set(proposal.key, edit);
+        };
+      });
+
+      groupedButton(
+        details,
+        '💾 Guardar datos de llamada',
+        () => groupedSaveNotes(proposal.key)
+      );
+
+      groupedButton(
+        details,
+        '📂 Ver ficha / zona',
+        () => groupedViewSource(proposal.key)
+      );
+
+      groupedButton(
+        cell,
+        '↔️ Cambiar día / hora',
+        () => moveGroupedProposal(proposal)
+      );
+
+      const confirm = groupedButton(
+        cell,
+        '✅ Cliente acepta · reservar',
+        () => confirmGroupedAppointment(proposal)
+      );
+
+      confirm.disabled = !available.ok;
+
+      confirm.style.cssText +=
+        'width:100%;margin-top:5px;background:#047857;';
+    });
+  });
+
+  const displaced = groupedPlan.proposals.filter(p => {
+    const current = groupedResolve(p.key);
+
+    return p.town === groupedTown &&
+      current &&
+      groupedPending(current.c) &&
+      routeRecords(p.date).some(
+        r => OBRA_SLOTS[r.slot]?.start === p.time
+      );
+  });
+
+  if (displaced.length) {
+    groupedNode(
+      'h3',
+      'Propuestas cuyo hueco se ha ocupado',
+      root,
+      'font-size:13px;color:#fca5a5;margin-top:12px;'
+    );
+
+    displaced.forEach(p => {
+      const box = groupedNode(
+        'div',
+        null,
+        root,
+        'padding:10px;border:1px solid #ef4444;' +
+        'border-radius:10px;margin-top:7px;'
+      );
+
+      groupedNode(
+        'p',
+        `${p.c.name} · ${p.z.town} · ` +
+        `${formatDate(p.date)} ${p.time}`,
+        box,
+        'font-size:12px;'
+      );
+
+      groupedButton(
+        box,
+        'Buscar otro día / hora',
+        () => moveGroupedProposal(p)
+      );
+    });
+  }
+
+  const unplaced = groupedPlan.unplaced.filter(
+    p => p.town === groupedTown
+  );
+
+  if (unplaced.length) {
+    groupedNode(
+      'h3',
+      'Fichas sin propuesta',
+      root,
+      'font-size:13px;color:#fde047;margin-top:12px;'
+    );
+
+    unplaced.forEach(p => {
+      const box = groupedNode(
+        'div',
+        null,
+        root,
+        'padding:10px;border:1px solid #b45309;' +
+        'border-radius:10px;margin-top:7px;'
+      );
+
+      groupedNode(
+        'strong',
+        `${p.c.name || 'Sin nombre'} · ${p.c.street || ''}`,
+        box,
+        'font-size:12px;'
+      );
+
+      groupedNode(
+        'p',
+        p.reason,
+        box,
+        'font-size:11px;color:#cbd5e1;margin:6px 0;'
+      );
+
+      groupedButton(
+        box,
+        'Completar / revisar ficha',
+        () => groupedViewSource(p.key)
+      );
+    });
+  }
+
+  groupedNode(
+    'p',
+    'Las propuestas solo ocupan huecos dentro de esta ' +
+    'planificación. Las reservas reales se comprueban ' +
+    'otra vez al confirmar. Cercanía por coordenadas ' +
+    'guardadas: no calcula tiempos de carretera.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:14px;'
   );
 }
 
@@ -3732,8 +4828,9 @@ function routeSlotPlan(
   date,
   time,
   z,
-  client,
-  ignored = client
+    client,
+  ignored = client,
+  extraRows = []
 ) {
   const d = new Date(date + 'T12:00:00');
   const index = OBRA_SLOTS.findIndex(s => s.start === time);
@@ -3765,7 +4862,16 @@ function routeSlotPlan(
     };
   }
 
-  const rows = routeRecords(date, ignored);
+  const rows = routeRecords(date, ignored).concat(
+  extraRows
+    .filter(p => p.date === date && p.c !== ignored)
+    .map(p => ({
+      z: p.z,
+      c: p.c,
+      town: routeTown(p.z.town),
+      slot: OBRA_SLOTS.findIndex(s => s.start === p.time)
+    }))
+);
 
   if (rows.length >= 4) {
     return {
