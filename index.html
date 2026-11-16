@@ -964,7 +964,7 @@
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
         <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda</button>
         <button id="btnCommercialPlan" class="btn-hud jefe-action" style="display:none;" onclick="showCommercialBriefing()">📋 Mi Plan</button>
-        <button id="btnFollowUps" class="btn-hud followup-action" onclick="openFollowUpsModal()">📞 Llamar</button>
+        <button id="btnFollowUps" class="btn-hud followup-action" onclick="openUnifiedClients('agendar')">📅 Agendar</button>
         <button id="btnLeagueRanking" class="btn-hud ranking-action" onclick="openLeagueRankingModal()">🏆 Ranking</button>
         <button id="btnCommercialStats" class="btn-hud stats-action" onclick="openCommercialStatsModal()">📈 Mis Stats</button>
         <button id="btnMikelRadarHud" class="btn-hud" style="display:none; background:linear-gradient(135deg, #0d9488 0%, #115e59 100%); border-color:#2dd4bf;" onclick="openMikelRadarModal()">⚔️ Equipos</button>
@@ -986,7 +986,7 @@
       <div class="search-row" style="position:relative;">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Calle, nº y pueblo (ej. Carretera Lodosa 23 Mendavia)..." onkeypress="if(event.key==='Enter') searchLocation()">
         <button class="btn-search" onclick="searchLocation()">Ir</button>
-        <button class="btn-global-crm" onclick="openGlobalClientSearchModal()" title="Buscar cliente por nombre, teléfono o calle">🔎 Fichas</button>
+        <button class="btn-global-crm" onclick="openUnifiedClients('clientes')" title="Buscar cliente por nombre, teléfono o calle">🔎 Fichas</button>
       </div>
       <div id="searchCandidatesDropdown" style="display:none; flex-direction:column; gap:4px; background:#0f172a; border:1px solid #38bdf8; border-radius:12px; padding:6px; max-height:185px; overflow-y:auto; box-shadow:0 12px 28px rgba(0,0,0,0.85);"></div>
     </div>
@@ -1065,6 +1065,27 @@
         </div>
       </div>
       <div class="modal-scrollable-content" id="zoneSelectorDumpList"></div>
+    </div>
+  </div>
+
+  <!-- CRM UNIFICADO V3: UNA FICHA, LLAMADAS, CRM Y RESERVA ATÓMICA -->
+  <div id="unifiedClientsModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header-sticky">
+        <div class="modal-header"><span>📋 Clientes · Gestión unificada</span>
+          <button onclick="closeModal('unifiedClientsModal')" style="background:none;border:0;color:white;font-size:20px">✕</button></div>
+        <div class="subtab-bar" id="unifiedTabs"></div>
+        <input id="unifiedQuery" class="input-field" placeholder="Buscar nombre, teléfono, calle o pueblo" oninput="renderUnifiedClients()" style="margin-bottom:8px">
+      </div>
+      <div class="modal-scrollable-content" id="unifiedClientsBody"></div>
+    </div>
+  </div>
+
+  <!-- EDICIÓN DE UNA ÚNICA FICHA: reutiliza los campos originales sin duplicar clientes -->
+  <div id="unifiedEditorModal" class="modal-overlay" style="z-index:10090">
+    <div class="modal-card">
+      <div class="modal-header-sticky"><div class="modal-header"><span>✏️ Ficha completa del cliente</span><button onclick="closeModal('unifiedEditorModal')" style="background:none;border:0;color:white;font-size:20px">✕</button></div></div>
+      <div class="modal-scrollable-content"><p style="font-size:11px;color:#fbbf24;margin-bottom:10px">Los datos de esta ficha se guardan en el cliente original. Para reservar o cambiar una cita usa «Agendar».</p><div id="unifiedEditorFields"></div><button class="btn-modal-save" onclick="saveUnifiedClientEditor()">💾 Guardar esta ficha</button></div>
     </div>
   </div>
 
@@ -3056,6 +3077,268 @@
       lb.classList.add('active');
     }
 
+    /* CRM unificado: usa savedZones sin duplicar fichas ni cambiar su esquema. */
+    let unifiedMode = 'agendar';
+    let unifiedFilter = 'antiguos';
+    let unifiedSelected = null;
+    function unifiedEsc(v) { return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function unifiedCreated(c,z) {
+      const t = Number(c.createdAt || z.dumpDate || z.id || 0);
+      if (Number.isFinite(t) && t > 1000000000000) return t;
+      const parsed = Date.parse(c.createdAt || z.dumpDate || z.date || '');
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    function unifiedRows() {
+      const mikel = isMikelTeamMember(currentUserName);
+      const rows = [];
+      savedZones.forEach((z,zi)=>{
+        if (isMikelTeamMember(z.comercial) !== mikel) return;
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
+        (z.clients||[]).forEach((c,ci)=>{
+          if (!isClientValidFilled(c)) return;
+          rows.push({z,c,zi,ci,created:unifiedCreated(c,z),town:z.town||'Sin pueblo'});
+        });
+      });
+      return rows;
+    }
+    function openUnifiedClients(mode='agendar') {
+      unifiedMode=mode; unifiedFilter=mode==='agendar'?'antiguos':'todos'; unifiedSelected=null;
+      document.getElementById('unifiedQuery').value='';
+      document.getElementById('unifiedClientsModal').classList.add('active');
+      renderUnifiedClients();
+    }
+    function setUnifiedFilter(f) { unifiedFilter=f; unifiedSelected=null; renderUnifiedClients(); }
+    async function unifiedGeocodeTown(zi,btn) {
+      const town=savedZones[zi]?.town;
+      if(!town)return;
+      await geocodeTownFichas(town,btn);
+      renderUnifiedClients();
+    }
+    function openUnifiedClient(zi,ci) { unifiedSelected={zi,ci}; renderUnifiedClients(); }
+    let unifiedEditorTarget=null;
+    function openUnifiedClientEditor(zi,ci) {
+      const z=savedZones[zi],c=z?.clients?.[ci];if(!c)return;
+      unifiedEditorTarget={zi,ci};
+      const previous=selectedZoneIndexToDump;
+      selectedZoneIndexToDump=zi;
+      const html=c.type==='comunidad'?getComunidadFormHTML(c,ci):getViviendaFormHTML(c);
+      selectedZoneIndexToDump=previous;
+      const dest=document.getElementById('unifiedEditorFields');
+      dest.innerHTML=`<div class="${c.type==='comunidad'?'comunidad-box':'client-box'}" data-client-index="${ci}"><div style="font-size:11px;font-weight:800;margin-bottom:8px">${c.type==='comunidad'?'🏢 Comunidad':'🏠 Vivienda individual'}</div><div class="client-fields-dynamic-area">${html}</div></div>`;
+      if(c.type==='comunidad') {
+        const box=dest.querySelector('.comunidad-box, .client-box');
+        if(box)renderAtticsBreakdownList(box,c.atticsDetails||null,parseInt(c.numAttics||2));
+      }
+      document.getElementById('unifiedEditorModal').classList.add('active');
+    }
+    function saveUnifiedClientEditor() {
+      const t=unifiedEditorTarget, z=t&&savedZones[t.zi],old=z?.clients?.[t.ci];
+      const box=document.getElementById('unifiedEditorFields')?.querySelector('.client-box,.comunidad-box');
+      if(!old||!box)return;
+      const updated=extractClientFromBox(box,old.callStatus||'pendiente',old);
+      if(!isClientValidFilled(updated))return alert('La ficha debe tener al menos nombre, dirección o teléfono.');
+      if(updated.dni&&!isValidDni(updated.dni))return alert('DNI/NIE incorrecto.');
+      if(!isMikelTeamMember(z.comercial) &&
+        (updated.obraStatus==='agendada' || old.obraStatus==='agendada') &&
+        (updated.obraStatus!==old.obraStatus || updated.obraDate!==old.obraDate || updated.obraTime!==old.obraTime)) {
+        return alert('📅 Las citas únicamente se confirman desde «Agendar» y se cancelan desde la agenda. Esta modificación no se ha guardado.');
+      }
+      updated._updatedAt=Date.now();
+      z.clients[t.ci]=updated;z._updatedAt=Date.now();
+      saveAndSync('comercial_custom_zones',savedZones);
+      closeModal('unifiedEditorModal');
+      renderUnifiedClients();
+      alert('✅ Cambios guardados en la ficha original.');
+    }
+    function unifiedStatus(c) {
+      if(c.obraStatus==='realizada') return 'realizadas';
+      if(c.obraStatus==='agendada') return 'citados';
+      if(c.obraStatus==='no_apto') return 'no_apto';
+      return c.callStatus==='esperando_confirmacion'?'esperando':c.callStatus==='ya_llamado'?'llamados':'no_llamados';
+    }
+    window.getExistingAgendaBookings = function() {
+      const list=[];
+      savedZones.forEach((z,zi)=>{
+        if(isMikelTeamMember(z.comercial))return;
+        (z.clients||[]).forEach((c,ci)=>{
+          if(c.obraStatus!=='agendada'||!c.obraDate||!OBRA_SLOTS.some(s=>s.start===c.obraTime))return;
+          list.push({date:c.obraDate,time:c.obraTime,zoneId:z.id,clientKey:String(c.createdAt||ci),clientName:c.name,town:z.town,commercial:z.comercial,migration:true});
+        });
+      });
+      return list;
+    };
+    window.reportAgendaMigrationError = function(failed) {
+      alert('⚠️ Atención: '+failed+' cita(s) antiguas no pudieron incorporarse a la nueva agenda. Revisa posibles horarios duplicados o las reglas de Firestore antes de aceptar nuevas reservas.');
+    };
+    function unifiedClientKey(zi,ci) {
+      const z=savedZones[zi], c=z?.clients?.[ci];
+      return String(c?.createdAt || ci);
+    }
+    window.__bookingOwnsSlot = function(c) {
+      const booked=window.__agendaOccupied?.[`${c.obraDate}_${c.obraTime}`];
+      if (!booked) return true;
+      return savedZones.some(z => (z.clients||[]).some((k,ci) =>
+        String(k.createdAt || ci)===String(c.createdAt || '') &&
+        String(k.phone||'')===String(c.phone||'') &&
+        booked.ownerId === String(z.id).replace(/[^a-zA-Z0-9_-]/g,'_')+'__'+String(k.createdAt || ci).replace(/[^a-zA-Z0-9_-]/g,'_')
+      ));
+    };
+    function unifiedSafeSlot(iso, time, zi, ci) {
+      if (!iso || !time || iso<=getTodayISO() || new Date(iso+'T12:00:00').getDay()===0) return false;
+      const z=savedZones[zi], c=z?.clients?.[ci];
+      if (!c) return false;
+      const booked=window.__agendaOccupied?.[`${iso}_${time}`];
+      if (booked && booked.ownerId!==String(z.id).replace(/[^a-zA-Z0-9_-]/g,'_')+'__'+unifiedClientKey(zi,ci).replace(/[^a-zA-Z0-9_-]/g,'_')) return false;
+      return !savedZones.some((zone,zIndex)=> (zone.clients||[]).some((other,cIndex)=>other!==c && other.obraStatus==='agendada' && other.obraDate===iso && other.obraTime===time && !isMikelTeamMember(zone.comercial)));
+    }
+    async function scheduleUnifiedClient(zi,ci) {
+      const z=savedZones[zi], c=z?.clients?.[ci];
+      if (!z||!c) return;
+      const date=document.getElementById('unifiedBookingDate')?.value;
+      const time=document.getElementById('unifiedBookingTime')?.value;
+      const email=document.getElementById('unifiedBookingEmail')?.value.trim() || '';
+      const notes=document.getElementById('unifiedBookingNotes')?.value.trim() || '';
+      const dni=document.getElementById('unifiedBookingDni')?.value.trim().toUpperCase() || '';
+      if (!isClientValidFilled(c)) return alert('Completa primero el nombre, dirección y teléfono de la ficha.');
+      if (!unifiedSafeSlot(date,time,zi,ci)) return alert('⛔ Fecha no válida o franja ocupada.');
+      if (dni && !isValidDni(dni)) return alert('Revisa el DNI/NIE.');
+      const test={...c,email,callNotes:notes,dni,obraStatus:'agendada',obraDate:date,obraTime:time};
+      if (!ensureCrmUpload(test,{date:z.dumpDate||z.date,town:z.town,comercial:z.comercial})) return;
+      try {
+        if (!window.reserveSharedObra) throw new Error('Firebase todavía no ha conectado.');
+        await window.reserveSharedObra({date,time,zoneId:z.id,clientKey:unifiedClientKey(zi,ci),clientName:c.name,town:z.town,commercial:z.comercial,previousDate:c.obraStatus==='agendada'?c.obraDate:null,previousTime:c.obraStatus==='agendada'?c.obraTime:null});
+        Object.assign(c,test);
+        c.statusChangedAt=Date.now(); z._updatedAt=Date.now();
+        saveAndSync('comercial_custom_zones',savedZones);
+        logActivity('cita',`📅 Cita confirmada: ${c.name||'Cliente'} · ${z.town||''} · ${date} ${time}`,z.comercial);
+        showCitaSavedModal(c,{town:z.town,comercial:z.comercial});
+        renderUnifiedClients();
+      } catch(e) { alert('⛔ No se ha confirmado la cita: '+(e?.message||e)+'\nSi ya subiste el archivo CRM, revisa o elimina esa importación.'); }
+    }
+    function saveUnifiedContact(zi,ci) {
+      const z=savedZones[zi],c=z?.clients?.[ci]; if(!c)return;
+      const email=document.getElementById('unifiedBookingEmail')?.value.trim();
+      const dni=document.getElementById('unifiedBookingDni')?.value.trim().toUpperCase();
+      if(dni&&!isValidDni(dni))return alert('DNI/NIE incorrecto.');
+      c.email=email||'';c.dni=dni||'';c.callNotes=document.getElementById('unifiedBookingNotes')?.value.trim()||'';
+      z._updatedAt=Date.now();saveAndSync('comercial_custom_zones',savedZones);
+      alert('✅ Información guardada en la ficha original.');
+    }
+    function refreshUnifiedBookingSlots(zi,ci) {
+      const date=document.getElementById('unifiedBookingDate')?.value;
+      const sel=document.getElementById('unifiedBookingTime');
+      if (!sel) return;
+      sel.innerHTML=OBRA_SLOTS.map(slot=>`<option value="${slot.start}" ${unifiedSafeSlot(date,slot.start,zi,ci)?'':'disabled'}>${unifiedSafeSlot(date,slot.start,zi,ci)?'✅ Libre':'⛔ Ocupado'} · ${slot.start}–${slot.end}</option>`).join('');
+    }
+
+    function unifiedSuggestSlot() {
+      const d=new Date(getTomorrowISO()+'T12:00:00');
+      for(let k=0;k<45;k++) {
+        const iso=getLocalDateISO(d);
+        if(d.getDay()!==0) {
+          const used=obraSlotsUsage(iso);
+          for (const sl of OBRA_SLOTS) if(window.__agendaOccupied?.[`${iso}_${sl.start}`]) used[sl.start]=1;
+          const free=OBRA_SLOTS.find(s=>!used[s.start]);
+          if(free) return {iso,slot:free};
+        }
+        d.setDate(d.getDate()+1);
+      }
+      return null;
+    }
+    function renderUnifiedClients() {
+      const tabs=unifiedMode==='agendar'
+        ? [['antiguos','Antiguos'],['hoy','Hoy'],['llamados','Llamados'],['esperando','Esperando']]
+        : [['todos','Todos'],['no_llamados','No llamados'],['llamados','Llamados'],['esperando','Esperando'],['citados','Citados'],['realizadas','Hechas'],['no_apto','No aptos']];
+      document.getElementById('unifiedTabs').innerHTML=tabs.map(([id,name])=>`<button class="subtab-btn ${unifiedFilter===id?'active':''}" onclick="setUnifiedFilter('${id}')">${name}</button>`).join('');
+      const body=document.getElementById('unifiedClientsBody');
+      const rows=unifiedRows();
+      if(unifiedSelected) {
+        const {zi,ci}=unifiedSelected;
+        const item=rows.find(r=>r.zi===zi&&r.ci===ci);
+        if(!item){unifiedSelected=null;body.innerHTML='Ficha no disponible';return;}
+        const {c,z}=item;
+        const phone=String(c.phone||'').replace(/[^\d+]/g,'');
+        const status=unifiedStatus(c);
+        const suggestion=unifiedSuggestSlot();
+        const date=item.created?new Date(item.created).toLocaleDateString('es-ES'):'Sin fecha';
+        body.innerHTML=`<button class="btn-hud" onclick="unifiedSelected=null;renderUnifiedClients()" style="margin-bottom:10px">← Volver a clientes</button>
+          <div class="client-box"><strong style="font-size:16px">${unifiedEsc(c.name||'Cliente')}</strong>
+          <div>📍 ${unifiedEsc(c.street)} · ${unifiedEsc(item.town)}</div>
+          <div>📞 ${unifiedEsc(c.phone||'Sin teléfono')} · Alta: ${date}</div>
+          <div>Estado: ${unifiedEsc(status.replaceAll('_',' '))} · ${unifiedEsc(z.comercial)}</div>
+          <details style="margin:7px 0;background:#0f172a;padding:8px;border-radius:8px"><summary style="cursor:pointer;font-weight:800">📋 Datos y seguimiento de la ficha</summary>
+          <div style="font-size:11px;line-height:1.8">Tipo: ${unifiedEsc(c.type||'vivienda')} · Superficie: ${unifiedEsc(c.m2||'—')} m²<br>Código postal: ${unifiedEsc(c.postalCode||'—')} · Construcción: ${unifiedEsc(c.buildYear||'—')}<br>Acceso: ${unifiedEsc(c.accessType||'—')}<br>Correo: ${unifiedEsc(c.email||'—')}<br>Notas: ${unifiedEsc(c.callNotes||'—')}<br>Motivo espera: ${unifiedEsc(c.waitReason||'—')}</div>
+          ${Array.isArray(c.callLog)&&c.callLog.length?`<div style="margin-top:5px;font-size:10px">Últimas llamadas: ${c.callLog.slice(-5).reverse().map(k=>unifiedEsc(new Date(k.t).toLocaleDateString('es-ES')+' · '+k.s)).join(' | ')}</div>`:''}
+          </details>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${phone?`<a href="tel:${unifiedEsc(phone)}" class="btn-hud" style="text-decoration:none;background:#2563eb">📞 Llamar</a>`:''}
+          <button class="btn-hud" onclick="openUnifiedClientEditor(${zi},${ci})">✏️ Ficha completa</button></div>
+          ${status==='no_llamados'||status==='llamados'||status==='esperando'?`
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-hud" onclick="updateClientCallStatus(${zi},${ci},'ya_llamado');renderUnifiedClients()">🟡 Llamado</button>
+            <button class="btn-hud" onclick="updateClientCallStatus(${zi},${ci},'esperando_confirmacion');renderUnifiedClients()">🟣 Esperando</button>
+          </div>
+          <div style="border:1px solid #34d399;border-radius:10px;padding:9px">
+            <strong>📅 Cita de obra · equipo compartido</strong>
+            <p style="font-size:11px;margin-top:5px">${suggestion?'Primera opción orientativa: '+unifiedEsc(suggestion.iso)+' · '+unifiedEsc(suggestion.slot.start)+'–'+unifiedEsc(suggestion.slot.end):'Sin huecos en los próximos 45 días'}</p>
+            <p style="font-size:10px;color:#cbd5e1">Cada obra dura unas 2 horas. No se permiten dos reservas simultáneas. La confirmación requiere conexión con Firebase y subida a CRM.</p>
+            ${window.__agendaConnected?'':'<p style="color:#fbbf24;font-weight:800;font-size:11px">⚠️ Agenda sin conexión confirmada. No se pueden guardar citas hasta recuperar Firebase.</p>'}
+            <label style="font-size:11px">Fecha</label><input id="unifiedBookingDate" type="date" class="input-field" min="${getTomorrowISO()}" value="${suggestion?unifiedEsc(suggestion.iso):getTomorrowISO()}" onchange="refreshUnifiedBookingSlots(${zi},${ci})">
+            <label style="font-size:11px">Franja</label><select id="unifiedBookingTime" class="select-field">${OBRA_SLOTS.map(sl=>`<option value="${sl.start}" ${unifiedSafeSlot(suggestion?.iso||getTomorrowISO(),sl.start,zi,ci)?'':'disabled'}>${unifiedSafeSlot(suggestion?.iso||getTomorrowISO(),sl.start,zi,ci)?'✅ Libre':'⛔ Ocupado'} · ${sl.start}–${sl.end}</option>`).join('')}</select>
+            <label style="font-size:11px">Correo electrónico</label><input id="unifiedBookingEmail" class="input-field" type="email" value="${unifiedEsc(c.email||'')}">
+            <label style="font-size:11px">DNI/NIE (si procede)</label><input id="unifiedBookingDni" class="input-field" value="${unifiedEsc(c.dni||'')}">
+            <label style="font-size:11px">Notas de llamada</label><textarea id="unifiedBookingNotes" class="input-field" style="min-height:66px">${unifiedEsc(c.callNotes||'')}</textarea>
+            <div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn-hud" onclick="saveUnifiedContact(${zi},${ci})">💾 Guardar datos</button><button class="btn-hud" onclick="scheduleUnifiedClient(${zi},${ci})" style="background:#059669">✅ Confirmar cita y exportar a CRM</button></div>
+          </div>`:''}
+          ${status==='citados'?`<div>📅 ${unifiedEsc(c.obraDate)} · ${unifiedEsc(c.obraTime)}</div>`:''}
+          </div>`;
+        return;
+      }
+      const query=(document.getElementById('unifiedQuery').value||'').trim().toLocaleLowerCase('es');
+      const today=getTodayISO();
+      const filtered=rows.filter(r=>{
+        const st=unifiedStatus(r.c);
+        if(unifiedMode==='agendar') {
+          if(st==='citados'||st==='realizadas'||st==='no_apto')return false;
+          if(unifiedFilter==='hoy' && !(st==='no_llamados' && r.created && getLocalDateISO(new Date(r.created))===today))return false;
+          if(unifiedFilter==='antiguos' && !(st==='no_llamados' && (!r.created || getLocalDateISO(new Date(r.created))<today)))return false;
+          if(unifiedFilter==='llamados'&&st!=='llamados')return false;
+          if(unifiedFilter==='esperando'&&st!=='esperando')return false;
+        } else if(unifiedFilter!=='todos'&&st!==unifiedFilter)return false;
+        return !query||`${r.c.name||''} ${r.c.phone||''} ${r.c.street||''} ${r.town}`.toLocaleLowerCase('es').includes(query);
+      });
+      filtered.sort((a,b)=>a.town.localeCompare(b.town,'es')||a.created-b.created);
+      // Respetar el orden de captación antiguo primero; acercar fichas del mismo pueblo
+      // cuando existan coordenadas verificadas en la caché CartoCiudad.
+      const ordered=[];
+      for (const town of [...new Set(filtered.map(r=>r.town))]) {
+        const pool=filtered.filter(r=>r.town===town);
+        while(pool.length) {
+          if(!ordered.length || ordered[ordered.length-1].town!==town) { ordered.push(pool.shift());continue; }
+          const last=ordered[ordered.length-1];
+          const here=ficheroGeoCache[geoKeyFor(last.c.street,last.town)];
+          if (!here||here.fail) { ordered.push(pool.shift());continue; }
+          let closest=-1,best=Infinity;
+          pool.forEach((r,i)=>{
+            const loc=ficheroGeoCache[geoKeyFor(r.c.street,r.town)];
+            if(loc&&!loc.fail){const d=distKm(here,loc);if(d<best){best=d;closest=i;}}
+          });
+          ordered.push(closest>=0&&best<=3 ? pool.splice(closest,1)[0] : pool.shift());
+        }
+      }
+      let lastTown='';
+      body.innerHTML=`<p style="font-size:11px;color:#94a3b8;margin-bottom:9px">${ordered.length} fichas · prioridad por antigüedad, agrupadas por pueblo y cercanía calculada</p>`+ordered.map(r=>{
+        const town=r.town!==lastTown?`<div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin:12px 0 6px"><strong style="color:#38bdf8">📍 ${unifiedEsc(r.town)}</strong><button class="btn-hud" style="font-size:10px;padding:5px" onclick="unifiedGeocodeTown(${r.zi},this)">📍 Calcular cercanía</button></div>`:'';
+        lastTown=r.town;
+        const date=r.created?new Date(r.created).toLocaleDateString('es-ES'):'Sin fecha';
+        return `${town}<button onclick="openUnifiedClient(${r.zi},${r.ci})" style="display:block;width:100%;text-align:left;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:9px;margin-bottom:5px;background:#1e293b;color:white">
+        <strong>${unifiedEsc(r.c.name||'Cliente')}</strong><span style="float:right;color:#94a3b8">›</span>
+        <div style="font-size:11px;color:#cbd5e1">${unifiedEsc(r.c.street||'Sin calle')} · ${unifiedEsc(r.c.phone||'Sin teléfono')}</div>
+        <div style="font-size:10px;color:#94a3b8">Creada: ${date} · ${unifiedEsc(unifiedStatus(r.c).replaceAll('_',' '))}</div></button>`;
+      }).join('');
+      if(!filtered.length)body.innerHTML='<div style="padding:18px;text-align:center;color:#94a3b8">No hay clientes en este apartado.</div>';
+    }
+
     /* =====================================================================
        APARTADO "📞 LLAMAR": SEGUIMIENTO DIRECTO DE CLIENTES VOLCADOS EN "SÍ"
        ===================================================================== */
@@ -3311,7 +3594,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       }
     }
 
-    function confirmScheduleFromFollowUp(zoneIdx, clientIdx, dateInputId, timeInputId) {
+    async function confirmScheduleFromFollowUp(zoneIdx, clientIdx, dateInputId, timeInputId) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       const client = z.clients[clientIdx];
@@ -3334,9 +3617,14 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         }
         client.dni = dniInp.value.trim().toUpperCase();
       }
-      const timeVal = document.getElementById(timeInputId)?.value || '09:30';
+      const timeVal = document.getElementById(timeInputId)?.value || '09:00';
       const testClient = Object.assign({}, client, { obraStatus: 'agendada', obraDate: dateVal, obraTime: timeVal });
+      if (!unifiedSafeSlot(dateVal,timeVal,zoneIdx,clientIdx)) return alert('⛔ Franja ocupada o fecha no permitida.');
       if (!ensureCrmUpload(testClient, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) return;
+      try {
+        if (!window.reserveSharedObra) throw new Error('Firebase no ha conectado.');
+        await window.reserveSharedObra({date:dateVal,time:timeVal,zoneId:z.id,clientKey:unifiedClientKey(zoneIdx,clientIdx),clientName:client.name,town:z.town,commercial:z.comercial,previousDate:client.obraStatus==='agendada'?client.obraDate:null,previousTime:client.obraStatus==='agendada'?client.obraTime:null});
+      } catch(e) { alert('⛔ Cita no guardada: '+(e?.message||e)); return; }
       Object.assign(client, testClient);
 
            client.obraStatus = 'agendada';
@@ -3344,6 +3632,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       client.obraTime = timeVal;
       logActivity('cita', `📅 Cita de obra: ${client.name || 'Cliente'} · ${z.town || ''} · ${formatDate(dateVal)} ${obraSlotLabel(timeVal)}`, z.comercial);
       saveAndSync('comercial_custom_zones', savedZones);
+      showCitaSavedModal(client, {town:z.town,comercial:z.comercial});
       renderFollowUpsModal();
     }
 
@@ -3356,6 +3645,11 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
             counts[c.obraDate] = (counts[c.obraDate] || 0) + 1;
           }
         });
+      });
+      Object.values(window.__agendaOccupied||{}).forEach(res=>{
+        if (!res?.date || !res?.start) return;
+        const reflected=savedZones.some(z=>(z.clients||[]).some(c=>c.obraStatus==='agendada' && c.obraDate===res.date && c.obraTime===res.start));
+        if (!reflected) counts[res.date]=(counts[res.date]||0)+1;
       });
       return counts;
     }
@@ -3402,6 +3696,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
     function obraSlotOptionsForDate(iso) {
       const used = obraSlotsUsage(iso);
+      for (const s of OBRA_SLOTS) if (window.__agendaOccupied?.[`${iso}_${s.start}`]) used[s.start] = Math.max(1, used[s.start] || 0);
       const firstFree = OBRA_SLOTS.find(s => !used[s.start]);
       return OBRA_SLOTS.map(s => {
         const busy = used[s.start];
@@ -3453,7 +3748,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
       let html = `
         <div style="font-size:11px; color:#94a3b8; margin-bottom:10px; line-height:1.35;">
-          Clientes en <strong>"Captación SÍ"</strong> pendientes de cerrar fecha de obra (${pendingCalls.length}). <em>Franja ideal: 15:00 - 15:30 o 09:30 - 10:30.</em>
+          Clientes en <strong>"Captación SÍ"</strong> pendientes de cerrar fecha de obra (${pendingCalls.length}). <em>Franjas disponibles: 09:00–11:00, 11:00–13:00, 15:00–17:00 y 17:00–19:00.</em>
         </div>
       `;
 
@@ -4814,7 +5109,8 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
           const oId = `${o.createdAt || ''}_${(o.phone || '').replace(/\D/g, '')}`;
           if (o.obraStatus === 'agendada' && o.obraDate === c.obraDate && o.obraTime === c.obraTime && oId !== myId && !isMikelTeamMember(zz.comercial)) clash++;
         }));
-        if (clash > 0 && !confirm(`⚠️ Ya hay ${clash} obra(s) agendada(s) el ${c.obraDate} en la franja ${obraSlotLabel(c.obraTime)}.\n\n¿Quieres agendar esta también en esa franja?`)) return false;
+        if (clash > 0) { alert('⛔ Ese horario ya está ocupado en la agenda. Selecciona otro.'); return false; }
+        if (window.__agendaOccupied?.[`${c.obraDate}_${c.obraTime}`] && !window.__bookingOwnsSlot?.(c)) { alert('⛔ Franja ocupada por otra reserva del equipo.'); return false; }
       }
       if (!c.obraDate || !c.obraTime) {
         alert("⚠️ Pon la fecha y la hora de la cita de obra para poder guardar.");
@@ -4827,7 +5123,6 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       c.crmUploadedAt = Date.now();
       c.crmDate = c.obraDate;
       c.crmTime = c.obraTime;
-      setTimeout(() => showCitaSavedModal(c, ctx), 150);
       return true;
     }
 
@@ -4867,7 +5162,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       const statusVal = box.querySelector('.client-obra-status').value;
       const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
       const obraDateVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-date')?.value || getTodayISO()) : '';
-      const obraTimeVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-time')?.value || '09:30') : '';
+      const obraTimeVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-time')?.value || '09:00') : '';
 
       const buildYearVal = box.querySelector('.client-build-year')?.value.trim() || '';
       const postalCodeVal = box.querySelector('.client-cp')?.value.trim() || '';
@@ -4948,7 +5243,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       }
     }
 
-    function saveSingleHouseData() {
+    async function saveSingleHouseData() {
       const container = document.getElementById('singleHouseCardContainer');
       const box = container.querySelector('.client-box, .comunidad-box');
       if (!box) return;
@@ -4970,6 +5265,22 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       if (!townVal || townVal === 'Detectando...') townVal = 'Peralta';
       const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
 
+      const originalZone = editingSingleHouseIndex !== null ? savedZones[editingSingleHouseIndex] : null;
+      const originalClient=originalZone?.clients?.[0];
+      if (clientObj.obraStatus === 'agendada' && !isMikelTeamMember(comercialVal) &&
+          (!originalClient || originalClient.obraStatus!=='agendada' || originalClient.obraDate!==clientObj.obraDate || originalClient.obraTime!==clientObj.obraTime)) {
+        if (!clientObj.obraDate || !clientObj.obraTime || clientObj.obraDate<=getTodayISO() || new Date(clientObj.obraDate+'T12:00:00').getDay()===0) return alert('Selecciona un día futuro de lunes a sábado y una franja válida.');
+        const existing=window.__agendaOccupied?.[`${clientObj.obraDate}_${clientObj.obraTime}`];
+        const zoneId=originalZone?.id||'single_'+Date.now();
+        if (existing && (!originalClient || originalClient.obraDate!==clientObj.obraDate || originalClient.obraTime!==clientObj.obraTime)) return alert('⛔ Esa franja ya está reservada.');
+        if(!ensureCrmUpload(clientObj,{date:dateVal,town:townVal,comercial:comercialVal}))return;
+        try { await window.reserveSharedObra({date:clientObj.obraDate,time:clientObj.obraTime,zoneId,clientKey:originalClient?.createdAt||clientObj.createdAt||0,clientName:clientObj.name,town:townVal,commercial:comercialVal,previousDate:originalClient?.obraStatus==='agendada'?originalClient.obraDate:null,previousTime:originalClient?.obraStatus==='agendada'?originalClient.obraTime:null}); }
+        catch(e){ return alert('⛔ No se ha guardado la vivienda: '+(e?.message||e)); }
+        if (!originalZone) window.__newSingleZoneId=zoneId;
+      } else if(originalClient?.obraStatus==='agendada' && !isMikelTeamMember(comercialVal)) {
+        try { await window.releaseSharedObra({date:originalClient.obraDate,time:originalClient.obraTime,zoneId:originalZone.id,clientKey:originalClient.createdAt||0}); }
+        catch(e){return alert('⛔ No se ha podido liberar la cita anterior: '+(e?.message||e));}
+      }
       const labelStreet = clientObj.street || (clientObj.type === 'comunidad' ? 'Edificio Único' : 'Vivienda Única');
       const sectorTitle = `${clientObj.type === 'comunidad' ? '🏢' : '🏠'} ${labelStreet}`;
 
@@ -4984,7 +5295,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         z.clients = [clientObj];
       } else {
         savedZones.push({
-          id: Date.now(),
+          id: window.__newSingleZoneId || Date.now(),
           isSingleHouse: true,
           singlePoint: pendingSingleHouseCoords,
           date: dateVal,
@@ -5005,6 +5316,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
            logActivity('ficha', `🏠 Registró ${clientObj.type === 'comunidad' ? 'una comunidad' : 'una vivienda'}: ${clientObj.name || clientObj.street || 'sin nombre'} · ${townVal}`, comercialVal);
       editingSingleHouseIndex = null;
       pendingSingleHouseCoords = null;
+      window.__newSingleZoneId = null;
       closeModal('singleHouseModal');
       renderAllSavedZones();
       updateHudLiveSalaryPill();
@@ -5871,7 +6183,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         accessOther: parentBox.querySelector('.client-access-other')?.value || '',
         obraStatus: parentBox.querySelector('.client-obra-status')?.value || 'a_poner',
         obraDate: parentBox.querySelector('.client-obra-date')?.value || getTodayISO(),
-        obraTime: parentBox.querySelector('.client-obra-time')?.value || '09:30',
+        obraTime: parentBox.querySelector('.client-obra-time')?.value || '09:00',
         m2: parentBox.querySelector('.client-m2')?.value || '60-80'
       };
 
@@ -5949,7 +6261,8 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
     function updateClientCteFromCp(inputEl) {
       const area = inputEl.closest('.client-fields-dynamic-area');
       if (!area) return;
-      const townContext = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+      const townContext = (unifiedEditorTarget && savedZones[unifiedEditorTarget.zi]?.town)
+        || (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
         || document.getElementById('singleHouseTown')?.value
         || '';
       const info = detectCteZoneFromCpAndTown(inputEl.value, townContext);
@@ -5995,7 +6308,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
     function getViviendaFormHTML(existing) {
       const defaultObraDate = existing.obraDate || getTodayISO();
-      const defaultObraTime = existing.obraTime || '09:30';
+      const defaultObraTime = existing.obraTime || '09:00';
       const buildYearVal = existing.buildYear || '';
       const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
@@ -6132,7 +6445,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
     function getComunidadFormHTML(existing, cardIdx) {
       const defaultObraDate = existing.obraDate || getTodayISO();
-      const defaultObraTime = existing.obraTime || '09:30';
+      const defaultObraTime = existing.obraTime || '09:00';
       const buildYearVal = existing.buildYear || '';
       const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
       const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
@@ -6409,9 +6722,19 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         z.clients.push(extractClientFromBox(box, preservedCallStatus, prev));
       });
 
-            for (const cl of z.clients) {
-        if (!ensureCrmUpload(cl, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) {
-          z.clients = prevClients;
+      // Desde el volcado se pueden editar datos, pero las NUEVAS citas se confirman
+      // exclusivamente por la agenda transaccional; jamás crear reservas locales sin candado.
+      for (let i=0;i<z.clients.length;i++) {
+        const cl=z.clients[i],prev=prevClients[i]||{};
+        if (cl.obraStatus==='agendada' && !isMikelTeamMember(z.comercial) &&
+          (prev.obraStatus!=='agendada' || prev.obraDate!==cl.obraDate || prev.obraTime!==cl.obraTime)) {
+          z.clients=prevClients;
+          alert('📅 Guarda la ficha sin cita y después entra en «Agendar» para confirmar el horario en la agenda compartida. La cita no se ha guardado.');
+          return;
+        }
+        if (prev.obraStatus==='agendada' && cl.obraStatus!=='agendada' && !isMikelTeamMember(z.comercial)) {
+          z.clients=prevClients;
+          alert('Para cancelar una cita usa el botón «Cancelar obra» de la agenda; así se libera la franja para todo el equipo.');
           return;
         }
       }
@@ -8731,7 +9054,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       return html;
     }
 
-    function cancelObra(zIdx, cIdx) {
+    async function cancelObra(zIdx, cIdx) {
       const z = savedZones[zIdx];
       const c = z && z.clients && z.clients[cIdx];
       if (!c) return;
@@ -8742,6 +9065,10 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       }
       const oldDate = c.obraDate || '';
       const oldTime = c.obraTime || '';
+      if (oldDate && oldTime && !isMikelTeamMember(z.comercial)) {
+        try { await window.releaseSharedObra({date:oldDate,time:oldTime,zoneId:z.id,clientKey:unifiedClientKey(zIdx,cIdx)}); }
+        catch(e) { return alert('⛔ Cancelación no registrada: '+(e?.message||e)); }
+      }
       c.obraStatus = 'a_poner';
       c.cancelInfo = { reason, date: oldDate, time: oldTime, at: Date.now() };
       c.obraDate = '';
@@ -9328,7 +9655,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-analytics.js";
-    import { arrayUnion, getDoc, collection } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+    import { arrayUnion, getDoc, collection, runTransaction, query, where } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
     import { 
       initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
@@ -9452,6 +9779,93 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       }
     };
 
+    // Compatibilidad: identificar reservas heredadas desde las fichas originales.
+    // No cambia las notificaciones push ni añade nuevos procesos de inicio de sesión.
+    // Agenda compartida: reserva exclusiva de un único equipo mediante una transacción.
+    // Requiere que las reglas Firestore permitan lecturas/escrituras autenticadas de agenda_slots.
+    const agendaSlotsRef = collection(db, 'agenda_slots');
+    const agendaClientsRef = collection(db, 'agenda_clients');
+    const safeOwnerKey = v => String(v || '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 180);
+    const slotDocumentId = (date, time) => `${date}_${time.replace(':','')}`;
+    window.__agendaOccupied = Object.create(null);
+    window.__agendaConnected = false;
+    let agendaWatchStarted = false;
+    function watchSharedAgenda() {
+      if (agendaWatchStarted) return;
+      agendaWatchStarted = true;
+      onSnapshot(agendaSlotsRef, snapshot => {
+        const occupied = Object.create(null);
+        snapshot.forEach(item => {
+          const value = item.data();
+          if (value && value.date && value.start) occupied[`${value.date}_${value.start}`] = value;
+        });
+        window.__agendaOccupied = occupied;
+        window.__agendaConnected = !snapshot.metadata.fromCache;
+        if(window.__agendaConnected) migrateLegacyAgenda();
+        if (typeof window.renderUnifiedClients === 'function' && document.getElementById('unifiedClientsModal')?.classList.contains('active')) window.renderUnifiedClients();
+      }, error => {
+        window.__agendaConnected = false;
+        console.error('Agenda compartida no disponible', error);
+      });
+    }
+    window.reserveSharedObra = async function(details) {
+      const { date, time, zoneId, clientKey, clientName, town, commercial, previousDate, previousTime, migration } = details;
+      if (!auth.currentUser) throw new Error('Inicia sesión antes de reservar la obra.');
+      if (!navigator.onLine || !window.__agendaConnected) throw new Error('No hay conexión confirmada con la agenda. No se ha guardado la cita.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !['09:00','11:00','15:00','17:00'].includes(time)) throw new Error('Fecha u horario no válido.');
+      if ((!migration && date <= new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,10)) || new Date(date+'T12:00:00').getDay() === 0) throw new Error('Selecciona un día futuro de lunes a sábado.');
+      const ownerId = safeOwnerKey(zoneId) + '__' + safeOwnerKey(clientKey);
+      const currentRef = doc(db, 'agenda_slots', slotDocumentId(date,time));
+      const ownerRef = doc(db, 'agenda_clients', ownerId);
+      await runTransaction(db, async trx => {
+        const [currentSnap,ownerSnap] = await Promise.all([trx.get(currentRef),trx.get(ownerRef)]);
+        const previousSlotId=ownerSnap.exists()?ownerSnap.data().slotId:(previousDate&&previousTime?slotDocumentId(previousDate,previousTime):null);
+        const previousRef=previousSlotId && previousSlotId !== slotDocumentId(date,time) ? doc(db, 'agenda_slots',previousSlotId) : null;
+        const previousSnap=previousRef ? await trx.get(previousRef) : null;
+        if (currentSnap.exists() && currentSnap.data().ownerId !== ownerId) throw new Error('Ese hueco acaba de ser reservado por otro comercial. Elige otro.');
+        if (previousSnap && previousSnap.exists() && previousSnap.data().ownerId !== ownerId) throw new Error('La antigua reserva pertenece a otra ficha. No se ha modificado.');
+        trx.set(currentRef, { ownerId, date, start:time, end:({'09:00':'11:00','11:00':'13:00','15:00':'17:00','17:00':'19:00'})[time], zoneId:String(zoneId), clientKey:String(clientKey), clientName:String(clientName||''), town:String(town||''), commercial:String(commercial||''), changedAt:Date.now() });
+        trx.set(ownerRef, { ownerId, slotId:slotDocumentId(date,time), date, time, changedAt:Date.now() });
+        if (previousRef && previousSnap.exists()) trx.delete(previousRef);
+      });
+      return true;
+    };
+    window.releaseSharedObra = async function(details) {
+      if (!auth.currentUser || !navigator.onLine || !window.__agendaConnected) throw new Error('No hay conexión con la agenda.');
+      const { date,time,zoneId,clientKey } = details;
+      if (!date || !time) return;
+      const ownerId = safeOwnerKey(zoneId) + '__' + safeOwnerKey(clientKey);
+      const ref = doc(db, 'agenda_slots', slotDocumentId(date,time));
+      const ownerRef=doc(db, 'agenda_clients', ownerId);
+      await runTransaction(db, async trx => {
+        const [snap,ownerSnap] = await Promise.all([trx.get(ref),trx.get(ownerRef)]);
+        if (snap.exists() && snap.data().ownerId !== ownerId) throw new Error('No se puede liberar la cita de otra ficha.');
+        if (ownerSnap.exists() && ownerSnap.data().slotId !== slotDocumentId(date,time)) throw new Error('La cita cambió en otro dispositivo. Actualiza la agenda antes de cancelarla.');
+        if (snap.exists()) trx.delete(ref);
+        if (ownerSnap.exists()) trx.delete(ownerRef);
+      });
+    };
+    let agendaLegacyMigrationStarted=false;
+    window.__zonesCloudReady=false;
+    async function migrateLegacyAgenda() {
+      if(agendaLegacyMigrationStarted || !window.__zonesCloudReady || !window.__agendaConnected || !auth.currentUser) return;
+      agendaLegacyMigrationStarted=true;
+      const oldBookings=typeof window.getExistingAgendaBookings==='function' ? window.getExistingAgendaBookings() : [];
+      let failed=0, imported=0;
+      for (const old of oldBookings) {
+        try {
+          await window.reserveSharedObra(old);
+          imported++;
+        } catch(e) {
+          failed++;
+          console.error('No se pudo migrar cita antigua',old.date,old.time,e);
+        }
+      }
+      window.__agendaLegacyMigration={imported,failed};
+      if (failed && typeof window.reportAgendaMigrationError==='function') window.reportAgendaMigrationError(failed);
+    }
+    onAuthStateChanged(auth, user => { if(user) watchSharedAgenda(); });
+
     window.startFirestoreSync = function() {
     if (window.__syncStarted) return;
     window.__syncStarted = true;
@@ -9472,6 +9886,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
               : mergeArraysById(localParsed, filteredCloud);
             if (typeof window.applyCloudDataUpdate === 'function') {
               window.applyCloudDataUpdate(key, merged);
+              if(key==='comercial_custom_zones') { window.__zonesCloudReady=true; migrateLegacyAgenda(); }
             }
           } catch (e) {
             console.error('Error leyendo datos de Firestore:', e);
