@@ -1,45 +1,51 @@
 /**
- * Konsor Navarra · Puente v2 con diagnóstico visible en móvil
+ * Konsor Navarra · Puente v2 Conectado a operaciones-v2.js y firestore.rules
  */
 (function(window) {
   'use strict';
 
-  function getTeamId(comercialName) {
-    if (!comercialName) return 'andrei';
-    return String(comercialName).startsWith('Mikel') ? 'mikel' : 'andrei';
-  }
+  function resolveOwnerAndTeam(comercialName) {
+    const authKey = sessionStorage.getItem('auth_user_key') || '';
+    const nameStr = String(comercialName || '').trim();
 
-  function getOwnerKeyFromComercial(comercialName) {
-    const map = {
+    // Si es del equipo Mikel
+    if (nameStr.startsWith('Mikel') || authKey === 'jefe_mikel' || authKey.startsWith('mikel_')) {
+      const mikelMap = {
+        'Mikel (Jefe)': 'jefe_mikel',
+        'Mikel Com. 1': 'mikel_com1',
+        'Mikel Com. 2': 'mikel_com2',
+        'Mikel Com. 3': 'mikel_com3',
+        'Mikel Com. 4': 'mikel_com4',
+        'Mikel Com. 5': 'mikel_com5'
+      };
+      return {
+        teamId: 'mikel',
+        ownerKey: mikelMap[nameStr] || (authKey.startsWith('mikel_') || authKey === 'jefe_mikel' ? authKey : 'jefe_mikel')
+      };
+    }
+
+    // Equipo Andrei
+    const andreiMap = {
       'Andrei (Jefe)': 'jefe',
+      'Andrei': 'jefe',
       'Comercial 1': 'comercial1',
       'Comercial 2': 'comercial2',
       'Comercial 3': 'comercial3',
       'Comercial 4': 'comercial4',
-      'Comercial 5': 'comercial5',
-      'Mikel (Jefe)': 'jefe_mikel',
-      'Mikel Com. 1': 'mikel_com1',
-      'Mikel Com. 2': 'mikel_com2',
-      'Mikel Com. 3': 'mikel_com3',
-      'Mikel Com. 4': 'mikel_com4',
-      'Mikel Com. 5': 'mikel_com5'
+      'Comercial 5': 'comercial5'
     };
-    return map[comercialName] || sessionStorage.getItem('auth_user_key') || 'jefe';
+    return {
+      teamId: 'andrei',
+      ownerKey: andreiMap[nameStr] || authKey || 'jefe'
+    };
   }
 
   async function syncZonesToFichasV2(zonesArray) {
     if (!Array.isArray(zonesArray)) return;
-
-    if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
-      alert('⚠️ Puente v2: window.db no está disponible. Revisa el <script type="module"> de index.html.');
-      return;
-    }
+    if (!window.db || !window.doc || !window.getDoc || !window.setDoc) return;
 
     const uid = window.auth?.currentUser?.uid || '';
-    if (!uid) {
-      alert('⚠️ Puente v2: No hay sesión activa en Firebase Auth (uid vacío).');
-      return;
-    }
+    if (!uid) return;
 
     let creadas = 0;
     let actualizadas = 0;
@@ -47,8 +53,7 @@
     for (const zona of zonesArray) {
       if (!zona || !Array.isArray(zona.clients)) continue;
       const zonaId = String(zona.id || '');
-      const teamId = getTeamId(zona.comercial);
-      const ownerKey = getOwnerKeyFromComercial(zona.comercial);
+      const { teamId, ownerKey } = resolveOwnerAndTeam(zona.comercial);
 
       for (let idx = 0; idx < zona.clients.length; idx++) {
         const cliente = zona.clients[idx];
@@ -117,8 +122,7 @@
 
   window.KonsorBridge = {
     syncZonesToFichasV2,
-    getTeamId,
-    getOwnerKeyFromComercial
+    resolveOwnerAndTeam
   };
 
 })(window);
