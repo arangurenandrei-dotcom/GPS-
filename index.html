@@ -946,6 +946,52 @@
 .modal-card{max-width:100%!important}
 }
 </style>
+
+<style id="konsorPolishV4">
+/* El mapa queda libre de botones duplicados; funciones originales siguen disponibles. */
+.bottom-action-panel{display:none!important}
+#hudNavGrid{display:none!important}
+.hud-header{padding:8px 9px!important}
+.hud-header .hud-top-row{margin-bottom:5px!important}
+#konsorHub .ks-sheet{height:min(86dvh,820px);background:linear-gradient(160deg,#12283e,#0b192a);border-color:#3a536d}
+#konsorHub .ks-head{padding:17px 19px 13px}
+#konsorHub .ks-scroll{padding:15px 16px 34px}
+#konsorHub .ks-section{margin-bottom:19px}
+#konsorHub .ks-section h3{font-size:11px;letter-spacing:.12em;color:#9bbbd6;margin-bottom:10px}
+#konsorHub .ks-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#konsorHub .ks-action{min-height:79px;border-radius:13px;background:#1b324b;padding:12px 13px;gap:5px}
+#konsorHub .ks-action strong{font-size:13px}
+#konsorHub .ks-action small{font-size:11px;line-height:1.4}
+#konsorHub .ks-action .ks-icon{font-size:21px}
+#konsorHub .ks-action:active{background:#275073}
+#konsorHub .ks-action.primary{background:#175270;border-color:#388cb0}
+#konsorHub .ks-section.ks-hidden{display:none!important}
+#konsorHub .ks-shift{padding:12px;border:1px solid #395773;border-radius:14px;background:#162c43;margin-bottom:19px}
+#konsorHub .ks-shift .shift-bar{position:static!important;display:flex!important;flex-wrap:wrap;justify-content:space-between;gap:9px;background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important;margin:0!important;width:100%!important}
+#konsorHub .ks-shift .shift-status-pill{font-size:12px}
+#konsorHub .ks-shift .btn-hud{min-height:35px;border-radius:9px}
+#konsorHub .ks-section-caption{font-size:12px;color:#9db6ce;margin:-3px 3px 12px}
+#konsorHub .ks-quicksearch{display:flex;gap:7px;margin-bottom:17px}
+#konsorHub .ks-quicksearch input{flex:1;min-width:0;background:#0b1b2d;color:#fff;border:1px solid #405d79;border-radius:11px;padding:11px 12px;font-size:14px}
+#konsorHub .ks-quicksearch button{background:#17618a;color:white;border:0;border-radius:11px;padding:0 15px;font-weight:700}
+#konsorHub .ks-section:not(:first-child){border-top:1px solid #294158;padding-top:16px}
+.modal-overlay .modal-card{background:#12253a!important;border:1px solid #3c5672!important;border-radius:19px!important;color:#eff6ff!important;box-shadow:0 16px 55px #0008!important}
+.modal-overlay .modal-header-sticky{background:#12253a!important;border-bottom:1px solid #324d68!important;padding:12px!important}
+.modal-overlay .modal-header{font-size:16px!important;font-weight:850!important;line-height:1.35}
+.modal-overlay .modal-scrollable-content{padding:14px!important}
+.modal-overlay .subtab-bar,.modal-overlay .tab-bar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:4px 1px 8px;scroll-snap-type:x proximity}
+.modal-overlay .subtab-btn,.modal-overlay .tab-btn{flex:0 0 auto;white-space:nowrap;border-radius:10px!important;padding:9px 11px!important;font-size:12px!important;scroll-snap-align:start}
+.modal-overlay .input-field,.modal-overlay .select-field{border-radius:10px!important;min-height:39px}
+.modal-overlay .input-label{color:#b8d0e7!important;font-size:12px}
+@media(max-width:600px){
+ #konsorHub .ks-sheet{height:min(90dvh,900px)}
+ .modal-overlay .modal-card{width:calc(100% - 12px)!important;max-width:100%!important;max-height:92dvh!important;border-radius:18px!important}
+ .modal-overlay .modal-header{font-size:15px!important}
+ #konsorHub .ks-grid{gap:8px}
+ #konsorHub .ks-action{min-height:78px}
+ #btnMapCompass{bottom:calc(18px + env(safe-area-inset-bottom))!important}
+}
+</style>
 </head>
 <body>
 
@@ -1080,7 +1126,7 @@
       <div class="search-row" style="position:relative;">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Calle, nº y pueblo (ej. Carretera Lodosa 23 Mendavia)..." onkeypress="if(event.key==='Enter') searchLocation()">
         <button class="btn-search" onclick="searchLocation()">Ir</button>
-        <button class="btn-global-crm" onclick="openGlobalClientSearchModal()" title="Buscar cliente por nombre, teléfono o calle">🔎 Fichas</button>
+        <button class="btn-global-crm" style="display:none" onclick="openGlobalClientSearchModal()" title="Buscar cliente por nombre, teléfono o calle">🔎 Fichas</button>
       </div>
       <div id="searchCandidatesDropdown" style="display:none; flex-direction:column; gap:4px; background:#0f172a; border:1px solid #38bdf8; border-radius:12px; padding:6px; max-height:185px; overflow-y:auto; box-shadow:0 12px 28px rgba(0,0,0,0.85);"></div>
     </div>
@@ -1154,7 +1200,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📋 Selecciona la Zona a Volcar</span>
+          <span>📝 Volcar resultados del sector</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('zoneSelectorDumpModal')">✕</button>
         </div>
       </div>
@@ -1167,7 +1213,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📞 Seguimiento de Llamadas (Fichas en SÍ)</span>
+          <span>📞 Clientes · Seguimiento</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('followUpsModal')">✕</button>
         </div>
         <div class="subtab-bar" style="margin-bottom:4px;">
@@ -1187,7 +1233,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>🔎 Buscador Global de Clientes y Obras</span>
+          <span>🔎 Buscar cliente u obra</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('globalSearchModal')">✕</button>
         </div>
         <div style="margin-bottom:8px;">
@@ -1229,7 +1275,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📋 Tu Plan de Ruta y Jornada para Hoy</span>
+          <span>📋 Mi plan de trabajo</span>
         </div>
       </div>
       <div class="modal-scrollable-content">
@@ -1244,7 +1290,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span id="leagueModalTitle">🏆 Liga Comercial • Dinero en SÍ</span>
+          <span id="leagueModalTitle">🏆 Clasificación comercial</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('leagueRankingModal')">✕</button>
         </div>
       </div>
@@ -1257,7 +1303,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>⚔️ Inteligencia Multi-Equipo • Navarra</span>
+          <span>🧭 Territorio y equipos</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('mikelRadarModal')">✕</button>
         </div>
         <div class="subtab-bar" style="margin-bottom:4px;">
@@ -1275,7 +1321,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📈 Tu Rendimiento & Analítica Personal</span>
+          <span>📈 Mi rendimiento</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('commercialStatsModal')">✕</button>
         </div>
       </div>
@@ -1288,7 +1334,7 @@
     <div class="modal-card">
      <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📍 Asignar Sector a Comercial</span>
+          <span>📍 Asignar sector</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="cancelDrawing(); closeModal('assignModal')">✕</button>
         </div>
       </div>
@@ -1369,7 +1415,7 @@
     <div class="modal-card">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>📊 Agenda & Cuadro de Mando</span>
+          <span>📊 Centro de mando</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:4px;" onclick="closeModal('auditModal')">✕</button>
         </div>
 
@@ -6727,7 +6773,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
       modalTitle.innerText = currentUserRole === 'jefe'
         ? '🏆 Liga Equipo • Facturación Bruta (SÍ)'
-        : '🏆 Liga Comercial • Dinero en SÍ';
+        : '🏆 Clasificación comercial';
 
       const currentYm = getMonthKeyOffset(0);
       const moneySiMap = {};
@@ -9683,25 +9729,27 @@ setInterval(ucRefreshQuickButton,3000);
   <div class="ks-sheet">
     <div class="ks-head"><div><h2 id="ksTitle">Centro de trabajo</h2><small id="ksSubtitle">Todas las herramientas, sin salir del mapa</small></div><button class="ks-close" onclick="ksCloseHub()" aria-label="Cerrar herramientas">✕</button></div>
     <div class="ks-scroll" id="ksContent">
-      <section class="ks-section" data-ks-group="common"><h3>Mapa y territorio</h3><div class="ks-grid">
+      <div class="ks-shift" id="ksShiftHost"><div class="ks-section-caption">Jornada laboral</div></div>
+      <div class="ks-quicksearch"><input id="ksClientQuickQuery" type="search" placeholder="Cliente, teléfono, calle o pueblo…" onkeydown="if(event.key==='Enter')ksFindClient()" aria-label="Buscar cliente"><button onclick="ksFindClient()">Buscar</button></div>
+      <section class="ks-section" data-ks-group="common"><h3>01 · Mapa y captación</h3><p class="ks-section-caption">Dibuja, consulta Catastro y registra las visitas desde el mapa.</p><div class="ks-grid">
         <button class="ks-action primary" onclick="ksGo('startSectorDrawing')"><span class="ks-icon">⬡</span><strong>Dibujar sector</strong><small>Delimitar una zona sobre el mapa</small></button>
         <button class="ks-action" onclick="ksGo('toggleCatastroLayer')"><span class="ks-icon">🏘️</span><strong>Catastro</strong><small>Ver parcelas y consultar su ficha</small></button>
         <button class="ks-action" onclick="ksGo('startRoofMeasureMode')"><span class="ks-icon">📐</span><strong>Medir tejado</strong><small>Herramienta original de superficies</small></button>
         <button class="ks-action" onclick="ksGo('openSelectZoneToDumpModal')"><span class="ks-icon">📝</span><strong>Volcar jornada</strong><small>Introducir resultados del sector</small></button>
         <button class="ks-action" onclick="ksGo('startNoAptoZoneDrawing')" data-ks-andrei="true"><span class="ks-icon">🚫</span><strong>Zona no apta</strong><small>Marcar sectores descartados</small></button>
       </div></section>
-      <section class="ks-section" data-ks-group="commercial"><h3>Clientes y actividad</h3><div class="ks-grid">
+      <section class="ks-section" data-ks-group="commercial"><h3>02 · Clientes y llamadas</h3><p class="ks-section-caption">Toda la cartera y sus seguimientos, sin cambiar de pantalla.</p><div class="ks-grid">
         <button class="ks-action primary" onclick="ksGo('openSmartQueue')"><span class="ks-icon">📞</span><strong>Llamadas prioritarias</strong><small>Clientes pendientes y alertas 24/48 h</small></button>
         <button class="ks-action" onclick="ksGo('openGlobalClientSearchModal')"><span class="ks-icon">🔎</span><strong>Buscar cliente</strong><small>Ficha universal desde cualquier sector</small></button>
         <button class="ks-action" onclick="ksGo('openFollowUpsModal')"><span class="ks-icon">🗂️</span><strong>Seguimiento</strong><small>Estados, llamadas, mensajes y citas</small></button>
         <button class="ks-action" onclick="ksGo('showCommercialBriefing')"><span class="ks-icon">📋</span><strong>Mi plan</strong><small>Objetivos, prioridades y avisos</small></button>
       </div></section>
-      <section class="ks-section" data-ks-group="commercial"><h3>Mi jornada y resultados</h3><div class="ks-grid">
+      <section class="ks-section" data-ks-group="commercial"><h3>03 · Citas y resultados</h3><div class="ks-grid">
         <button class="ks-action" onclick="ksGo('openCommercialStatsModal')"><span class="ks-icon">📈</span><strong>Mi rendimiento</strong><small>Horas, puertas y conversión</small></button>
         <button class="ks-action" onclick="ksGo('openLeagueRankingModal')"><span class="ks-icon">🏆</span><strong>Clasificación</strong><small>Ranking comercial existente</small></button>
         <button class="ks-action" onclick="ksGo('openAuditModal')"><span class="ks-icon">📅</span><strong>Agenda y obras</strong><small>Consultar y gestionar programación</small></button>
       </div></section>
-      <section class="ks-section" data-ks-group="boss"><h3>Dirección del equipo</h3><div class="ks-grid">
+      <section class="ks-section" data-ks-group="boss"><h3>02 · Dirección y resultados</h3><p class="ks-section-caption">Información del equipo y operaciones sin duplicar la navegación.</p><div class="ks-grid">
         <button class="ks-action primary" onclick="ksGo('openAuditModal')"><span class="ks-icon">📊</span><strong>Centro de mando</strong><small>Beneficio, día, semana y obras</small></button>
         <button class="ks-action" onclick="ksGo('openMikelRadarModal')" data-ks-andrei="true"><span class="ks-icon">🧭</span><strong>Territorio y equipos</strong><small>Comparar Andrei y Mikel</small></button>
         <button class="ks-action" onclick="ksGo('openLeagueRankingModal')"><span class="ks-icon">🏆</span><strong>Rendimiento</strong><small>Clasificación y productividad</small></button>
@@ -9713,9 +9761,25 @@ setInterval(ucRefreshQuickButton,3000);
   </div>
 </div>
 <script>
+
+function ksFindClient(){
+ const q=document.getElementById('ksClientQuickQuery').value.trim();
+ ksCloseHub();
+ if(typeof openGlobalClientSearchModal==='function'){
+   openGlobalClientSearchModal();
+   const field=document.getElementById('globalClientQuery');
+   if(field){field.value=q;if(typeof renderGlobalClientSearchResults==='function')renderGlobalClientSearchResults();}
+ }
+}
+function ksMoveShiftBar(){
+ const bar=document.querySelector('.hud-header > .shift-bar');
+ const host=document.getElementById('ksShiftHost');
+ if(bar&&host&&!host.contains(bar))host.appendChild(bar);
+}
 function ksIsAndrei(){return typeof currentUserName!=='undefined'&&currentUserName==='Andrei (Jefe)'&&currentUserRole==='jefe';}
 function ksIsBossView(){return ksIsAndrei()&&typeof bossWorkspace!=='undefined'&&bossWorkspace==='boss';}
 function ksOpenHub(){
+ ksMoveShiftBar();
  const isBoss=ksIsBossView(), isAndrei=ksIsAndrei();
  document.querySelectorAll('#konsorHub [data-ks-group]').forEach(el=>{
   const group=el.getAttribute('data-ks-group');
