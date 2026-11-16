@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Respaldo privado · Konsor</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:24px 14px;background:#0f172a;color:#f8fafc;font:15px system-ui,sans-serif}main{max-width:640px;margin:20px auto}section{padding:20px;background:#1e293b;border:1px solid #475569;border-radius:18px;margin:16px 0}h1{font-size:23px}h2{font-size:18px}p{line-height:1.6;color:#cbd5e1}label{display:block;margin:12px 0}input,textarea{display:block;width:100%;margin-top:6px;padding:12px;font:16px system-ui;background:#0f172a;color:white;border:1px solid #64748b;border-radius:9px}button{font:700 14px system-ui;background:#2563eb;color:white;border:0;border-radius:10px;padding:13px 16px;cursor:pointer;margin:5px 5px 5px 0}button:disabled{opacity:.5;cursor:default}textarea{height:330px;font:12px monospace;white-space:pre;overflow:auto}a{color:#7dd3fc}.status{white-space:pre-wrap;padding:12px;border-radius:9px;background:#0f172a;line-height:1.5}.warning{color:#fde047}[hidden]{display:none!important}
+</style></head><body><main>
+<a href="./">← Volver a la app</a><h1>Respaldo privado y diagnóstico</h1><p>Primer paso para cambiar el guardado de forma segura. Esta herramienta copia y comprueba los datos del servidor; todavía no migra fichas ni modifica sus permisos.</p>
+<section id="login"><h2>Acceso de Andrei</h2><p>Utiliza la misma cuenta aprobada de la app.</p><form id="loginForm"><label>Correo<input id="email" type="email" autocomplete="username" required></label><label>Contraseña<input id="password" type="password" autocomplete="current-password" required></label><button id="loginButton" type="submit">Entrar</button></form></section>
+<section id="tools" hidden><h2>Crear respaldo</h2><p>Se copiarán los datos de negocio, perfiles, recordatorios y registros de avisos a una colección privada del mismo proyecto. Las cuentas de Firebase Authentication y los archivos que pudiera haber en Storage no forman parte de esta copia.</p><p class="warning">El respaldo del servidor no incluye cambios que solo existan en otro móvil. Conserva los dispositivos y la app hasta completar la revisión.</p><button id="backup" type="button">Crear respaldo privado y revisar</button></section>
+<div id="status" class="status" role="status">Comprobando la cuenta…</div>
+<section id="reportSection" hidden><h2>Resultado para revisar</h2><p>Este resumen contiene cantidades y códigos de perfil; no incluye fichas, contraseñas, DNI, teléfonos ni correos de clientes.</p><textarea id="report" readonly aria-label="Informe de diagnóstico"></textarea><button id="copy" type="button">Copiar informe</button><p>Pega este informe en el chat para continuar con la migración. El respaldo completo permanece privado en Firebase.</p></section>
+</main>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js';
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js';
+import {getFirestore,doc,getDoc} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js';
+import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/13.3.0/firebase-functions.js';
+const app=initializeApp({apiKey:'AIzaSyD4QzFsYJ8GF2Xgo3GX7LVuhPhTK-Z-kkw',authDomain:'gestion-comercial-navarr-3b028.firebaseapp.com',projectId:'gestion-comercial-navarr-3b028',appId:'1:335117082096:web:ae8e51ae26457bf29a5135'});
+const auth=getAuth(app),db=getFirestore(app),fn=getFunctions(app,'europe-west1'),$=id=>document.getElementById(id);
+let authorized=false,working=false;
+function message(text){$('status').textContent=text;}
+onAuthStateChanged(auth,async user=>{
+ authorized=false;$('tools').hidden=true;$('login').hidden=!!user;$('reportSection').hidden=true;
+ if(!user){message('Entra con la cuenta aprobada de Andrei.');return;}
+ try{const profile=await getDoc(doc(db,'usuarios',user.uid));if(!profile.exists()||profile.data().estado!=='aprobado'||profile.data().userKey!=='jefe'){message('Esta herramienta está reservada a la cuenta aprobada de Andrei. Abre la app con esa cuenta y vuelve aquí.');return;}authorized=true;$('tools').hidden=false;message('Cuenta comprobada. Puedes crear el respaldo.');}catch(e){$('login').hidden=false;message('No se pudo comprobar el acceso: '+e.message);}
+});
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('password').value);$('password').value='';}catch(e){message('No se pudo entrar: '+e.message);}finally{$('loginButton').disabled=false;}};
+$('backup').onclick=async()=>{
+ if(!authorized||working)return;working=true;$('backup').disabled=true;$('reportSection').hidden=true;message('Creando y verificando el respaldo. Mantén esta página abierta; puede tardar varios minutos.');
+ try{
+  const requestId=crypto.randomUUID();const result=(await httpsCallable(fn,'crearRespaldoDiagnostico',{timeout:540000})({requestId})).data;
+  if(!result.verificado)throw Error('El servidor no ha confirmado la verificación.');
+  const local={};for(const [key,serverHash]of Object.entries(result.informe.sourceHashes||{})){
+   try{const raw=localStorage.getItem(key);if(raw===null){local[key]='sin copia en este navegador';continue;}const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw)))).map(b=>b.toString(16).padStart(2,'0')).join('');local[key]=hash===serverHash?'coincide con el servidor':'diferente: revisar antes de migrar';}catch{local[key]='no se pudo comparar';}
+  }
+  const {sourceHashes,...report}=result.informe;
+  const safe={respaldoId:result.respaldoId,respaldoVerificado:true,...report,copiasLocalesDeEsteNavegador:local};
+  $('report').value=JSON.stringify(safe,null,2);$('reportSection').hidden=false;message('Respaldo verificado. El guardado y los permisos de la app todavía siguen en su versión anterior. Copia el informe para continuar.');
+ }catch(e){message('No se completó el proceso: '+e.message+'\nNo se ha migrado ni borrado ningún dato de origen.');}
+ finally{working=false;$('backup').disabled=false;}
+};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('report').value);message('Informe copiado. Puedes pegarlo en el chat.');}catch{$('report').focus();$('report').select();message('Selecciona y copia el informe manualmente.');}};
+</script></body></html>
