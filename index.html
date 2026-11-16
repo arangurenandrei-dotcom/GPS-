@@ -11603,271 +11603,708 @@ function renderLeagueRanking() {
 }
 
    let activeRadarSubTab = 'compare';
+let radarPeriod = 'month';
+let radarDate = '';
+let radarPhase = 'captadas';
 
-    function switchRadarSubTab(tabKey) {
-      activeRadarSubTab = tabKey;
-      document.getElementById('radarTabCompare').className = `subtab-btn ${tabKey==='compare'?'active':''}`;
-      document.getElementById('radarTabTowns').className = `subtab-btn ${tabKey==='towns'?'active':''}`;
-      document.getElementById('radarTabOpps').className = `subtab-btn ${tabKey==='opps'?'active':''}`;
-      renderMikelRadarContent();
+function switchRadarSubTab(key) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  activeRadarSubTab = key;
+
+  [
+    ['radarTabCompare', 'compare'],
+    ['radarTabTowns', 'towns'],
+    ['radarTabOpps', 'opps']
+  ].forEach(([id, tab]) => {
+    document.getElementById(id).className =
+      'subtab-btn' + (key === tab ? ' active' : '');
+  });
+
+  renderMikelRadarContent();
+}
+
+function openMikelRadarModal() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  radarPeriod = 'month';
+  radarDate = getTodayISO();
+  radarPhase = 'captadas';
+
+  document.querySelector(
+    '#mikelRadarModal .modal-header span'
+  ).textContent = '⚔️ Comparación de equipos';
+
+  document.getElementById('radarTabTowns')
+    .textContent = '🗺️ Pueblos';
+
+  document.getElementById('radarTabOpps')
+    .textContent = '🎯 Revisar';
+
+  switchRadarSubTab('compare');
+
+  document.getElementById('mikelRadarModal')
+    .classList.add('active');
+}
+
+function radarTeamModel(mikel, range, phase) {
+  const fields = {
+    captadas: ['m2Captado', 'validas'],
+    citas: ['m2Citas', 'citas'],
+    realizadas: ['m2Hechas', 'hechas']
+  };
+
+  const [areaField, countField] = fields[phase];
+
+  const model = {
+    label: mikel ? 'Mikel' : 'Andrei',
+    rows: [],
+    area: 0,
+    count: 0,
+    visitas: 0,
+    si: 0,
+    no: 0,
+    papelito: 0,
+    ausente: 0,
+    aisladas: 0,
+    horas: 0,
+    jornadas: 0,
+    sinHoras: 0,
+    sinFecha: 0
+  };
+
+  getActiveTeamUsers(mikel).forEach(name => {
+    const m = personalStatsMetrics(name, ...range);
+
+    model.rows.push({
+      name,
+      team: model.label,
+      area: m[areaField],
+      count: m[countField]
+    });
+
+    model.area += m[areaField];
+    model.count += m[countField];
+    model.visitas += m.puertas;
+    model.si += m.si;
+    model.no += m.no;
+    model.papelito += m.papelito;
+    model.ausente += m.ausente;
+    model.aisladas += m.yaAislado;
+    model.horas += m.horas;
+    model.jornadas += m.jornadas;
+    model.sinHoras += m.jornadasSinHoras;
+    model.sinFecha += m.antiguasSinFecha;
+  });
+
+  return model;
+}
+
+function radarTownModel(mikel, range, phase) {
+  const users = new Set(getActiveTeamUsers(mikel));
+  const towns = new Map();
+
+  const inside = date =>
+    Boolean(date && date >= range[0] && date <= range[1]);
+
+  const local = value => {
+    const d = new Date(value);
+
+    return value && Number.isFinite(d.getTime())
+      ? getLocalDateISO(d)
+      : '';
+  };
+
+  function get(z) {
+    const key = routeTown(z.town);
+    if (!key) return null;
+
+    if (!towns.has(key)) {
+      towns.set(key, {
+        key,
+        name: z.town,
+        area: 0,
+        count: 0,
+        visitas: 0,
+        si: 0,
+        zones: 0,
+        dates: new Set(),
+        first: '',
+        inPeriod: false
+      });
     }
 
-    function openMikelRadarModal() {
-      if (currentUserName !== 'Andrei (Jefe)') return;
-      activeRadarSubTab = 'compare';
-      switchRadarSubTab('compare');
-      document.getElementById('mikelRadarModal').classList.add('active');
+    return towns.get(key);
+  }
+
+  savedZones.forEach(z => {
+    if (
+      !users.has(z.comercial) ||
+      z.isNoAptoZone
+    ) return;
+
+    const t = get(z);
+    if (!t) return;
+
+    const recordDate = z.dumpDate || z.date || '';
+
+    if (
+      recordDate &&
+      (!t.first || recordDate < t.first)
+    ) {
+      t.first = recordDate;
     }
 
-    function computeTeamMetrics(usersArr) {
-      let doors = 0, si = 0, no = 0, m2Bruto = 0, m2Realizado = 0;
-      const daysSet = new Set();
-      const perUser = {};
-      usersArr.forEach(u => {
-        perUser[u] = { name: u, doors: 0, si: 0, no: 0, m2Bruto: 0, m2Realizado: 0 };
-      });
+    if (inside(recordDate)) {
+      t.inPeriod = true;
+      t.dates.add(recordDate);
 
-      savedZones.forEach(z => {
-        if (!usersArr.includes(z.comercial) || z.isNoAptoZone) return;
-        const st = z.stats || {};
-        const zDate = z.dumpDate || z.date;
-        if (zDate) daysSet.add(`${z.comercial}_${zDate}`);
-
-        const zDoors = (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
-        doors += zDoors;
-        si += (st.si || 0);
-        no += (st.no || 0);
-        perUser[z.comercial].doors += zDoors;
-        perUser[z.comercial].si += (st.si || 0);
-        perUser[z.comercial].no += (st.no || 0);
-
-        if (z.clients) {
-          z.clients.forEach(c => {
-            if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
-            const m2Val = getM2NumericValue(c.m2);
-            m2Bruto += m2Val;
-            perUser[z.comercial].m2Bruto += m2Val;
-            if (c.obraStatus === 'realizada') {
-              m2Realizado += m2Val;
-              perUser[z.comercial].m2Realizado += m2Val;
-            }
-          });
-        }
-      });
-
-      const teamShifts = savedShifts.filter(sh => usersArr.includes(sh.user));
-      let avgHours = '0.0';
-      if (teamShifts.length > 0) {
-        const sumH = teamShifts.reduce((acc, sh) => acc + getShiftEffectiveHours(sh), 0);
-        avgHours = (sumH / teamShifts.length).toFixed(1);
+      if (!z.isSingleHouse && !z.isHotMission) {
+        t.zones++;
       }
 
-      const personDays = Math.max(1, daysSet.size);
-      const avgDoors = Math.round(doors / personDays);
-      const convPct = doors > 0 ? ((si / doors) * 100).toFixed(1) : '0.0';
+      const st = z.stats || {};
 
-      return { doors, si, no, m2Bruto, m2Realizado, avgHours, avgDoors, convPct, perUser };
-    }
+      const external =
+        z.isSingleHouse &&
+        z.clients?.[0]?.origen &&
+        z.clients[0].origen !== 'puerta';
 
-    function renderMikelRadarContent() {
-      const container = document.getElementById('mikelRadarModalBody');
-      const andreiTeam = getActiveTeamUsers(false);
-      const mikelTeam = getActiveTeamUsers(true);
+      if (!external) {
+        const count = key => Math.max(
+          0,
+          Math.floor(Number(st[key]) || 0)
+        );
 
-      // Análisis de pueblos por equipo (para Alertas de solape y Oportunidades)
-      const andreiTowns = {};
-      const mikelTowns = {};
+        t.visitas += [
+          'si', 'no', 'papelito', 'ausente', 'yaAislado'
+        ].reduce((n, key) => n + count(key), 0);
 
-      savedZones.forEach(z => {
-        if (z.isNoAptoZone) return;
-        const t = (z.town || '').trim();
-        if (!t) return;
-        const key = t.toLowerCase();
-        const isMk = isMikelTeamMember(z.comercial);
-        const targetMap = isMk ? mikelTowns : andreiTowns;
-
-        if (!targetMap[key]) {
-          targetMap[key] = { name: t, zones: 0, doors: 0, si: 0, obrasHechas: 0, lastDate: z.dumpDate || z.date || '' };
-        }
-        const st = z.stats || {};
-        targetMap[key].zones += 1;
-        targetMap[key].doors += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
-        targetMap[key].si += (st.si||0);
-        const dStr = z.dumpDate || z.date || '';
-        if (dStr > targetMap[key].lastDate) targetMap[key].lastDate = dStr;
-        if (z.clients) {
-          z.clients.forEach(c => {
-            if (c.obraStatus === 'realizada' && isClientValidFilled(c)) targetMap[key].obrasHechas += 1;
-          });
-        }
-      });
-
-      // Detectar conflictos / alertas (Mikel entra en pueblo de Andrei o abre pueblo nuevo)
-      const overlapTowns = [];
-      const newMikelOnlyTowns = [];
-      Object.keys(mikelTowns).forEach(k => {
-        if (andreiTowns[k]) {
-          overlapTowns.push({ town: mikelTowns[k].name, andrei: andreiTowns[k], mikel: mikelTowns[k] });
-        } else {
-          newMikelOnlyTowns.push(mikelTowns[k]);
-        }
-      });
-
-      if (activeRadarSubTab === 'compare') {
-        const aStats = computeTeamMetrics(andreiTeam);
-        const mStats = computeTeamMetrics(mikelTeam);
-
-        let allCommercialsRows = '';
-        const combinedUsers = [
-          ...Object.values(aStats.perUser).map(u => ({ ...u, team: 'Andrei' })),
-          ...Object.values(mStats.perUser).map(u => ({ ...u, team: 'Mikel' }))
-        ].sort((a, b) => b.m2Bruto - a.m2Bruto);
-
-        combinedUsers.forEach((u, idx) => {
-          const teamBadge = u.team === 'Andrei'
-            ? `<span style="background:#7c3aed; color:#fff; font-size:8.5px; font-weight:900; padding:1px 5px; border-radius:4px;">TÚ</span>`
-            : `<span style="background:#0d9488; color:#fff; font-size:8.5px; font-weight:900; padding:1px 5px; border-radius:4px;">MIKEL</span>`;
-          allCommercialsRows += `
-            <tr>
-              <td style="font-size:11px;">#${idx+1} <strong>${u.name}</strong> ${teamBadge}</td>
-              <td style="text-align:center; font-size:10.5px;">${u.si} / ${u.no}</td>
-              <td style="text-align:right; color:#34d399; font-weight:900; font-size:11px;">${u.m2Bruto.toFixed(0)} €</td>
-            </tr>
-          `;
-        });
-
-        container.innerHTML = `
-          ${overlapTowns.length > 0 ? `
-            <div onclick="switchRadarSubTab('towns')" style="cursor:pointer; background:rgba(220,38,38,0.22); border:1.5px solid #ef4444; border-radius:10px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#fca5a5;">
-              🚨 <strong>ALERTA DE SOLAPE:</strong> Equipo Mikel está pisando <strong>${overlapTowns.map(o => o.town).join(', ')}</strong> donde tú también trabajas. <u>Ver detalle →</u>
-            </div>
-          ` : ''}
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-            <div style="background:linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%); border:1.5px solid #a78bfa; border-radius:12px; padding:10px;">
-              <div style="font-size:9.5px; font-weight:900; color:#ddd6fe;">👑 TU EQUIPO (ANDREI)</div>
-              <div style="font-size:18px; font-weight:900; color:#fff; margin:3px 0;">${aStats.m2Bruto.toFixed(0)} €</div>
-              <div style="font-size:10px; color:#c4b5fd; line-height:1.45;">
-                • Realizado: <strong>${aStats.m2Realizado.toFixed(0)} €</strong><br>
-                • Media: <strong>${aStats.avgHours} h/d</strong> | <strong>${aStats.avgDoors} p/d</strong><br>
-                • SÍ: <strong>${aStats.si}</strong> | NO: <strong>${aStats.no}</strong> (${aStats.convPct}%)
-              </div>
-            </div>
-
-            <div style="background:linear-gradient(135deg, #134e4a 0%, #0f172a 100%); border:1.5px solid #2dd4bf; border-radius:12px; padding:10px;">
-              <div style="font-size:9.5px; font-weight:900; color:#99f6e4;">🔭 EQUIPO MIKEL</div>
-              <div style="font-size:18px; font-weight:900; color:#fff; margin:3px 0;">${mStats.m2Bruto.toFixed(0)} €</div>
-              <div style="font-size:10px; color:#ccfbf1; line-height:1.45;">
-                • Realizado: <strong>${mStats.m2Realizado.toFixed(0)} €</strong><br>
-                • Media: <strong>${mStats.avgHours} h/d</strong> | <strong>${mStats.avgDoors} p/d</strong><br>
-                • SÍ: <strong>${mStats.si}</strong> | NO: <strong>${mStats.no}</strong> (${mStats.convPct}%)
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-section-title">🏆 Ranking Individual Cruzado (Todos los Comerciales)</div>
-          <table class="ranking-table-container">
-            <thead>
-              <tr>
-                <th>Comercial</th>
-                <th style="text-align:center;">SÍ / NO</th>
-                <th style="text-align:right;">Fact. Bruta</th>
-              </tr>
-            </thead>
-            <tbody>${allCommercialsRows}</tbody>
-          </table>
-        `;
-      } else if (activeRadarSubTab === 'towns') {
-        let html = '';
-
-        if (overlapTowns.length > 0) {
-          html += `<div class="modal-section-title" style="color:#fca5a5;">🚨 Pueblos con Solape (Tú y Mikel trabajando a la vez)</div>`;
-          overlapTowns.forEach(o => {
-            html += `
-              <div class="audit-card" style="cursor:default; border-left:4px solid #ef4444; background:rgba(220,38,38,0.12);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong style="font-size:13px; color:#fff;">⚠️ ${o.town}</strong>
-                  <span style="font-size:9.5px; font-weight:900; color:#fca5a5;">¡Adelántate en calles clave!</span>
-                </div>
-                <div style="font-size:10.5px; color:#e2e8f0; margin-top:3px;">
-                  • <strong>Tu equipo:</strong> ${o.andrei.zones} zonas | ${o.andrei.si} SÍ (${o.andrei.obrasHechas} obras hechas)<br>
-                  • <strong>Equipo Mikel:</strong> ${o.mikel.zones} zonas | ${o.mikel.si} SÍ (Último mov.: ${formatDate(o.mikel.lastDate)})
-                </div>
-              </div>
-            `;
-          });
-        }
-
-        html += `<div class="modal-section-title" style="color:#5eead4;">🆕 Pueblos Exclusivos de Mikel (Donde tú aún no has entrado)</div>`;
-        if (newMikelOnlyTowns.length === 0) {
-          html += `<div style="font-size:11px; color:#94a3b8; padding:8px;">Mikel no tiene ningún pueblo nuevo fuera de los tuyos todavía.</div>`;
-        } else {
-          newMikelOnlyTowns.forEach(mt => {
-            html += `
-              <div class="audit-card" style="cursor:default; border-left:4px solid #2dd4bf;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <strong style="font-size:13px; color:#5eead4;">📍 ${mt.name}</strong>
-                  <span style="font-size:10px; color:#99f6e4; font-weight:800;">Desde ${formatDate(mt.lastDate)}</span>
-                </div>
-                <div style="font-size:10.5px; color:#cbd5e1; margin-top:2px;">
-                  Zonas marcadas por Mikel: <strong>${mt.zones}</strong> | Puertas: <strong>${mt.doors}</strong> | SÍ sacados: <strong>${mt.si}</strong>
-                </div>
-              </div>
-            `;
-          });
-        }
-
-        container.innerHTML = html;
-      } else if (activeRadarSubTab === 'opps') {
-        const defendTowns = Object.keys(andreiTowns).filter(k => !mikelTowns[k]).map(k => andreiTowns[k]);
-        const attackTowns = newMikelOnlyTowns.filter(mt => mt.si >= 1);
-
-        let html = `
-          <div style="background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:12px; padding:10px; margin-bottom:10px; font-size:11px; color:#dbeafe;">
-            💡 <strong>Estrategia Territorial:</strong> Blinda primero los pueblos donde ya tienes obras hechas antes de que Mikel los descubra, y manda un explorador a los pueblos nuevos donde Mikel ya está sacando SÍ.
-          </div>
-
-          <div class="modal-section-title" style="color:#34d399;">🛡️ Pueblos Tuyos Vírgenes para Mikel (Blindar con Equipo)</div>
-        `;
-
-        if (defendTowns.length === 0) {
-          html += `<div style="font-size:11px; color:#94a3b8; padding:6px;">No hay pueblos exclusivos tuyos registrados aún.</div>`;
-        } else {
-          defendTowns.forEach(dt => {
-            html += `
-              <div class="audit-card" style="cursor:default; border-left:4px solid #10b981;">
-                <strong style="font-size:12.5px; color:#fff;">📍 ${dt.name}</strong>
-                <div style="font-size:10.5px; color:#cbd5e1;">
-                  Tienes <strong>${dt.si} SÍ</strong> y <strong>${dt.obrasHechas} obras hechas</strong>. Mikel aún no ha pisado este pueblo: ¡mete cuadrilla o barrido en caliente ya!
-                </div>
-              </div>
-            `;
-          });
-        }
-
-        html += `<div class="modal-section-title" style="color:#fde047;">⚡ Pueblos Donde Mikel Saca SÍ (Mandar Explorador)</div>`;
-        if (attackTowns.length === 0) {
-          html += `<div style="font-size:11px; color:#94a3b8; padding:6px;">Mikel aún no ha sacado SÍ en pueblos fuera de tu radar.</div>`;
-        } else {
-          attackTowns.forEach(at => {
-            html += `
-              <div class="audit-card" style="cursor:default; border-left:4px solid #f59e0b;">
-                <strong style="font-size:12.5px; color:#fde047;">🔥 ${at.name} (${at.si} SÍ de Mikel)</strong>
-                <div style="font-size:10.5px; color:#cbd5e1;">
-                  Ese pueblo responde bien y tú no has ido todavía. Manda a 1 comercial a cazar 2-3 obras semilla antes de que lo quemen.
-                </div>
-              </div>
-            `;
-          });
-        }
-
-        container.innerHTML = html;
+        t.si += count('si');
       }
     }
 
-    /* =====================================================================
-       MODAL DE ESTADÍSTICAS PERSONALES
-       ===================================================================== */
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      const capture = local(c.createdAt) || recordDate;
+
+      if (
+        capture &&
+        (!t.first || capture < t.first)
+      ) {
+        t.first = capture;
+      }
+
+      if (c.obraStatus === 'no_apto') return;
+
+      const date = phase === 'captadas'
+        ? capture
+        : (
+            phase === 'citas' &&
+            c.obraStatus === 'agendada'
+              ? c.obraDate
+              : (
+                  phase === 'realizadas' &&
+                  c.obraStatus === 'realizada'
+                    ? c.obraRealizadaDate ||
+                      local(c.obraRealizadaAt)
+                    : ''
+                )
+          );
+
+      if (!inside(date)) return;
+
+      t.inPeriod = true;
+      t.dates.add(date);
+      t.count++;
+      t.area += personalStatsM2(c.m2);
+    });
+  });
+
+  return new Map(
+    [...towns.entries()].filter(
+      ([, t]) => t.inPeriod
+    )
+  );
+}
+
+function renderMikelRadarContent() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById(
+    'mikelRadarModalBody'
+  );
+
+  if (!root) return;
+
+  const date = radarDate || getTodayISO();
+
+  const range = personalStatsRange(
+    radarPeriod,
+    date
+  );
+
+  const previousRange = personalStatsRange(
+    radarPeriod,
+    date,
+    true
+  );
+
+  const a = radarTeamModel(false, range, radarPhase);
+  const b = radarTeamModel(true, range, radarPhase);
+
+  const ap = radarTeamModel(
+    false,
+    previousRange,
+    radarPhase
+  );
+
+  const bp = radarTeamModel(
+    true,
+    previousRange,
+    radarPhase
+  );
+
+  const at = radarTownModel(false, range, radarPhase);
+  const bt = radarTownModel(true, range, radarPhase);
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  root.replaceChildren();
+
+  function node(tag, text, parent = root, css = '') {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function button(parent, text, action, active = false) {
+    const el = node(
+      'button',
+      text,
+      parent,
+      'flex:1;min-width:0;padding:9px 5px;' +
+      'border:1px solid #475569;border-radius:9px;' +
+      'color:#fff;font-size:11px;font-weight:800;'
+    );
+
+    el.type = 'button';
+    el.style.background = active ? '#0f766e' : '#1e293b';
+    el.onclick = action;
+
+    return el;
+  }
+
+  function tabs(items, selected, change) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      button(
+        row,
+        label,
+        () => {
+          change(key);
+          renderMikelRadarContent();
+        },
+        key === selected
+      );
+    });
+  }
+
+  tabs(
+    [['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']],
+    radarPeriod,
+    key => {
+      radarPeriod = key;
+    }
+  );
+
+  tabs(
+    [
+      ['captadas', '📝 Captaciones'],
+      ['citas', '📅 Citas'],
+      ['realizadas', '✅ Hechas']
+    ],
+    radarPhase,
+    key => {
+      radarPhase = key;
+    }
+  );
+
+  const input = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;'
+  );
+
+  input.type = 'date';
+  input.max = getTodayISO();
+  input.value = date;
+
+  input.setAttribute(
+    'aria-label',
+    'Fecha de comparación de equipos'
+  );
+
+  input.onchange = () => {
+    const d = new Date(input.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      input.value > getTodayISO()
+    ) return;
+
+    radarDate = input.value;
+    renderMikelRadarContent();
+  };
+
+  node(
+    'p',
+    `${formatDate(range[0])} a ${formatDate(range[1])} · ` +
+    'Producción base a 1 €/m²',
+    root,
+    'font-size:11px;color:#94a3b8;' +
+    'line-height:1.5;margin:9px 0;'
+  );
+
+  button(
+    root,
+    '↻ Actualizar comparación',
+    renderMikelRadarContent
+  );
+
+  function card(title, text, color = '#475569') {
+    const box = node(
+      'div',
+      null,
+      root,
+      `padding:12px;margin-top:9px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;'
+    );
+
+    node(
+      'strong',
+      title,
+      box,
+      'display:block;font-size:13px;color:#e2e8f0;'
+    );
+
+    node(
+      'p',
+      text,
+      box,
+      'white-space:pre-line;font-size:12px;color:#cbd5e1;' +
+      'line-height:1.6;margin-top:6px;'
+    );
+
+    return box;
+  }
+
+  function townLink(box, town) {
+    button(
+      box,
+      '📍 Localizar pueblo',
+      () => {
+        closeModal('mikelRadarModal');
+        focusMapOnTownOrZone(town, null);
+      }
+    );
+  }
+
+  if (activeRadarSubTab === 'compare') {
+    const grid = node(
+      'div',
+      null,
+      root,
+      'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' +
+      'gap:8px;margin-top:10px;'
+    );
+
+    [a, b].forEach(t => {
+      const color = t.label === 'Andrei'
+        ? '#a78bfa'
+        : '#2dd4bf';
+
+      const box = node(
+        'div',
+        null,
+        grid,
+        `padding:12px;border:1px solid ${color};` +
+        'border-radius:12px;background:#1e293b;min-width:0;'
+      );
+
+      node(
+        'strong',
+        'Equipo ' + t.label,
+        box,
+        'display:block;font-size:12px;color:#cbd5e1;'
+      );
+
+      node(
+        'strong',
+        money(t.area),
+        box,
+        'display:block;font-size:21px;color:#fff;margin:7px 0;'
+      );
+
+      node(
+        'p',
+        `${t.area} m² · ${t.count} fichas\n` +
+        `${t.visitas} visitas · ${t.si} SÍ\n` +
+        `${t.visitas ? (100 * t.si / t.visitas).toFixed(1) : '0.0'}% SÍ / visitas\n` +
+        `${t.horas.toFixed(1)} h registradas\n` +
+        `${t.jornadas} jornadas-persona`,
+        box,
+        'white-space:pre-line;font-size:11px;' +
+        'color:#cbd5e1;line-height:1.6;'
+      );
+    });
+
+    const difference = a.area - b.area;
+
+    card(
+      'Diferencia de producción',
+      a.area === 0 && b.area === 0
+        ? 'Sin producción registrada en esta fase y periodo.'
+        : (
+            difference === 0
+              ? 'Ambos equipos tienen la misma producción registrada.'
+              : `${difference > 0 ? 'Andrei' : 'Mikel'} tiene ` +
+                `${Math.abs(difference)} m² más registrados en esta fase.`
+          )
+    );
+
+    card(
+      'Evolución frente al periodo anterior',
+      `${formatDate(previousRange[0])} a ` +
+      `${formatDate(previousRange[1])}\n` +
+      `Andrei: ${a.area - ap.area > 0 ? '+' : ''}` +
+      `${a.area - ap.area} m²\n` +
+      `Mikel: ${b.area - bp.area > 0 ? '+' : ''}` +
+      `${b.area - bp.area} m²`
+    );
+
+    node(
+      'h3',
+      'Clasificación individual cruzada',
+      root,
+      'font-size:13px;color:#7dd3fc;margin:15px 0 8px;'
+    );
+
+    const rows = [...a.rows, ...b.rows].sort((x, y) =>
+      y.area - x.area ||
+      getDisplayAlias(x.name).localeCompare(
+        getDisplayAlias(y.name),
+        'es'
+      )
+    );
+
+    let rank = null;
+
+    rows.forEach((r, i) => {
+      if (
+        r.area > 0 &&
+        (i === 0 || r.area !== rows[i - 1].area)
+      ) {
+        rank = i + 1;
+      }
+
+      card(
+        `${r.area > 0 ? '#' + rank : '—'} ` +
+        `${getDisplayAlias(r.name)} · ${r.team}`,
+        `${r.area} m² · ${r.count} fichas · ` +
+        `${money(r.area)} de producción base`
+      );
+    });
+  } else if (activeRadarSubTab === 'towns') {
+    const keys = [
+      ...new Set([...at.keys(), ...bt.keys()])
+    ].sort((x, y) => {
+      const ax =
+        (at.get(x)?.area || 0) +
+        (bt.get(x)?.area || 0);
+
+      const ay =
+        (at.get(y)?.area || 0) +
+        (bt.get(y)?.area || 0);
+
+      return ay - ax || x.localeCompare(y, 'es');
+    });
+
+    if (!keys.length) {
+      card(
+        'Sin pueblos en este periodo',
+        'No hay registros para las fechas elegidas.'
+      );
+    }
+
+    keys.forEach(key => {
+      const own = at.get(key);
+      const other = bt.get(key);
+
+      const common = own && other
+        ? [...own.dates].filter(d => other.dates.has(d))
+        : [];
+
+      const box = card(
+        (own?.name || other.name) +
+        (own && other ? ' · ambos equipos' : ''),
+        `Andrei: ${own?.count || 0} fichas · ` +
+        `${own?.area || 0} m² · ${own?.visitas || 0} visitas\n` +
+        `Mikel: ${other?.count || 0} fichas · ` +
+        `${other?.area || 0} m² · ${other?.visitas || 0} visitas\n` +
+        (
+          common.length
+            ? `Registros de ambos equipos en ` +
+              `${common.length} fecha(s) común(es).`
+            : 'Sin fechas de registro coincidentes.'
+        ),
+        common.length ? '#f59e0b' : '#475569'
+      );
+
+      townLink(box, own?.name || other.name);
+    });
+
+    node(
+      'p',
+      'Coincidir en un pueblo o fecha no demuestra que se ' +
+      'hayan trabajado las mismas calles. Se comparan fechas ' +
+      'de asignación/volcado y de las fichas de la fase elegida.',
+      root,
+      'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+    );
+  } else {
+    let signals = 0;
+
+    bt.forEach((town, key) => {
+      const own = at.get(key);
+
+      const common = own
+        ? [...own.dates].filter(d => town.dates.has(d))
+        : [];
+
+      if (common.length) {
+        signals++;
+
+        const box = card(
+          'Revisar reparto territorial · ' + town.name,
+          `${common.length} fecha(s) con registros de ambos equipos.\n` +
+          'Comprueba las calles y sectores asignados antes ' +
+          'de mandar más personas.',
+          '#f59e0b'
+        );
+
+        townLink(box, town.name);
+      }
+
+      if (
+        town.first &&
+        town.first >= range[0] &&
+        town.first <= range[1]
+      ) {
+        signals++;
+
+        const box = card(
+          'Primer registro guardado de Mikel · ' + town.name,
+          `Primera fecha encontrada: ${formatDate(town.first)}.\n` +
+          'Indica el primer registro en esta app, no necesariamente ' +
+          'cuándo empezó a trabajar allí.',
+          '#2dd4bf'
+        );
+
+        townLink(box, town.name);
+      }
+
+      if (!own && town.si >= 3) {
+        signals++;
+
+        const box = card(
+          'Pueblo para estudiar · ' + town.name,
+          `Mikel tiene ${town.si} SÍ y ${town.visitas} visitas ` +
+          'registradas en el periodo.\n' +
+          'Tu equipo no tiene registros en ese pueblo para ' +
+          'estas fechas. Revisa aptitud y disponibilidad ' +
+          'territorial antes de planificar una visita.'
+        );
+
+        townLink(box, town.name);
+      }
+    });
+
+    at.forEach((town, key) => {
+      if (bt.has(key) || town.count < 3) return;
+
+      signals++;
+
+      const box = card(
+        'Revisar continuidad de tu trabajo · ' + town.name,
+        `${town.count} fichas y ${town.area} m² en esta fase.\n` +
+        'No hay registros de Mikel para el mismo periodo. ' +
+        'Revisa seguimiento y sectores pendientes antes ' +
+        'de ampliar el equipo.'
+      );
+
+      townLink(box, town.name);
+    });
+
+    if (!signals) {
+      card(
+        'Sin señales destacadas',
+        'No hay coincidencias o criterios de revisión ' +
+        'activados con los registros del periodo.'
+      );
+    }
+  }
+
+  if (a.sinHoras + b.sinHoras > 0) {
+    node(
+      'p',
+      `${a.sinHoras + b.sinHoras} jornada(s) con horas ` +
+      'sin determinar entre ambos equipos.',
+      root,
+      'font-size:11px;color:#fde047;line-height:1.5;margin-top:10px;'
+    );
+  }
+
+  if (
+    radarPhase === 'realizadas' &&
+    a.sinFecha + b.sinFecha > 0
+  ) {
+    node(
+      'p',
+      'Hay obras antiguas sin fecha de ejecución: ' +
+      'quedan fuera de los totales por periodo.',
+      root,
+      'font-size:11px;color:#fde047;line-height:1.5;margin-top:8px;'
+    );
+  }
+
+  node(
+    'p',
+    'Comparación de registros disponibles, no de cobros. ' +
+    'Ambos equipos incluyen a su jefe. Las diferencias ' +
+    'también pueden reflejar registros incompletos o ' +
+    'distintas condiciones de zona.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+  );
+}
+
     let personalStatsMode = 'month';
 let personalStatsDate = '';
 
