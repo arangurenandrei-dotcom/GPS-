@@ -854,17 +854,59 @@
     }
 
     /* MEJORA CONSERVADORA: el mapa y las herramientas originales permanecen montados. */
-    #bossWorkspaceSwitch { display:none; gap:5px; width:100%; margin:3px 0 6px; }
-    #bossWorkspaceSwitch button { flex:1; min-height:39px; border:1px solid rgba(148,163,184,.36); border-radius:11px; background:rgba(15,23,42,.85); color:#cbd5e1; font-weight:850; font-size:12px; cursor:pointer; }
-    #bossWorkspaceSwitch button.selected { background:linear-gradient(125deg,#4f46e5,#2563eb); color:white; border-color:#93c5fd; box-shadow:0 3px 14px rgba(37,99,235,.22); }
+
+
     @media(max-width:640px) {
       .hud-header { max-width:100vw; }
-      #bossWorkspaceSwitch button { min-height:44px; }
       .btn-hud, .btn-main-action { touch-action:manipulation; }
       .modal-card { max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 14px); }
       .modal-scrollable-content { -webkit-overflow-scrolling:touch; }
     }
   </style>
+<style>
+#workspaceHome{position:fixed;inset:0;z-index:200000;background:rgba(5,12,26,.88);backdrop-filter:blur(16px);display:none;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top)) 18px calc(16px + env(safe-area-inset-bottom));box-sizing:border-box}
+.workspace-home-card{width:min(100%,420px);background:#101e32;border:1px solid #40516c;border-radius:23px;padding:25px 19px;box-shadow:0 20px 70px #0008;color:#f8fafc}
+.workspace-home-eyebrow{font-size:11px;letter-spacing:.16em;font-weight:900;color:#93c5fd}
+.workspace-home-card h2{font-size:23px;line-height:1.2;margin:14px 0 9px}
+.workspace-home-card p{font-size:13px;color:#a9bbd2;line-height:1.5;margin:0 0 21px}
+.workspace-home-choice{display:flex;align-items:center;gap:13px;width:100%;padding:15px 13px;margin:10px 0;border:1px solid #40516c;border-radius:15px;background:#1c2c44;color:#fff;text-align:left;cursor:pointer;min-height:85px}
+.workspace-home-choice:active{background:#2c4564}
+.workspace-home-choice span:nth-child(2){flex:1}
+.workspace-home-choice strong{display:block;font-size:16px;margin-bottom:5px}
+.workspace-home-choice small{display:block;font-size:12px;color:#c4d2e3;line-height:1.4}
+.workspace-home-emoji{font-size:25px}
+.workspace-home-logout{display:block;margin:22px auto 0;background:transparent;border:0;color:#a9bbd2;padding:10px;font-size:13px}
+</style>
+<style id="konsor-phase3-css">
+#universalClientLayer{position:fixed;inset:0;z-index:190000;display:none;background:rgba(3,9,22,.65);align-items:flex-end;justify-content:center}
+#universalClientLayer.open{display:flex}
+#universalClientPanel{width:min(100%,640px);height:min(91dvh,940px);background:#0d1b2d;color:#f8fafc;border:1px solid #40536d;border-radius:20px 20px 0 0;box-shadow:0 -20px 80px #0009;display:flex;flex-direction:column;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}
+#universalClientHeader{padding:14px 17px;background:#152841;display:flex;align-items:flex-start;gap:12px;justify-content:space-between;border-bottom:1px solid #334155}
+#universalClientHeader h2{font-size:19px;line-height:1.2;margin:0 0 4px}
+#universalClientHeader small{color:#a8bbd2;font-size:12px}
+#universalClientHeader button{border:1px solid #60748e;background:#24364f;color:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}
+#universalClientBody{overflow:auto;overscroll-behavior:contain;flex:1;padding:14px 16px 24px}
+.uc-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:15px}
+.uc-actions a,.uc-actions button{font-size:11px;font-weight:800;text-align:center;border:1px solid #426487;background:#173e61;color:#fff;padding:11px 3px;border-radius:10px;text-decoration:none;cursor:pointer}
+.uc-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.uc-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.uc-field.wide{grid-column:1/-1}
+.uc-field label{font-size:11px;color:#b6c8dd;font-weight:800}
+.uc-field input,.uc-field select,.uc-field textarea{min-width:0;width:100%;box-sizing:border-box;border-radius:9px;background:#17283e;color:#fff;border:1px solid #48617c;padding:11px;font:inherit;font-size:13px}
+.uc-section{border-top:1px solid #34485e;padding-top:14px;margin-top:15px}
+.uc-section h3{font-size:14px;margin:0 0 11px}
+.uc-save{position:sticky;bottom:0;display:block;width:100%;background:#0ea5e9;color:#071525;border:0;border-radius:11px;padding:13px;font-weight:900;margin-top:16px;cursor:pointer}
+.uc-timeline-item{border-left:2px solid #38bdf8;padding:6px 10px;margin:7px 0;background:#17273b;border-radius:0 7px 7px 0;font-size:12px;overflow-wrap:anywhere}
+#konsorQuickButton{position:fixed;z-index:950;bottom:calc(18px + env(safe-area-inset-bottom));right:12px;background:#0b2b4c;color:#fff;border:1px solid #60a5fa;border-radius:999px;padding:12px 15px;box-shadow:0 5px 22px #0009;font-size:12px;font-weight:900;cursor:pointer;display:none}
+#konsorQueueLayer{position:fixed;inset:0;z-index:185000;background:rgba(3,9,22,.65);display:none;align-items:flex-end;justify-content:center}
+#konsorQueueLayer.open{display:flex}
+#konsorQueuePanel{width:min(100%,640px);height:min(87dvh,900px);background:#0d1b2d;color:#fff;border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+#konsorQueueResults{overflow:auto;padding:12px 15px;flex:1}
+.uc-queue-item{display:block;width:100%;background:#182c45;color:#fff;border:1px solid #344f6c;border-left:4px solid #38bdf8;text-align:left;padding:12px;margin-bottom:8px;border-radius:10px;cursor:pointer}
+.uc-queue-item strong{display:block;font-size:13px}.uc-queue-item small{display:block;color:#bfd1e6;margin-top:4px;font-size:11px}
+@media(min-width:720px){#universalClientLayer,#konsorQueueLayer{align-items:center}#universalClientPanel,#konsorQueuePanel{border-radius:20px}}
+@media(max-width:390px){.uc-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.uc-fields{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 
@@ -966,16 +1008,11 @@
           <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">💰 0 €</span>
         </div>
         <div class="hud-utility-group" style="gap:5px;">
+          <button id="btnWorkspaceExit" class="btn-hud" style="display:none;padding:6px 9px;font-size:11px" onclick="showWorkspaceHome()" title="Volver al inicio y elegir espacio">↩ Inicio</button>
           <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">⚙️</button>
           <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
           <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒</button>
         </div>
-      </div>
-
-      <!-- DOS ESPACIOS PARA ANDREI, SIN CAMBIAR SUS PERMISOS NI DESMONTAR EL MAPA -->
-      <div id="bossWorkspaceSwitch" role="group" aria-label="Espacio de trabajo">
-        <button id="workspaceCommercialBtn" type="button" onclick="setBossWorkspace('commercial')">🏃 Comercial</button>
-        <button id="workspaceBossBtn" type="button" onclick="setBossWorkspace('boss')">👑 Jefe de equipo</button>
       </div>
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
@@ -2083,6 +2120,7 @@
         setupRoleInterface();
         updateShiftUI();
         initMap();
+        if (currentUserName === 'Andrei (Jefe)') showWorkspaceHome();
 
         if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
           showCommercialBriefing();
@@ -2294,6 +2332,7 @@
       setupRoleInterface();
       updateShiftUI();
       initMap();
+      if (currentUserName === 'Andrei (Jefe)') showWorkspaceHome();
 
       if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
         showCommercialBriefing();
@@ -2481,37 +2520,40 @@
         hudNavGrid.className = isMikelBlock ? 'hud-nav-grid cols-2' : 'hud-nav-grid cols-4';
       }
       updateHudLiveSalaryPill();
-      const bossSwitch = document.getElementById('bossWorkspaceSwitch');
-      if (bossSwitch) bossSwitch.style.display = currentUserName === 'Andrei (Jefe)' ? 'flex' : 'none';
       if (currentUserName === 'Andrei (Jefe)') setBossWorkspace(bossWorkspace);
     }
-    // Solo cambia la presentación de herramientas. Los permisos y la identidad son inmutables.
+    // Los dos espacios son presentaciones de la misma cuenta; no alteran los permisos Firebase.
     let bossWorkspace = 'commercial';
     function setBossWorkspace(workspace) {
       if (currentUserName !== 'Andrei (Jefe)' || currentUserRole !== 'jefe') return;
       bossWorkspace = workspace === 'boss' ? 'boss' : 'commercial';
       const isBossView = bossWorkspace === 'boss';
-      const switcher = document.getElementById('bossWorkspaceSwitch');
-      if (switcher) switcher.style.display = 'flex';
-      document.getElementById('workspaceCommercialBtn')?.classList.toggle('selected', !isBossView);
-      document.getElementById('workspaceBossBtn')?.classList.toggle('selected', isBossView);
       const visibility = {
-        btnBossAudit: isBossView,
-        btnMikelRadarHud: isBossView,
-        btnLeagueRanking: isBossView,
-        btnCommercialPlan: !isBossView,
-        btnCommercialStats: !isBossView,
-        btnFollowUps: !isBossView
+        btnBossAudit: isBossView, btnMikelRadarHud: isBossView,
+        btnLeagueRanking: isBossView, btnCommercialPlan: !isBossView,
+        btnCommercialStats: !isBossView, btnFollowUps: !isBossView
       };
       Object.entries(visibility).forEach(([id, show]) => {
         const el = document.getElementById(id);
         if (el) el.style.display = show ? 'flex' : 'none';
       });
-      // Zona, volcado, Catastro, GPS y mapa siguen disponibles en ambos espacios.
       const badge = document.getElementById('displayRoleBadge');
-      if (badge) badge.textContent = isBossView ? '👑 JEFE' : '🏃 COMERCIAL · JEFE';
+      if (badge) badge.textContent = isBossView ? '👑 JEFE' : '🏃 COMERCIAL';
       const grid = document.getElementById('hudNavGrid');
       if (grid) grid.className = 'hud-nav-grid ' + (isBossView ? 'cols-3' : 'cols-4');
+      const exit = document.getElementById('btnWorkspaceExit');
+      if (exit) exit.style.display = 'flex';
+      if (typeof map !== 'undefined' && map) requestAnimationFrame(() => map.invalidateSize());
+    }
+    function showWorkspaceHome() {
+      if (currentUserName !== 'Andrei (Jefe)' || currentUserRole !== 'jefe') return;
+      const screen = document.getElementById('workspaceHome');
+      if (screen) screen.style.display = 'flex';
+    }
+    function enterBossWorkspace(workspace) {
+      setBossWorkspace(workspace);
+      const screen = document.getElementById('workspaceHome');
+      if (screen) screen.style.display = 'none';
       if (typeof map !== 'undefined' && map) requestAnimationFrame(() => map.invalidateSize());
     }
     function startSingleHouseDirect() {
@@ -3558,6 +3600,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
               🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong> | 👤 ${z.comercial}
             </div>
 
+            <button type="button" onclick="openUniversalClient(${item.zoneIdx}, ${item.clientIdx})" style="margin-top:7px;width:100%;padding:9px;border:1px solid #38bdf8;background:rgba(14,165,233,.13);border-radius:9px;color:#e0f2fe;font-size:12px;font-weight:800;cursor:pointer;">📋 Abrir ficha completa del cliente</button>
             <div style="display:flex; gap:5px; margin-top:4px;">
               ${cleanPhone ? `<a href="tel:${cleanPhone}" onclick="if('${item.callStatus}'==='pendiente') setTimeout(() => updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'ya_llamado'), 400);" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
               ${(cleanPhone && !viewerIsMikel) ? (() => {
@@ -3751,7 +3794,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         }
 
         html += `
-          <div class="audit-card" style="cursor:pointer; border:1px solid ${border};" onclick="closeModal('globalSearchModal'); openDumpModal(${zIdx});">
+          <div class="audit-card" style="cursor:pointer; border:1px solid ${border};" onclick="closeModal('globalSearchModal'); openUniversalClient(${zIdx}, ${cIdx});">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <strong style="font-size:12.5px; color:#fff;">${isCom ? '🏢' : '🏠'} ${esc(c.name) || 'Cliente sin nombre'}</strong>
               <span style="font-size:10px; font-weight:800; color:#34d399;">${getM2NumericValue(c.m2)} m²</span>
@@ -4893,7 +4936,10 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
 
     function extractClientFromBox(box, existingCallStatus = 'pendiente', existingMeta = {}) {
       const m = existingMeta || {};
-      const c = extractClientFromBoxBase(box, existingCallStatus, m);
+      const c = { ...m, ...extractClientFromBoxBase(box, existingCallStatus, m) };
+      c.clientUid = m.clientUid || (crypto.randomUUID ? crypto.randomUUID() : ('k'+Date.now()+'-'+Math.random().toString(36).slice(2)));
+      c.timeline = Array.isArray(m.timeline) ? m.timeline : [];
+      c.reminders = Array.isArray(m.reminders) ? m.reminders : [];
       c.crmUploaded = !!m.crmUploaded;
       c.crmUploadedAt = m.crmUploadedAt || null;
       c.crmDate = m.crmDate || '';
@@ -9542,5 +9588,55 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
        });
     };
   </script>
+<div id="workspaceHome" role="dialog" aria-modal="true" aria-labelledby="workspaceHomeTitle" style="display:none">
+  <div class="workspace-home-card">
+    <div class="workspace-home-eyebrow">KONSOR · NAVARRA</div>
+    <h2 id="workspaceHomeTitle">¿En qué espacio quieres trabajar?</h2>
+    <p>Elige una vez. Para cambiar, pulsa «Inicio»; el mapa y tus datos se conservan.</p>
+    <button class="workspace-home-choice" onclick="enterBossWorkspace('commercial')"><span class="workspace-home-emoji">🏃</span><span><strong>Comercial</strong><small>Mapa, Catastro, zonas, captaciones, clientes y llamadas</small></span><span>›</span></button>
+    <button class="workspace-home-choice" onclick="enterBossWorkspace('boss')"><span class="workspace-home-emoji">👑</span><span><strong>Jefe de equipo</strong><small>Control de comerciales, agenda, obras, equipos y resultados</small></span><span>›</span></button>
+    <button class="workspace-home-logout" onclick="executeLogout()">Cerrar sesión</button>
+  </div>
+</div>
+<button id="konsorQuickButton" onclick="openSmartQueue()">📞 Pendientes</button>
+<div id="universalClientLayer" onclick="if(event.target===this)closeUniversalClient()"><section id="universalClientPanel" role="dialog" aria-modal="true" aria-label="Ficha universal de cliente"><header id="universalClientHeader"><div><h2 id="ucTitle">Cliente</h2><small id="ucSubtitle"></small></div><button onclick="closeUniversalClient()">✕ Cerrar</button></header><div id="universalClientBody"></div></section></div>
+<div id="konsorQueueLayer" onclick="if(event.target===this)closeSmartQueue()"><section id="konsorQueuePanel" role="dialog" aria-modal="true" aria-label="Clientes pendientes"><header id="universalClientHeader"><div><h2>📞 Bandeja de seguimiento</h2><small>Urgentes primero · Agrupados por localidad y calle</small></div><button onclick="closeSmartQueue()">✕ Cerrar</button></header><div style="padding:12px 15px"><input id="konsorQueueSearch" placeholder="Buscar cliente, pueblo o calle" oninput="renderSmartQueue()" style="width:100%;box-sizing:border-box;background:#17283e;border:1px solid #526782;border-radius:10px;color:#fff;padding:12px"></div><div id="konsorQueueResults"></div></section></div>
+<script id="konsor-phase3-js">
+// Módulos añadidos sin reemplazar el mapa, la gestión territorial ni el resto del código original.
+let universalClientRef = null;
+function ucEscape(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+function ucCurrent(){const r=universalClientRef;return r&&savedZones[r.z]&&savedZones[r.z].clients&&savedZones[r.z].clients[r.c] ? {zone:savedZones[r.z],client:savedZones[r.z].clients[r.c]} : null;}
+function ucAccessible(zone){if(typeof isMikelTeamMember==='function' && isMikelTeamMember(zone.comercial)!==isMikelTeamMember(currentUserName))return false;return currentUserRole!=='comercial'||zone.comercial===currentUserName;}
+function ucField(label,key,type='text',wide=false){const {client:c}=ucCurrent();const v=key==='nextContactAtISO'?(c.nextContactAt?new Date(c.nextContactAt-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16):''):(c[key]??'');return `<div class="uc-field ${wide?'wide':''}"><label for="uc_${key}">${label}</label><input id="uc_${key}" type="${type}" value="${ucEscape(v)}" autocomplete="off"></div>`;}
+function ucAppend(c,kind,message){c.timeline=Array.isArray(c.timeline)?c.timeline:[];c.timeline.push({at:Date.now(),by:currentUserName||'Usuario',kind,text:message});}
+function ucCommit(){const p=ucCurrent();if(!p)return;p.zone._updatedAt=Date.now();saveAndSync('comercial_custom_zones',savedZones);}
+function openUniversalClient(z,c){const zone=savedZones[z];if(!zone||!zone.clients||!zone.clients[c]||!ucAccessible(zone)){alert('No tienes acceso a esta ficha.');return;}universalClientRef={z,c};renderUniversalClient();document.getElementById('universalClientLayer').classList.add('open');}
+function closeUniversalClient(){document.getElementById('universalClientLayer').classList.remove('open');universalClientRef=null;}
+function renderUniversalClient(){const p=ucCurrent();if(!p){closeUniversalClient();return;}const {client:c,zone:z}=p;document.getElementById('ucTitle').textContent=c.name||'Cliente sin nombre';document.getElementById('ucSubtitle').textContent=[c.street,z.town,z.comercial].filter(Boolean).join(' · ');const phone=String(c.phone||'').replace(/[^\d+]/g,'');const wa=phone.startsWith('+')?phone.slice(1):phone.startsWith('34')?phone:'34'+phone;const txt=`Hola${c.name?' '+c.name.split(' ')[0]:''}, soy ${typeof getDisplayAlias==='function'?getDisplayAlias(z.comercial):z.comercial} de Konsor Energía. Nos pondremos en contacto contigo para revisar tu vivienda en ${c.street||z.town}.`;
+const timeline=(c.timeline||[]).slice().reverse().slice(0,80).map(e=>`<div class="uc-timeline-item"><strong>${ucEscape(e.kind||'Actividad')}</strong> · ${new Date(e.at).toLocaleString('es-ES')}<div>${ucEscape(e.text)}</div><small>${ucEscape(e.by)}</small></div>`).join('');
+const legacy=(c.callLog||[]).slice().reverse().map(e=>`<div class="uc-timeline-item">📞 ${new Date(e.t).toLocaleString('es-ES')} · ${ucEscape(e.s)} ${ucEscape(e.r)}</div>`).join('');
+const reminders=(c.reminders||[]).filter(x=>!x.done).map((r,i)=>`<div class="uc-timeline-item">🔔 ${ucEscape(r.at)} · ${ucEscape(r.text)} <button onclick="ucCompleteReminder(${i})">Hecho</button></div>`).join('');
+document.getElementById('universalClientBody').innerHTML=`<div class="uc-actions"><a href="${phone?'tel:'+encodeURIComponent(phone):'#'}" onclick="${phone?'ucLogAction(\'llamada\',\'Se abrió el marcador telefónico\')':'event.preventDefault()'}">📞 Llamar</a><a href="${phone?'https://wa.me/'+wa+'?text='+encodeURIComponent(txt):'#'}" target="_blank" rel="noopener" onclick="${phone?'ucLogAction(\'mensaje\',\'Se preparó mensaje inicial\')':'event.preventDefault()'}">💬 WhatsApp</a><button onclick="ucOpenSector()">🗂️ Sector</button><button onclick="ucAddReminder()">🔔 Aviso</button></div>
+<div class="uc-section" style="margin-top:0;border-top:0;padding-top:0"><h3>👤 Datos del cliente</h3><div class="uc-fields">${ucField('Nombre','name')}${ucField('Teléfono','phone','tel')}${ucField('DNI / NIE','dni')}${ucField('Correo electrónico','email','email')}${ucField('Dirección','street','text',true)}${ucField('Código postal','postalCode')}</div></div>
+<div class="uc-section"><h3>🏠 Vivienda y Catastro</h3><div class="uc-fields">${ucField('Año de construcción','buildYear')}${ucField('Superficie (m²)','m2')}${ucField('Zona CTE','cteZone')}${ucField('Tipo de acceso','accessType')}</div><button class="uc-save" style="background:#254b73;color:white" onclick="ucOpenCadastre()">🗺️ Consultar Catastro desde el sector / mapa</button></div>
+<div class="uc-section"><h3>📞 Seguimiento</h3><div class="uc-fields"><div class="uc-field"><label>Estado de llamada</label><select id="uc_callStatus"><option value="pendiente">Por llamar</option><option value="ya_llamado">Ya llamado</option><option value="esperando_confirmacion">Esperando confirmación</option></select></div><div class="uc-field"><label>Estado de obra</label><select id="uc_obraStatus"><option value="pendiente">Pendiente</option><option value="agendada">Agendada</option><option value="realizada">Realizada y cobrada</option><option value="no_apto">No apta</option><option value="cancelada">Cancelada</option></select></div>${ucField('Próximo contacto','nextContactAtISO','datetime-local',true)}<div class="uc-field wide"><label>Notas de seguimiento</label><textarea id="uc_callNotes" rows="3">${ucEscape(c.callNotes||'')}</textarea></div></div></div>
+<div class="uc-section"><h3>📅 Cita y obra</h3><div class="uc-fields">${ucField('Fecha de cita','obraDate','date')}<div class="uc-field"><label>Franja horaria</label><select id="uc_obraTime">${typeof obraSlotOptions==='function'?obraSlotOptions(c.obraTime):''}</select></div></div><small style="color:#b8cbe1">La agenda original sigue disponible para comprobar disponibilidad antes de confirmar.</small></div>
+<button class="uc-save" onclick="ucSave()">💾 Guardar ficha completa</button>
+<div class="uc-section"><h3>🔔 Recordatorios pendientes</h3>${reminders||'<small>Sin recordatorios pendientes.</small>'}</div><div class="uc-section"><h3>🕓 Historial de esta ficha</h3>${timeline}${legacy||(!timeline?'<small>Sin actividad registrada todavía.</small>':'')}</div>`;
+document.getElementById('uc_callStatus').value=c.callStatus||'pendiente';document.getElementById('uc_obraStatus').value=c.obraStatus||'pendiente';}
+function ucSave(){const p=ucCurrent();if(!p)return;const {client:c}=p;const keys=['name','phone','dni','email','street','postalCode','buildYear','m2','cteZone','accessType','obraDate'];let changes=[];keys.forEach(k=>{const el=document.getElementById('uc_'+k);if(el&&String(c[k]??'')!==el.value){changes.push(k);c[k]=el.value;}});const next=document.getElementById('uc_nextContactAtISO').value;const nextMs=next?new Date(next).getTime():null;if((c.nextContactAt||null)!==nextMs){c.nextContactAt=nextMs;changes.push('próximo contacto');}for(const k of ['callStatus','obraStatus','obraTime','callNotes']){const el=document.getElementById('uc_'+k);if(el&&String(c[k]??'')!==el.value){if(k==='obraStatus'&&el.value==='realizada'&&c.obraStatus!=='realizada'){if(!confirm('¿Confirmas que la obra está realizada y cobrada?')){el.value=c.obraStatus||'pendiente';continue;}}c[k]=el.value;changes.push(k);}}if(changes.length){ucAppend(c,'Ficha editada','Campos: '+changes.join(', '));c.statusChangedAt=Date.now();ucCommit();}renderUniversalClient();}
+function ucLogAction(kind,text){const p=ucCurrent();if(!p)return;ucAppend(p.client,kind,text);ucCommit();}
+function ucAddReminder(){const p=ucCurrent();if(!p)return;const when=prompt('Fecha y hora del aviso (AAAA-MM-DD HH:MM)',new Date(Date.now()+86400000).toISOString().slice(0,16).replace('T',' '));if(!when)return;const dt=new Date(when.replace(' ','T'));if(!Number.isFinite(dt.getTime())){alert('Fecha no válida.');return;}const what=prompt('¿Qué tienes que recordar?','Llamar al cliente');if(!what?.trim())return;p.client.reminders=Array.isArray(p.client.reminders)?p.client.reminders:[];p.client.reminders.push({at:dt.toISOString(),text:what.trim(),done:false,createdBy:currentUserName});ucAppend(p.client,'Recordatorio',what.trim());ucCommit();renderUniversalClient();}
+function ucCompleteReminder(i){const p=ucCurrent();if(!p)return;const pending=(p.client.reminders||[]).filter(x=>!x.done);const item=pending[i];if(!item)return;item.done=true;ucAppend(p.client,'Recordatorio completado',item.text);ucCommit();renderUniversalClient();}
+function ucOpenSector(){const r=universalClientRef;if(!r)return;closeUniversalClient();openDumpModal(r.z);}
+function ucOpenCadastre(){const r=universalClientRef;if(!r)return;closeUniversalClient();openDumpModal(r.z);alert('En el formulario original puedes consultar Catastro. En el mapa también puedes pulsar una parcela y abrir «Ver ficha · Catastro».');}
+function closeSmartQueue(){document.getElementById('konsorQueueLayer').classList.remove('open');}
+function openSmartQueue(){renderSmartQueue();document.getElementById('konsorQueueLayer').classList.add('open');}
+function renderSmartQueue(){const q=(document.getElementById('konsorQueueSearch').value||'').toLowerCase();const all=[];savedZones.forEach((z,zi)=>{if(!ucAccessible(z))return;(z.clients||[]).forEach((c,ci)=>{if(!c||!(c.name||c.phone))return;if(['realizada','no_apto','cancelada','agendada'].includes(c.obraStatus))return;const match=[c.name,c.phone,c.street,z.town].join(' ').toLowerCase();if(q&&!match.includes(q))return;const age=Math.max(0,(Date.now()-(c.statusChangedAt||c.createdAt||z.id||Date.now()))/3600000);const due=c.nextContactAt&&c.nextContactAt<Date.now();all.push({zi,ci,z,c,age,due,priority:due?4:age>=48?3:age>=24?2:1});});});all.sort((a,b)=>b.priority-a.priority||a.z.town.localeCompare(b.z.town,'es')||String(a.c.street||'').localeCompare(String(b.c.street||''),'es')||b.age-a.age);const box=document.getElementById('konsorQueueResults');box.innerHTML=`<p style="font-size:12px;color:#bfd1e6">${all.length} clientes pendientes · rojo: +48h o recordatorio vencido</p>`+all.slice(0,200).map(a=>`<button class="uc-queue-item" style="border-left-color:${a.priority>=3?'#ef4444':a.priority===2?'#eab308':'#38bdf8'}" onclick="closeSmartQueue();openUniversalClient(${a.zi},${a.ci})"><strong>${ucEscape(a.c.name||'Sin nombre')} ${a.priority>=3?'🚨':a.priority===2?'⚠️':''}</strong><small>${ucEscape(a.z.town)} · ${ucEscape(a.c.street||'Sin calle')} · ${ucEscape(a.z.comercial)}</small><small>${Math.floor(a.age)} horas desde la última actualización · ${ucEscape(a.c.phone)}</small></button>`).join('');}
+// Botón discreto; la cartografía sigue siendo el plano de trabajo permanente.
+function ucRefreshQuickButton(){const btn=document.getElementById('konsorQuickButton');if(btn)btn.style.display=currentUserName&&document.getElementById('workspaceHome')?.style.display!=='flex'?'block':'none';}
+const ucObserver=new MutationObserver(ucRefreshQuickButton);ucObserver.observe(document.documentElement,{attributes:true,subtree:false});
+setInterval(ucRefreshQuickButton,3000);
+</script>
 </body>
 </html>
