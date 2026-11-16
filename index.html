@@ -3815,34 +3815,762 @@ function openManagementAudit(tab) {
   openAuditModal();
 }
 
+let teamOverviewPeriod = 'month';
+let teamOverviewDate = '';
+let teamOverviewPhase = 'captadas';
+let teamOverviewTab = 'summary';
+
 function openTeamManagementMenu() {
   if (currentUserName !== 'Andrei (Jefe)') return;
 
-  openWorkMenu(
-    '📊 Gestión del equipo',
-    'Consulta la producción conjunta, las obras y el territorio.',
+  let modal = document.getElementById('teamOverviewModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'teamOverviewModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>📊 Gestión del equipo Andrei</span>
+            <button type="button"
+              onclick="closeModal('teamOverviewModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="teamOverviewBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  teamOverviewPeriod = 'month';
+  teamOverviewDate = getTodayISO();
+  teamOverviewPhase = 'captadas';
+  teamOverviewTab = 'summary';
+
+  renderTeamOverview();
+  modal.classList.add('active');
+}
+
+function teamOverviewMetrics(
+  period,
+  date,
+  phase,
+  previous = false
+) {
+  const range = personalStatsRange(period, date, previous);
+
+  const fields = {
+    captadas: ['m2Captado', 'validas'],
+    citas: ['m2Citas', 'citas'],
+    realizadas: ['m2Hechas', 'hechas']
+  };
+
+  const [areaField, countField] =
+    fields[phase] || fields.captadas;
+
+  const rows = getActiveTeamUsers(false).map(name => {
+    const metrics = personalStatsMetrics(name, ...range);
+    const area = metrics[areaField];
+
+    return {
+      name,
+      metrics,
+      area,
+      count: metrics[countField],
+      boss: area * (
+        name === 'Andrei (Jefe)' ? 1 : 0.15
+      )
+    };
+  });
+
+  const sums = {
+    visitas: 0, fichas: 0, citas: 0, hechas: 0,
+    horas: 0, jornadas: 0, no: 0, si: 0,
+    ausente: 0, papelito: 0, yaAislado: 0,
+    noAptas: 0, sinHoras: 0, sinFecha: 0
+  };
+
+  rows.forEach(r => {
+    const m = r.metrics;
+
+    sums.visitas += m.puertas;
+    sums.fichas += m.fichas;
+    sums.citas += m.citas;
+    sums.hechas += m.hechas;
+    sums.horas += m.horas;
+    sums.jornadas += m.jornadas;
+    sums.noAptas += m.noAptas;
+    sums.sinHoras += m.jornadasSinHoras;
+    sums.sinFecha += m.antiguasSinFecha;
+
+    ['no', 'si', 'ausente', 'papelito', 'yaAislado']
+      .forEach(key => {
+        sums[key] += m[key];
+      });
+  });
+
+  const own = rows.find(
+    r => r.name === 'Andrei (Jefe)'
+  ).area;
+
+  const teamArea = rows
+    .filter(r => r.name !== 'Andrei (Jefe)')
+    .reduce((sum, r) => sum + r.area, 0);
+
+  return {
+    range,
+    rows,
+    sums,
+    own,
+    teamArea,
+    area: own + teamArea,
+    boss: own + teamArea * 0.15,
+    commission: teamArea * 0.15,
+    commercialShare: teamArea * 0.85
+  };
+}
+
+function teamOverviewTowns(range, phase) {
+  const users = new Set(getActiveTeamUsers(false));
+  const towns = new Map();
+
+  const inside = date =>
+    Boolean(date && date >= range[0] && date <= range[1]);
+
+  const getTown = z => {
+    const key = routeTown(z.town) || 'sin municipio';
+
+    if (!towns.has(key)) {
+      towns.set(key, {
+        key,
+        name: z.town || 'Sin municipio',
+        area: 0,
+        boss: 0,
+        count: 0,
+        visitas: 0,
+        si: 0,
+        yaAislado: 0,
+        sectors: 0,
+        finishedSectors: 0
+      });
+    }
+
+    return towns.get(key);
+  };
+
+  savedZones.forEach(z => {
+    if (
+      !users.has(z.comercial) ||
+      z.isNoAptoZone
+    ) return;
+
+    if (inside(z.dumpDate || z.date)) {
+      const t = getTown(z);
+      const st = z.stats || {};
+
+      const external =
+        z.isSingleHouse &&
+        z.clients?.[0]?.origen &&
+        z.clients[0].origen !== 'puerta';
+
+      if (!external) {
+        const count = key => Math.max(
+          0,
+          Math.floor(Number(st[key]) || 0)
+        );
+
+        t.si += count('si');
+        t.yaAislado += count('yaAislado');
+
+        t.visitas += [
+          'si', 'no', 'ausente', 'papelito', 'yaAislado'
+        ].reduce((n, key) => n + count(key), 0);
+      }
+    }
+
+    if (
+      !z.isSingleHouse &&
+      !z.isHotMission &&
+      inside(z.date)
+    ) {
+      const t = getTown(z);
+      t.sectors++;
+
+      if (z.status === 'completada') {
+        t.finishedSectors++;
+      }
+    }
+
+    (z.clients || []).forEach(c => {
+      if (
+        !isClientValidFilled(c) ||
+        c.obraStatus === 'no_apto'
+      ) return;
+
+      let date = '';
+
+      if (phase === 'captadas') {
+        const d = new Date(c.createdAt);
+
+        date = c.createdAt && Number.isFinite(d.getTime())
+          ? getLocalDateISO(d)
+          : (z.dumpDate || z.date);
+      } else if (
+        phase === 'citas' &&
+        c.obraStatus === 'agendada'
+      ) {
+        date = c.obraDate;
+      } else if (
+        phase === 'realizadas' &&
+        c.obraStatus === 'realizada'
+      ) {
+        const d = new Date(c.obraRealizadaAt);
+
+        date = c.obraRealizadaDate || (
+          c.obraRealizadaAt &&
+          Number.isFinite(d.getTime())
+            ? getLocalDateISO(d)
+            : ''
+        );
+      }
+
+      if (!inside(date)) return;
+
+      const t = getTown(z);
+      const area = personalStatsM2(c.m2);
+
+      t.count++;
+      t.area += area;
+
+      t.boss += area * (
+        z.comercial === 'Andrei (Jefe)' ? 1 : 0.15
+      );
+    });
+  });
+
+  const finished = new Set(
+    (
+      Array.isArray(completedTowns)
+        ? completedTowns
+        : []
+    ).map(routeTown)
+  );
+
+  return [...towns.values()]
+    .map(t => ({
+      ...t,
+      completed: finished.has(t.key)
+    }))
+    .sort((a, b) =>
+      b.area - a.area ||
+      a.name.localeCompare(b.name, 'es')
+    );
+}
+
+function renderTeamOverview() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById('teamOverviewBody');
+  if (!root) return;
+
+  const date = teamOverviewDate || getTodayISO();
+
+  const data = teamOverviewMetrics(
+    teamOverviewPeriod,
+    date,
+    teamOverviewPhase
+  );
+
+  const prev = teamOverviewMetrics(
+    teamOverviewPeriod,
+    date,
+    teamOverviewPhase,
+    true
+  );
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  const phaseLabels = {
+    captadas: 'Captaciones no descartadas',
+    citas: 'Citas pendientes',
+    realizadas: 'Obras realizadas'
+  };
+
+  root.replaceChildren();
+
+  function node(tag, text, parent = root, css = '') {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function button(parent, label, action, active = false) {
+    const b = node(
+      'button',
+      label,
+      parent,
+      'flex:1;min-width:0;padding:9px 6px;' +
+      'border:1px solid #475569;border-radius:9px;' +
+      'color:#fff;font-size:11px;font-weight:800;'
+    );
+
+    b.type = 'button';
+    b.style.background = active ? '#6d28d9' : '#1e293b';
+    b.onclick = action;
+
+    return b;
+  }
+
+  function tabs(items, selected, action) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      button(
+        row,
+        label,
+        () => {
+          action(key);
+          renderTeamOverview();
+        },
+        selected === key
+      );
+    });
+  }
+
+  tabs(
+    [['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']],
+    teamOverviewPeriod,
+    key => {
+      teamOverviewPeriod = key;
+    }
+  );
+
+  tabs(
     [
-      [
-        '💰 Producción y balance',
-        'Resultados por mes, aportación personal y comisión del equipo.',
-        () => openManagementAudit('kpis')
-      ],
-      [
-        '📆 Calendario de obras',
-        'Consulta la planificación semanal existente.',
-        () => openManagementAudit('semana')
-      ],
-      [
-        '🏗️ Obras y captaciones por agendar',
-        'Revisa citas, obras realizadas y agrupaciones por pueblo.',
-        () => openManagementAudit('obras')
-      ],
-      [
-        '🏘️ Pueblos y sectores',
-        'Consulta actividad, resultados y pueblos terminados.',
-        () => openManagementAudit('pueblos')
-      ]
-    ]
+      ['captadas', '📝 Captaciones'],
+      ['citas', '📅 Citas'],
+      ['realizadas', '✅ Hechas']
+    ],
+    teamOverviewPhase,
+    key => {
+      teamOverviewPhase = key;
+    }
+  );
+
+  const input = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;'
+  );
+
+  input.type = 'date';
+  input.max = getTodayISO();
+  input.value = date;
+
+  input.setAttribute(
+    'aria-label',
+    'Fecha hasta la que consultar el equipo'
+  );
+
+  input.onchange = () => {
+    const d = new Date(input.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      input.value > getTodayISO()
+    ) return;
+
+    teamOverviewDate = input.value;
+    renderTeamOverview();
+  };
+
+  node(
+    'p',
+    `${formatDate(data.range[0])} a ` +
+    `${formatDate(data.range[1])} · ` +
+    phaseLabels[teamOverviewPhase],
+    root,
+    'font-size:11px;color:#cbd5e1;' +
+    'line-height:1.5;margin:9px 0;'
+  );
+
+  tabs(
+    [['summary', '📊 Resumen'], ['towns', '🏘️ Pueblos']],
+    teamOverviewTab,
+    key => {
+      teamOverviewTab = key;
+    }
+  );
+
+  const links = node(
+    'div',
+    null,
+    root,
+    'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;'
+  );
+
+  [
+    ['↻ Actualizar', renderTeamOverview],
+    ['📆 Calendario', () => jump('semana')],
+    ['🏗️ Obras', () => jump('obras')],
+    ['📍 Sectores', () => jump('pueblos')]
+  ].forEach(([label, action]) => {
+    button(links, label, action);
+  });
+
+  function jump(tab) {
+    closeModal('teamOverviewModal');
+    openManagementAudit(tab);
+  }
+
+  if (teamOverviewTab === 'towns') {
+    const towns = teamOverviewTowns(
+      data.range,
+      teamOverviewPhase
+    );
+
+    node(
+      'p',
+      `${towns.length} pueblos con registros en el periodo · ` +
+      `${towns.filter(t => t.completed).length} ` +
+      'marcados finalizados actualmente.',
+      root,
+      'font-size:12px;color:#cbd5e1;line-height:1.5;margin:8px 0;'
+    );
+
+    towns.forEach(t => {
+      const card = node(
+        'div',
+        null,
+        root,
+        'padding:12px;border:1px solid #475569;' +
+        'border-radius:12px;background:#1e293b;margin-bottom:9px;'
+      );
+
+      node(
+        'strong',
+        `${t.completed ? '✅' : '🏘️'} ${t.name}`,
+        card,
+        'font-size:14px;color:#7dd3fc;'
+      );
+
+      node(
+        'p',
+        `${t.count} fichas en la fase seleccionada · ` +
+        `${t.area} m² · Base: ${money(t.area)}\n` +
+        `Tu parte estimada: ${money(t.boss)}`,
+        card,
+        'white-space:pre-line;font-size:12px;color:#e2e8f0;' +
+        'line-height:1.6;margin:7px 0;'
+      );
+
+      node(
+        'p',
+        `${t.visitas} visitas · ${t.si} SÍ · ` +
+        `${t.visitas ? (100 * t.si / t.visitas).toFixed(1) : '0.0'}% SÍ · ` +
+        `${t.yaAislado} ya aisladas\n` +
+        `${t.sectors} sectores asignados en el periodo; ` +
+        `${t.finishedSectors} terminados actualmente.`,
+        card,
+        'white-space:pre-line;font-size:11px;' +
+        'color:#94a3b8;line-height:1.5;'
+      );
+
+      button(
+        card,
+        '📍 Localizar pueblo',
+        () => {
+          closeModal('teamOverviewModal');
+          focusMapOnTownOrZone(t.name, null);
+        }
+      );
+    });
+
+    if (!towns.length) {
+      node(
+        'p',
+        'No hay actividad registrada para estas fechas.',
+        root
+      );
+    }
+
+    node(
+      'p',
+      'El estado de pueblo y sector es el actual; ' +
+      'los importes y visitas corresponden al periodo seleccionado.',
+      root,
+      'font-size:10px;color:#94a3b8;' +
+      'line-height:1.5;margin-top:10px;'
+    );
+
+    return;
+  }
+
+  const grid = node(
+    'div',
+    null,
+    root,
+    'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;'
+  );
+
+  function tile(label, amount, detail, color) {
+    const box = node(
+      'div',
+      null,
+      grid,
+      `padding:12px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;min-width:0;'
+    );
+
+    node(
+      'strong',
+      label,
+      box,
+      'display:block;font-size:11px;color:#cbd5e1;'
+    );
+
+    node(
+      'strong',
+      money(amount),
+      box,
+      `display:block;font-size:21px;color:${color};margin:6px 0;`
+    );
+
+    node(
+      'p',
+      detail,
+      box,
+      'font-size:10px;color:#94a3b8;line-height:1.5;'
+    );
+  }
+
+  tile(
+    '👑 Tu parte total',
+    data.boss,
+    'Tu producción propia + 15% de los comerciales.',
+    '#c4b5fd'
+  );
+
+  tile(
+    '🏃 Tu producción propia',
+    data.own,
+    `${data.own} m² · Tu 100%.`,
+    '#60a5fa'
+  );
+
+  tile(
+    '👥 Tu 15% del equipo',
+    data.commission,
+    `${data.teamArea} m² producidos por los comerciales.`,
+    '#34d399'
+  );
+
+  tile(
+    '📊 Producción base conjunta',
+    data.area,
+    `${data.area} m² · Incluye a todo el equipo y a ti.`,
+    '#fbbf24'
+  );
+
+  node(
+    'p',
+    `Parte estimada de los comerciales (85%): ` +
+    `${money(data.commercialShare)}. Importes a 1 €/m² de base. ` +
+    'Cada fase se consulta por separado; no se suman entre sí. ' +
+    'No son cobros ni liquidaciones.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin:10px 0;'
+  );
+
+  const summary = data.sums;
+
+  node(
+    'p',
+    `${summary.visitas} visitas · ` +
+    `${summary.fichas} fichas creadas · ` +
+    `${summary.citas} citas · ${summary.hechas} obras\n` +
+    `${summary.horas.toFixed(1)} h registradas · ` +
+    `${summary.jornadas} jornadas-persona con fichaje`,
+    root,
+    'white-space:pre-line;font-size:12px;' +
+    'color:#e2e8f0;line-height:1.7;margin:10px 0;'
+  );
+
+  function table(headers) {
+    const wrap = node(
+      'div',
+      null,
+      root,
+      'width:100%;overflow-x:auto;margin-bottom:12px;'
+    );
+
+    const t = node(
+      'table',
+      null,
+      wrap,
+      'width:100%;border-collapse:collapse;font-size:11px;'
+    );
+
+    row(t, headers, true);
+    return t;
+  }
+
+  function row(t, values, header = false) {
+    const tr = node('tr', null, t);
+
+    values.forEach(value => {
+      node(
+        header ? 'th' : 'td',
+        String(value),
+        tr,
+        'padding:9px 5px;text-align:left;' +
+        'border-bottom:1px solid #334155;'
+      );
+    });
+  }
+
+  node(
+    'h3',
+    'Resultado de las visitas',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  const outcomes = table([
+    'Resultado', 'Cantidad', '% visitas'
+  ]);
+
+  [
+    ['SÍ', 'si'],
+    ['NO', 'no'],
+    ['Información', 'papelito'],
+    ['Ausentes', 'ausente'],
+    ['Ya aisladas', 'yaAislado']
+  ].forEach(([label, key]) => {
+    row(outcomes, [
+      label,
+      summary[key],
+      summary.visitas
+        ? (100 * summary[key] / summary.visitas).toFixed(1) + '%'
+        : '—'
+    ]);
+  });
+
+  node(
+    'h3',
+    'Aportación de cada persona',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  const people = table([
+    'Persona', 'Fichas', 'm²', 'Tu parte'
+  ]);
+
+  data.rows.slice()
+    .sort((a, b) => b.area - a.area)
+    .forEach(r => {
+      row(people, [
+        getDisplayAlias(r.name),
+        r.count,
+        r.area,
+        money(r.boss)
+      ]);
+    });
+
+  node(
+    'h3',
+    'Comparación con el periodo anterior',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  node(
+    'p',
+    `${formatDate(prev.range[0])} a ${formatDate(prev.range[1])}`,
+    root,
+    'font-size:11px;color:#94a3b8;margin-bottom:7px;'
+  );
+
+  const comparison = table([
+    'Indicador', 'Actual', 'Anterior', 'Cambio'
+  ]);
+
+  [
+    ['Tu parte', data.boss, prev.boss, true],
+    ['Tu producción', data.own, prev.own, true],
+    ['Tu 15%', data.commission, prev.commission, true],
+    ['Base conjunta', data.area, prev.area, true],
+    ['Visitas', summary.visitas, prev.sums.visitas],
+    ['Fichas', summary.fichas, prev.sums.fichas],
+    ['Obras', summary.hechas, prev.sums.hechas]
+  ].forEach(([label, now, before, euro]) => {
+    const diff = now - before;
+
+    row(comparison, [
+      label,
+      euro ? money(now) : now,
+      euro ? money(before) : before,
+      (diff > 0 ? '+' : '') + (
+        euro ? money(diff) : diff
+      )
+    ]);
+  });
+
+  const issues = [];
+
+  if (summary.sinHoras) {
+    issues.push(
+      `${summary.sinHoras} jornada(s) con horas sin determinar.`
+    );
+  }
+
+  if (summary.sinFecha) {
+    issues.push(
+      `${summary.sinFecha} obra(s) antiguas sin fecha ` +
+      'de ejecución, fuera de los totales por periodo.'
+    );
+  }
+
+  if (issues.length) {
+    node(
+      'p',
+      issues.join('\n'),
+      root,
+      'white-space:pre-line;font-size:11px;color:#fde047;' +
+      'line-height:1.5;margin-top:10px;'
+    );
+  }
+
+  node(
+    'p',
+    'Los periodos usan las mismas fechas y criterios que ' +
+    'Estadísticas y Liga. Las jornadas-persona suman los ' +
+    'días fichados de cada integrante; no son días de ' +
+    'calendario distintos.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:10px;'
   );
 }
 
