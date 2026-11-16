@@ -3767,9 +3767,180 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         });
       });
 
+            const fuEscape = value => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const fuTownKey = value =>
+        String(value || 'Sin municipio')
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+
+      const fuBoss = currentUserRole === 'jefe';
+
+      if (!fuBoss) {
+        window.followUpViewScope = 'mine';
+      }
+
+      const fuScope = window.followUpViewScope || 'mine';
+
+      const fuScoped = pendingCalls.filter(item =>
+        fuScope === 'team' ||
+        item.zone.comercial === currentUserName
+      );
+
+      const fuTowns = new Map();
+
+      fuScoped.forEach(item => {
+        const key = fuTownKey(item.zone.town);
+
+        if (!fuTowns.has(key)) {
+          fuTowns.set(key, {
+            label: String(
+              item.zone.town || 'Sin municipio'
+            ).trim(),
+            count: 0
+          });
+        }
+
+        fuTowns.get(key).count++;
+      });
+
+      if (
+        window.followUpTown &&
+        !fuTowns.has(window.followUpTown)
+      ) {
+        window.followUpTown = '';
+      }
+
+      const fuSelectedTown = window.followUpTown || '';
+
+      const fuVisible = fuScoped.filter(item =>
+        !fuSelectedTown ||
+        fuTownKey(item.zone.town) === fuSelectedTown
+      );
+
+      const fuDue = item => {
+        const next = Number(item.client.nextContactAt);
+
+        if (Number.isFinite(next) && next > 0) {
+          return next;
+        }
+
+        const ref = Number(
+          item.callStatus === 'pendiente'
+            ? (
+                item.client.createdAt ||
+                item.zone.id
+              )
+            : (
+                item.client.statusChangedAt ||
+                item.client.createdAt ||
+                item.zone.id
+              )
+        );
+
+        return Number.isFinite(ref) && ref > 0
+          ? ref + 48 * 3600000
+          : Infinity;
+      };
+
+      fuVisible.sort((a, b) => {
+        const town = fuTownKey(a.zone.town).localeCompare(
+          fuTownKey(b.zone.town),
+          'es'
+        );
+
+        if (town) return town;
+
+        const dueA = fuDue(a);
+        const dueB = fuDue(b);
+
+        return dueA === dueB
+          ? 0
+          : (dueA < dueB ? -1 : 1);
+      });
+
+      pendingCalls.splice(
+        0,
+        pendingCalls.length,
+        ...fuVisible
+      );
+
+      const fuTownCounts = new Map();
+
+      pendingCalls.forEach(item => {
+        const key = fuTownKey(item.zone.town);
+
+        fuTownCounts.set(
+          key,
+          (fuTownCounts.get(key) || 0) + 1
+        );
+      });
+
+      const fuOptions = Array.from(fuTowns.entries())
+        .sort((a, b) =>
+          a[1].label.localeCompare(b[1].label, 'es')
+        )
+        .map(([key, info]) => `
+          <option
+            value="${fuEscape(key)}"
+            ${key === fuSelectedTown ? 'selected' : ''}>
+            ${fuEscape(info.label)} (${info.count})
+          </option>
+        `)
+        .join('');
+
       let html = `
-        <div style="font-size:11px; color:#94a3b8; margin-bottom:10px; line-height:1.35;">
-          Clientes en <strong>"Captación SÍ"</strong> pendientes de cerrar fecha de obra (${pendingCalls.length}). <em>Franja ideal: 15:00 - 15:30 o 09:30 - 10:30.</em>
+        ${fuBoss ? `
+          <div class="input-group">
+            <span class="input-label">👤 Seguimientos de</span>
+            <select class="select-field"
+              onchange="
+                window.followUpViewScope=this.value;
+                window.followUpTown='';
+                renderFollowUpsModal();
+              ">
+              <option value="mine"
+                ${fuScope === 'mine' ? 'selected' : ''}>
+                Mis clientes
+              </option>
+              <option value="team"
+                ${fuScope === 'team' ? 'selected' : ''}>
+                Mi equipo, yo incluido
+              </option>
+            </select>
+          </div>
+        ` : ''}
+
+        <div class="input-group">
+          <span class="input-label">📍 Pueblo</span>
+          <select class="select-field"
+            onchange="
+              window.followUpTown=this.value;
+              renderFollowUpsModal();
+            ">
+            <option value="">
+              Todos los pueblos (${fuScoped.length})
+            </option>
+            ${fuOptions}
+          </select>
+        </div>
+
+        <div style="
+          font-size:11px;
+          color:#94a3b8;
+          margin-bottom:10px;
+          line-height:1.5;">
+          ${pendingCalls.length} ficha(s) en este filtro,
+          agrupadas por pueblo.
+          Dentro de cada pueblo aparecen primero los
+          seguimientos con fecha más próxima o vencida.
         </div>
       `;
 
@@ -3781,9 +3952,27 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
         return;
       }
 
+            let lastFollowUpTown = null;
+
       pendingCalls.forEach(item => {
         const c = item.client;
         const z = item.zone;
+        const townKey = fuTownKey(z.town);
+
+        if (townKey !== lastFollowUpTown) {
+          lastFollowUpTown = townKey;
+
+          html += `
+            <div class="modal-section-title"
+              style="
+                font-size:12px;
+                color:#7dd3fc;
+                margin-top:16px;">
+              📍 ${fuEscape(z.town || 'Sin municipio')}
+              · ${fuTownCounts.get(townKey) || 0} ficha(s)
+            </div>
+          `;
+        }
         const isFilled = isClientValidFilled(c);
         const cleanPhone = (c.phone || '').replace(/\s+/g, '');
         const schedBoxId = `sched_inline_${item.zoneIdx}_${item.clientIdx}`;
