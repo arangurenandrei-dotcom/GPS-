@@ -16427,9 +16427,10 @@ function openCommercialStatsModalLegacy() {
     import { arrayUnion, getDoc, collection } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
     import { 
-      initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-      doc, setDoc, onSnapshot 
-    } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+   doc, setDoc, onSnapshot 
+ } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-functions.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD4QzFsYJ8GF2Xgo3GX7LVuhPhTK-Z-kkw",
@@ -16484,6 +16485,14 @@ function openCommercialStatsModalLegacy() {
     };
 
     const auth = getAuth(app);
+ const functionsEu = getFunctions(app, 'europe-west1');
+ window.db = db;
+ window.auth = auth;
+ window.doc = doc;
+ window.getDoc = getDoc;
+ window.setDoc = setDoc;
+ window.callGuardarFichaTransaccional = httpsCallable(functionsEu, 'guardarFichaTransaccional');
+ window.callAgendarObraEquipo = httpsCallable(functionsEu, 'agendarObraEquipo');
 
     window.authApi = {
       async register(email, pass, name, profile) {
