@@ -2173,18 +2173,19 @@ function openUserProfileModal() {
     }
 
    function saveAndSync(key, data) {
-      const stamped = Array.isArray(data)
-        ? data.map(item => (item && typeof item === 'object' ? { ...item, _updatedAt: item._updatedAt || Date.now() } : item))
-        : data;
-      try {
-        localStorage.setItem(key, JSON.stringify(stamped));
-      } catch (e) {}
-      
-      // Sincronización en paralelo con el almacenamiento puente
-      if (typeof window.pushToFirestore === 'function') {
-        window.pushToFirestore(key, stamped);
-      }
-    }
+   const stamped = Array.isArray(data)
+     ? data.map(item => (item && typeof item === 'object' ? { ...item, _updatedAt: item._updatedAt || Date.now() } : item))
+     : data;
+   try {
+     localStorage.setItem(key, JSON.stringify(stamped));
+   } catch (e) {}
+   if (typeof window.pushToFirestore === 'function') {
+     window.pushToFirestore(key, stamped);
+   }
+   if (key === 'comercial_custom_zones' && window.KonsorBridge && typeof window.KonsorBridge.syncZonesToFichasV2 === 'function') {
+     window.KonsorBridge.syncZonesToFichasV2(stamped);
+   }
+ }
 
     window.applyCloudDataUpdate = function(key, newData) {
       if (key === 'comercial_user_profiles') {
