@@ -10,6 +10,33 @@
   <title>Sistema de Gestión Comercial y Logística de Obras - Navarra</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<script>
+(function () {
+  var team = new URLSearchParams(location.search).get('equipo');
+  document.documentElement.dataset.loginTeam = team === 'mikel' ? 'mikel' : 'andrei';
+  if (team === 'mikel') document.title = 'Equipo Mikel · Control Comercial Navarra';
+})();
+</script>
+<style id="teamPortalStyle">
+#legacyLoginControls { display:none !important; }
+.portal-mikel { display:none; }
+html[data-login-team="mikel"] .portal-andrei { display:none !important; }
+html[data-login-team="mikel"] .portal-mikel { display:block; }
+html[data-login-team="mikel"] #loginScreen { background:#111827; }
+html[data-login-team="mikel"] #loginScreen .login-card {
+  background:#1f2937;border-color:#475569;border-radius:14px;
+  box-shadow:0 12px 30px rgba(0,0,0,.3);backdrop-filter:none;
+}
+html[data-login-team="mikel"] #loginScreen .btn-login { background:#475569; }
+html[data-login-team="mikel"] #loginTeamBadge {
+  background:#334155 !important;border-color:#64748b !important;
+  color:#e2e8f0 !important;border-radius:6px !important;
+}
+#loginScreen .portal-link {color:#94a3b8;font-size:11px;line-height:1.5;text-decoration:underline;}
+#loginScreen .portal-author {color:#94a3b8;font-size:10px;line-height:1.5;text-align:center;margin-top:8px;}
+#loginScreen .portal-foot {border-top:1px solid #334155;padding-top:12px;text-align:center;}
+</style>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   
   <style>
@@ -861,14 +888,15 @@
     <div class="login-card" style="max-width:385px; gap:14px; max-height:calc(100dvh - 40px); overflow-y:auto;">
       <div style="text-align:center;">
         <div id="loginTeamBadge" style="display:inline-block; background:rgba(124,58,237,0.25); border:1px solid #a78bfa; color:#ddd6fe; font-size:9.5px; font-weight:900; padding:3px 10px; border-radius:99px; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px;">
-          👑 Plataforma Oficial • Equipo Andrei
+          <span class="portal-andrei">👑 Plataforma Oficial · Equipo Andrei</span>
+          <span class="portal-mikel">Equipo Mikel · Acceso comercial</span>
         </div>
-        <div class="login-title" style="line-height:1.2; margin-bottom:6px; font-size:21px;">Control Comercial Navarra</div>
-        <div class="login-subtitle" style="line-height:1.35; margin-top:2px; margin-bottom:4px;">Gestión de Zonas, Catastro IDENA y Obras CAE</div>
+        <div class="login-title" style="line-height:1.2; margin-bottom:6px; font-size:21px;"><span class="portal-andrei">Control Comercial Navarra</span><span class="portal-mikel">Portal del equipo Mikel</span></div>
+        <div class="login-subtitle" style="line-height:1.35; margin-top:2px; margin-bottom:4px;"><span class="portal-andrei">Gestión de Zonas, Catastro IDENA y Obras CAE</span><span class="portal-mikel">Zonas, fichas y registro de jornada</span></div>
       </div>
 
       <!-- BANNER DE BIENVENIDA Y MENTALIDAD (EXCLUSIVO EQUIPO ANDREI) -->
-      <div id="andreiWelcomeBanner" style="background:linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(37,99,235,0.18) 100%); border:1px solid rgba(167,139,250,0.45); border-radius:14px; padding:11px 12px; text-align:left;">
+      <div id="andreiWelcomeBanner" class="portal-andrei" style="background:linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(37,99,235,0.18) 100%); border:1px solid rgba(167,139,250,0.45); border-radius:14px; padding:11px 12px; text-align:left;">
         <div style="font-size:11.5px; font-weight:900; color:#fde047; margin-bottom:4px;">
           🔥 ¡Bienvenido al Equipo de Andrei, compañero!
         </div>
@@ -881,6 +909,7 @@
         Contraseña incorrecta
       </div>
 
+      <div id="legacyLoginControls" hidden aria-hidden="true">
       <div class="form-group">
         <label class="form-label" id="loginProfileLabel">Selecciona tu Perfil (Equipo Andrei)</label>
         <select id="userSelect" class="form-select">
@@ -902,6 +931,8 @@
         🚀 Entrar al Equipo Andrei
       </button>
 
+      </div>
+
       <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:10px; display:flex; flex-direction:column; gap:7px;">
         <div style="font-size:10.5px; font-weight:900; color:#93c5fd; text-transform:uppercase; text-align:center;">📧 Acceso con correo y contraseña</div>
         <input type="text" id="authName" class="form-input" placeholder="Tu nombre y apellido" style="display:none;">
@@ -915,12 +946,13 @@
         <button type="button" onclick="authDoReset()" style="background:transparent; border:none; color:#64748b; font-size:10.5px; font-weight:700; cursor:pointer; text-decoration:underline;">¿Has olvidado la contraseña?</button>
       </div>
 
-      <!-- SEPARADOR Y ACCESO SECUNDARIO RELEGADO ABAJO PARA OTROS EQUIPOS -->
-      <div style="border-top:1px solid rgba(255,255,255,0.1); margin-top:6px; padding-top:10px; text-align:center;">
-        <button type="button" id="btnToggleExternalTeamLogin" onclick="toggleExternalTeamLogin()" style="background:transparent; border:none; color:#64748b; font-size:10.5px; font-weight:700; cursor:pointer; text-decoration:underline;">
-          Acceso otros equipos (Equipo Mikel) ▾
-        </button>
+      <div class="portal-foot">
+        <a class="portal-link portal-andrei" href="./?equipo=mikel">Acceso al equipo de Mikel →</a>
+        <a class="portal-link portal-mikel" href="./?equipo=andrei">← Volver al portal del equipo Andrei</a>
+        <p class="portal-author">Aplicación creada por Andrei Aranguren.</p>
+        <p class="portal-author">Las cuentas nuevas requieren aprobación y asignación de perfil.</p>
       </div>
+      <div hidden><button type="button" id="btnToggleExternalTeamLogin" hidden style="display:none;" onclick="toggleExternalTeamLogin()">Cambiar equipo</button></div>
     </div>
   </div>
 
@@ -2581,6 +2613,11 @@ function openUserProfileModal() {
       }
       if (prof.estado === 'bloqueado') {
         authSetMsg('⛔ Tu acceso está desactivado. Habla con Andrei.', 'err');
+        try { await window.authApi.logout(); } catch (e) {}
+        return;
+      }
+      if (prof.estado !== 'aprobado') {
+        authSetMsg('⚠️ Tu cuenta necesita aprobación antes de entrar.', 'warn');
         try { await window.authApi.logout(); } catch (e) {}
         return;
       }
@@ -16370,35 +16407,11 @@ function openCommercialStatsModalLegacy() {
     }
 
     window.onload = () => {
-      ['userSelect', 'passInput'].forEach(id => {
-        const el = document.getElementById(id);
-        const g = el && el.closest('.form-group');
-        if (g) g.style.display = 'none';
-      });
-      const oldLoginBtn = document.getElementById('btnMainLoginSubmit');
-      if (oldLoginBtn) oldLoginBtn.style.display = 'none';
-      const oldExtBtn = document.getElementById('btnToggleExternalTeamLogin');
-      if (oldExtBtn && oldExtBtn.parentElement) oldExtBtn.parentElement.style.display = 'none';
       applyAppVisualSettings();
       refreshLoginDropdownAliases();
-      const savedRole = sessionStorage.getItem('auth_role');
-      const savedName = sessionStorage.getItem('auth_name');
-      if (savedRole && savedName) {
-        currentUserRole = savedRole;
-        currentUserName = savedName;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'block';
-        setupRoleInterface();
-        updateShiftUI();
-        initMap();
-
-        if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
-          showCommercialBriefing();
-        } else if (currentUserName === 'Andrei (Jefe)') {
-          showBossDailySummaryAndObras();
-        }
-      }
+      // El acceso lo inicia authFinishLogin tras validar la cuenta de Firebase.
     };
+
   </script>
 
   <!-- CONEXIÓN EN TIEMPO REAL CON FIRESTORE -->
