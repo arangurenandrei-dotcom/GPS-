@@ -1,51 +1,35 @@
 /**
- * Konsor Navarra · Puente v2 Conectado a operaciones-v2.js y firestore.rules
+ * Konsor Navarra · Puente v2 mediante Cloud Function Transaccional
  */
 (function(window) {
   'use strict';
 
-  function resolveOwnerAndTeam(comercialName) {
+  const syncedTimestamps = new Map();
+
+  function resolveOwnerKey(comercialName) {
     const authKey = sessionStorage.getItem('auth_user_key') || '';
     const nameStr = String(comercialName || '').trim();
-
-    // Si es del equipo Mikel
-    if (nameStr.startsWith('Mikel') || authKey === 'jefe_mikel' || authKey.startsWith('mikel_')) {
-      const mikelMap = {
-        'Mikel (Jefe)': 'jefe_mikel',
-        'Mikel Com. 1': 'mikel_com1',
-        'Mikel Com. 2': 'mikel_com2',
-        'Mikel Com. 3': 'mikel_com3',
-        'Mikel Com. 4': 'mikel_com4',
-        'Mikel Com. 5': 'mikel_com5'
-      };
-      return {
-        teamId: 'mikel',
-        ownerKey: mikelMap[nameStr] || (authKey.startsWith('mikel_') || authKey === 'jefe_mikel' ? authKey : 'jefe_mikel')
-      };
-    }
-
-    // Equipo Andrei
-    const andreiMap = {
+    const map = {
       'Andrei (Jefe)': 'jefe',
       'Andrei': 'jefe',
       'Comercial 1': 'comercial1',
       'Comercial 2': 'comercial2',
       'Comercial 3': 'comercial3',
       'Comercial 4': 'comercial4',
-      'Comercial 5': 'comercial5'
+      'Comercial 5': 'comercial5',
+      'Mikel (Jefe)': 'jefe_mikel',
+      'Mikel Com. 1': 'mikel_com1',
+      'Mikel Com. 2': 'mikel_com2',
+      'Mikel Com. 3': 'mikel_com3',
+      'Mikel Com. 4': 'mikel_com4',
+      'Mikel Com. 5': 'mikel_com5'
     };
-    return {
-      teamId: 'andrei',
-      ownerKey: andreiMap[nameStr] || authKey || 'jefe'
-    };
+    return map[nameStr] || authKey || 'jefe';
   }
 
   async function syncZonesToFichasV2(zonesArray) {
     if (!Array.isArray(zonesArray)) return;
-    if (!window.db || !window.doc || !window.getDoc || !window.setDoc) return;
-
-    const uid = window.auth?.currentUser?.uid || '';
-    if (!uid) return;
+    if (typeof window.callSincronizarFichaV2 !== 'function') return;
 
     let creadas = 0;
     let actualizadas = 0;
@@ -53,7 +37,7 @@
     for (const zona of zonesArray) {
       if (!zona || !Array.isArray(zona.clients)) continue;
       const zonaId = String(zona.id || '');
-      const { teamId, ownerKey } = resolveOwnerAndTeam(zona.comercial);
+      const ownerKey = resolveOwnerKey(zona.comercial);
 
       for (let idx = 0; idx < zona.clients.length; idx++) {
         const cliente = zona.clients[idx];
@@ -67,46 +51,25 @@
         }
 
         const fichaId = cliente.clientUid;
-        const fichaRef = window.doc(window.db, 'fichas', fichaId);
+        const stamp = cliente._updatedAt || zona._updatedAt || Date.now();
+
+        // Evitar reenviar fichas que no han cambiado desde el último envío
+        if (syncedTimestamps.get(fichaId) === stamp) continue;
 
         try {
-          const snap = await window.getDoc(fichaRef);
+          const res = await window.callSincronizarFichaV2({
+            fichaId,
+            zonaId,
+            ownerKey,
+            datos: cliente,
+            clientUpdatedAt: stamp
+          });
 
-          if (!snap.exists()) {
-            const { atticPhoto, ...datosSinFoto } = cliente;
-            await window.setDoc(fichaRef, {
-              fichaId,
-              zonaId,
-              teamId,
-              ownerKey,
-              ownerUid: uid,
-              rev: 1,
-              createdAt: cliente.createdAt || Date.now(),
-              updatedAt: Date.now(),
-              datos: {
-                ...datosSinFoto,
-                _updatedAt: Date.now()
-              }
-            });
-            creadas++;
-          } else {
-            const serverDoc = snap.data();
-            const serverUpdated = serverDoc.datos?._updatedAt || serverDoc.updatedAt || 0;
-            const localUpdated = cliente._updatedAt || 0;
-
-            if (localUpdated > serverUpdated && typeof window.callGuardarFichaTransaccional === 'function') {
-              const { atticPhoto, ...cambiosSinFoto } = cliente;
-              await window.callGuardarFichaTransaccional({
-                fichaId,
-                expectedRev: serverDoc.rev || 1,
-                cambiosDatos: cambiosSinFoto
-              });
-              actualizadas++;
-            }
-          }
+          syncedTimestamps.set(fichaId, stamp);
+          if (res?.data?.action === 'created') creadas++;
+          if (res?.data?.action === 'updated') actualizadas++;
         } catch (err) {
-          alert(`❌ Error Firestore v2 en ${fichaId}: ${err.message}`);
-          return;
+          console.warn(`Aviso sync v2 (${fichaId}):`, err.message);
         }
       }
     }
@@ -115,14 +78,11 @@
       if (typeof window.showCelebrationToast === 'function') {
         window.showCelebrationToast(`☁️ v2 OK: ${creadas} nuevas, ${actualizadas} editadas`);
       } else {
-        alert(`✅ v2 OK: ${creadas} fichas creadas, ${actualizadas} actualizadas`);
+        alert(`✅ v2 OK: ${creadas} nuevas, ${actualizadas} editadas`);
       }
     }
   }
 
-  window.KonsorBridge = {
-    syncZonesToFichasV2,
-    resolveOwnerAndTeam
-  };
+  window.KonsorBridge = { syncZonesToFichasV2 };
 
 })(window);
