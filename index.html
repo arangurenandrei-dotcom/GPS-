@@ -1189,7 +1189,7 @@
 .modal-overlay [style*="background:#dc2626"]{background:#7c3543!important;border-color:#bd7280!important}
 .modal-overlay [style*="background:#f59e0b"],.modal-overlay [style*="background:#eab308"]{background:#765b31!important;border-color:#bfa16d!important}
 @media(max-width:600px){#universalClientBody .uc-actions{gap:4px!important}#universalClientBody .uc-actions a,#universalClientBody .uc-actions button{font-size:10px!important}#ks8Overlay .ks8-panel{max-height:93dvh!important}#universalClientPanel{height:93dvh!important}#universalClientBody .uc-fields{gap:7px!important}}
-</style></head>
+</style><style id="ks12-polish">:root{--konsor-navy:#102237;--konsor-card:#1b344d;--konsor-line:#3a5772;--konsor-blue:#3b9bc5}#ks8Overlay .ks8-action,#ks8Overlay .ks8-card,#ks8Overlay .ks8-detail,#ks8Overlay .ks8-hero{background:#1b344d!important;border-color:#3a5772!important;color:#eff8ff!important}#ks8Overlay .ks8-action.primary,#ks8Overlay .ks8-main{background:#185e80!important;border-color:#4ba3ca!important;color:#fff!important}#ks8Overlay .ks8-tabs button.selected{background:#226b90!important;color:#fff!important}#ks8Overlay .ks8-card small,#ks8Overlay .ks8-action small{color:#b5cce0!important}.modal-overlay button:not(.close-btn):not(.btn-close){border-radius:10px}#ks8Overlay .ks8-head{background:#102237!important}#ks8Overlay .ks8-body{background:#102237!important}</style></head>
 <body>
 
   <!-- LOGIN -->
@@ -10180,5 +10180,66 @@ const ks11OldOpenOrganizer=ks8OpenOrganizer;ks8OpenOrganizer=ks11Organizer;
 // Escape key returns one level rather than abruptly closing every screen.
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('ks8Overlay')?.classList.contains('open')){e.stopImmediatePropagation();ks11Back();}},true);
 </script>
-</body>
+<script id="ks12-final-navigation">
+(function(){
+ const safe=(s)=>typeof ks8Escape==='function'?ks8Escape(s):String(s??'');
+ const tile=(i,n,d,a,primary=false)=>ks8Tile(i,n,d,a,primary);
+ window.ks8HubRender=function(){
+  const root=document.getElementById('ks8Menu');if(!root)return;
+  const chief=ks9IsChief(),mikel=ks9IsMikel(),boss=chief&&(mikel||ksIsBossView());
+  const tabs=boss?[['today','Resumen'],['team','Equipo'],['tools','Opciones']]:[['today','Hoy'],['clients','Clientes'],['tools','Opciones']];
+  if(!tabs.some(t=>t[0]===ks8Tab))ks8Tab='today';
+  let cards='';
+  if(boss){
+   if(ks8Tab==='today')cards=tile('📊','Centro de mando','Producción y agenda',"ksGo('openAuditModal')",true)+tile('📅','Obras','Citas, responsables y estados','k10OpenWorks()')+tile('🔔','Alertas','Recordatorios del equipo','ks8OpenReminders()')+tile('🚐','Enviar a obra','Asignar comercial','ks9Dispatch()');
+   else if(ks8Tab==='team')cards=tile('⬡','Crear y asignar zonas','Solo jefes','ks9Draw()',true)+tile('👥','Actividad','Rendimiento del equipo',"ksGo('openLeagueRankingModal')")+tile('📞','Seguimientos','Contactos del equipo',"ksGo('openFollowUpsModal')")+(!mikel?tile('🧭','Comparar equipos','Andrei y Mikel',"ksGo('openMikelRadarModal')"):'');
+   else cards=tile('🗺️','Mapa y Catastro','Consultar parcelas','ks9OpenMapTools()',true)+tile('⚙️','Ajustes','Notificaciones, cuenta y ayuda','ks8Settings()');
+  }else{
+   if(ks8Tab==='today')cards=tile('🧭','Organizar jornada','Prioridades y cercanía','ks11Organizer()',true)+tile('📅','Organizar citas','Cuatro franjas','ks11Planner()')+tile('🔔','Recordatorios','Avisos personales','ks8OpenReminders()')+tile('📝','Volcar resultados','Trabajo realizado',"ksGo('openSelectZoneToDumpModal')");
+   else if(ks8Tab==='clients')cards=tile('👤','Mis clientes','Fichas compactas','ks8OpenClients()',true)+tile('📞','Llamadas','Contactos pendientes',"ksGo('openFollowUpsModal')")+tile('📅','Obras y citas','Mis citas programadas','k10OpenWorks()');
+   else cards=tile('🏘️','Mapa y Catastro','Parcelas y mediciones','ks9OpenMapTools()',true)+tile('📈','Mi rendimiento','Mis resultados',"ksGo('openCommercialStatsModal')")+tile('⚙️','Ajustes','Notificaciones, cuenta y ayuda','ks8Settings()');
+  }
+  const title=boss?`${mikel?'Equipo Mikel':'Equipo Andrei'} · Jefe`:'Mi espacio comercial';
+  root.innerHTML=`<div class="ks8-tabs">${tabs.map(([k,v])=>`<button class="${ks8Tab===k?'selected':''}" onclick="ks8Tab='${k}';ks8HubRender()">${v}</button>`).join('')}</div><div class="ks8-hero"><strong>${title}</strong><small>${boss?'Dirección, asignaciones y control':'Clientes, captación y jornada'}</small></div><div class="ks8-actions">${cards}</div>`;
+ };
+ // Correct role-filtering for every new list; Andrei in commercial mode sees only his own sectors.
+ window.ks8Data=function(){const rows=[];if(typeof savedZones==='undefined'||!Array.isArray(savedZones))return rows;
+  const boss=ks9IsChief()&&(ks9IsMikel()||ksIsBossView());
+  savedZones.forEach((z,zi)=>{if(!!isMikelTeamMember(z.comercial)!==!!ks9IsMikel())return;if(!boss&&z.comercial!==currentUserName)return;(z.clients||[]).forEach((c,ci)=>{if(c)rows.push({z,c,zi,ci});});});return rows;
+ };
+ // Planning is scoped to team and uses original appointments; never silently double-book.
+ window.ks11CalculateSlots=function(){
+  const town=(document.getElementById('ks11PlannerTown')?.value||'').trim(),date=document.getElementById('ks11PlannerDate')?.value,box=document.getElementById('ks11Slots');if(!box)return;
+  if(!town||!/^\d{4}-\d{2}-\d{2}$/.test(date)){box.textContent='Indica localidad y fecha.';return;}
+  const slots=['09:00','11:00','15:00','17:00'],zones=typeof savedZones!=='undefined'?savedZones:[],works=[];
+  zones.forEach(z=>{if(!!isMikelTeamMember(z.comercial)!==!!ks9IsMikel())return;(z.clients||[]).forEach(c=>{if(c?.obraDate&&c.obraStatus!=='cancelada'&&c.obraStatus!=='realizada')works.push({c,z});});});
+  const result=[],today=new Date();today.setHours(0,0,0,0);
+  for(let day=0;day<28;day++){const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+day);if(d<today||d.getDay()===0||d.getDay()===6)continue;
+   const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,existing=works.filter(x=>x.c.obraDate===iso);
+   if(existing.length>=4)continue;
+   const occupied=new Set(existing.map(x=>String(x.c.obraTime||'').slice(0,5)));
+   // Unknown-time appointments consume capacity but do not imply an available named slot.
+   const same=existing.filter(x=>String(x.z.town||'').toLowerCase()===town.toLowerCase());
+   for(let i=0;i<4;i++){if(occupied.has(slots[i]))continue;const adjacency=same.some(x=>Math.abs(slots.indexOf(String(x.c.obraTime||'').slice(0,5))-i)===1);
+    const used=existing.map(x=>slots.indexOf(String(x.c.obraTime||'').slice(0,5))).filter(n=>n>=0),seq=[...used,i].sort((a,b)=>a-b),gaps=seq.reduce((v,n,j)=>v+(j?Math.max(0,n-seq[j-1]-1):0),0);
+    result.push({iso,slot:slots[i],score:day*3+gaps*22-same.length*12-(adjacency?24:0),same:same.length,gaps});
+   }
+  }
+  result.sort((a,b)=>a.score-b.score);
+  box.innerHTML=`<div class="k11-section">Propuestas (sin reservar)</div>`+(result.slice(0,8).map((x,i)=>`<button class="k11-card" onclick="ks8Close();openAuditModal()"><strong>${i+1}. ${x.iso} · ${x.slot} ›</strong><small>${x.same} obras en ${safe(town)} · ${x.gaps} huecos entre franjas</small><span class="k11-tag">Confirmar manualmente en agenda</span></button>`).join('')||'<p class="k11-note">Sin propuestas para el periodo indicado.</p>');
+ };
+ // Keep navigation on the mobile overlay. The close button returns to the hub rather than exiting the workflow.
+ window.ks11Exit=function(){ks11History.length=0;ks8Close();ksOpenHub();};
+ // Clear reminder permission status; avoid reporting push delivery merely from browser permission.
+ window.ks8EnableNotifications=async function(){
+  if(!window.isSecureContext){alert('Las notificaciones requieren HTTPS.');return;}
+  if(typeof window.enablePushForUser!=='function'){alert('La conexión con Firebase aún está cargando.');return;}
+  const key=sessionStorage.getItem('auth_user_key');if(!key){alert('Inicia sesión primero.');return;}
+  const result=await window.enablePushForUser(key,currentUserName);
+  if(result.ok)alert('Dispositivo registrado para recibir avisos. Los envíos programados requieren desplegar el servicio incluido en el paquete.');
+  else alert('No se pudo registrar el dispositivo: '+(result.msg||result.reason));
+  ks8Settings();
+ };
+})();
+</script></body>
 </html>
