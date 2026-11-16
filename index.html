@@ -2405,66 +2405,382 @@
       }
     }
 
-    function setupRoleInterface() {
-      const roleBadge = document.getElementById('displayRoleBadge');
-      const nameLbl = document.getElementById('displayUserName');
-      const btnBossAssign = document.getElementById('btnBossAssignMode');
-      const btnBossAudit = document.getElementById('btnBossAudit');
-      const btnCommercialPlan = document.getElementById('btnCommercialPlan');
-      const btnLeagueRanking = document.getElementById('btnLeagueRanking');
-      const btnMikelRadarHud = document.getElementById('btnMikelRadarHud');
-      const btnMarkNoApto = document.getElementById('btnMarkNoAptoZone');
-      const mapToolsRow = document.getElementById('mapToolsRow');
-      const hudNavGrid = document.getElementById('hudNavGrid');
+    /* ORGANIZACIÓN DE TRABAJO Y DIRECCIÓN */
 
-      const isMikelBlock = isMikelTeamMember(currentUserName);
+function setupRoleInterface() {
+  const isMikel = isMikelTeamMember(currentUserName);
+  const isBoss = currentUserRole === 'jefe';
+  const isAndrei = currentUserName === 'Andrei (Jefe)';
+  const authKey = sessionStorage.getItem('auth_user_key');
 
-      const authKey = sessionStorage.getItem('auth_user_key');
-      nameLbl.innerText = isMikelBlock
-        ? (currentUserName === 'Mikel (Jefe)' ? 'Mikel' : currentUserName)
-        : getDisplayAlias(authKey || currentUserName);
-      const btnProf = document.getElementById('btnUserProfileConfig');
-      if (btnProf) btnProf.style.display = isMikelBlock ? 'none' : 'flex';
+  const roleBadge = document.getElementById('displayRoleBadge');
+  roleBadge.className = 'role-badge ' + (isBoss ? 'jefe' : 'comercial');
+  roleBadge.textContent = isBoss ? '👑 JEFE' : '🏃 COMERCIAL';
 
-      // Para Mikel y su equipo: Catastro de serie (sin botones extra abajo ni botón No Apta)
-      if (mapToolsRow) mapToolsRow.style.display = isMikelBlock ? 'none' : 'grid';
-      if (btnMarkNoApto) btnMarkNoApto.style.display = isMikelBlock ? 'none' : 'flex';
+  document.getElementById('displayUserName').textContent = isMikel
+    ? (isBoss ? 'Mikel' : currentUserName)
+    : getDisplayAlias(authKey || currentUserName);
 
-      if (currentUserRole === 'jefe') {
-        roleBadge.className = 'role-badge jefe';
-        roleBadge.innerText = '👑 JEFE';
-        btnBossAssign.style.display = 'flex';
-        btnBossAudit.style.display = 'flex';
-        if (btnCommercialPlan) btnCommercialPlan.style.display = isMikelBlock ? 'none' : 'flex';
-        if (btnMikelRadarHud) btnMikelRadarHud.style.display = isMikelBlock ? 'none' : 'flex';
-        if (btnLeagueRanking) {
-          btnLeagueRanking.style.display = isMikelBlock ? 'none' : 'flex';
-          btnLeagueRanking.innerHTML = '🏆 Liga';
-        }
-        hudNavGrid.className = 'hud-nav-grid cols-3';
+  document.getElementById('btnUserProfileConfig').style.display =
+    isMikel ? 'none' : 'flex';
 
-        // Ocultar todas las pestañas avanzadas a Mikel (solo ve Resumen Básico)
-        ['tabBtnComerciales', 'tabBtnSemana', 'tabBtnObras', 'tabBtnPueblos'].forEach(tabId => {
-          const el = document.getElementById(tabId);
-          if (el) el.style.display = isMikelBlock ? 'none' : 'block';
-        });
-        const tabKpis = document.getElementById('tabBtnKpis');
-        if (tabKpis) tabKpis.innerText = isMikelBlock ? '📊 Resumen Equipo' : '💰 Beneficio';
-      } else {
-        roleBadge.className = 'role-badge comercial';
-        roleBadge.innerText = '🏃 COMERCIAL';
-        btnBossAssign.style.display = 'none';
-        btnBossAudit.style.display = 'none';
-        if (btnCommercialPlan) btnCommercialPlan.style.display = isMikelBlock ? 'none' : 'flex';
-        if (btnMikelRadarHud) btnMikelRadarHud.style.display = 'none';
-        if (btnLeagueRanking) {
-          btnLeagueRanking.style.display = isMikelBlock ? 'none' : 'flex';
-          btnLeagueRanking.innerHTML = '🏆 Ranking';
-        }
-        hudNavGrid.className = isMikelBlock ? 'hud-nav-grid cols-2' : 'hud-nav-grid cols-4';
-      }
-      updateHudLiveSalaryPill();
+  document.getElementById('btnBossAssignMode').style.display =
+    isBoss ? 'flex' : 'none';
+
+  document.getElementById('btnMarkNoAptoZone').style.display =
+    isMikel ? 'none' : 'flex';
+
+  document.getElementById('mapToolsRow').style.display =
+    isMikel ? 'none' : 'grid';
+
+  [
+    'tabBtnComerciales',
+    'tabBtnSemana',
+    'tabBtnObras',
+    'tabBtnPueblos'
+  ].forEach(id => {
+    document.getElementById(id).style.display =
+      isMikel ? 'none' : 'block';
+  });
+
+  document.getElementById('tabBtnKpis').textContent =
+    isMikel ? '📊 Resumen Equipo' : '💰 Beneficio';
+
+  let switcher = document.getElementById('workAreaSwitcher');
+
+  if (!switcher) {
+    switcher = document.createElement('div');
+    switcher.id = 'workAreaSwitcher';
+    switcher.style.cssText =
+      'display:none;grid-template-columns:1fr 1fr;gap:5px;';
+
+    const nav = document.getElementById('hudNavGrid');
+    nav.parentNode.insertBefore(switcher, nav);
+  }
+
+  switcher.replaceChildren();
+
+  if (isAndrei) {
+    switcher.style.display = 'grid';
+
+    [
+      ['commercial', '🏃 Mi trabajo comercial'],
+      ['management', '👑 Dirección del equipo']
+    ].forEach(([area, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'areaButton_' + area;
+      button.className = 'btn-hud';
+      button.textContent = label;
+      button.style.padding = '9px 4px';
+      button.onclick = () => renderWorkNavigation(area);
+      switcher.appendChild(button);
+    });
+  } else {
+    switcher.style.display = 'none';
+  }
+
+  renderWorkNavigation('commercial');
+  updateHudLiveSalaryPill();
+}
+
+function renderWorkNavigation(area) {
+  const nav = document.getElementById('hudNavGrid');
+  const isMikel = isMikelTeamMember(currentUserName);
+  const isAndrei = currentUserName === 'Andrei (Jefe)';
+
+  if (!isAndrei) area = 'commercial';
+
+  ['commercial', 'management'].forEach(key => {
+    const button = document.getElementById('areaButton_' + key);
+    if (!button) return;
+
+    button.style.background = area === key
+      ? (key === 'management' ? '#7c3aed' : '#2563eb')
+      : 'rgba(255,255,255,0.06)';
+
+    button.style.borderColor = area === key
+      ? '#c4b5fd'
+      : 'rgba(255,255,255,0.15)';
+  });
+
+  nav.replaceChildren();
+  nav.className = 'hud-nav-grid cols-3';
+
+  function add(id, label, action, color) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = id;
+    button.className = 'btn-hud';
+    button.textContent = label;
+    button.style.cssText =
+      'min-height:36px;white-space:normal;line-height:1.25;';
+
+    if (color) button.style.background = color;
+    button.onclick = action;
+    nav.appendChild(button);
+  }
+
+  if (isMikel) {
+    if (currentUserRole === 'jefe') {
+      add('btnBossAudit', '📊 Mi equipo', openAuditModal, '#0f766e');
     }
+
+    add('btnFollowUps', '📞 Llamadas', openFollowUpsModal);
+    add('btnCommercialStats', '📈 Estadísticas', openCommercialStatsModal);
+    add('btnClientManagement', '📂 Fichas', openGlobalClientSearchModal);
+    return;
+  }
+
+  if (area === 'management') {
+    add(
+      'btnTeamManagement',
+      '📊 Gestión del equipo',
+      openTeamManagementMenu,
+      '#6d28d9'
+    );
+
+    add(
+      'btnIndividualManagement',
+      '👥 Comerciales',
+      () => openManagementAudit('comerciales'),
+      '#6d28d9'
+    );
+
+    add(
+      'btnMikelRadarHud',
+      '⚔️ Comparar equipos',
+      openMikelRadarModal,
+      '#0f766e'
+    );
+
+    add(
+      'btnBossPlan',
+      '📋 Plan de jefe',
+      openBossWorkMenu,
+      '#6d28d9'
+    );
+
+    return;
+  }
+
+  add(
+    'btnCommercialPlan',
+    '📋 Trabajo del día',
+    showCommercialBriefing,
+    '#1d4ed8'
+  );
+
+  add(
+    'btnClientManagement',
+    '📂 Gestión',
+    openGlobalClientSearchModal,
+    '#334155'
+  );
+
+  add(
+    'btnCaptureWorkspace',
+    '📝 Fichas y llamadas',
+    openCaptureWorkMenu,
+    '#0e7490'
+  );
+
+  add(
+    'btnCommercialStats',
+    '📈 Estadísticas',
+    openCommercialStatsModal,
+    '#1d4ed8'
+  );
+
+  add(
+    'btnLeagueRanking',
+    '🏆 Liga',
+    openLeagueRankingModal,
+    '#b45309'
+  );
+
+  try {
+    updateMiPlanBadge();
+  } catch (e) {
+    console.error('No se pudo actualizar Mi Plan:', e);
+  }
+}
+
+/* MENÚ REUTILIZABLE */
+
+function openWorkMenu(title, description, actions) {
+  let modal = document.getElementById('workNavigationModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'workNavigationModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span id="workNavigationTitle"></span>
+            <button type="button"
+              onclick="closeModal('workNavigationModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:20px;padding:5px;cursor:pointer;">✕</button>
+          </div>
+        </div>
+        <div class="modal-scrollable-content">
+          <p id="workNavigationDescription"
+            style="font-size:12px;color:#cbd5e1;
+            line-height:1.5;margin-bottom:12px;"></p>
+          <div id="workNavigationActions"
+            style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('workNavigationTitle').textContent = title;
+  document.getElementById('workNavigationDescription').textContent =
+    description;
+
+  const container = document.getElementById('workNavigationActions');
+  container.replaceChildren();
+
+  actions.forEach(([label, explanation, action]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+
+    button.style.cssText =
+      'width:100%;text-align:left;padding:13px;border-radius:12px;' +
+      'border:1px solid rgba(255,255,255,0.18);' +
+      'background:#1e293b;color:#fff;cursor:pointer;';
+
+    const heading = document.createElement('strong');
+    heading.textContent = label;
+    heading.style.cssText = 'display:block;font-size:13px;';
+
+    const detail = document.createElement('span');
+    detail.textContent = explanation;
+    detail.style.cssText =
+      'display:block;font-size:11px;color:#94a3b8;' +
+      'line-height:1.4;margin-top:5px;';
+
+    button.append(heading, detail);
+
+    button.onclick = () => {
+      closeModal('workNavigationModal');
+      action();
+    };
+
+    container.appendChild(button);
+  });
+
+  modal.classList.add('active');
+}
+
+function openCaptureWorkMenu() {
+  openWorkMenu(
+    '📝 Fichas y llamadas',
+    'Registra las captaciones y trabaja el seguimiento hasta cerrar la cita.',
+    [
+      [
+        '📋 Volcar una zona',
+        'Introduce los resultados y las fichas de un sector asignado.',
+        openSelectZoneToDumpModal
+      ],
+      [
+        '🏠 Crear una captación individual',
+        'Sitúa la vivienda en el mapa y registra su ficha y origen.',
+        startSingleHouseDirect
+      ],
+      [
+        '📞 Llamar y conseguir citas',
+        'Revisa clientes pendientes, notas y disponibilidad de obra.',
+        openFollowUpsModal
+      ],
+      [
+        '📂 Consultar fichas',
+        'Busca por nombre, teléfono, calle o pueblo.',
+        openGlobalClientSearchModal
+      ]
+    ]
+  );
+}
+
+function openManagementAudit(tab) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  if (tab === 'comerciales') {
+    document.getElementById('auditDateSelect').value = getTodayISO();
+  }
+
+  switchAuditTab(tab);
+  openAuditModal();
+}
+
+function openTeamManagementMenu() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  openWorkMenu(
+    '📊 Gestión del equipo',
+    'Consulta la producción conjunta, las obras y el territorio.',
+    [
+      [
+        '💰 Producción y balance',
+        'Resultados por mes, aportación personal y comisión del equipo.',
+        () => openManagementAudit('kpis')
+      ],
+      [
+        '📆 Calendario de obras',
+        'Consulta la planificación semanal existente.',
+        () => openManagementAudit('semana')
+      ],
+      [
+        '🏗️ Obras y captaciones por agendar',
+        'Revisa citas, obras realizadas y agrupaciones por pueblo.',
+        () => openManagementAudit('obras')
+      ],
+      [
+        '🏘️ Pueblos y sectores',
+        'Consulta actividad, resultados y pueblos terminados.',
+        () => openManagementAudit('pueblos')
+      ]
+    ]
+  );
+}
+
+function openBossWorkMenu() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  openWorkMenu(
+    '📋 Plan de jefe',
+    'Accesos iniciales a planificación y supervisión. ' +
+    'Ampliaremos aquí las tareas personales del jefe.',
+    [
+      [
+        '📍 Asignar un sector',
+        'Dibuja la zona y elige la persona y la fecha.',
+        startSectorDrawing
+      ],
+      [
+        '👥 Revisar el trabajo de hoy',
+        'Consulta zonas, jornadas y resultados de cada persona.',
+        () => openManagementAudit('comerciales')
+      ],
+      [
+        '🚧 Obras de hoy',
+        'Revisa instalaciones y asigna captación alrededor de las obras.',
+        () => checkAndShowBossTodayObras(false)
+      ],
+      [
+        '👤 Gestionar accesos',
+        'Revisa solicitudes y perfiles de las cuentas.',
+        openAccessAdminModal
+      ]
+    ]
+  );
+}
     function startSingleHouseDirect() {
       cancelDrawing();
       isDrawingMode = true;
