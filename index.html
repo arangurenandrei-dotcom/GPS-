@@ -4619,17 +4619,9 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
     }
 
     function markObraRealizada(zIdx, cIdx) {
-      const z = savedZones[zIdx];
-      if (!z || !z.clients || !z.clients[cIdx]) return;
-      if (!confirm("¿Marcar esta obra como REALIZADA?")) return;
-           z.clients[cIdx].obraStatus = 'realizada';
-      z.clients[cIdx].statusChangedAt = Date.now();
-      logActivity('obra', `✅ Obra realizada: ${z.clients[cIdx].name || 'Cliente'} · ${z.town || ''}`, z.comercial);
-      setTimeout(() => { if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults(); }, 50);
-      z._updatedAt = Date.now();
-      saveAndSync('comercial_custom_zones', savedZones);
-      renderFollowUpsModal();
-    }
+  recordCompletedObra(zIdx, cIdx);
+}
+
 
     function renderCitasView() {
       const container = document.getElementById('followUpsModalBody');
@@ -7840,7 +7832,10 @@ if (!routeValidateAppointment(c, ctx)) return false;
 
     function extractClientFromBox(box, existingCallStatus = 'pendiente', existingMeta = {}) {
       const m = existingMeta || {};
-      const c = extractClientFromBoxBase(box, existingCallStatus, m);
+      const c = {
+  ...m,
+  ...extractClientFromBoxBase(box, existingCallStatus, m)
+};
       c.crmUploaded = !!m.crmUploaded;
       c.crmUploadedAt = m.crmUploadedAt || null;
       c.crmDate = m.crmDate || '';
@@ -7852,7 +7847,18 @@ if (!routeValidateAppointment(c, ctx)) return false;
       c.callLog = m.callLog || [];
       c.callNotes = m.callNotes || '';
       const dniField = box.querySelector('.client-dni');
-      c.dni = dniField ? dniField.value.trim().toUpperCase() : (m.dni || '');
+            c.dni = dniField
+        ? dniField.value.trim().toUpperCase()
+        : (m.dni || '');
+
+      if (
+        c.obraStatus === 'realizada' &&
+        m.obraStatus !== 'realizada'
+      ) {
+        c.obraRealizadaDate = getTodayISO();
+        c.obraRealizadaAt = Date.now();
+      }
+
       return c;
     }
 
@@ -9994,7 +10000,658 @@ const labelStreet = clientObj.street ||
     /* =====================================================================
        MODAL DE ESTADÍSTICAS PERSONALES
        ===================================================================== */
-    function openCommercialStatsModal() {
+    let personalStatsMode = 'month';
+let personalStatsDate = '';
+
+function personalStatsRange(mode, iso, previous = false) {
+  const end = new Date(iso + 'T12:00:00');
+
+  if (previous) {
+    if (mode === 'day') {
+      end.setDate(end.getDate() - 1);
+    } else if (mode === 'week') {
+      end.setDate(end.getDate() - 7);
+    } else {
+      const day = end.getDate();
+      end.setDate(1);
+      end.setMonth(end.getMonth() - 1);
+
+      const last = new Date(
+        end.getFullYear(),
+        end.getMonth() + 1,
+        0
+      ).getDate();
+
+      end.setDate(Math.min(day, last));
+    }
+  }
+
+  const start = new Date(end);
+
+  if (mode === 'week') {
+    start.setDate(
+      start.getDate() - ((start.getDay() + 6) % 7)
+    );
+  }
+
+  if (mode === 'month') start.setDate(1);
+
+  return [
+    getLocalDateISO(start),
+    getLocalDateISO(end)
+  ];
+}
+
+function personalStatsM2(value) {
+  const ranges = {
+    '45-60': 50,
+    '60-80': 70,
+    '80-100': 90,
+    '100-150': 125,
+    '150+': 160
+  };
+
+  if (
+    Object.prototype.hasOwnProperty.call(ranges, value)
+  ) return ranges[value];
+
+  const number = Number(
+    String(value ?? '').replace(',', '.')
+  );
+
+  return Number.isFinite(number) && number > 0
+    ? number
+    : 0;
+}
+
+function personalStatsMetrics(user, from, to) {
+  const inside = date =>
+    Boolean(date && date >= from && date <= to);
+
+  const dateOf = value => {
+    const d = new Date(value);
+
+    return value && Number.isFinite(d.getTime())
+      ? getLocalDateISO(d)
+      : '';
+  };
+
+  const m = {
+    no: 0, ausente: 0, papelito: 0, si: 0,
+    yaAislado: 0, fichas: 0, validas: 0,
+    noAptas: 0, citas: 0, hechas: 0,
+    m2Captado: 0, m2Citas: 0, m2Hechas: 0,
+    sinM2: 0, horas: 0, jornadas: 0,
+    jornadasSinHoras: 0, antiguasSinFecha: 0
+  };
+
+  savedZones.forEach(z => {
+    if (
+      z.comercial !== user ||
+      z.isNoAptoZone
+    ) return;
+
+    if (inside(z.dumpDate || z.date)) {
+      const st = z.stats || {};
+
+      const singleExternal =
+        z.isSingleHouse &&
+        z.clients?.[0]?.origen &&
+        z.clients[0].origen !== 'puerta';
+
+      if (!singleExternal) {
+        [
+          'no', 'ausente', 'papelito', 'si', 'yaAislado'
+        ].forEach(key => {
+          m[key] += Math.max(
+            0,
+            Math.floor(Number(st[key]) || 0)
+          );
+        });
+      }
+    }
+
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      const captureDate =
+        dateOf(c.createdAt) ||
+        z.dumpDate ||
+        z.date;
+
+      const area = personalStatsM2(c.m2);
+
+      if (inside(captureDate)) {
+        m.fichas++;
+
+        if (c.obraStatus === 'no_apto') {
+          m.noAptas++;
+        } else {
+          m.validas++;
+          m.m2Captado += area;
+          if (!area) m.sinM2++;
+        }
+      }
+
+      if (
+        c.obraStatus === 'agendada' &&
+        inside(c.obraDate)
+      ) {
+        m.citas++;
+        m.m2Citas += area;
+      }
+
+      if (c.obraStatus === 'realizada') {
+        const doneDate =
+          c.obraRealizadaDate ||
+          dateOf(c.obraRealizadaAt);
+
+        if (!doneDate) {
+          m.antiguasSinFecha++;
+        } else if (inside(doneDate)) {
+          m.hechas++;
+          m.m2Hechas += area;
+        }
+      }
+    });
+  });
+
+  const days = new Set();
+
+  savedShifts.forEach(s => {
+    if (s.user !== user) return;
+
+    const date = workDayShiftDate(s);
+
+    if (!inside(date) || !s.startTime) return;
+
+    days.add(date);
+
+    const h = workDayHours(s);
+
+    if (h === null) m.jornadasSinHoras++;
+    else m.horas += h;
+  });
+
+  m.jornadas = days.size;
+
+  m.puertas =
+    m.no + m.ausente + m.papelito +
+    m.si + m.yaAislado;
+
+  const rate = user === 'Andrei (Jefe)' ? 1 : 0.85;
+
+  m.potencial = m.m2Captado * rate;
+  m.previsto = m.m2Citas * rate;
+  m.generado = m.m2Hechas * rate;
+
+  return m;
+}
+
+function openCommercialStatsModal() {
+  if (isMikelTeamMember(currentUserName)) {
+    openCommercialStatsModalLegacy();
+    return;
+  }
+
+  personalStatsMode = 'month';
+  personalStatsDate = getTodayISO();
+
+  renderPersonalStats();
+
+  document.getElementById('commercialStatsModal')
+    .classList.add('active');
+}
+
+function renderPersonalStats() {
+  const root = document.getElementById(
+    'commercialStatsContainer'
+  );
+
+  if (!root || !currentUserName) return;
+
+  const period = personalStatsRange(
+    personalStatsMode,
+    personalStatsDate || getTodayISO()
+  );
+
+  const previous = personalStatsRange(
+    personalStatsMode,
+    personalStatsDate || getTodayISO(),
+    true
+  );
+
+  const m = personalStatsMetrics(
+    currentUserName,
+    ...period
+  );
+
+  const p = personalStatsMetrics(
+    currentUserName,
+    ...previous
+  );
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  root.replaceChildren();
+
+  const node = (tag, text, parent = root, css = '') => {
+    const el = document.createElement(tag);
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+    parent.appendChild(el);
+    return el;
+  };
+
+  const tabs = node(
+    'div',
+    null,
+    root,
+    'display:flex;gap:5px;margin-bottom:10px;'
+  );
+
+  [
+    ['day', 'Día'],
+    ['week', 'Semana'],
+    ['month', 'Mes']
+  ].forEach(([mode, label]) => {
+    const b = node(
+      'button',
+      label,
+      tabs,
+      'flex:1;padding:10px;border:1px solid #475569;' +
+      'border-radius:9px;color:#fff;'
+    );
+
+    b.type = 'button';
+    b.style.background = personalStatsMode === mode
+      ? '#2563eb'
+      : '#1e293b';
+
+    b.onclick = () => {
+      personalStatsMode = mode;
+      renderPersonalStats();
+    };
+  });
+
+  const date = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;background:#1e293b;' +
+    'color:#fff;border:1px solid #475569;border-radius:9px;'
+  );
+
+  date.type = 'date';
+  date.max = getTodayISO();
+  date.value = personalStatsDate || getTodayISO();
+
+  date.setAttribute(
+    'aria-label',
+    'Fecha hasta la que consultar las estadísticas'
+  );
+
+  date.onchange = () => {
+    const d = new Date(date.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      date.value > getTodayISO()
+    ) return;
+
+    personalStatsDate = date.value;
+    renderPersonalStats();
+  };
+
+  node(
+    'p',
+    `${getDisplayAlias(currentUserName)} · ` +
+    `${formatDate(period[0])} a ${formatDate(period[1])}`,
+    root,
+    'font-size:12px;color:#cbd5e1;line-height:1.5;margin:9px 0;'
+  );
+
+  node(
+    'p',
+    'Semana y mes se calculan desde su inicio hasta la fecha ' +
+    'elegida. La comparación anterior llega al mismo día ' +
+    'de semana o de mes.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-bottom:10px;'
+  );
+
+  const grid = node(
+    'div',
+    null,
+    root,
+    'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;'
+  );
+
+  function tile(label, value, detail, color) {
+    const box = node(
+      'div',
+      null,
+      grid,
+      `padding:12px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;min-width:0;'
+    );
+
+    node(
+      'div', label, box,
+      'font-size:10px;color:#cbd5e1;font-weight:800;'
+    );
+
+    node(
+      'strong', value, box,
+      `display:block;font-size:20px;color:${color};margin:5px 0;`
+    );
+
+    node(
+      'p', detail, box,
+      'font-size:10px;color:#94a3b8;line-height:1.4;'
+    );
+  }
+
+  tile(
+    '📝 Potencial captado',
+    money(m.potencial),
+    `${m.validas} fichas no descartadas · ` +
+    `${m.m2Captado} m² estimados`,
+    '#60a5fa'
+  );
+
+  tile(
+    '📅 Previsto en citas',
+    money(m.previsto),
+    `${m.citas} citas pendientes de ejecutar en estas fechas`,
+    '#fbbf24'
+  );
+
+  tile(
+    '✅ Generado por obras',
+    money(m.generado),
+    `${m.hechas} obras con fecha de ejecución registrada`,
+    '#34d399'
+  );
+
+  tile(
+    '💳 Cobrado',
+    'Sin registro',
+    'La app todavía no registra pagos ni liquidaciones.',
+    '#94a3b8'
+  );
+
+  node(
+    'p',
+    'Importes estimados con 1 €/m² de base y tu porcentaje ' +
+    'actual. Estas tres fases se solapan: no deben sumarse. ' +
+    'No equivalen a salario neto.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin:9px 0;'
+  );
+
+  node(
+    'h3',
+    'Actividad y resultados',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  const table = node(
+    'table',
+    null,
+    root,
+    'width:100%;font-size:12px;border-collapse:collapse;'
+  );
+
+  function row(parent, values, header = false) {
+    const tr = node('tr', null, parent);
+
+    values.forEach(v => {
+      node(
+        header ? 'th' : 'td',
+        String(v),
+        tr,
+        'padding:9px 5px;text-align:left;' +
+        'border-bottom:1px solid #334155;'
+      );
+    });
+  }
+
+  row(
+    table,
+    ['Resultado de visita', 'Cantidad', '% visitas'],
+    true
+  );
+
+  [
+    ['SÍ', 'si'],
+    ['NO', 'no'],
+    ['Información', 'papelito'],
+    ['Ausentes', 'ausente'],
+    ['Ya aisladas', 'yaAislado']
+  ].forEach(([label, key]) => {
+    row(table, [
+      label,
+      m[key],
+      m.puertas
+        ? (100 * m[key] / m.puertas).toFixed(1) + '%'
+        : '—'
+    ]);
+  });
+
+  row(table, [
+    'Total visitas registradas',
+    m.puertas,
+    m.puertas ? '100%' : '—'
+  ]);
+
+  node(
+    'p',
+    `${m.fichas} fichas creadas · ` +
+    `${m.noAptas} actualmente no aptas · ` +
+    `${m.jornadas} días con fichaje · ` +
+    `${m.horas.toFixed(1)} h registradas`,
+    root,
+    'font-size:12px;line-height:1.6;margin-top:10px;'
+  );
+
+  node(
+    'p',
+    'Ritmo: ' +
+    (
+      m.horas > 0
+        ? (m.puertas / m.horas).toFixed(1) + ' visitas/h'
+        : 'sin horas suficientes'
+    ) +
+    ' · ' +
+    (
+      m.jornadas > 0
+        ? (m.puertas / m.jornadas).toFixed(1) +
+          ' visitas por día con fichaje'
+        : 'sin días con fichaje'
+    ),
+    root,
+    'font-size:11px;color:#94a3b8;line-height:1.5;'
+  );
+
+  node(
+    'h3',
+    'Comparación con el periodo anterior',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  node(
+    'p',
+    `${formatDate(previous[0])} a ${formatDate(previous[1])}`,
+    root,
+    'font-size:11px;color:#94a3b8;margin-bottom:7px;'
+  );
+
+  const compare = node(
+    'table',
+    null,
+    root,
+    'width:100%;font-size:11px;border-collapse:collapse;'
+  );
+
+  row(
+    compare,
+    ['Indicador', 'Actual', 'Anterior', 'Cambio'],
+    true
+  );
+
+  [
+    ['Visitas', 'puertas'],
+    ['Fichas', 'fichas'],
+    ['Citas', 'citas'],
+    ['Obras', 'hechas'],
+    ['Horas', 'horas'],
+    ['Potencial', 'potencial'],
+    ['Generado', 'generado']
+  ].forEach(([label, key]) => {
+    const euro = ['potencial', 'generado'].includes(key);
+
+    const format = n => euro
+      ? money(n)
+      : (key === 'horas' ? n.toFixed(1) : String(n));
+
+    const diff = m[key] - p[key];
+
+    row(compare, [
+      label,
+      format(m[key]),
+      format(p[key]),
+      (diff > 0 ? '+' : '') + format(diff)
+    ]);
+  });
+
+  const issues = [];
+
+  if (m.jornadasSinHoras) {
+    issues.push(
+      `${m.jornadasSinHoras} jornada(s) con horas sin determinar.`
+    );
+  }
+
+  if (m.sinM2) {
+    issues.push(
+      `${m.sinM2} ficha(s) sin superficie válida: ` +
+      'aportan 0 € a la estimación.'
+    );
+  }
+
+  if (m.antiguasSinFecha) {
+    issues.push(
+      `${m.antiguasSinFecha} obra(s) del histórico sin fecha ` +
+      'de ejecución: no se asignan a un periodo.'
+    );
+  }
+
+  if (issues.length) {
+    node(
+      'p',
+      issues.join('\n'),
+      root,
+      'white-space:pre-line;font-size:11px;color:#fde047;' +
+      'line-height:1.6;margin-top:12px;'
+    );
+  }
+
+  node(
+    'p',
+    'Datos según los registros actuales. Las visitas usan ' +
+    'la fecha de volcado; las fichas, su fecha de creación; ' +
+    'las citas, la fecha prevista; las obras, su fecha ' +
+    'de ejecución registrada.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+  );
+}
+
+function recordCompletedObra(zoneIdx, clientIdx) {
+  const z = savedZones[zoneIdx];
+  const c = z?.clients?.[clientIdx];
+
+  if (
+    !c ||
+    (
+      currentUserRole !== 'jefe' &&
+      z.comercial !== currentUserName
+    )
+  ) return;
+
+  const suggested =
+    c.obraRealizadaDate ||
+    (
+      c.obraDate && c.obraDate <= getTodayISO()
+        ? c.obraDate
+        : getTodayISO()
+    );
+
+  const date = prompt(
+    'Fecha real de ejecución (AAAA-MM-DD). ' +
+    'Confirma la fecha para marcar la obra como realizada:',
+    suggested
+  );
+
+  if (date === null) return;
+
+  const d = new Date(date + 'T12:00:00');
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !Number.isFinite(d.getTime()) ||
+    getLocalDateISO(d) !== date ||
+    date > getTodayISO()
+  ) {
+    alert('Introduce una fecha válida, de hoy o anterior.');
+    return;
+  }
+
+  c.obraStatus = 'realizada';
+  c.obraRealizadaDate = date;
+  c.obraRealizadaAt = Date.now();
+  c.statusChangedAt = Date.now();
+  z._updatedAt = Date.now();
+
+  saveAndSync('comercial_custom_zones', savedZones);
+
+  logActivity(
+    'obra',
+    `✅ Obra realizada: ${c.name || 'Cliente'} · ` +
+    `${z.town || ''} · ${formatDate(date)}`,
+    z.comercial
+  );
+
+  if (
+    document.getElementById('followUpsModal')
+      ?.classList.contains('active')
+  ) renderFollowUpsModal();
+
+  if (
+    document.getElementById('globalSearchModal')
+      ?.classList.contains('active')
+  ) renderGlobalClientSearchResults();
+
+  if (
+    document.getElementById('auditModal')
+      ?.classList.contains('active')
+  ) renderCurrentAuditView();
+
+  if (
+    document.getElementById('commercialStatsModal')
+      ?.classList.contains('active')
+  ) renderPersonalStats();
+
+  updateHudLiveSalaryPill();
+}
+
+function openCommercialStatsModalLegacy() {
       const container = document.getElementById('commercialStatsContainer');
       container.innerHTML = '';
 
@@ -10344,15 +11001,9 @@ const labelStreet = clientObj.street ||
     }
 
     function markObraAsRealizada(zoneIdx, clientIdx) {
-      const z = savedZones[zoneIdx];
-      if (!z || !z.clients || !z.clients[clientIdx]) return;
-      if (confirm('¿Confirmas que esta obra ya se ha ejecutado y pasa a "✅ Obra Realizada"?')) {
-        z.clients[clientIdx].obraStatus = 'realizada';
-        logActivity('obra', `✅ Obra realizada: ${z.clients[clientIdx].name || 'Cliente'} · ${z.town || ''}`, z.comercial);
-        saveAndSync('comercial_custom_zones', savedZones);
-        renderObrasOptimizationAudit();
-      }
-    }
+  recordCompletedObra(zoneIdx, clientIdx);
+}
+
 
     function renderCurrentAuditView() {
       if (activeAuditTab === 'kpis') {
