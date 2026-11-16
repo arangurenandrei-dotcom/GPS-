@@ -1277,16 +1277,16 @@
       <!-- Fila 1: Identidad + Capas Catastro Navarra / Satélite / GPS / Salir -->
       <div class="hud-top-row">
         <div class="user-pill">
-          <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
+          <span id="displayRoleBadge" class="role-badge jefe k11-role">👑 JEFE</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
           <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">💰 0 €</span>
         </div>
         <div class="hud-utility-group" style="gap:5px;">
           <button id="konsorOpenHub" onclick="ksOpenHub()" aria-haspopup="dialog" aria-controls="konsorHub">☷ Herramientas</button>
           <button id="btnWorkspaceExit" class="btn-hud" style="display:none;padding:6px 9px;font-size:11px" onclick="showWorkspaceHome()" title="Volver al inicio y elegir espacio">↩ Inicio</button>
-          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="ks8Settings()" title="Ajustes de la App">⚙️</button>
-          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯</button>
-          <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒</button>
+          <button id="btnUserProfileConfig" class="btn-hud k11-utility" onclick="ks8Settings()" title="Ajustes de la App">⚙️</button>
+          <button class="btn-hud gps k11-utility" onclick="centerOnUser()">🎯</button>
+          <button class="btn-hud logout k11-utility" onclick="executeLogout()">🔒</button>
         </div>
       </div>
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
@@ -9997,7 +9997,7 @@ function ksCalculatePlanner(){
  candidates.sort((a,b)=>a.score-b.score||a.date.localeCompare(b.date));
  box.innerHTML=candidates.slice(0,5).map((x,i)=>`<div class="ks-v6-card"><strong>${i+1}. ${x.date} · ${x.time}</strong><small>${ksV6Esc(x.why)}</small><button onclick="ksV6Close();openAuditModal()">Abrir agenda para confirmar</button></div>`).join('')||'<div class="ks-v6-card">No hay huecos disponibles en el periodo.</div>';
 }
-</script><div class="ks8-overlay" id="ks8Overlay" onclick="if(event.target===this)ks8Close()" role="dialog" aria-modal="true" aria-labelledby="ks8Title"><div class="ks8-sheet"><div class="ks8-head"><div><strong id="ks8Title">Panel</strong><small id="ks8Subtitle"></small></div><button onclick="ks8Close()">✕ Cerrar</button></div><div class="ks8-body" id="ks8Body"></div></div></div>
+</script><div class="ks8-overlay" id="ks8Overlay" onclick="if(event.target===this)ks8Close()" role="dialog" aria-modal="true" aria-labelledby="ks8Title"><div class="ks8-sheet"><div class="ks8-head"><div><strong id="ks8Title">Panel</strong><small id="ks8Subtitle"></small></div><button onclick="ks11Back()" aria-label="Volver">← Atrás</button><button onclick="ks11Exit()" aria-label="Cerrar">✕</button></div><div class="ks8-body" id="ks8Body"></div></div></div>
 <script id="ks8Code">
 let ks8Tab='today',ks8Expanded='',ks8Route=[];
 const ks8Escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -10063,8 +10063,9 @@ function ks8HubRender(){
 }
 
 function ks8Tile(icon,title,sub,action,primary=false){return `<button class="ks8-action ${primary?'primary':''}" onclick="${action}"><b>${icon} ${title}</b><small>${sub}</small></button>`;}
-function ks8Open(title,subtitle,html){if(typeof ksCloseHub==='function')ksCloseHub();const d=document.getElementById('ks8Overlay');document.getElementById('ks8Title').textContent=title;document.getElementById('ks8Subtitle').textContent=subtitle;document.getElementById('ks8Body').innerHTML=html;d.classList.add('open');}
+function ks8Open(title,subtitle,html){if(!window.ks11Restoring){ks11History.push(ks11Capture());}if(typeof ksCloseHub==='function')ksCloseHub();const d=document.getElementById('ks8Overlay');document.getElementById('ks8Title').textContent=title;document.getElementById('ks8Subtitle').textContent=subtitle;document.getElementById('ks8Body').innerHTML=html;d.classList.add('open');}
 function ks8Close(){document.getElementById('ks8Overlay').classList.remove('open');}
+function ks11Exit(){ks11History.length=0;ks8Close();}
 function ks8Settings(){
  try{if(typeof ksCloseHub==='function')ksCloseHub();}catch(e){}
  const key=sessionStorage.getItem('auth_user_key')||'';let alias='';try{alias=typeof getDisplayAlias==='function'?getDisplayAlias(key):currentUserName||''}catch(e){alias=currentUserName||''}
@@ -10128,6 +10129,56 @@ if(typeof previousHub==='function')window.ks8HubRender=function(){previousHub.ap
  const tabs=el.querySelector('.ks8-tabs');if(!tabs)return;
  if(!el.querySelector('#k10ObrasShortcut')){const b=document.createElement('button');b.id='k10ObrasShortcut';b.textContent='Obras';b.onclick=()=>k10OpenWorks();tabs.append(b);tabs.style.gridTemplateColumns='repeat(4,minmax(0,1fr))';}
 };
+</script>
+<style id="k11-style">
+:root{--k11-bg:#102237;--k11-card:#1b344d;--k11-line:#3a5772;--k11-accent:#3b9bc5;--k11-muted:#b5cce0}
+.hud-header .hud-utility-group .k11-utility{display:inline-flex!important;align-items:center;justify-content:center;min-width:36px!important;min-height:36px!important;width:36px!important;height:36px!important;padding:0!important;background:#1a3953!important;border:1px solid #49718c!important;border-radius:11px!important;color:#eaf6ff!important;font-size:17px!important;box-shadow:none!important}
+.hud-header .hud-utility-group .k11-utility.gps{background:#174c68!important}.hud-header .hud-utility-group .k11-utility.logout{background:#24364b!important}
+.hud-header .k11-role,.hud-header .role-badge.jefe{background:#164c69!important;border:1px solid #4086a6!important;color:#e6f7ff!important;border-radius:9px!important;font-size:10px!important;padding:5px 7px!important}
+#ks8Overlay .ks8-head{gap:8px!important;align-items:center!important;background:#122940!important}
+#ks8Overlay .ks8-head>div{flex:1;min-width:0}
+#ks8Overlay .ks8-head>button{flex:0 0 auto!important;background:#24445d!important;color:#f1faff!important;border:1px solid #4d7390!important;border-radius:10px!important;padding:9px 10px!important;font-size:12px!important;font-weight:750!important}
+#ks8Overlay .ks8-head>button:last-child{width:37px!important;overflow:hidden;font-size:0!important}
+#ks8Overlay .ks8-head>button:last-child:after{content:'✕';font-size:16px}
+#ks8Overlay .ks8-body{overscroll-behavior:contain}
+#ks8Overlay .ks8-action,#ks8Overlay .ks8-card{border-color:#3b5975!important;background:#1b354e!important}
+#ks8Overlay .ks8-action.primary,#ks8Overlay .ks8-main{background:#176487!important;border-color:#4899bd!important;color:white!important}
+#ks8Overlay .ks8-chip{background:#234c65!important;color:#d2efff!important}
+#ks8Overlay .k11-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 12px}
+#ks8Overlay .k11-summary div{padding:11px 7px;background:#17344c;border:1px solid #3d607a;border-radius:12px;text-align:center}
+#ks8Overlay .k11-summary strong{display:block;font-size:21px;font-weight:850;color:#fff}
+#ks8Overlay .k11-summary small{display:block;font-size:10px;color:#b6cee2;margin-top:4px}
+#ks8Overlay .k11-row{display:flex;gap:8px;align-items:center}
+#ks8Overlay .k11-row>*{flex:1;min-width:0}
+#ks8Overlay .k11-card{width:100%;display:block;text-align:left;padding:12px;margin:7px 0;background:#1b354e;border:1px solid #3b5975;border-radius:13px;color:#f2f8ff}
+#ks8Overlay .k11-card strong{display:block;font-size:13px}
+#ks8Overlay .k11-card small{display:block;font-size:11px;color:#b9d0e3;margin-top:5px;line-height:1.4}
+#ks8Overlay .k11-tag{display:inline-block;background:#1b536d;border:1px solid #397b9b;border-radius:8px;padding:3px 7px;font-size:10px;color:#d8f4ff;margin-top:7px}
+#ks8Overlay .k11-section{font-size:12px;color:#9fc4df;text-transform:uppercase;letter-spacing:.08em;margin:16px 0 9px;font-weight:800}
+#ks8Overlay .k11-note{font-size:12px;color:#b9d1e4;line-height:1.5;margin:8px 0 12px}
+#ks8Overlay .k11-row .ks8-field{width:100%;box-sizing:border-box}
+@media(max-width:600px){.hud-header .hud-utility-group .k11-utility{min-width:34px!important;width:34px!important;height:34px!important;min-height:34px!important}.hud-header .user-name-text{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hud-header .k11-role{font-size:9px!important}#ks8Overlay .ks8-head>button{padding:9px 8px!important}}
+</style>
+<script id="k11-logic">
+const ks11History=[];
+function ks11Capture(){const d=document.getElementById('ks8Overlay');if(d?.classList.contains('open'))return {type:'panel',title:document.getElementById('ks8Title').textContent,subtitle:document.getElementById('ks8Subtitle').textContent,html:document.getElementById('ks8Body').innerHTML};return {type:'hub',tab:typeof ks8Tab!=='undefined'?ks8Tab:'today'};}
+function ks11Back(){const prev=ks11History.pop();if(!prev){ks8Close();ksOpenHub();return;}if(prev.type==='panel'){window.ks11Restoring=true;try{ks8Open(prev.title,prev.subtitle,prev.html)}finally{window.ks11Restoring=false;}}else{ks8Close();ks8Tab=prev.tab;ksOpenHub();}}
+function ks11OpenClient(zi,ci){ks8Close();if(typeof openUniversalClient==='function')openUniversalClient(zi,ci);}
+// One click opens an actionable client summary; the second click reveals full details in-place.
+function ks11Priority(x){const c=x.c||{},now=Date.now();const due=Number(c.nextContactAt)||0;const hrs=Math.max(0,(now-(Number(c.statusChangedAt)||Number(c.createdAt)||now))/3600000);let score=0,reasons=[];if(due&&due<now){score+=100;reasons.push('Aviso vencido')}else if(due&&due<now+86400000){score+=55;reasons.push('Contactar en 24 h')}if(hrs>=48){score+=40;reasons.push('Más de 48 h')}else if(hrs>=24){score+=20;reasons.push('Más de 24 h')}if(c.callStatus==='no_contesta'||c.callStatus==='no_answer'){score+=15;reasons.push('Reintentar llamada')}if(c.obraStatus==='agendada'||c.obraStatus==='realizada'||c.obraStatus==='cancelada'||c.cancelado||c.cancelled)score=-1000;return {score,reasons:reasons.length?reasons:['Seguimiento normal']};}
+function ks11Geo(x){const z=x.z||{},c=x.c||{};const pairs=[c.coords,c.coordinates,c.location,z.center,z.coords,z.coordinates];for(const a of pairs){if(Array.isArray(a)&&a.length>=2){const p=Array.isArray(a[0])?a[0]:a;if(Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1])))return [Number(p[0]),Number(p[1])];}if(a&&typeof a==='object'&&Number.isFinite(Number(a.lat))&&Number.isFinite(Number(a.lng)))return [Number(a.lat),Number(a.lng)];}return null;}
+function ks11Km(a,b){if(!a||!b)return null;const r=Math.PI/180,lat=(b[0]-a[0])*r,lon=(b[1]-a[1])*r,q=Math.sin(lat/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(lon/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(q)));}
+function ks11RankVisits(items){const remaining=[...items].filter(x=>ks11Priority(x).score>=0);const result=[];let last=null;while(remaining.length){let idx=0,best=-Infinity;for(let i=0;i<remaining.length;i++){const x=remaining[i],p=ks11Priority(x),town=String(x.z.town||'').toLowerCase();const same=last&&town===String(last.z.town||'').toLowerCase();const km=last?ks11Km(ks11Geo(last),ks11Geo(x)):null;const proximity=km===null?0:Math.max(-30,22-km*6);const val=p.score+(same?18:0)+proximity;if(val>best){best=val;idx=i;}}last=remaining.splice(idx,1)[0];result.push(last);}return result;}
+function ks11Organizer(){const rows=typeof ks8Data==='function'?ks8Data():[];const visits=ks11RankVisits(rows);window.ks11Visits=visits;const towns=[...new Set(visits.map(x=>String(x.z.town||'Sin localidad')))].sort((a,b)=>a.localeCompare(b,'es'));const html=`<div class="k11-summary"><div><strong>${visits.length}</strong><small>Por gestionar</small></div><div><strong>${visits.filter(x=>ks11Priority(x).score>=100).length}</strong><small>Urgentes</small></div><div><strong>${towns.length}</strong><small>Localidades</small></div></div><div class="k11-row"><button class="ks8-main" onclick="ks11RenderVisits()">Priorizar visitas</button><button class="ks8-main" onclick="ks11Planner()">Organizar 4 franjas</button></div><p class="k11-note">Ordena por avisos vencidos, 24/48 horas, localidad y proximidad aproximada cuando hay coordenadas. No calcula tiempos reales de carretera.</p><select class="ks8-field" id="ks11Town" onchange="ks11RenderVisits()"><option value="">Todas las localidades</option>${towns.map(t=>`<option value="${ks8Escape(t)}">${ks8Escape(t)}</option>`).join('')}</select><div id="ks11VisitsList"></div>`;ks8Open('Organizar trabajo','Prioridad · localidad · proximidad',html);ks11RenderVisits();}
+function ks11RenderVisits(){const town=document.getElementById('ks11Town')?.value||'';const rows=(window.ks11Visits||[]).filter(x=>!town||String(x.z.town||'Sin localidad')===town);const el=document.getElementById('ks11VisitsList');if(!el)return;el.innerHTML=`<div class="k11-section">${rows.length} visitas priorizadas</div>`+rows.slice(0,100).map((x,i)=>{const p=ks11Priority(x);const km=i?ks11Km(ks11Geo(rows[i-1]),ks11Geo(x)):null;return `<button class="k11-card" onclick="ks11OpenClient(${x.zi},${x.ci})"><strong>${i+1}. ${ks8Escape(x.c.name||'Cliente sin nombre')} <span style="float:right">›</span></strong><small>${ks8Escape(x.z.town||'')} · ${ks8Escape(x.c.street||'Sin dirección')}</small><span class="k11-tag">${ks8Escape(p.reasons.join(' · '))}</span>${km!==null?`<span class="k11-tag">≈ ${km.toFixed(1)} km en línea recta</span>`:''}</button>`;}).join('')+(rows.length?'':'<p class="k11-note">No hay visitas pendientes.</p>');}
+function ks11Planner(){const today=new Date(),iso=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');ks8Open('Organizar citas','Cuatro franjas · hasta 4 obras/día',`<p class="k11-note">Propone horarios con prioridad a la misma localidad, continuidad y menos huecos. Nunca confirma sin aceptación del cliente.</p><label class="ks8-label">Localidad</label><input class="ks8-field" id="ks11PlannerTown" placeholder="Localidad del cliente"><label class="ks8-label">A partir del día</label><input class="ks8-field" type="date" id="ks11PlannerDate" value="${iso}"><button class="ks8-main" onclick="ks11CalculateSlots()">Organizar franjas</button><div id="ks11Slots"></div>`);}
+function ks11CalculateSlots(){const town=(document.getElementById('ks11PlannerTown')?.value||'').trim(),date=document.getElementById('ks11PlannerDate')?.value,box=document.getElementById('ks11Slots');if(!town||!date){box.textContent='Indica localidad y fecha.';return;}const slots=['09:00','11:00','15:00','17:00'],data=typeof ksPlannerData==='function'?ksPlannerData():[],result=[];for(let day=0;day<28;day++){const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+day);if(d.getDay()===0||d.getDay()===6)continue;const iso=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'),works=data.filter(x=>x.c.obraDate===iso);if(works.length>=4)continue;const occupied=new Set(works.map(x=>String(x.c.obraTime||'').slice(0,5)));const used=works.map(x=>slots.indexOf(String(x.c.obraTime||'').slice(0,5))).filter(i=>i>=0);const same=works.filter(x=>String(x.z.town||'').toLowerCase()===town.toLowerCase());for(let i=0;i<4;i++){if(occupied.has(slots[i]))continue;const adjacent=same.some(x=>Math.abs(slots.indexOf(String(x.c.obraTime||'').slice(0,5))-i)===1),indices=[...used,i].sort((a,b)=>a-b),gaps=indices.reduce((n,k,j)=>j?n+Math.max(0,k-indices[j-1]-1):n,0);const score=day*3+gaps*22-same.length*12-(adjacent?24:0)+((i===0||i===3)?-3:0);result.push({iso,slot:slots[i],score,why:`${same.length} obras en ${town} · ${gaps} huecos · ${adjacent?'contigua a otra obra':'sin continuidad local'}`});}}result.sort((a,b)=>a.score-b.score);box.innerHTML=`<div class="k11-section">Mejores opciones disponibles</div>`+result.slice(0,8).map((x,i)=>`<button class="k11-card" onclick="ks8Close();openAuditModal()"><strong>${i+1}. ${x.iso} · ${x.slot} <span style="float:right">›</span></strong><small>${ks8Escape(x.why)}</small><span class="k11-tag">Abrir agenda para confirmar</span></button>`).join('')||'<p class="k11-note">No se encontraron huecos.</p>';}
+// Only Andrei's own work uses commercial navigation; Mikel remains in his own management view.
+const ks11HubOriginal=ks8HubRender;
+ks8HubRender=function(){ks11HubOriginal();const chief=ks9IsChief(),boss=chief&&(ks9IsMikel()||ksIsBossView());const el=document.getElementById('ks8Menu');if(!el)return;if(chief&&!boss){ks8Tab='today';el.innerHTML=`<div class="ks8-hero"><strong>Mi trabajo comercial</strong><small>Andrei · captación y clientes propios</small></div><div class="ks8-actions">${ks8Tile('🧭','Organizar clientes','Prioridades y proximidad','ks11Organizer()',true)}${ks8Tile('👤','Mis clientes','Fichas compactas','ks8OpenClients()')}${ks8Tile('📝','Volcar jornada','Resultados del sector',"ksGo('openSelectZoneToDumpModal')")}${ks8Tile('🔔','Mis avisos','Recordatorios','ks8OpenReminders()')}${ks8Tile('🗺️','Mapa','Catastro y mediciones','ks9OpenMapTools()')}${ks8Tile('⚙️','Ajustes','Cuenta y ayuda','ks8Settings()')}</div>`;return;}el.querySelectorAll('.ks8-action').forEach(b=>{if(b.textContent.includes('Organizar visitas')||b.textContent.includes('Organizar obras'))b.setAttribute('onclick','ks11Organizer()');});};
+const ks11OldOpenOrganizer=ks8OpenOrganizer;ks8OpenOrganizer=ks11Organizer;
+// Escape key returns one level rather than abruptly closing every screen.
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('ks8Overlay')?.classList.contains('open')){e.stopImmediatePropagation();ks11Back();}},true);
 </script>
 </body>
 </html>
