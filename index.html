@@ -1082,6 +1082,68 @@
 #ksV6Overlay .ks-v6-header{background:#142b42!important}
 @media(min-width:740px){.modal-overlay:not(#idenaViewerModal){align-items:center!important;padding:16px!important}.modal-overlay:not(#idenaViewerModal)>.modal-card{border-radius:20px!important;max-height:90dvh!important}}
 @media(max-width:600px){.modal-overlay:not(#idenaViewerModal)>.modal-card{width:100%!important;max-width:100%!important;max-height:93dvh!important;border-radius:20px 20px 0 0!important}.modal-overlay:not(#idenaViewerModal) .modal-scrollable-content{padding:12px 13px calc(18px + env(safe-area-inset-bottom))!important}}
+</style><style id="ks8-full-ux">
+:root{--k8:#0d2033;--k8panel:#122a40;--k8card:#1b354e;--k8border:#385872;--k8accent:#43b9e7;--k8muted:#a9c2d8}
+#loginScreen{background:linear-gradient(160deg,#071522,#102d46)!important}
+#loginScreen .login-card{width:min(94vw,410px)!important;background:#12273d!important;border:1px solid #375976!important;border-radius:24px!important;padding:24px 20px!important;box-shadow:0 25px 75px #0009!important;gap:14px!important}
+#loginScreen .login-title{font-size:25px!important;letter-spacing:-.03em!important;color:#f5fbff!important}
+#loginScreen .login-subtitle{color:#b2cbe0!important;font-size:12px!important}
+#loginTeamBadge{background:#193a54!important;border-color:#3c789b!important;color:#b8e9ff!important}
+#andreiWelcomeBanner{display:none!important}
+#loginScreen .btn-login{background:#166c94!important;border:1px solid #4eb4db!important;box-shadow:none!important;border-radius:12px!important;min-height:49px!important}
+#loginScreen .form-input,#loginScreen .form-select{background:#0b2035!important;color:#f2faff!important;border:1px solid #436581!important;border-radius:11px!important;min-height:46px!important}
+#workspaceHome{background:linear-gradient(145deg,#071521,#12304a)!important;backdrop-filter:none!important}
+#workspaceHome .workspace-home-card{width:min(100%,440px)!important;background:#10263b!important;border:1px solid #41627c!important;border-radius:24px!important;padding:24px 20px!important}
+#workspaceHome .workspace-home-choice{display:flex!important;align-items:center!important;min-height:94px!important;background:#1b354e!important;border:1px solid #466681!important;border-radius:15px!important;padding:17px!important;margin:10px 0!important}
+#workspaceHome .workspace-home-choice:active{background:#255474!important}
+#workspaceHome .workspace-home-choice strong{font-size:16px!important;color:#f4f9ff!important}
+#workspaceHome .workspace-home-choice small{font-size:12px!important;color:#b4cee3!important;line-height:1.4!important}
+.hud-header{max-width:520px!important;background:#10263aeF!important;border:1px solid #3d607d!important;border-radius:0 0 16px 16px!important;box-shadow:0 9px 30px #0008!important}
+#konsorOpenHub{background:#176d92!important;border:1px solid #56bee6!important;border-radius:11px!important;min-height:39px!important;font-size:13px!important}
+#btnUserProfileConfig{background:#1b3851!important;border:1px solid #496a86!important;border-radius:11px!important;min-height:39px!important}
+#btnWorkspaceExit{background:#1b3851!important;border:1px solid #496a86!important;border-radius:11px!important}
+#hudLiveSalaryPill{display:none!important}
+#konsorQuickButton{display:none!important}
+#konsorHub .ks-sheet{height:min(82dvh,760px)!important;background:#10263a!important}
+#konsorHub .ks-scroll{padding:12px 14px 20px!important}
+#konsorHub .ks-summary,#konsorHub .ks-quicklinks,#konsorHub .ks-quicksearch,#konsorHub .ks-section{display:none!important}
+#konsorHub #ks8Menu{display:block!important}
+#ks8Menu .ks8-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:13px}
+#ks8Menu .ks8-tabs button{border:1px solid #45627c;background:#1b354e;border-radius:10px;color:#c3d7e8;min-height:42px;font-size:12px;font-weight:800}
+#ks8Menu .ks8-tabs button.selected{background:#16658a;border-color:#59c0e8;color:#fff}
+.ks8-hero{background:#1a364f;border:1px solid #3e617d;border-radius:14px;padding:13px;margin-bottom:12px}
+.ks8-hero strong{display:block;font-size:16px;color:#fff}
+.ks8-hero small{display:block;color:#b4cee3;margin-top:5px;line-height:1.35}
+.ks8-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ks8-action{min-height:82px;display:flex;flex-direction:column;justify-content:center;gap:6px;text-align:left;background:#1b354e;color:#fff;border:1px solid #3f617e;border-radius:14px;padding:13px;cursor:pointer}
+.ks8-action b{font-size:14px}.ks8-action small{color:#b1cce0;font-size:11px;line-height:1.35}
+.ks8-action.primary{background:#165b7e;border-color:#42acd7}
+.ks8-action:active{background:#276184}
+.ks8-overlay{position:fixed;inset:0;z-index:22000;display:none;align-items:flex-end;justify-content:center;background:#030b15ba}
+.ks8-overlay.open{display:flex}
+.ks8-sheet{width:min(100%,620px);height:min(82dvh,780px);background:#10263a;color:#f5faff;border:1px solid #3c5e79;border-radius:23px 23px 0 0;display:flex;flex-direction:column;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}
+.ks8-head{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #37536d;background:#132b41;gap:12px}
+.ks8-head strong{font-size:18px}.ks8-head small{display:block;color:#b5c9dc;font-size:11px;margin-top:4px}
+.ks8-head button,.ks8-back{border:1px solid #486781;background:#1b354e;color:#fff;border-radius:10px;padding:9px 12px;font-weight:750}
+.ks8-body{padding:13px;overflow:auto;overscroll-behavior:contain;flex:1}
+.ks8-card{display:block;width:100%;text-align:left;background:#1b354e;border:1px solid #3b5975;border-radius:13px;padding:12px 13px;color:#fff;margin-bottom:8px}
+.ks8-card strong{display:block;font-size:14px}.ks8-card small{display:block;font-size:11px;color:#b5cbde;margin-top:5px;line-height:1.4}
+.ks8-card[aria-expanded="true"]{border-color:#4eb6df;background:#214561}
+.ks8-detail{background:#112b43;border:1px solid #3b5975;border-radius:0 0 13px 13px;padding:12px;margin:-10px 0 10px;display:flex;flex-wrap:wrap;gap:7px}
+.ks8-detail button,.ks8-main{background:#17698f;color:#fff;border:1px solid #53b6de;border-radius:10px;padding:10px 12px;font-weight:750;min-height:42px}
+.ks8-detail button.secondary{background:#263f56;border-color:#47627b}
+.ks8-field{width:100%;box-sizing:border-box;background:#0c2134;color:#fff;border:1px solid #476986;border-radius:11px;padding:12px;font-size:16px;margin:5px 0 12px}
+.ks8-label{font-size:12px;color:#bdd3e6;font-weight:750}
+.ks8-note{font-size:12px;color:#b6cde0;line-height:1.45;margin:3px 0 14px}
+.ks8-empty{padding:20px;text-align:center;color:#a9c3da;border:1px dashed #496780;border-radius:13px}
+.ks8-chip{display:inline-block;font-size:10px;border-radius:99px;padding:4px 7px;background:#2b4d68;color:#d2e9fa;margin:4px 4px 0 0}
+.ks8-section-title{font-size:11px;color:#9ccde8;text-transform:uppercase;letter-spacing:.1em;margin:14px 0 9px}
+.ks8-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:#1b354e;border:1px solid #3d5c77;border-radius:12px;margin-bottom:9px}
+.ks8-row label{font-size:13px;font-weight:700}.ks8-row input[type=checkbox]{width:22px;height:22px;accent-color:#42b9e6}
+.ks8-progress{font-size:12px;color:#a9c6dc;padding:8px 0}
+.modal-overlay:not(#idenaViewerModal)>.modal-card{background:#10263a!important;border-color:#3d5e79!important}
+.modal-overlay:not(#idenaViewerModal) .modal-header-sticky{background:#142d44!important}
+@media(max-width:600px){#konsorHub .ks-sheet{height:min(77dvh,690px)!important}.ks8-sheet{height:min(83dvh,780px)}.hud-header .user-pill{max-width:105px!important;overflow:hidden}.hud-header .user-name-text{max-width:72px;overflow:hidden;text-overflow:ellipsis}.hud-header .hud-utility-group{gap:3px!important}}
 </style></head>
 <body>
 
@@ -1097,14 +1159,6 @@
       </div>
 
       <!-- BANNER DE BIENVENIDA Y MENTALIDAD (EXCLUSIVO EQUIPO ANDREI) -->
-      <div id="andreiWelcomeBanner" style="background:linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(37,99,235,0.18) 100%); border:1px solid rgba(167,139,250,0.45); border-radius:14px; padding:11px 12px; text-align:left;">
-        <div style="font-size:11.5px; font-weight:900; color:#fde047; margin-bottom:4px;">
-          🔥 ¡Bienvenido al Equipo de Andrei, compañero!
-        </div>
-        <div style="font-size:11px; color:#e2e8f0; line-height:1.45;">
-          Aquí venimos a <strong>trabajar con ganas</strong>, tener <strong>foco en cada puerta</strong>, <strong>ganar mucha pasta</strong>, aprender cada día y, sobre todo, <strong>¡DISFRUTAR DE ESTE EQUIPO!</strong> 🚀
-        </div>
-      </div>
 
       <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
         Contraseña incorrecta
@@ -1185,8 +1239,8 @@
         <div class="hud-utility-group" style="gap:5px;">
           <button id="konsorOpenHub" onclick="ksOpenHub()" aria-haspopup="dialog" aria-controls="konsorHub">☷ Herramientas</button>
           <button id="btnWorkspaceExit" class="btn-hud" style="display:none;padding:6px 9px;font-size:11px" onclick="showWorkspaceHome()" title="Volver al inicio y elegir espacio">↩ Inicio</button>
-          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="ksOpenSettings()" title="Ajustes de la App">⚙️</button>
-          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
+          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="ks8Settings()" title="Ajustes de la App">⚙️</button>
+          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯</button>
           <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒</button>
         </div>
       </div>
@@ -9729,7 +9783,7 @@ setInterval(ucRefreshQuickButton,3000);
 <div id="konsorHub" role="dialog" aria-modal="true" aria-labelledby="ksTitle" onclick="if(event.target===this)ksCloseHub()">
   <div class="ks-sheet">
     <div class="ks-head"><div><h2 id="ksTitle">Centro de trabajo</h2><small id="ksSubtitle">Todas las herramientas, sin salir del mapa</small></div><button class="ks-close" onclick="ksCloseHub()" aria-label="Cerrar herramientas">✕</button></div>
-    <div class="ks-scroll" id="ksContent">
+    <div class="ks-scroll" id="ksContent"><div id="ks8Menu"></div>
       <div class="ks-summary" aria-label="Resumen de trabajo">
         <button class="ks-stat ks-stats-button" onclick="ksGo('openGlobalClientSearchModal')"><strong id="ksStatClients">—</strong><span>Clientes captados</span></button>
         <button class="ks-stat ks-stats-button" onclick="ksGo('openFollowUpsModal')"><strong id="ksStatPending">—</strong><span>Por contactar</span></button>
@@ -9821,6 +9875,7 @@ function ksUpdateSummary(){
  }catch(e){console.warn('Resumen no disponible:',e);}
 }
 function ksOpenHub(){
+ ks8HubRender();
  ksUpdateSummary();
  ksMoveShiftBar();
  const isBoss=ksIsBossView(), isAndrei=ksIsAndrei();
@@ -9893,5 +9948,44 @@ function ksCalculatePlanner(){
  candidates.sort((a,b)=>a.score-b.score||a.date.localeCompare(b.date));
  box.innerHTML=candidates.slice(0,5).map((x,i)=>`<div class="ks-v6-card"><strong>${i+1}. ${x.date} · ${x.time}</strong><small>${ksV6Esc(x.why)}</small><button onclick="ksV6Close();openAuditModal()">Abrir agenda para confirmar</button></div>`).join('')||'<div class="ks-v6-card">No hay huecos disponibles en el periodo.</div>';
 }
+</script><div class="ks8-overlay" id="ks8Overlay" onclick="if(event.target===this)ks8Close()" role="dialog" aria-modal="true" aria-labelledby="ks8Title"><div class="ks8-sheet"><div class="ks8-head"><div><strong id="ks8Title">Panel</strong><small id="ks8Subtitle"></small></div><button onclick="ks8Close()">✕ Cerrar</button></div><div class="ks8-body" id="ks8Body"></div></div></div>
+<script id="ks8Code">
+let ks8Tab='today',ks8Expanded='',ks8Route=[];
+const ks8Escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ks8Boss(){return typeof ksIsBossView==='function'&&ksIsBossView();}
+function ks8HubRender(){
+ const boss=ks8Boss();const tabs=boss?[['today','Resumen'],['team','Equipo'],['tools','Herramientas']]:[['today','Hoy'],['clients','Clientes'],['tools','Herramientas']];
+ if(!tabs.some(x=>x[0]===ks8Tab))ks8Tab='today';
+ const menu=document.getElementById('ks8Menu');if(!menu)return;
+ const tabBar=`<div class="ks8-tabs">${tabs.map(([id,label])=>`<button class="${ks8Tab===id?'selected':''}" onclick="ks8Tab='${id}';ks8HubRender()">${label}</button>`).join('')}</div>`;
+ let content='';
+ if(ks8Tab==='today')content=boss?`<div class="ks8-hero"><strong>Centro de mando</strong><small>Actividad del equipo, avisos y planificación.</small></div><div class="ks8-actions">${ks8Tile('📊','Resultados','Producción, agenda y rentabilidad',"ksGo('openAuditModal')",true)}${ks8Tile('🔔','Alertas','Recordatorios y próximas obras',"ks8OpenReminders()")}${ks8Tile('🧭','Territorio','Zonas y equipos',"ksGo('openMikelRadarModal')")}${ks8Tile('📅','Organizar obras','Proponer las mejores franjas',"ks8OpenOrganizer()")}</div>`:`<div class="ks8-hero"><strong>Tu jornada, en un sitio</strong><small>Organiza las visitas, continúa con los clientes y registra resultados.</small></div><div class="ks8-actions">${ks8Tile('🧭','Organizar ruta','Ordenar visitas por localidad y prioridad','ks8OpenOrganizer()',true)}${ks8Tile('📞','Pendientes','Fichas rápidas y seguimiento','ks8OpenClients()')}${ks8Tile('📝','Volcar visitas','Registrar los resultados del sector',"ksGo('openSelectZoneToDumpModal')")}${ks8Tile('🔔','Recordatorios','Avisos y citas próximas','ks8OpenReminders()')}</div>`;
+ else if(ks8Tab==='clients')content=`<div class="ks8-hero"><strong>Clientes sin cambiar de pantalla</strong><small>Busca, abre el resumen y despliega la ficha debajo.</small></div><div class="ks8-actions">${ks8Tile('👤','Mis clientes','Fichas y seguimiento','ks8OpenClients()',true)}${ks8Tile('🔎','Búsqueda completa','Buscador original',"ksGo('openGlobalClientSearchModal')")}${ks8Tile('📞','Llamadas','Cola de contactos','ks8OpenClients()')}${ks8Tile('📅','Proponer cita','Organizador','ks8OpenOrganizer()')}</div>`;
+ else if(ks8Tab==='team')content=`<div class="ks8-hero"><strong>Equipo y producción</strong><small>Accesos a datos de equipo y operaciones.</small></div><div class="ks8-actions">${ks8Tile('👥','Equipos','Comparativa territorial',"ksGo('openMikelRadarModal')",true)}${ks8Tile('📈','Clasificación','Rendimiento',"ksGo('openLeagueRankingModal')")}${ks8Tile('📋','Clientes','Cartera y fichas','ks8OpenClients()')}${ks8Tile('🔔','Seguimientos','Alertas del equipo','ks8OpenReminders()')}</div>`;
+ else content=`<div class="ks8-hero"><strong>Mapa y gestión</strong><small>Herramientas originales, agrupadas en un único lugar.</small></div><div class="ks8-actions">${ks8Tile('⬡','Dibujar sector','Marcar zona',"ksGo('startSectorDrawing')",true)}${ks8Tile('🏘️','Catastro','Activar parcelas',"ksGo('toggleCatastroLayer')")}${ks8Tile('📐','Medir tejado','Superficies',"ksGo('startRoofMeasureMode')")}${ks8Tile('🎯','Mi posición','Localización',"ksGo('centerOnUser')")}${ks8Tile('📈','Mi rendimiento','Estadísticas',"ksGo('openCommercialStatsModal')")}${ks8Tile('⚙️','Ajustes','Preferencias y accesos','ks8Settings()')}</div>`;
+ menu.innerHTML=tabBar+content;
+}
+function ks8Tile(icon,title,sub,action,primary=false){return `<button class="ks8-action ${primary?'primary':''}" onclick="${action}"><b>${icon} ${title}</b><small>${sub}</small></button>`;}
+function ks8Open(title,subtitle,html){if(typeof ksCloseHub==='function')ksCloseHub();const d=document.getElementById('ks8Overlay');document.getElementById('ks8Title').textContent=title;document.getElementById('ks8Subtitle').textContent=subtitle;document.getElementById('ks8Body').innerHTML=html;d.classList.add('open');}
+function ks8Close(){document.getElementById('ks8Overlay').classList.remove('open');}
+function ks8Settings(){
+ try{if(typeof ksCloseHub==='function')ksCloseHub();}catch(e){}
+ const key=sessionStorage.getItem('auth_user_key')||'';let alias='';try{alias=typeof getDisplayAlias==='function'?getDisplayAlias(key):currentUserName||''}catch(e){alias=currentUserName||''}
+ const perm='Notification' in window?Notification.permission:'unsupported';
+ const body=`<div class="ks8-section-title">Notificaciones</div><div class="ks8-card"><strong>🔔 Avisos del móvil</strong><small>Estado del permiso: ${ks8Escape(perm)}. Para recibir avisos con la app cerrada es necesario configurar el envío push en el servidor.</small><button class="ks8-main" style="margin-top:10px" onclick="ks8EnableNotifications()">Activar notificaciones</button></div><div class="ks8-section-title">Preferencias</div><div class="ks8-row"><label for="ks8Sound">Sonidos de la aplicación</label><input id="ks8Sound" type="checkbox" ${typeof appPrefs!=='undefined'&&appPrefs.sound?'checked':''} onchange="if(typeof updateAppPref==='function')updateAppPref('sound',this.checked)"></div><label class="ks8-label" for="ks8Alias">Nombre visible</label><input id="ks8Alias" class="ks8-field" maxlength="22" value="${ks8Escape(alias)}"><button class="ks8-main" onclick="ks8SaveAlias()">Guardar nombre</button>${key==='jefe'?'<div class="ks8-section-title">Administración</div><button class="ks8-card" onclick="ks8Close();openAccessAdminModal()"><strong>👥 Gestionar accesos</strong><small>Usuarios, solicitudes y autorizaciones</small></button>':''}<div class="ks8-section-title">Soporte</div><button class="ks8-card" onclick="ks8Help()"><strong>❓ Ayuda y contacto</strong><small>Comunicar fallos, dudas y sugerencias</small></button>`;
+ ks8Open('Ajustes','Configuración de tu cuenta',body);
+}
+function ks8SaveAlias(){const el=document.getElementById('ks8Alias');if(!el)return;const old=document.getElementById('profileAliasInput');if(typeof saveUserProfileSettings!=='function'){alert('No está disponible el guardado del nombre');return;}if(!old){const parent=document.getElementById('userProfileModalBody');if(!parent){alert('No está disponible el formulario de nombre');return;}const inp=document.createElement('input');inp.id='profileAliasInput';inp.style.display='none';parent.appendChild(inp);}document.getElementById('profileAliasInput').value=el.value;saveUserProfileSettings();alert('Se ha solicitado guardar el nombre.');}
+async function ks8EnableNotifications(){try{if(typeof requestMobileNotifications==='function')await requestMobileNotifications();else if('Notification'in window)await Notification.requestPermission();ks8Settings();}catch(e){alert('No se pudieron activar las notificaciones: '+e.message);}}
+function ks8Help(){ks8Close();if(typeof openUserProfileModal==='function'){try{openUserProfileModal();}catch(e){alert('No se pudo abrir Ayuda y contacto: '+e.message);}}}
+function ks8Data(){const a=[];if(typeof savedZones==='undefined'||!Array.isArray(savedZones))return a;savedZones.forEach((z,zi)=>{if(typeof ucAccessible==='function'&&!ucAccessible(z))return;(z.clients||[]).forEach((c,ci)=>{if(c)a.push({z,c,zi,ci});});});return a;}
+function ks8IsPending(x){return !['realizada','cancelada','no_apto'].includes(x.c.obraStatus)&&!x.c.cancelado&&!x.c.cancelled;}
+function ks8OpenClients(query=''){ks8Expanded='';ks8Open('Clientes','Tarjetas compactas · toca una para ver sus acciones',`<input class="ks8-field" id="ks8ClientSearch" placeholder="Nombre, teléfono, pueblo o calle" value="${ks8Escape(query)}" oninput="ks8RenderClients()"><div id="ks8ClientList"></div>`);ks8RenderClients();}
+function ks8RenderClients(){const q=(document.getElementById('ks8ClientSearch')?.value||'').trim().toLocaleLowerCase('es');const items=ks8Data().filter(x=>[x.c.name,x.c.phone,x.c.street,x.z.town].join(' ').toLocaleLowerCase('es').includes(q));items.sort((a,b)=>Number(ks8IsPending(b))-Number(ks8IsPending(a))||String(a.z.town||'').localeCompare(String(b.z.town||''),'es'));const box=document.getElementById('ks8ClientList');if(!box)return;box.innerHTML=`<p class="ks8-progress">${items.length} fichas encontradas · mostrando hasta 100</p>`+(items.length?items.slice(0,100).map(x=>ks8ClientCard(x)).join(''):'<div class="ks8-empty">No hay clientes con esos datos.</div>');}
+function ks8ClientCard(x){const c=x.c,z=x.z,id=`${x.zi}-${x.ci}`,open=ks8Expanded===id;const status=c.obraStatus==='realizada'?'Realizada y cobrada':c.obraStatus==='agendada'?'Agendada':c.obraStatus==='cancelada'?'Cancelada':c.callStatus||'Por contactar';return `<button class="ks8-card" aria-expanded="${open}" onclick="ks8Expanded=ks8Expanded==='${id}'?'':'${id}';ks8RenderClients()"><strong>${ks8Escape(c.name||'Cliente sin nombre')} <span style="float:right;color:#7acbe9">${open?'−':'+'}</span></strong><small>📍 ${ks8Escape(z.town||'Sin localidad')} · ${ks8Escape(c.street||'Sin dirección')}</small><span class="ks8-chip">${ks8Escape(status)}</span>${c.obraDate?`<span class="ks8-chip">📅 ${ks8Escape(c.obraDate)}</span>`:''}</button>${open?`<div class="ks8-detail"><div style="width:100%;font-size:12px;color:#bcd2e4">${ks8Escape(c.phone||'Sin teléfono')} · ${ks8Escape(z.comercial||'')}</div><button onclick="ks8Close();openUniversalClient(${x.zi},${x.ci})">Abrir ficha completa</button>${c.phone?`<button class="secondary" onclick="location.href='tel:${String(c.phone).replace(/[^+0-9]/g,'')}'">Llamar</button>`:''}<button class="secondary" onclick="ks8Close();openDumpModal(${x.zi})">Ver sector</button></div>`:''}`;}
+function ks8OpenOrganizer(){ks8Open('Organizar jornada','Visitas agrupadas · prioridad y localidad',`<div class="ks8-tabs" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><button class="selected" onclick="ks8RenderRoute()">Visitas pendientes</button><button onclick="ks8Close();ksOpenPlanner()">Proponer cita</button></div><div class="ks8-note">Organiza clientes pendientes por localidad, calle y antigüedad. Abre la ficha o sitúa el sector en el mapa. No se calcula un itinerario vial ni se reservan citas sin confirmación.</div><label class="ks8-label">Localidad</label><select class="ks8-field" id="ks8Town" onchange="ks8RenderRoute()"></select><div id="ks8RouteList"></div>`);const towns=[...new Set(ks8Data().filter(ks8IsPending).map(x=>String(x.z.town||'Sin localidad').trim()))].sort((a,b)=>a.localeCompare(b,'es'));document.getElementById('ks8Town').innerHTML='<option value="">Todas las localidades</option>'+towns.map(t=>`<option value="${ks8Escape(t)}">${ks8Escape(t)}</option>`).join('');ks8RenderRoute();}
+function ks8RenderRoute(){const town=document.getElementById('ks8Town')?.value||'';const now=Date.now();const items=ks8Data().filter(x=>ks8IsPending(x)&&(!town||String(x.z.town||'Sin localidad').trim()===town));items.sort((a,b)=>{const score=x=>{const due=x.c.nextContactAt&&Number(x.c.nextContactAt)<now;return due?0:x.c.nextContactAt?1:2;};return score(a)-score(b)||String(a.z.town||'').localeCompare(String(b.z.town||''),'es')||String(a.c.street||'').localeCompare(String(b.c.street||''),'es')});ks8Route=items;const box=document.getElementById('ks8RouteList');if(!box)return;box.innerHTML=`<p class="ks8-progress">${items.length} visitas para organizar · prioridad a avisos vencidos</p>`+(items.length?items.slice(0,80).map((x,i)=>`<button class="ks8-card" onclick="ks8Close();openUniversalClient(${x.zi},${x.ci})"><strong>${i+1}. ${ks8Escape(x.c.name||'Cliente')} <span style="float:right;color:#7acbe9">›</span></strong><small>${ks8Escape(x.z.town||'')} · ${ks8Escape(x.c.street||'Sin calle')} · ${ks8Escape(x.c.phone||'')}</small>${x.c.nextContactAt&&Number(x.c.nextContactAt)<now?'<span class="ks8-chip">🔴 Recordatorio vencido</span>':''}</button>`).join(''):'<div class="ks8-empty">No hay visitas pendientes en esta localidad.</div>')+`<button class="ks8-main" style="width:100%;margin-top:9px" onclick="ks8OpenMapForRoute()" ${items.length?'':'disabled'}>🗺️ Ver zona de trabajo en el mapa</button>`;}
+function ks8OpenMapForRoute(){const item=ks8Route[0];if(!item)return;ks8Close();const z=item.z;try{const coords=z.center||z.coords||z.coordinates;if(Array.isArray(coords)&&coords.length>=2&&typeof map!=='undefined'){const pt=Array.isArray(coords[0])?coords[0]:coords;if(typeof pt[0]==='number'&&typeof pt[1]==='number')map.setView([pt[0],pt[1]],16);else alert('Selecciona el sector en el mapa para centrarlo.');}else alert('No hay coordenadas de centro guardadas. Abre el sector desde la ficha.');}catch(e){alert('Abre el sector desde su ficha para situarlo en el mapa.');}}
+function ks8OpenReminders(){ks8Close();if(typeof ksOpenReminderCenter==='function')ksOpenReminderCenter();}
 </script></body>
 </html>
