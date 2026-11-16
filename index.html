@@ -907,6 +907,45 @@
 @media(min-width:720px){#universalClientLayer,#konsorQueueLayer{align-items:center}#universalClientPanel,#konsorQueuePanel{border-radius:20px}}
 @media(max-width:390px){.uc-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.uc-fields{grid-template-columns:1fr}}
 </style>
+
+<style id="konsorDesignSystem">
+:root{--ks-bg:#0d1929;--ks-panel:#142438;--ks-stroke:#31465d;--ks-text:#f3f7fc;--ks-muted:#a9bfd5;--ks-accent:#50b9e8}
+.hud-header{max-width:680px!important;left:50%!important;transform:translateX(-50%)!important;width:calc(100% - 20px)!important;box-sizing:border-box;background:rgba(12,25,41,.94)!important;border:1px solid rgba(161,194,225,.25)!important;border-radius:0 0 18px 18px!important;box-shadow:0 12px 36px #0007!important;backdrop-filter:blur(14px)}
+#hudNavGrid{display:none!important}
+#konsorQuickButton{display:none!important}
+#konsorOpenHub{font-size:12px;min-height:34px;padding:7px 12px;border-radius:10px;background:#146d8f;border:1px solid #56bde4;color:white;font-weight:850;cursor:pointer}
+#konsorOpenHub:focus-visible,.ks-action:focus-visible{outline:3px solid #93e2ff;outline-offset:2px}
+#konsorHub{position:fixed;inset:0;z-index:11000;display:none;background:rgba(4,10,19,.55);align-items:flex-end;justify-content:center;box-sizing:border-box}
+#konsorHub.open{display:flex}
+.ks-sheet{width:min(100%,680px);height:min(78dvh,760px);background:#102034;color:#f2f8ff;border:1px solid #3b5670;border-radius:24px 24px 0 0;box-shadow:0 -20px 70px #0008;display:flex;flex-direction:column;overflow:hidden;padding-bottom:env(safe-area-inset-bottom)}
+.ks-head{padding:18px 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #30445b}
+.ks-head h2{margin:0;font-size:20px;letter-spacing:-.02em}
+.ks-head small{display:block;color:#b4c9dd;margin-top:4px;font-size:12px}
+.ks-close{background:#263a50;color:#fff;border:1px solid #52647a;border-radius:10px;padding:9px 13px;font-size:17px;cursor:pointer}
+.ks-scroll{overflow:auto;padding:14px 14px 28px;overscroll-behavior:contain}
+.ks-section{margin:0 0 20px}
+.ks-section h3{font-size:12px;letter-spacing:.09em;color:#9fb9d3;text-transform:uppercase;margin:0 4px 10px}
+.ks-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ks-action{background:#1b3148;border:1px solid #395572;border-radius:14px;color:#fff;text-align:left;padding:14px 12px;min-height:82px;display:flex;flex-direction:column;gap:7px;cursor:pointer}
+.ks-action strong{font-size:14px;font-weight:800}
+.ks-action small{font-size:11px;color:#b9cbe0;line-height:1.35}
+.ks-action .ks-icon{font-size:23px}
+.ks-action.primary{background:#164d6b;border-color:#3da8d2}
+.ks-foot{font-size:11px;color:#a9bfd5;padding:0 5px}
+#konsorHub .ks-action[hidden]{display:none}
+@media(max-width:600px){
+.hud-header{top:env(safe-area-inset-top,0px)!important}
+.hud-top-row{gap:5px}
+.hud-utility-group{gap:4px!important}
+.hud-utility-group .btn-hud{padding:6px!important}
+.search-row{margin-top:5px}
+.search-input{min-width:0}
+.bottom-action-panel{gap:5px!important;padding:7px!important}
+.bottom-action-panel .btn-main-action{padding:10px 4px!important;font-size:10px!important;min-height:43px}
+#mapToolsRow .btn-hud{min-height:36px}
+.modal-card{max-width:100%!important}
+}
+</style>
 </head>
 <body>
 
@@ -1008,6 +1047,7 @@
           <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">💰 0 €</span>
         </div>
         <div class="hud-utility-group" style="gap:5px;">
+          <button id="konsorOpenHub" onclick="ksOpenHub()" aria-haspopup="dialog" aria-controls="konsorHub">☷ Herramientas</button>
           <button id="btnWorkspaceExit" class="btn-hud" style="display:none;padding:6px 9px;font-size:11px" onclick="showWorkspaceHome()" title="Volver al inicio y elegir espacio">↩ Inicio</button>
           <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">⚙️</button>
           <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
@@ -9637,6 +9677,62 @@ function renderSmartQueue(){const q=(document.getElementById('konsorQueueSearch'
 function ucRefreshQuickButton(){const btn=document.getElementById('konsorQuickButton');if(btn)btn.style.display=currentUserName&&document.getElementById('workspaceHome')?.style.display!=='flex'?'block':'none';}
 const ucObserver=new MutationObserver(ucRefreshQuickButton);ucObserver.observe(document.documentElement,{attributes:true,subtree:false});
 setInterval(ucRefreshQuickButton,3000);
+</script>
+
+<div id="konsorHub" role="dialog" aria-modal="true" aria-labelledby="ksTitle" onclick="if(event.target===this)ksCloseHub()">
+  <div class="ks-sheet">
+    <div class="ks-head"><div><h2 id="ksTitle">Centro de trabajo</h2><small id="ksSubtitle">Todas las herramientas, sin salir del mapa</small></div><button class="ks-close" onclick="ksCloseHub()" aria-label="Cerrar herramientas">✕</button></div>
+    <div class="ks-scroll" id="ksContent">
+      <section class="ks-section" data-ks-group="common"><h3>Mapa y territorio</h3><div class="ks-grid">
+        <button class="ks-action primary" onclick="ksGo('startSectorDrawing')"><span class="ks-icon">⬡</span><strong>Dibujar sector</strong><small>Delimitar una zona sobre el mapa</small></button>
+        <button class="ks-action" onclick="ksGo('toggleCatastroLayer')"><span class="ks-icon">🏘️</span><strong>Catastro</strong><small>Ver parcelas y consultar su ficha</small></button>
+        <button class="ks-action" onclick="ksGo('startRoofMeasureMode')"><span class="ks-icon">📐</span><strong>Medir tejado</strong><small>Herramienta original de superficies</small></button>
+        <button class="ks-action" onclick="ksGo('openSelectZoneToDumpModal')"><span class="ks-icon">📝</span><strong>Volcar jornada</strong><small>Introducir resultados del sector</small></button>
+        <button class="ks-action" onclick="ksGo('startNoAptoZoneDrawing')" data-ks-andrei="true"><span class="ks-icon">🚫</span><strong>Zona no apta</strong><small>Marcar sectores descartados</small></button>
+      </div></section>
+      <section class="ks-section" data-ks-group="commercial"><h3>Clientes y actividad</h3><div class="ks-grid">
+        <button class="ks-action primary" onclick="ksGo('openSmartQueue')"><span class="ks-icon">📞</span><strong>Llamadas prioritarias</strong><small>Clientes pendientes y alertas 24/48 h</small></button>
+        <button class="ks-action" onclick="ksGo('openGlobalClientSearchModal')"><span class="ks-icon">🔎</span><strong>Buscar cliente</strong><small>Ficha universal desde cualquier sector</small></button>
+        <button class="ks-action" onclick="ksGo('openFollowUpsModal')"><span class="ks-icon">🗂️</span><strong>Seguimiento</strong><small>Estados, llamadas, mensajes y citas</small></button>
+        <button class="ks-action" onclick="ksGo('showCommercialBriefing')"><span class="ks-icon">📋</span><strong>Mi plan</strong><small>Objetivos, prioridades y avisos</small></button>
+      </div></section>
+      <section class="ks-section" data-ks-group="commercial"><h3>Mi jornada y resultados</h3><div class="ks-grid">
+        <button class="ks-action" onclick="ksGo('openCommercialStatsModal')"><span class="ks-icon">📈</span><strong>Mi rendimiento</strong><small>Horas, puertas y conversión</small></button>
+        <button class="ks-action" onclick="ksGo('openLeagueRankingModal')"><span class="ks-icon">🏆</span><strong>Clasificación</strong><small>Ranking comercial existente</small></button>
+        <button class="ks-action" onclick="ksGo('openAuditModal')"><span class="ks-icon">📅</span><strong>Agenda y obras</strong><small>Consultar y gestionar programación</small></button>
+      </div></section>
+      <section class="ks-section" data-ks-group="boss"><h3>Dirección del equipo</h3><div class="ks-grid">
+        <button class="ks-action primary" onclick="ksGo('openAuditModal')"><span class="ks-icon">📊</span><strong>Centro de mando</strong><small>Beneficio, día, semana y obras</small></button>
+        <button class="ks-action" onclick="ksGo('openMikelRadarModal')" data-ks-andrei="true"><span class="ks-icon">🧭</span><strong>Territorio y equipos</strong><small>Comparar Andrei y Mikel</small></button>
+        <button class="ks-action" onclick="ksGo('openLeagueRankingModal')"><span class="ks-icon">🏆</span><strong>Rendimiento</strong><small>Clasificación y productividad</small></button>
+        <button class="ks-action" onclick="ksGo('openGlobalClientSearchModal')"><span class="ks-icon">🔎</span><strong>Buscar ficha</strong><small>Consultar clientes del equipo</small></button>
+        <button class="ks-action" onclick="ksGo('openFollowUpsModal')"><span class="ks-icon">📞</span><strong>Seguimientos</strong><small>Revisar clientes y llamadas</small></button>
+      </div></section>
+      <p class="ks-foot">Las herramientas originales siguen disponibles. El mapa permanece activo detrás de este panel.</p>
+    </div>
+  </div>
+</div>
+<script>
+function ksIsAndrei(){return typeof currentUserName!=='undefined'&&currentUserName==='Andrei (Jefe)'&&currentUserRole==='jefe';}
+function ksIsBossView(){return ksIsAndrei()&&typeof bossWorkspace!=='undefined'&&bossWorkspace==='boss';}
+function ksOpenHub(){
+ const isBoss=ksIsBossView(), isAndrei=ksIsAndrei();
+ document.querySelectorAll('#konsorHub [data-ks-group]').forEach(el=>{
+  const group=el.getAttribute('data-ks-group');
+  el.style.display=(group==='common'||(group==='boss'&&isBoss)||(group==='commercial'&&!isBoss))?'':'none';
+ });
+ document.querySelectorAll('#konsorHub [data-ks-andrei]').forEach(el=>{el.hidden=!isAndrei;});
+ document.getElementById('ksTitle').textContent=isBoss?'Jefe de equipo':'Espacio comercial';
+ document.getElementById('ksSubtitle').textContent=isBoss?'Dirección y seguimiento, con el mapa siempre disponible':'Captación, clientes, agenda y jornada';
+ document.getElementById('konsorHub').classList.add('open');
+}
+function ksCloseHub(){document.getElementById('konsorHub').classList.remove('open');}
+function ksGo(name){
+ ksCloseHub();
+ if(typeof window[name]==='function'){window[name]();}
+ else alert('La herramienta no está disponible en esta sesión.');
+}
+document.addEventListener('keydown',event=>{if(event.key==='Escape')ksCloseHub();});
 </script>
 </body>
 </html>
