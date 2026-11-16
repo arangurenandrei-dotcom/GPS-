@@ -2274,138 +2274,384 @@
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appContainer').style.display = 'block';
 
-      setupRoleInterface();
-      updateShiftUI();
-      initMap();
+      /* ORGANIZACIÓN DE TRABAJO Y DIRECCIÓN */
 
-      if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
-        showCommercialBriefing();
-      } else if (currentUserName === 'Andrei (Jefe)') {
-        checkAndShowBossTodayObras(true);
-      }
+function setupRoleInterface() {
+  const isMikel = isMikelTeamMember(currentUserName);
+  const isBoss = currentUserRole === 'jefe';
+  const isAndrei = currentUserName === 'Andrei (Jefe)';
+  const authKey = sessionStorage.getItem('auth_user_key');
+
+  const roleBadge = document.getElementById('displayRoleBadge');
+  roleBadge.className = 'role-badge ' + (isBoss ? 'jefe' : 'comercial');
+  roleBadge.textContent = isBoss ? '👑 JEFE' : '🏃 COMERCIAL';
+
+  document.getElementById('displayUserName').textContent = isMikel
+    ? (isBoss ? 'Mikel' : currentUserName)
+    : getDisplayAlias(authKey || currentUserName);
+
+  document.getElementById('btnUserProfileConfig').style.display =
+    isMikel ? 'none' : 'flex';
+
+  document.getElementById('btnBossAssignMode').style.display =
+    isBoss ? 'flex' : 'none';
+
+  document.getElementById('btnMarkNoAptoZone').style.display =
+    isMikel ? 'none' : 'flex';
+
+  document.getElementById('mapToolsRow').style.display =
+    isMikel ? 'none' : 'grid';
+
+  [
+    'tabBtnComerciales',
+    'tabBtnSemana',
+    'tabBtnObras',
+    'tabBtnPueblos'
+  ].forEach(id => {
+    document.getElementById(id).style.display =
+      isMikel ? 'none' : 'block';
+  });
+
+  document.getElementById('tabBtnKpis').textContent =
+    isMikel ? '📊 Resumen Equipo' : '💰 Beneficio';
+
+  let switcher = document.getElementById('workAreaSwitcher');
+
+  if (!switcher) {
+    switcher = document.createElement('div');
+    switcher.id = 'workAreaSwitcher';
+    switcher.style.cssText =
+      'display:none;grid-template-columns:1fr 1fr;gap:5px;';
+
+    const nav = document.getElementById('hudNavGrid');
+    nav.parentNode.insertBefore(switcher, nav);
+  }
+
+  switcher.replaceChildren();
+
+  if (isAndrei) {
+    switcher.style.display = 'grid';
+
+    [
+      ['commercial', '🏃 Mi trabajo comercial'],
+      ['management', '👑 Dirección del equipo']
+    ].forEach(([area, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'areaButton_' + area;
+      button.className = 'btn-hud';
+      button.textContent = label;
+      button.style.padding = '9px 4px';
+      button.onclick = () => renderWorkNavigation(area);
+      switcher.appendChild(button);
+    });
+  } else {
+    switcher.style.display = 'none';
+  }
+
+  renderWorkNavigation('commercial');
+  updateHudLiveSalaryPill();
+}
+
+function renderWorkNavigation(area) {
+  const nav = document.getElementById('hudNavGrid');
+  const isMikel = isMikelTeamMember(currentUserName);
+  const isAndrei = currentUserName === 'Andrei (Jefe)';
+
+  if (!isAndrei) area = 'commercial';
+
+  ['commercial', 'management'].forEach(key => {
+    const button = document.getElementById('areaButton_' + key);
+    if (!button) return;
+
+    button.style.background = area === key
+      ? (key === 'management' ? '#7c3aed' : '#2563eb')
+      : 'rgba(255,255,255,0.06)';
+
+    button.style.borderColor = area === key
+      ? '#c4b5fd'
+      : 'rgba(255,255,255,0.15)';
+  });
+
+  nav.replaceChildren();
+  nav.className = 'hud-nav-grid cols-3';
+
+  function add(id, label, action, color) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = id;
+    button.className = 'btn-hud';
+    button.textContent = label;
+    button.style.cssText =
+      'min-height:36px;white-space:normal;line-height:1.25;';
+
+    if (color) button.style.background = color;
+    button.onclick = action;
+    nav.appendChild(button);
+  }
+
+  if (isMikel) {
+    if (currentUserRole === 'jefe') {
+      add('btnBossAudit', '📊 Mi equipo', openAuditModal, '#0f766e');
     }
 
-    /* ===== PANEL DE ACCESOS (SOLO ANDREI) ===== */
-    let accessProfiles = [];
-    let profilesWatchStarted = false;
+    add('btnFollowUps', '📞 Llamadas', openFollowUpsModal);
+    add('btnCommercialStats', '📈 Estadísticas', openCommercialStatsModal);
+    add('btnClientManagement', '📂 Fichas', openGlobalClientSearchModal);
+    return;
+  }
 
-    function accessPendingCount() {
-      return accessProfiles.filter(p => p.estado === 'pendiente').length;
-    }
+  if (area === 'management') {
+    add(
+      'btnTeamManagement',
+      '📊 Gestión del equipo',
+      openTeamManagementMenu,
+      '#6d28d9'
+    );
 
-    function updateAccessBadge() {
-      const b = document.getElementById('btnUserProfileConfig');
-      if (!b || currentUserName !== 'Andrei (Jefe)') return;
-      const n = accessPendingCount();
-      b.innerHTML = n > 0
-        ? `⚙️ <span style="background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:9px; margin-left:2px;">${n}</span>`
-        : '⚙️';
-    }
+    add(
+      'btnIndividualManagement',
+      '👥 Comerciales',
+      () => openManagementAudit('comerciales'),
+      '#6d28d9'
+    );
 
-    function startProfilesWatch() {
-      if (profilesWatchStarted) return;
-      if (currentUserName !== 'Andrei (Jefe)') return;
-      if (!window.authApi) return;
-      profilesWatchStarted = true;
-      let first = true;
-      window.authApi.watchProfiles(list => {
-        const prevPending = new Set(accessProfiles.filter(p => p.estado === 'pendiente').map(p => p.uid));
-        accessProfiles = list;
-        const fresh = list.filter(p => p.estado === 'pendiente' && !prevPending.has(p.uid));
-        if (!first && fresh.length > 0) {
-          triggerHapticAndSound('alert');
-          showCelebrationToast(`👤 Cuenta nueva pendiente: ${fresh[0].nombre || fresh[0].email}`);
-        }
-        first = false;
-        updateAccessBadge();
-        if (document.getElementById('accessAdminModal')?.classList.contains('active')) renderAccessAdmin();
-      });
-    }
+    add(
+      'btnMikelRadarHud',
+      '⚔️ Comparar equipos',
+      openMikelRadarModal,
+      '#0f766e'
+    );
 
-    function openAccessAdminModal() {
-      let modal = document.getElementById('accessAdminModal');
-      if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'accessAdminModal';
-        modal.className = 'modal-overlay';
-        modal.style.zIndex = '10070';
-        modal.innerHTML = `
-          <div class="modal-card">
-            <div class="modal-header-sticky">
-              <div class="modal-header">
-                <span>👥 Accesos y cuentas</span>
-                <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('accessAdminModal')">✕</button>
-              </div>
-            </div>
-            <div class="modal-scrollable-content" id="accessAdminBody"></div>
-          </div>`;
-        document.body.appendChild(modal);
-      }
-      modal.classList.add('active');
-      startProfilesWatch();
-      renderAccessAdmin();
-    }
+    add(
+      'btnBossPlan',
+      '📋 Plan de jefe',
+      openBossWorkMenu,
+      '#6d28d9'
+    );
 
-    function renderAccessAdmin() {
-      const body = document.getElementById('accessAdminBody');
-      if (!body) return;
-      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      const keys = Object.keys(CANONICAL_USER_NAMES);
-      const optionsFor = (sel) => `<option value="">— Elegir perfil —</option>` +
-        keys.map(k => `<option value="${k}" ${sel === k ? 'selected' : ''}>${esc(CANONICAL_USER_NAMES[k])}</option>`).join('');
-      const order = { pendiente: 0, aprobado: 1, bloqueado: 2 };
-      const list = accessProfiles.slice().sort((a, b) => (order[a.estado] ?? 3) - (order[b.estado] ?? 3));
+    return;
+  }
 
-      let html = `<div style="font-size:11px; color:#94a3b8; margin-bottom:8px; line-height:1.4;">Cuando alguien crea su cuenta sale aquí como <strong>pendiente</strong>. Elige su perfil y pulsa <strong>Aprobar</strong>.</div>`;
-      if (list.length === 0) {
-        html += `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12px;">Todavía no hay cuentas registradas.</div>`;
-        body.innerHTML = html;
-        return;
-      }
-      list.forEach(p => {
-        const st = p.estado === 'aprobado' ? ['#34d399', '✅ Aprobada'] : (p.estado === 'bloqueado' ? ['#fca5a5', '⛔ Bloqueada'] : ['#fde047', '⏳ Pendiente']);
-        const bt = 'flex:1; border:none; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:900; cursor:pointer;';
-        html += `
-          <div style="background:rgba(255,255,255,0.05); border:1px solid ${p.estado === 'pendiente' ? '#f59e0b' : 'rgba(255,255,255,0.12)'}; border-radius:11px; padding:9px 10px; margin-bottom:8px;">
-            <div style="display:flex; justify-content:space-between; gap:6px; align-items:center;">
-              <strong style="font-size:12.5px; color:#fff;">${esc(p.nombre) || 'Sin nombre'}</strong>
-              <span style="font-size:10px; font-weight:900; color:${st[0]};">${st[1]}</span>
-            </div>
-            <div style="font-size:10.5px; color:#94a3b8; margin:2px 0 6px 0;">✉️ ${esc(p.email)}</div>
-            <select id="acc_sel_${p.uid}" class="select-field" style="margin-bottom:6px;">${optionsFor(p.userKey)}</select>
-            <div style="display:flex; gap:5px;">
-              <button onclick="accessApprove('${p.uid}')" style="${bt} background:#059669;">✅ ${p.estado === 'aprobado' ? 'Guardar perfil' : 'Aprobar'}</button>
-              ${p.estado !== 'bloqueado' ? `<button onclick="accessSetState('${p.uid}', 'bloqueado')" style="${bt} background:#dc2626;">⛔ Bloquear</button>` : `<button onclick="accessSetState('${p.uid}', 'pendiente')" style="${bt} background:#d97706;">↩️ Pasar a pendiente</button>`}
-            </div>
-          </div>`;
-      });
-      body.innerHTML = html;
-    }
+  add(
+    'btnCommercialPlan',
+    '📋 Trabajo del día',
+    showCommercialBriefing,
+    '#1d4ed8'
+  );
 
-    async function accessApprove(uid) {
-      const sel = document.getElementById('acc_sel_' + uid);
-      const key = sel ? sel.value : '';
-      if (!key) { alert('⚠️ Elige primero el perfil de esta persona.'); return; }
-      const dup = accessProfiles.find(p => p.uid !== uid && p.userKey === key && p.estado === 'aprobado');
-      if (dup && !confirm(`${CANONICAL_USER_NAMES[key]} ya está asignado a ${dup.email}.\n\n¿Quieres asignarlo también a esta cuenta?`)) return;
-      try {
-        await window.authApi.setProfile(uid, { estado: 'aprobado', userKey: key });
-        triggerHapticAndSound('success');
-      } catch (e) {
-        alert('⚠️ No se pudo guardar: ' + ((e && e.message) || e));
-      }
-    }
+  add(
+    'btnClientManagement',
+    '📂 Gestión',
+    openGlobalClientSearchModal,
+    '#334155'
+  );
 
-    async function accessSetState(uid, estado) {
-      if (estado === 'bloqueado' && !confirm('¿Seguro que quieres bloquear esta cuenta?')) return;
-      try {
-        await window.authApi.setProfile(uid, { estado });
-      } catch (e) {
-        alert('⚠️ No se pudo guardar: ' + ((e && e.message) || e));
-      }
-    }
+  add(
+    'btnCaptureWorkspace',
+    '📝 Fichas y llamadas',
+    openCaptureWorkMenu,
+    '#0e7490'
+  );
 
-    function setupRoleInterface() {
+  add(
+    'btnCommercialStats',
+    '📈 Estadísticas',
+    openCommercialStatsModal,
+    '#1d4ed8'
+  );
+
+  add(
+    'btnLeagueRanking',
+    '🏆 Liga',
+    openLeagueRankingModal,
+    '#b45309'
+  );
+
+  try {
+    updateMiPlanBadge();
+  } catch (e) {
+    console.error('No se pudo actualizar Mi Plan:', e);
+  }
+}
+
+/* MENÚ REUTILIZABLE */
+
+function openWorkMenu(title, description, actions) {
+  let modal = document.getElementById('workNavigationModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'workNavigationModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span id="workNavigationTitle"></span>
+            <button type="button"
+              onclick="closeModal('workNavigationModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:20px;padding:5px;cursor:pointer;">✕</button>
+          </div>
+        </div>
+        <div class="modal-scrollable-content">
+          <p id="workNavigationDescription"
+            style="font-size:12px;color:#cbd5e1;
+            line-height:1.5;margin-bottom:12px;"></p>
+          <div id="workNavigationActions"
+            style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('workNavigationTitle').textContent = title;
+  document.getElementById('workNavigationDescription').textContent =
+    description;
+
+  const container = document.getElementById('workNavigationActions');
+  container.replaceChildren();
+
+  actions.forEach(([label, explanation, action]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+
+    button.style.cssText =
+      'width:100%;text-align:left;padding:13px;border-radius:12px;' +
+      'border:1px solid rgba(255,255,255,0.18);' +
+      'background:#1e293b;color:#fff;cursor:pointer;';
+
+    const heading = document.createElement('strong');
+    heading.textContent = label;
+    heading.style.cssText = 'display:block;font-size:13px;';
+
+    const detail = document.createElement('span');
+    detail.textContent = explanation;
+    detail.style.cssText =
+      'display:block;font-size:11px;color:#94a3b8;' +
+      'line-height:1.4;margin-top:5px;';
+
+    button.append(heading, detail);
+
+    button.onclick = () => {
+      closeModal('workNavigationModal');
+      action();
+    };
+
+    container.appendChild(button);
+  });
+
+  modal.classList.add('active');
+}
+
+function openCaptureWorkMenu() {
+  openWorkMenu(
+    '📝 Fichas y llamadas',
+    'Registra las captaciones y trabaja el seguimiento hasta cerrar la cita.',
+    [
+      [
+        '📋 Volcar una zona',
+        'Introduce los resultados y las fichas de un sector asignado.',
+        openSelectZoneToDumpModal
+      ],
+      [
+        '🏠 Crear una captación individual',
+        'Sitúa la vivienda en el mapa y registra su ficha y origen.',
+        startSingleHouseDirect
+      ],
+      [
+        '📞 Llamar y conseguir citas',
+        'Revisa clientes pendientes, notas y disponibilidad de obra.',
+        openFollowUpsModal
+      ],
+      [
+        '📂 Consultar fichas',
+        'Busca por nombre, teléfono, calle o pueblo.',
+        openGlobalClientSearchModal
+      ]
+    ]
+  );
+}
+
+function openManagementAudit(tab) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  if (tab === 'comerciales') {
+    document.getElementById('auditDateSelect').value = getTodayISO();
+  }
+
+  switchAuditTab(tab);
+  openAuditModal();
+}
+
+function openTeamManagementMenu() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  openWorkMenu(
+    '📊 Gestión del equipo',
+    'Consulta la producción conjunta, las obras y el territorio.',
+    [
+      [
+        '💰 Producción y balance',
+        'Resultados por mes, aportación personal y comisión del equipo.',
+        () => openManagementAudit('kpis')
+      ],
+      [
+        '📆 Calendario de obras',
+        'Consulta la planificación semanal existente.',
+        () => openManagementAudit('semana')
+      ],
+      [
+        '🏗️ Obras y captaciones por agendar',
+        'Revisa citas, obras realizadas y agrupaciones por pueblo.',
+        () => openManagementAudit('obras')
+      ],
+      [
+        '🏘️ Pueblos y sectores',
+        'Consulta actividad, resultados y pueblos terminados.',
+        () => openManagementAudit('pueblos')
+      ]
+    ]
+  );
+}
+
+function openBossWorkMenu() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  openWorkMenu(
+    '📋 Plan de jefe',
+    'Accesos iniciales a planificación y supervisión. ' +
+    'Ampliaremos aquí las tareas personales del jefe.',
+    [
+      [
+        '📍 Asignar un sector',
+        'Dibuja la zona y elige la persona y la fecha.',
+        startSectorDrawing
+      ],
+      [
+        '👥 Revisar el trabajo de hoy',
+        'Consulta zonas, jornadas y resultados de cada persona.',
+        () => openManagementAudit('comerciales')
+      ],
+      [
+        '🚧 Obras de hoy',
+        'Revisa instalaciones y asigna captación alrededor de las obras.',
+        () => checkAndShowBossTodayObras(false)
+      ],
+      [
+        '👤 Gestionar accesos',
+        'Revisa solicitudes y perfiles de las cuentas.',
+        openAccessAdminModal
+      ]
+    ]
+  );
+}
+
+    function startSingleHouseDirect() {
       const roleBadge = document.getElementById('displayRoleBadge');
       const nameLbl = document.getElementById('displayUserName');
       const btnBossAssign = document.getElementById('btnBossAssignMode');
