@@ -4149,6 +4149,820 @@ function renderGroupedAppointments() {
     'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:14px;'
   );
 }
+let peoplePeriod = 'month';
+let peopleDate = '';
+let peopleSelected = 'Andrei (Jefe)';
+let peopleTab = 'summary';
+let peopleClientScope = 'period';
+let peopleClientLimit = 40;
+
+function peopleCurrentBacklog(user) {
+  const result = {
+    pending: 0,
+    overdue: 0,
+    missingReason: 0,
+    incomplete: 0,
+    unfinished: 0
+  };
+
+  savedZones.forEach(z => {
+    if (
+      z.comercial !== user ||
+      z.isNoAptoZone
+    ) return;
+
+    if (
+      !z.isSingleHouse &&
+      !z.isHotMission &&
+      z.status !== 'completada' &&
+      z.date &&
+      z.date <= getTodayISO()
+    ) {
+      result.unfinished++;
+    }
+
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      if (
+        ![c.name, c.street, c.phone].every(
+          v => String(v || '').trim()
+        )
+      ) {
+        result.incomplete++;
+      }
+
+      if (
+        c.obraStatus &&
+        c.obraStatus !== 'a_poner'
+      ) return;
+
+      result.pending++;
+
+      if (
+        c.callStatus === 'esperando_confirmacion' &&
+        !String(c.waitReason || '').trim()
+      ) {
+        result.missingReason++;
+      }
+
+      const next = Number(c.nextContactAt);
+
+      const ref = Number(
+        c.callStatus && c.callStatus !== 'pendiente'
+          ? (
+              c.statusChangedAt ||
+              c.createdAt ||
+              z.id
+            )
+          : (c.createdAt || z.id)
+      );
+
+      if (
+        (
+          Number.isFinite(next) &&
+          next > 0 &&
+          Date.now() >= next
+        ) ||
+        (
+          (!Number.isFinite(next) || next <= 0) &&
+          Number.isFinite(ref) &&
+          ref > 0 &&
+          Date.now() - ref >= 48 * 3600000
+        )
+      ) {
+        result.overdue++;
+      }
+    });
+  });
+
+  return result;
+}
+
+function peopleReview(m, previous) {
+  const notes = [];
+
+  const contacts = m.si + m.no + m.papelito;
+
+  const oldContacts =
+    previous.si +
+    previous.no +
+    previous.papelito;
+
+  const conversion = contacts
+    ? m.si / contacts
+    : 0;
+
+  const oldConversion = oldContacts
+    ? previous.si / oldContacts
+    : 0;
+
+  if (contacts >= 30 && conversion < 0.05) {
+    notes.push({
+      title: 'Revisar la conversación en puerta',
+      evidence:
+        `${m.si} SÍ de ${contacts} contactos registrados ` +
+        `(${(100 * conversion).toFixed(1)}%).`,
+      action:
+        'Acompáñalo en varias visitas y revisad cómo presenta ' +
+        'la propuesta, filtra la vivienda y pide el contacto.'
+    });
+  }
+
+  if (
+    contacts >= 30 &&
+    m.papelito / contacts >= 0.4
+  ) {
+    notes.push({
+      title: 'Revisar el paso de información a contacto',
+      evidence:
+        `${m.papelito} visitas quedaron en información, ` +
+        `de ${contacts} contactos.`,
+      action:
+        'Comprobad si faltaba interés, si la vivienda era apta ' +
+        'o si conviene practicar cómo acordar una llamada posterior.'
+    });
+  }
+
+  if (
+    m.fichas >= 8 &&
+    m.noAptas / m.fichas >= 0.25
+  ) {
+    notes.push({
+      title: 'Revisar el filtro técnico y la zona',
+      evidence:
+        `${m.noAptas} de ${m.fichas} fichas creadas ` +
+        'están actualmente descartadas.',
+      action:
+        'Revisad los motivos antes de atribuirlo al discurso: ' +
+        'año, acceso, aislamiento previo y características del pueblo.'
+    });
+  }
+
+  if (
+    m.horas >= 6 &&
+    previous.horas >= 6 &&
+    previous.puertas > 0 &&
+    m.puertas / m.horas <
+      previous.puertas / previous.horas * 0.75
+  ) {
+    notes.push({
+      title: 'Investigar la bajada del ritmo registrado',
+      evidence:
+        `${(m.puertas / m.horas).toFixed(1)} visitas/h ` +
+        `frente a ${(previous.puertas / previous.horas).toFixed(1)} antes.`,
+      action:
+        'Comprobad desplazamientos, densidad de viviendas, ' +
+        'tareas de seguimiento y fichajes antes de sacar conclusiones.'
+    });
+  }
+
+  if (
+    contacts >= 30 &&
+    oldContacts >= 30 &&
+    conversion <= oldConversion - 0.05
+  ) {
+    notes.push({
+      title: 'Revisar el cambio de conversión',
+      evidence:
+        `${(100 * conversion).toFixed(1)}% frente a ` +
+        `${(100 * oldConversion).toFixed(1)}% de los contactos ` +
+        'del periodo anterior.',
+      action:
+        'Comparad pueblos y tipo de vivienda; después revisad ' +
+        'juntos las visitas si las condiciones eran similares.'
+    });
+  }
+
+  return {
+    notes,
+    contacts,
+    conversion,
+    oldConversion,
+    enough: contacts >= 30
+  };
+}
+
+function openPeopleManagement() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  let modal = document.getElementById(
+    'peopleManagementModal'
+  );
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'peopleManagementModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>👥 Comerciales · seguimiento individual</span>
+            <button type="button"
+              onclick="closeModal('peopleManagementModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="peopleManagementBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  peoplePeriod = 'month';
+  peopleDate = getTodayISO();
+  peopleSelected = 'Andrei (Jefe)';
+  peopleTab = 'summary';
+  peopleClientScope = 'period';
+  peopleClientLimit = 40;
+
+  renderPeopleManagement();
+  modal.classList.add('active');
+}
+
+function peopleOpenZone(id, onMap = false) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const index = savedZones.findIndex(z =>
+    z.id === id &&
+    z.comercial === peopleSelected
+  );
+
+  if (index < 0) {
+    alert('La zona ha cambiado. Actualiza el perfil.');
+    return;
+  }
+
+  closeModal('peopleManagementModal');
+
+  if (onMap) {
+    focusMapOnTownOrZone(
+      savedZones[index].town,
+      index
+    );
+  } else {
+    openDumpModal(index);
+  }
+}
+
+function renderPeopleManagement() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById(
+    'peopleManagementBody'
+  );
+
+  if (!root) return;
+
+  const range = personalStatsRange(
+    peoplePeriod,
+    peopleDate || getTodayISO()
+  );
+
+  const previousRange = personalStatsRange(
+    peoplePeriod,
+    peopleDate || getTodayISO(),
+    true
+  );
+
+  const m = personalStatsMetrics(
+    peopleSelected,
+    ...range
+  );
+
+  const previous = personalStatsMetrics(
+    peopleSelected,
+    ...previousRange
+  );
+
+  const backlog = peopleCurrentBacklog(peopleSelected);
+  const review = peopleReview(m, previous);
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  const inside = date =>
+    Boolean(date && date >= range[0] && date <= range[1]);
+
+  root.replaceChildren();
+
+  function node(tag, text, parent = root, css = '') {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function button(parent, label, action, active = false) {
+    const b = node(
+      'button',
+      label,
+      parent,
+      'padding:9px 6px;border:1px solid #475569;' +
+      'border-radius:9px;color:#fff;font-size:11px;font-weight:800;'
+    );
+
+    b.type = 'button';
+    b.style.background = active ? '#6d28d9' : '#1e293b';
+    b.onclick = action;
+
+    return b;
+  }
+
+  function tabs(items, selected, action) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      const b = button(
+        row,
+        label,
+        () => {
+          action(key);
+          renderPeopleManagement();
+        },
+        selected === key
+      );
+
+      b.style.flex = '1';
+    });
+  }
+
+  tabs(
+    [['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']],
+    peoplePeriod,
+    key => {
+      peoplePeriod = key;
+    }
+  );
+
+  const date = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;'
+  );
+
+  date.type = 'date';
+  date.value = peopleDate || getTodayISO();
+  date.max = getTodayISO();
+
+  date.setAttribute(
+    'aria-label',
+    'Fecha del seguimiento individual'
+  );
+
+  date.onchange = () => {
+    const d = new Date(date.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      date.value > getTodayISO()
+    ) return;
+
+    peopleDate = date.value;
+    renderPeopleManagement();
+  };
+
+  const roster = node(
+    'div',
+    null,
+    root,
+    'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' +
+    'gap:5px;margin:10px 0;'
+  );
+
+  getActiveTeamUsers(false).forEach(user => {
+    button(
+      roster,
+      getDisplayAlias(user),
+      () => {
+        peopleSelected = user;
+        peopleTab = 'summary';
+        peopleClientLimit = 40;
+        renderPeopleManagement();
+      },
+      user === peopleSelected
+    );
+  });
+
+  node(
+    'h3',
+    getDisplayAlias(peopleSelected),
+    root,
+    'font-size:16px;color:#c4b5fd;margin:12px 0 5px;'
+  );
+
+  node(
+    'p',
+    `${formatDate(range[0])} a ${formatDate(range[1])}`,
+    root,
+    'font-size:11px;color:#94a3b8;margin-bottom:9px;'
+  );
+
+  tabs(
+    [
+      ['summary', '📊 Perfil'],
+      ['zones', '🗺️ Zonas'],
+      ['clients', '📂 Fichas']
+    ],
+    peopleTab,
+    key => {
+      peopleTab = key;
+    }
+  );
+
+  button(root, '↻ Actualizar perfil', renderPeopleManagement);
+
+  function card(title, detail, color = '#475569') {
+    const box = node(
+      'div',
+      null,
+      root,
+      `padding:12px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;margin-top:9px;'
+    );
+
+    node(
+      'strong',
+      title,
+      box,
+      'display:block;font-size:13px;color:#fff;'
+    );
+
+    node(
+      'p',
+      detail,
+      box,
+      'white-space:pre-line;font-size:12px;color:#cbd5e1;' +
+      'line-height:1.6;margin-top:6px;'
+    );
+
+    return box;
+  }
+
+  const zones = savedZones.filter(z =>
+    z.comercial === peopleSelected &&
+    !z.isNoAptoZone
+  );
+
+  if (peopleTab === 'zones') {
+    node(
+      'p',
+      'Sectores asignados o volcados en el periodo, y sectores ' +
+      'pendientes actualmente de hoy o días anteriores.',
+      root,
+      'font-size:11px;color:#94a3b8;line-height:1.5;margin-top:9px;'
+    );
+
+    const list = zones.filter(z =>
+      !z.isSingleHouse &&
+      (
+        inside(z.date) ||
+        inside(z.dumpDate) ||
+        (
+          z.status !== 'completada' &&
+          z.date &&
+          z.date <= getTodayISO()
+        )
+      )
+    ).sort((a, b) =>
+      Number(a.status === 'completada') -
+      Number(b.status === 'completada') ||
+      String(a.date || '').localeCompare(
+        String(b.date || '')
+      )
+    );
+
+    list.forEach(z => {
+      const state = z.status === 'completada'
+        ? '✅ Terminada'
+        : (
+            z.status === 'en_proceso'
+              ? '🟡 Sin terminar'
+              : '🔵 Por hacer'
+          );
+
+      const box = card(
+        z.sectorName || 'Sector',
+        [
+          `${z.town || 'Sin municipio'} · ` +
+          `${formatDate(z.date)} · ${state}`,
+          z.bossNote
+            ? 'Instrucción: ' + z.bossNote
+            : '',
+          z.pendingNote
+            ? 'Falta: ' + z.pendingNote
+            : ''
+        ].filter(Boolean).join('\n')
+      );
+
+      button(
+        box,
+        '📂 Supervisar hoja / añadir indicación',
+        () => peopleOpenZone(z.id)
+      );
+
+      button(
+        box,
+        '📍 Ver mapa',
+        () => peopleOpenZone(z.id, true)
+      );
+    });
+
+    if (!list.length) {
+      card(
+        'Sin sectores en este filtro',
+        'No hay sectores que cumplan estas condiciones.'
+      );
+    }
+
+    return;
+  }
+
+  if (peopleTab === 'clients') {
+    tabs(
+      [
+        ['period', 'Del periodo'],
+        ['all', 'Todo el histórico']
+      ],
+      peopleClientScope,
+      key => {
+        peopleClientScope = key;
+        peopleClientLimit = 40;
+      }
+    );
+
+    const all = [];
+
+    zones.forEach(z => {
+      (z.clients || []).forEach(c => {
+        if (!isClientValidFilled(c)) return;
+
+        const created = new Date(c.createdAt);
+
+        const capture =
+          c.createdAt && Number.isFinite(created.getTime())
+            ? getLocalDateISO(created)
+            : (z.dumpDate || z.date);
+
+        const doneAt = new Date(c.obraRealizadaAt);
+
+        const done = c.obraRealizadaDate || (
+          c.obraRealizadaAt &&
+          Number.isFinite(doneAt.getTime())
+            ? getLocalDateISO(doneAt)
+            : ''
+        );
+
+        const relevant =
+          inside(capture) ||
+          (
+            c.obraStatus === 'agendada' &&
+            inside(c.obraDate)
+          ) ||
+          (
+            c.obraStatus === 'realizada' &&
+            inside(done)
+          );
+
+        if (peopleClientScope === 'all' || relevant) {
+          all.push({ z, c });
+        }
+      });
+    });
+
+    all.sort((a, b) =>
+      (Number(b.c.createdAt) || 0) -
+      (Number(a.c.createdAt) || 0)
+    );
+
+    node(
+      'p',
+      `${all.length} ficha(s). Se incluyen captaciones, citas ` +
+      'u obras con fecha dentro del periodo; el estado ' +
+      'mostrado es el actual.',
+      root,
+      'font-size:11px;color:#94a3b8;line-height:1.5;margin-top:9px;'
+    );
+
+    all.slice(0, peopleClientLimit).forEach(({ z, c }) => {
+      const labels = {
+        pendiente: '🔴 Sin llamar',
+        llamado: '🟡 Ya llamado',
+        esperando: '🟣 Esperando',
+        agendada: '📅 Con cita',
+        realizada: '✅ Realizada',
+        no_apto: '🚫 No apta'
+      };
+
+      const state = managementClientState(c);
+
+      const box = card(
+        c.name || 'Sin nombre',
+        `${labels[state] || state}\n` +
+        `${c.street || 'Sin dirección'} · ${z.town || ''}\n` +
+        `${c.phone || 'Sin teléfono'}`
+      );
+
+      button(
+        box,
+        '📂 Abrir zona / ficha',
+        () => peopleOpenZone(z.id)
+      );
+    });
+
+    if (all.length > peopleClientLimit) {
+      button(
+        root,
+        'Mostrar más fichas',
+        () => {
+          peopleClientLimit += 40;
+          renderPeopleManagement();
+        }
+      );
+    }
+
+    return;
+  }
+
+  card(
+    'Producción personal del periodo',
+    `Potencial: ${money(m.potencial)} · ` +
+    `${m.validas} fichas no descartadas\n` +
+    `Previsto en citas: ${money(m.previsto)} · ${m.citas} citas\n` +
+    `Generado por obras: ${money(m.generado)} · ${m.hechas} obras\n` +
+    'Importes estimados, no cobros. Las fases no se suman.',
+    '#60a5fa'
+  );
+
+  card(
+    'Actividad y horas registradas',
+    `${m.puertas} visitas · ${m.fichas} fichas creadas · ` +
+    `${m.noAptas} actualmente descartadas\n` +
+    `${m.horas.toFixed(1)} h · ${m.jornadas} días con fichaje\n` +
+    `${review.contacts} contactos registrados; ${m.si} SÍ ` +
+    `(${(100 * review.conversion).toFixed(1)}% de contactos).\n` +
+    'Ritmo: ' +
+    (
+      m.horas
+        ? (m.puertas / m.horas).toFixed(1) + ' visitas/h'
+        : 'sin horas suficientes'
+    ) +
+    '.'
+  );
+
+  const tableWrap = node(
+    'div',
+    null,
+    root,
+    'overflow-x:auto;margin-top:12px;'
+  );
+
+  const table = node(
+    'table',
+    null,
+    tableWrap,
+    'width:100%;border-collapse:collapse;font-size:11px;'
+  );
+
+  const row = (values, header = false) => {
+    const tr = node('tr', null, table);
+
+    values.forEach(value => {
+      node(
+        header ? 'th' : 'td',
+        String(value),
+        tr,
+        'padding:9px 5px;text-align:left;' +
+        'border-bottom:1px solid #334155;'
+      );
+    });
+  };
+
+  row(
+    ['Indicador', 'Actual', 'Anterior', 'Cambio'],
+    true
+  );
+
+  [
+    ['Visitas', 'puertas'],
+    ['Fichas', 'fichas'],
+    ['Citas', 'citas'],
+    ['Obras', 'hechas'],
+    ['Horas', 'horas'],
+    ['Potencial', 'potencial']
+  ].forEach(([label, key]) => {
+    const fmt = n => key === 'potencial'
+      ? money(n)
+      : (key === 'horas' ? n.toFixed(1) : String(n));
+
+    const diff = m[key] - previous[key];
+
+    row([
+      label,
+      fmt(m[key]),
+      fmt(previous[key]),
+      (diff > 0 ? '+' : '') + fmt(diff)
+    ]);
+  });
+
+  node(
+    'p',
+    `Anterior: ${formatDate(previousRange[0])} a ` +
+    `${formatDate(previousRange[1])}.`,
+    root,
+    'font-size:10px;color:#94a3b8;margin-top:6px;'
+  );
+
+  card(
+    'Pendientes actuales · independientes del periodo',
+    `${backlog.unfinished} sectores pendientes\n` +
+    `${backlog.pending} fichas pendientes de cita\n` +
+    `${backlog.overdue} seguimientos vencidos\n` +
+    `${backlog.missingReason} esperas sin motivo escrito\n` +
+    `${backlog.incomplete} fichas incompletas`,
+    backlog.overdue || backlog.missingReason
+      ? '#f59e0b'
+      : '#475569'
+  );
+
+  node(
+    'h3',
+    'Qué revisar o trabajar juntos',
+    root,
+    'font-size:14px;color:#c4b5fd;margin:16px 0 7px;'
+  );
+
+  review.notes.forEach(note => {
+    card(
+      note.title,
+      `Datos: ${note.evidence}\nPropuesta: ${note.action}`,
+      '#f59e0b'
+    );
+  });
+
+  if (!review.notes.length) {
+    card(
+      review.enough
+        ? 'Sin señales destacadas con estas reglas'
+        : 'Muestra todavía limitada',
+      review.enough
+        ? 'No se han activado los criterios de revisión. ' +
+          'Contrasta los datos con el contexto del trabajo.'
+        : 'Hay menos de 30 contactos registrados. Evita valorar ' +
+          'el discurso o la conversión con tan pocos datos.'
+    );
+  }
+
+  const quality = [];
+
+  if (m.jornadasSinHoras) {
+    quality.push(
+      `${m.jornadasSinHoras} jornada(s) sin horas determinables.`
+    );
+  }
+
+  if (m.antiguasSinFecha) {
+    quality.push(
+      `${m.antiguasSinFecha} obra(s) antiguas sin fecha de ejecución.`
+    );
+  }
+
+  if (quality.length) {
+    card(
+      'Datos pendientes de revisar',
+      quality.join('\n'),
+      '#f59e0b'
+    );
+  }
+
+  node(
+    'p',
+    'Contactos = SÍ + NO + información; excluye ausentes ' +
+    'y ya aisladas. Las señales son orientativas, usan ' +
+    'umbrales fijos y no sustituyen una revisión del ' +
+    'pueblo, la ruta y el trabajo real.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+  );
+}
+
 function openManagementAudit(tab) {
   if (currentUserName !== 'Andrei (Jefe)') return;
 
@@ -6647,11 +7461,8 @@ function routeSlotPlan(
   date,
   time,
   z,
-    client,
-     client,
+  client,
   ignored = client,
-  extraRows = []
-) {
   extraRows = []
 ) {
   const d = new Date(date + 'T12:00:00');
