@@ -1336,6 +1336,9 @@ html[data-login-team="mikel"] #loginTeamBadge {
     </div>
   </div>
 
+  <!-- PUENTE LIGERO KONSOR V2 (BLOQUE D) -->
+  <script src="konsor-v2-bridge.js"></script>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
@@ -2176,6 +2179,8 @@ function openUserProfileModal() {
       try {
         localStorage.setItem(key, JSON.stringify(stamped));
       } catch (e) {}
+      
+      // Sincronización en paralelo con el almacenamiento puente
       if (typeof window.pushToFirestore === 'function') {
         window.pushToFirestore(key, stamped);
       }
