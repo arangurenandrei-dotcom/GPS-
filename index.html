@@ -5388,37 +5388,791 @@ function renderTeamOverview() {
   );
 }
 
+let bossPlanItems = [];
+let bossPlanWatch = null;
+let bossPlanFilter = 'today';
+let bossPlanStatus = 'Conectando con las tareas…';
+let bossPlanSaving = false;
+
+function bossPlanStartWatch() {
+  if (
+    bossPlanWatch ||
+    currentUserName !== 'Andrei (Jefe)'
+  ) return;
+
+  if (!window.bossTasksApi) {
+    bossPlanStatus =
+      'Espera a que termine de cargar Firebase y pulsa Actualizar.';
+    return;
+  }
+
+  bossPlanWatch = window.bossTasksApi.watch(
+    (rows, fromCache) => {
+      bossPlanItems = rows;
+
+      bossPlanStatus = fromCache
+        ? 'Copia en caché; comprobando conexión…'
+        : 'Tareas sincronizadas.';
+
+      try {
+        localStorage.setItem(
+          'comercial_boss_tasks',
+          JSON.stringify(rows)
+        );
+      } catch (e) {}
+
+      if (
+        document.getElementById('bossPlanModal')
+          ?.classList.contains('active')
+      ) renderBossPlan();
+    },
+    error => {
+      bossPlanStatus =
+        'No se pudieron leer las tareas: ' +
+        (error.message || error);
+
+      if (bossPlanWatch) bossPlanWatch();
+      bossPlanWatch = null;
+
+      if (
+        document.getElementById('bossPlanModal')
+          ?.classList.contains('active')
+      ) renderBossPlan();
+    }
+  );
+}
+
 function openBossWorkMenu() {
   if (currentUserName !== 'Andrei (Jefe)') return;
 
-  openWorkMenu(
-    '📋 Plan de jefe',
-    'Accesos iniciales a planificación y supervisión. ' +
-    'Ampliaremos aquí las tareas personales del jefe.',
-    [
-      [
-        '📍 Asignar un sector',
-        'Dibuja la zona y elige la persona y la fecha.',
-        startSectorDrawing
-      ],
-      [
-        '👥 Revisar el trabajo de hoy',
-        'Consulta zonas, jornadas y resultados de cada persona.',
-        () => openManagementAudit('comerciales')
-      ],
-      [
-        '🚧 Obras de hoy',
-        'Revisa instalaciones y asigna captación alrededor de las obras.',
-        () => checkAndShowBossTodayObras(false)
-      ],
-      [
-        '👤 Gestionar accesos',
-        'Revisa solicitudes y perfiles de las cuentas.',
-        openAccessAdminModal
-      ]
-    ]
+  const cache = safeLoadStorage('comercial_boss_tasks');
+
+  if (!bossPlanWatch && Array.isArray(cache)) {
+    bossPlanItems = cache;
+  }
+
+  let modal = document.getElementById('bossPlanModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bossPlanModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>📋 Mi plan de jefe</span>
+            <button type="button"
+              onclick="closeModal('bossPlanModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="bossPlanBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  bossPlanFilter = 'today';
+  bossPlanStartWatch();
+  renderBossPlan();
+  modal.classList.add('active');
+}
+
+function bossPlanNode(tag, text, parent, css = '') {
+  const el = document.createElement(tag);
+
+  if (text !== null) el.textContent = text;
+  if (css) el.style.cssText = css;
+  if (parent) parent.appendChild(el);
+
+  return el;
+}
+
+function bossPlanButton(parent, label, action) {
+  const b = bossPlanNode(
+    'button',
+    label,
+    parent,
+    'padding:9px 7px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;' +
+    'font-size:11px;font-weight:800;'
+  );
+
+  b.type = 'button';
+  b.onclick = action;
+
+  return b;
+}
+
+async function bossPlanSave(patch, onSuccess) {
+  if (
+    currentUserName !== 'Andrei (Jefe)' ||
+    bossPlanSaving
+  ) return;
+
+  if (!window.bossTasksApi) {
+    alert('Espera a que cargue Firebase y vuelve a guardar.');
+    return;
+  }
+
+  bossPlanSaving = true;
+  bossPlanStatus = 'Guardando tarea…';
+  renderBossPlan();
+
+  try {
+    bossPlanItems = await window.bossTasksApi.save(patch);
+
+    try {
+      localStorage.setItem(
+        'comercial_boss_tasks',
+        JSON.stringify(bossPlanItems)
+      );
+    } catch (e) {}
+
+    bossPlanStatus = 'Tarea guardada en Firebase.';
+
+    if (onSuccess) onSuccess();
+  } catch (error) {
+    bossPlanStatus = 'No se guardó la tarea.';
+
+    alert(
+      'No se pudo guardar. Conserva lo escrito y vuelve a intentarlo.\n\n' +
+      (error.message || error)
+    );
+  } finally {
+    bossPlanSaving = false;
+    renderBossPlan();
+  }
+}
+
+function bossPlanOpenContext(task) {
+  if (task.person) {
+    closeModal('bossPlanModal');
+    openPeopleManagement();
+
+    peopleSelected = task.person;
+    peopleTab = task.sourceAction === 'clients'
+      ? 'clients'
+      : 'summary';
+
+    peopleClientScope = 'all';
+    renderPeopleManagement();
+    return;
+  }
+
+  if (task.sourceAction === 'accounts') {
+    closeModal('bossPlanModal');
+    openAccessAdminModal();
+    return;
+  }
+
+  if (task.sourceAction === 'obras') {
+    closeModal('bossPlanModal');
+    openManagementAudit('obras');
+    return;
+  }
+
+  if (task.town) {
+    closeModal('bossPlanModal');
+    focusMapOnTownOrZone(task.town, null);
+  }
+}
+
+function bossPlanSuggestions() {
+  const out = [];
+  const today = getTodayISO();
+
+  const range = personalStatsRange('month', today);
+  const previous = personalStatsRange('month', today, true);
+
+  getActiveTeamUsers(false).forEach(user => {
+    const alias = getDisplayAlias(user);
+    const b = peopleCurrentBacklog(user);
+
+    if (b.overdue) {
+      out.push({
+        sourceId: 'calls:' + user,
+        title: 'Revisar seguimientos · ' + alias,
+        detail:
+          `${b.overdue} seguimientos vencidos. ` +
+          'Revisar las fichas y acordar el siguiente contacto.',
+        person: user,
+        priority: 'high',
+        sourceAction: 'clients',
+        type: 'supervision'
+      });
+    }
+
+    if (b.missingReason || b.incomplete) {
+      out.push({
+        sourceId: 'quality:' + user,
+        title: 'Completar registros · ' + alias,
+        detail:
+          `${b.incomplete} fichas incompletas y ` +
+          `${b.missingReason} esperas sin motivo.`,
+        person: user,
+        priority: 'medium',
+        sourceAction: 'clients',
+        type: 'supervision'
+      });
+    }
+
+    const m = personalStatsMetrics(user, ...range);
+    const p = personalStatsMetrics(user, ...previous);
+
+    peopleReview(m, p).notes.slice(0, 2).forEach(note => {
+      out.push({
+        sourceId: 'review:' + user + ':' + note.title,
+        title: note.title + ' · ' + alias,
+        detail:
+          'Datos: ' + note.evidence +
+          '\nPropuesta: ' + note.action,
+        person: user,
+        priority: 'medium',
+        type: 'supervision'
+      });
+    });
+
+    const shift = getTodayShift(user);
+
+    if (
+      shift &&
+      ['working', 'lunch'].includes(shift.status) &&
+      !b.unfinished
+    ) {
+      out.push({
+        sourceId: 'zone:' + user,
+        title: 'Revisar asignación de zona · ' + alias,
+        detail:
+          'Tiene jornada abierta y no aparece un sector pendiente ' +
+          'para hoy o días anteriores. Comprobar si necesita zona ' +
+          'o está en otra tarea.',
+        person: user,
+        priority: 'medium',
+        type: 'territory'
+      });
+    }
+  });
+
+  let overdueObras = 0;
+  let missingCrm = 0;
+
+  savedZones.forEach(z => {
+    if (isMikelTeamMember(z.comercial)) return;
+
+    (z.clients || []).forEach(c => {
+      if (
+        c.obraStatus === 'agendada' &&
+        c.obraDate &&
+        c.obraDate < today
+      ) {
+        overdueObras++;
+      }
+
+      if (needsCrmUpload(c)) missingCrm++;
+    });
+  });
+
+  if (overdueObras || missingCrm) {
+    out.push({
+      sourceId: 'obras:review',
+      title: 'Revisar citas y cierre de obras',
+      detail:
+        `${overdueObras} citas con fecha pasada aún agendadas y ` +
+        `${missingCrm} sin confirmación de CRM. Comprobar cada caso.`,
+      priority: 'high',
+      type: 'obras',
+      sourceAction: 'obras'
+    });
+  }
+
+  if (accessPendingCount()) {
+    out.push({
+      sourceId: 'accounts:pending',
+      title: 'Revisar solicitudes de acceso',
+      detail:
+        `${accessPendingCount()} cuentas pendientes de aprobación.`,
+      priority: 'medium',
+      type: 'management',
+      sourceAction: 'accounts'
+    });
+  }
+
+  teamOverviewTowns(range, 'captadas').forEach(t => {
+    if (
+      t.visitas >= 30 &&
+      t.yaAislado / t.visitas >= 0.4
+    ) {
+      out.push({
+        sourceId: 'town:' + t.key,
+        title: 'Revisar respuesta del pueblo · ' + t.name,
+        detail:
+          `${t.yaAislado} viviendas ya aisladas de ` +
+          `${t.visitas} visitas registradas este mes. ` +
+          'Valorar las calles restantes antes de enviar más personas.',
+        town: t.name,
+        priority: 'medium',
+        type: 'territory'
+      });
+    }
+  });
+
+  return out.sort((a, b) =>
+    Number(b.priority === 'high') -
+    Number(a.priority === 'high')
   );
 }
+
+function editBossPlanTask(task = {}) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  let modal = document.getElementById('bossTaskEditor');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bossTaskEditor';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '10060';
+    document.body.appendChild(modal);
+  }
+
+  modal.replaceChildren();
+
+  const body = bossPlanNode(
+    'div',
+    null,
+    modal,
+    'width:100%;max-width:480px;max-height:100%;' +
+    'overflow-y:auto;padding:15px;background:#0f172a;' +
+    'border:1px solid #475569;border-radius:15px;'
+  );
+
+  bossPlanNode(
+    'strong',
+    task.id ? 'Editar tarea' : 'Añadir tarea a mi plan',
+    body,
+    'display:block;font-size:15px;margin-bottom:10px;'
+  );
+
+  function field(label, tag, value) {
+    bossPlanNode(
+      'label',
+      label,
+      body,
+      'display:block;font-size:11px;color:#cbd5e1;margin:8px 0 4px;'
+    );
+
+    const input = bossPlanNode(
+      tag,
+      null,
+      body,
+      'width:100%;padding:10px;border:1px solid #475569;' +
+      'border-radius:9px;background:#1e293b;color:#fff;font-size:13px;'
+    );
+
+    input.setAttribute('aria-label', label);
+    if (value !== undefined) input.value = value;
+
+    return input;
+  }
+
+  const title = field(
+    'Qué tengo que hacer',
+    'input',
+    task.title || ''
+  );
+  title.maxLength = 120;
+
+  const detail = field(
+    'Detalles',
+    'textarea',
+    task.detail || ''
+  );
+  detail.rows = 3;
+  detail.maxLength = 2000;
+
+  const due = field(
+    'Fecha límite',
+    'input',
+    task.dueDate || getTodayISO()
+  );
+  due.type = 'date';
+  due.value = task.dueDate || getTodayISO();
+
+  function select(label, options, current) {
+    const input = field(label, 'select');
+
+    options.forEach(([value, text]) => {
+      const o = bossPlanNode('option', text, input);
+      o.value = value;
+      o.selected = value === current;
+    });
+
+    return input;
+  }
+
+  const priority = select(
+    'Prioridad',
+    [
+      ['high', '🔴 Alta'],
+      ['medium', '🟡 Media'],
+      ['low', '🔵 Baja']
+    ],
+    task.priority || 'medium'
+  );
+
+  const type = select(
+    'Tipo',
+    [
+      ['supervision', 'Comerciales / formación'],
+      ['territory', 'Pueblos / zonas'],
+      ['obras', 'Obras'],
+      ['management', 'Gestión'],
+      ['other', 'Otra tarea']
+    ],
+    task.type || 'other'
+  );
+
+  const person = select(
+    'Persona relacionada · no asigna la tarea al comercial',
+    [
+      ['', 'Ninguna'],
+      ...getActiveTeamUsers(false).map(user => [
+        user,
+        getDisplayAlias(user)
+      ])
+    ],
+    task.person || ''
+  );
+
+  const town = field(
+    'Pueblo relacionado',
+    'input',
+    task.town || ''
+  );
+  town.maxLength = 80;
+
+  const actions = bossPlanNode(
+    'div',
+    null,
+    body,
+    'display:flex;gap:7px;margin-top:12px;'
+  );
+
+  const save = bossPlanButton(
+    actions,
+    '💾 Guardar tarea',
+    async () => {
+      const d = new Date(due.value + 'T12:00:00');
+
+      if (
+        !title.value.trim() ||
+        !Number.isFinite(d.getTime()) ||
+        getLocalDateISO(d) !== due.value
+      ) {
+        alert('Completa un título y una fecha válidos.');
+        return;
+      }
+
+      const id = task.id || (
+        window.crypto?.randomUUID
+          ? crypto.randomUUID()
+          : Date.now() + '-' + Math.random().toString(36).slice(2)
+      );
+
+      save.disabled = true;
+
+      try {
+        await bossPlanSave(
+          {
+            id,
+            title: title.value.trim(),
+            detail: detail.value.trim(),
+            dueDate: due.value,
+            priority: priority.value,
+            type: type.value,
+            person: person.value,
+            town: town.value.trim(),
+            sourceId: task.sourceId || '',
+            sourceAction: task.sourceAction || '',
+            status: task.status || 'pending'
+          },
+          () => closeModal('bossTaskEditor')
+        );
+      } finally {
+        save.disabled = false;
+      }
+    }
+  );
+
+  bossPlanButton(
+    actions,
+    'Cancelar',
+    () => closeModal('bossTaskEditor')
+  );
+
+  modal.classList.add('active');
+}
+
+function renderBossPlan() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById('bossPlanBody');
+  if (!root) return;
+
+  const today = getTodayISO();
+
+  const pending = bossPlanItems.filter(
+    t => t.status !== 'done'
+  );
+
+  root.replaceChildren();
+
+  const text = (message, color = '#94a3b8') =>
+    bossPlanNode(
+      'p',
+      message,
+      root,
+      `font-size:11px;color:${color};line-height:1.5;` +
+      'margin:8px 0;white-space:pre-line;'
+    );
+
+  const actions = bossPlanNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;'
+  );
+
+  bossPlanButton(
+    actions,
+    '➕ Nueva tarea',
+    () => editBossPlanTask()
+  );
+
+  bossPlanButton(
+    actions,
+    '↻ Actualizar',
+    () => {
+      bossPlanStartWatch();
+      renderBossPlan();
+    }
+  );
+
+  bossPlanButton(
+    actions,
+    '📍 Asignar sector',
+    () => {
+      closeModal('bossPlanModal');
+      startSectorDrawing();
+    }
+  );
+
+  bossPlanButton(
+    actions,
+    '🚧 Obras de hoy',
+    () => {
+      closeModal('bossPlanModal');
+      checkAndShowBossTodayObras(false);
+    }
+  );
+
+  text(bossPlanStatus);
+
+  const tabs = bossPlanNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:5px;flex-wrap:wrap;'
+  );
+
+  const filters = {
+    today: t => t.status !== 'done' && t.dueDate <= today,
+    next: t => t.status !== 'done' && t.dueDate > today,
+    done: t => t.status === 'done',
+    all: () => true
+  };
+
+  [
+    ['today', 'Hoy y vencidas'],
+    ['next', 'Próximas'],
+    ['done', 'Hechas'],
+    ['all', 'Todas']
+  ].forEach(([key, label]) => {
+    const b = bossPlanButton(
+      tabs,
+      `${label} (${bossPlanItems.filter(filters[key]).length})`,
+      () => {
+        bossPlanFilter = key;
+        renderBossPlan();
+      }
+    );
+
+    if (key === bossPlanFilter) {
+      b.style.background = '#6d28d9';
+    }
+  });
+
+  const order = { high: 0, medium: 1, low: 2 };
+
+  const list = bossPlanItems
+    .filter(filters[bossPlanFilter])
+    .slice()
+    .sort((a, b) =>
+      Number(a.status === 'done') -
+      Number(b.status === 'done') ||
+      Number(b.dueDate < today) -
+      Number(a.dueDate < today) ||
+      (order[a.priority] ?? 1) -
+      (order[b.priority] ?? 1) ||
+      String(a.dueDate).localeCompare(String(b.dueDate))
+    );
+
+  if (!list.length) {
+    text('No hay tareas en este filtro.');
+  }
+
+  list.forEach(task => {
+    const done = task.status === 'done';
+    const late = !done && task.dueDate < today;
+
+    const color = done
+      ? '#34d399'
+      : (
+          late || task.priority === 'high'
+            ? '#f87171'
+            : '#475569'
+        );
+
+    const box = bossPlanNode(
+      'div',
+      null,
+      root,
+      `padding:12px;margin-top:9px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;'
+    );
+
+    bossPlanNode(
+      'strong',
+      `${done ? '✅' : (late ? '🚨' : '📋')} ${task.title}`,
+      box,
+      'font-size:13px;'
+    );
+
+    const priorityLabel = task.priority === 'high'
+      ? 'Alta'
+      : (task.priority === 'low' ? 'Baja' : 'Media');
+
+    bossPlanNode(
+      'p',
+      `${formatDate(task.dueDate)} · ${priorityLabel}` +
+      (task.person ? '\n' + getDisplayAlias(task.person) : '') +
+      (task.town ? ' · ' + task.town : '') +
+      '\n' + (task.detail || ''),
+      box,
+      'white-space:pre-line;font-size:11px;color:#cbd5e1;' +
+      'line-height:1.6;margin:7px 0;'
+    );
+
+    const row = bossPlanNode(
+      'div',
+      null,
+      box,
+      'display:flex;gap:5px;flex-wrap:wrap;'
+    );
+
+    bossPlanButton(
+      row,
+      done ? '↩️ Reabrir' : '✅ Hecha',
+      () => bossPlanSave({
+        id: task.id,
+        status: done ? 'pending' : 'done',
+        doneAt: done ? null : Date.now()
+      })
+    );
+
+    bossPlanButton(
+      row,
+      '✏️ Editar',
+      () => editBossPlanTask(task)
+    );
+
+    if (task.person || task.town || task.sourceAction) {
+      bossPlanButton(
+        row,
+        'Abrir contexto',
+        () => bossPlanOpenContext(task)
+      );
+    }
+  });
+
+  bossPlanNode(
+    'h3',
+    'Revisiones sugeridas por los datos actuales',
+    root,
+    'font-size:14px;color:#c4b5fd;margin:18px 0 7px;'
+  );
+
+  text(
+    'No son tareas asignadas automáticamente. Puedes revisarlas ' +
+    'o añadirlas a tu plan. Se recalculan al abrir o actualizar.'
+  );
+
+  const suggestions = bossPlanSuggestions();
+
+  suggestions.forEach(item => {
+    const exists = pending.some(
+      t => t.sourceId === item.sourceId
+    );
+
+    const box = bossPlanNode(
+      'div',
+      null,
+      root,
+      'padding:11px;border:1px solid #475569;' +
+      'border-radius:11px;margin-top:8px;'
+    );
+
+    bossPlanNode(
+      'strong',
+      item.title,
+      box,
+      'font-size:12px;color:#fde047;'
+    );
+
+    bossPlanNode(
+      'p',
+      item.detail,
+      box,
+      'white-space:pre-line;font-size:11px;color:#cbd5e1;' +
+      'line-height:1.6;margin:6px 0;'
+    );
+
+    bossPlanButton(
+      box,
+      'Revisar',
+      () => bossPlanOpenContext(item)
+    );
+
+    const add = bossPlanButton(
+      box,
+      exists ? 'Ya está en mi plan' : '➕ Añadir a mi plan',
+      () => editBossPlanTask(item)
+    );
+
+    add.disabled = exists;
+  });
+
+  if (!suggestions.length) {
+    text('No hay revisiones destacadas con los criterios actuales.');
+  }
+}
+
     function startSingleHouseDirect() {
       cancelDrawing();
       isDrawingMode = true;
@@ -15414,7 +16168,115 @@ function openCommercialStatsModalLegacy() {
       }
     };
 
-    window.startFirestoreSync = function() {
+    window.bossTasksApi = {
+  watch(onData, onError) {
+    return onSnapshot(
+      doc(db, 'gestion_navarra', 'comercial_boss_tasks'),
+      { includeMetadataChanges: true },
+      snap => {
+        try {
+          const rows = snap.exists()
+            ? JSON.parse(snap.data().payload || '[]')
+            : [];
+
+          if (!Array.isArray(rows)) {
+            throw new Error('El formato de las tareas no es válido.');
+          }
+
+          onData(rows, snap.metadata.fromCache);
+        } catch (error) {
+          onError(error);
+        }
+      },
+      onError
+    );
+  },
+
+  async save(patch) {
+    if (!auth.currentUser) {
+      throw new Error('Inicia sesión antes de guardar.');
+    }
+
+    const { runTransaction } = await import(
+      'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js'
+    );
+
+    const ref = doc(
+      db,
+      'gestion_navarra',
+      'comercial_boss_tasks'
+    );
+
+    return runTransaction(db, async transaction => {
+      const snap = await transaction.get(ref);
+
+      const rows = snap.exists()
+        ? JSON.parse(snap.data().payload || '[]')
+        : [];
+
+      if (!Array.isArray(rows)) {
+        throw new Error('El formato de las tareas no es válido.');
+      }
+
+      const index = rows.findIndex(t => t.id === patch.id);
+      const previous = index >= 0 ? rows[index] : {};
+
+      const task = {
+        ...previous,
+        ...patch,
+        createdAt: previous.createdAt || Date.now(),
+        _updatedAt: Math.max(
+          Date.now(),
+          (previous._updatedAt || 0) + 1
+        )
+      };
+
+      if (
+        !task.id ||
+        !String(task.title || '').trim() ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')
+      ) {
+        throw new Error('Completa el título y la fecha de la tarea.');
+      }
+
+      if (
+        index < 0 &&
+        task.sourceId &&
+        rows.some(t =>
+          t.sourceId === task.sourceId &&
+          t.status !== 'done'
+        )
+      ) {
+        throw new Error(
+          'Esta revisión ya está añadida al plan. Actualiza la vista.'
+        );
+      }
+
+      if (index >= 0) rows[index] = task;
+      else rows.push(task);
+
+      const payload = JSON.stringify(rows);
+
+      if (
+        new TextEncoder().encode(payload).length > 900000
+      ) {
+        throw new Error(
+          'La lista de tareas necesita archivarse antes de seguir creciendo.'
+        );
+      }
+
+      transaction.set(
+        ref,
+        { payload, updatedAt: Date.now() },
+        { merge: true }
+      );
+
+      return rows;
+    });
+  }
+};
+
+window.startFirestoreSync = function() {
     if (window.__syncStarted) return;
     window.__syncStarted = true;
     SYNC_KEYS.forEach((key) => {
