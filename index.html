@@ -1052,6 +1052,36 @@
 .ks-v6-content{padding:16px;overflow:auto}.ks-v6-card{background:#1a324b;border:1px solid #3b5771;border-radius:12px;padding:13px;margin-bottom:9px}.ks-v6-card strong{display:block;margin-bottom:5px}.ks-v6-card small{display:block;color:#b5c9dd;line-height:1.5}.ks-v6-card button{background:#1d6b90;border:0;border-radius:9px;padding:10px;color:white;margin-top:9px;font-weight:700}
 .ks-v6-content input,.ks-v6-content select{background:#0c1b2b;color:#fff;border:1px solid #53708c;border-radius:10px;padding:11px;min-height:43px;width:100%;box-sizing:border-box;font-size:16px;margin:7px 0 12px}.ks-v6-content label{font-size:12px;color:#b9d0e3}
 .ks-v6-help{font-size:12px;color:#a9c5db;line-height:1.5}.ks-v6-alert{border-left:4px solid #f59e0b}
+</style><style id="ks-v7-unified">
+:root{--ks-unified-bg:#10243a;--ks-unified-card:#1b324b;--ks-unified-line:#385670;--ks-unified-text:#f1f7ff;--ks-unified-muted:#b5cce0;--ks-unified-blue:#176d92}
+.modal-overlay:not(#idenaViewerModal){background:rgba(3,12,23,.78)!important;backdrop-filter:blur(10px);align-items:flex-end!important;justify-content:center!important;padding:0!important}
+.modal-overlay:not(#idenaViewerModal)>.modal-card{background:var(--ks-unified-bg)!important;border:1px solid var(--ks-unified-line)!important;border-radius:22px 22px 0 0!important;color:var(--ks-unified-text)!important;width:min(100%,720px)!important;max-width:720px!important;max-height:90dvh!important;padding:0!important;box-shadow:0 -16px 65px #0008!important;overflow:hidden!important}
+.modal-overlay:not(#idenaViewerModal) .modal-header-sticky{padding:15px 16px 12px!important;background:#142b42!important;border-bottom:1px solid var(--ks-unified-line)!important}
+.modal-overlay:not(#idenaViewerModal) .modal-header{border:0!important;padding:0!important;margin:0!important;color:#f3f8ff!important;font-size:17px!important;gap:10px}
+.modal-overlay:not(#idenaViewerModal) .modal-scrollable-content{padding:15px 16px calc(22px + env(safe-area-inset-bottom))!important;margin:0!important;overscroll-behavior:contain}
+.modal-overlay:not(#idenaViewerModal) .modal-section-title{font-size:11px!important;color:#92cce8!important;letter-spacing:.09em!important;margin:17px 0 9px!important}
+.modal-overlay:not(#idenaViewerModal) .input-group{border-color:#344e66!important;border-radius:10px!important}
+.modal-overlay:not(#idenaViewerModal) input:not([type=checkbox]):not([type=radio]),.modal-overlay:not(#idenaViewerModal) select,.modal-overlay:not(#idenaViewerModal) textarea{max-width:100%;box-sizing:border-box;border-radius:10px!important;font-size:16px!important}
+.modal-overlay:not(#idenaViewerModal) button{touch-action:manipulation}
+.modal-overlay:not(#idenaViewerModal) .subtab-bar,.modal-overlay:not(#idenaViewerModal) .tab-bar{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:6px!important;scrollbar-width:thin}
+.modal-overlay:not(#idenaViewerModal) .subtab-btn,.modal-overlay:not(#idenaViewerModal) .tab-btn{flex:0 0 auto!important;white-space:nowrap!important;border-radius:10px!important;min-height:38px!important}
+#userProfileModal{z-index:21000!important}
+#userProfileModal>.modal-card{width:min(100%,540px)!important;max-width:540px!important;max-height:88dvh!important}
+#userProfileModal .ks-settings-group{background:#1b324b!important;border:1px solid #3a5975!important;border-radius:14px!important;padding:16px!important}
+#userProfileModal .ks-settings-group h3{color:#f5faff;font-size:15px}
+#userProfileModal .ks-settings-button{min-height:44px;background:#176d92;border:1px solid #43a3cc;border-radius:11px}
+#userProfileModal .ks-settings-muted{color:#b4cadf}
+#userProfileModal .ks-settings-toggle{display:flex!important;align-items:center;justify-content:space-between;gap:12px}
+#userProfileModal .ks-settings-toggle input{accent-color:#41b4e1;flex-shrink:0}
+#userProfileModal .input-field{background:#0c2034!important;color:#fff!important;border:1px solid #4d708e!important;padding:12px!important;width:100%!important}
+#loginScreen .login-card{background:#12253a!important;border:1px solid #3a5871!important;border-radius:22px!important;box-shadow:0 20px 60px #0008!important}
+#workspaceHome .workspace-home-card{background:#12253a!important;border:1px solid #3a5871!important}
+#workspaceHome .workspace-home-choice{background:#1b324b!important;border-color:#42617e!important}
+#konsorHub .ks-sheet,#ksV6Overlay .ks-v6-panel{background:#10243a!important;border-color:#385670!important}
+#ksV6Overlay .ks-v6-card{background:#1b324b!important;border-color:#385670!important}
+#ksV6Overlay .ks-v6-header{background:#142b42!important}
+@media(min-width:740px){.modal-overlay:not(#idenaViewerModal){align-items:center!important;padding:16px!important}.modal-overlay:not(#idenaViewerModal)>.modal-card{border-radius:20px!important;max-height:90dvh!important}}
+@media(max-width:600px){.modal-overlay:not(#idenaViewerModal)>.modal-card{width:100%!important;max-width:100%!important;max-height:93dvh!important;border-radius:20px 20px 0 0!important}.modal-overlay:not(#idenaViewerModal) .modal-scrollable-content{padding:12px 13px calc(18px + env(safe-area-inset-bottom))!important}}
 </style></head>
 <body>
 
@@ -1155,7 +1185,7 @@
         <div class="hud-utility-group" style="gap:5px;">
           <button id="konsorOpenHub" onclick="ksOpenHub()" aria-haspopup="dialog" aria-controls="konsorHub">☷ Herramientas</button>
           <button id="btnWorkspaceExit" class="btn-hud" style="display:none;padding:6px 9px;font-size:11px" onclick="showWorkspaceHome()" title="Volver al inicio y elegir espacio">↩ Inicio</button>
-          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">⚙️</button>
+          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="ksOpenSettings()" title="Ajustes de la App">⚙️</button>
           <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
           <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒</button>
         </div>
@@ -1226,7 +1256,7 @@
     <div class="modal-card" style="max-width:390px;">
       <div class="modal-header-sticky">
         <div class="modal-header">
-          <span>⚙️ Ajustes y Mi Nombre</span>
+          <span>⚙️ Ajustes</span>
           <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('userProfileModal')">✕</button>
         </div>
       </div>
@@ -1659,9 +1689,9 @@
 
     function openUserProfileModal() {
       const key=sessionStorage.getItem('auth_user_key');
-      if(!key || isMikelTeamMember(currentUserName))return;
       const body=document.getElementById('userProfileModalBody');
-      const alias=getDisplayAlias(key);
+      if(!body)return;
+      const alias=getDisplayAlias(key || currentUserName || '');
       const permission=('Notification' in window)?Notification.permission:'unsupported';
       body.innerHTML=`
       <div class="ks-settings-group"><h3>Notificaciones</h3>
@@ -1679,7 +1709,10 @@
       </div>
       ${key==='jefe'?`<div class="ks-settings-group"><h3>Accesos</h3><button class="ks-settings-button" onclick="openAccessAdminModal()">👥 Gestionar accesos y cuentas ${accessPendingCount()?`(${accessPendingCount()} pendientes)`:''}</button></div>`:''}
       <div class="ks-settings-group"><h3>Ayuda y contacto</h3>${helpSectionHtml()}</div>`;
-      document.getElementById('userProfileModal').classList.add('active');
+      const settingsModal=document.getElementById('userProfileModal');
+      settingsModal.style.zIndex='21000';
+      settingsModal.classList.add('active');
+      settingsModal.setAttribute('aria-hidden','false');
     }
 
     function helpWaLink(text) {
@@ -9744,6 +9777,14 @@ setInterval(ucRefreshQuickButton,3000);
 </div>
 <script>
 
+
+function ksOpenSettings(){
+  if(typeof ksCloseHub==='function')ksCloseHub();
+  if(typeof ksV6Close==='function')ksV6Close();
+  if(typeof openUserProfileModal==='function')openUserProfileModal();
+  const modal=document.getElementById('userProfileModal');
+  if(modal){modal.style.zIndex='21000';modal.classList.add('active');}
+}
 function ksFindClient(){
  const q=document.getElementById('ksClientQuickQuery').value.trim();
  ksCloseHub();
