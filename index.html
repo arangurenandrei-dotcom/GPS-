@@ -1306,7 +1306,71 @@
 }
 
 </style>
-</head>
+<style id="konsor-v14-street-ux">
+/* V14: flujo híbrido: mapa + accesos directos + gestión profunda.
+   La funcionalidad del mapa y sus manejadores se conservan intactos. */
+:root{--ks14-bg:#10263b;--ks14-card:#19354c;--ks14-border:#40647f;--ks14-highlight:#1d7093;--ks14-ink:#ecf6ff}
+/* Cabecera de campo, compacta y accesible con guantes */
+.hud-header{top:calc(env(safe-area-inset-top,0px) + 5px)!important;left:50%!important;transform:translateX(-50%)!important;width:calc(100% - 14px)!important;max-width:680px!important;right:auto!important;border-radius:16px!important;padding:8px!important;background:rgba(12,28,45,.96)!important;border:1px solid rgba(98,149,181,.55)!important;gap:6px!important;z-index:1200!important;box-shadow:0 10px 30px #0009!important}
+.hud-header .hud-top-row{gap:8px!important;min-height:39px;margin:0!important}
+.hud-header .user-pill{min-width:0;max-width:calc(100% - 126px);gap:5px}
+.hud-header .user-name-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:124px;color:#edf7ff;font-size:12px}
+.hud-header #displayRoleBadge{flex-shrink:0;background:#1a4d6c!important;border:1px solid #5289ad!important;color:#e9f6ff!important;border-radius:9px!important;font-size:10px!important;padding:6px!important}
+.hud-header .hud-utility-group{margin-left:auto!important;flex:0 0 auto}
+.hud-header .hud-utility-group button.k11-utility{display:none!important}
+.hud-header #btnUserProfileConfig,.hud-header #btnWorkspaceExit{display:none!important}
+.hud-header #konsorOpenHub{display:flex!important;align-items:center;justify-content:center;min-height:42px!important;padding:9px 12px!important;border-radius:11px!important;border:1px solid #5aa4c9!important;background:#1b668b!important;color:#fff!important;font-size:12px!important;letter-spacing:0!important;white-space:nowrap;box-shadow:none!important}
+#hudNavGrid{display:none!important}
+/* Accesos para consultar clientes/agenda en una sola pulsación. */
+#ks14QuickNav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%;}
+#ks14QuickNav button{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:43px;padding:8px 3px!important;font:800 11.5px/1.2 system-ui,-apple-system,sans-serif!important;color:#f2f9ff;background:#1c3851;border:1px solid #4b6e8b;border-radius:10px;touch-action:manipulation;cursor:pointer;white-space:nowrap}
+#ks14QuickNav button.ks14-priority{background:#195777;border-color:#4495b9}
+#ks14QuickNav button:focus-visible,.bottom-action-panel button:focus-visible{outline:3px solid #c3edff;outline-offset:2px}
+body[data-ks14-mode="comercial"] #ks14QuickNav .ks14-boss,body[data-ks14-mode="boss"] #ks14QuickNav .ks14-commercial{display:none!important}
+body:not([data-ks14-ready="yes"]) #ks14QuickNav{display:none!important}
+/* Jornada, siempre accesible y sin necesidad de menú. */
+.hud-header>.shift-bar{display:flex!important;align-items:center!important;justify-content:space-between!important;width:100%;background:#122b41!important;border:1px solid #385670!important;border-radius:10px!important;padding:4px 6px!important;min-height:37px;gap:5px!important;box-shadow:none!important}
+.hud-header .shift-status-pill{color:#bed6e9!important;font-size:10px!important;line-height:1.3;flex:1;min-width:0;white-space:normal!important}
+.hud-header>.shift-bar>div:last-child{display:flex;gap:5px;flex:0 0 auto}
+.hud-header>.shift-bar .btn-hud{min-height:35px;min-width:68px;padding:7px 9px!important;font:800 11px system-ui,-apple-system,sans-serif!important;border-radius:9px!important;color:#effaff!important;background:#204a64!important;border:1px solid #4c83a4!important;box-shadow:none!important;white-space:nowrap}
+#btnStartShift{background:#185b67!important;border-color:#378e9c!important}
+#btnLunchShift{background:#62522d!important;border-color:#a18b56!important}
+#btnEndShift{background:#603640!important;border-color:#a96777!important}
+#btnReopenShift{background:#284a65!important;border-color:#5183a4!important}
+.hud-header .search-row{display:flex!important;gap:6px!important;margin-top:0!important;align-items:stretch}
+.hud-header .search-input{min-width:0!important;width:100%!important;min-height:42px!important;border-radius:10px!important;background:#0a1f34!important;color:#f2faff!important;border:1px solid #3f6783!important;font-size:14px!important;padding:8px 12px!important}
+.hud-header .btn-search{min-width:46px!important;min-height:42px!important;border-radius:10px!important;background:#195f83!important;border:1px solid #438dac!important;color:#f4faff!important;font-weight:850!important}
+.hud-header .btn-global-crm{display:none!important}
+/* Recupera los controles originales de mapa, manteniendo la paleta nueva. */
+body[data-ks14-ready="yes"] .bottom-action-panel{display:flex!important;position:fixed!important;left:50%!important;transform:translateX(-50%)!important;right:auto!important;bottom:calc(env(safe-area-inset-bottom,0px) + 7px)!important;width:calc(100% - 14px)!important;max-width:680px!important;box-sizing:border-box!important;padding:7px!important;gap:6px!important;flex-direction:column!important;z-index:1200!important;border-radius:15px!important;background:rgba(11,29,47,.96)!important;border:1px solid #40627b!important;box-shadow:0 10px 28px #000a!important;backdrop-filter:blur(12px)}
+#mapToolsRow{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+#mapToolsRow button{min-height:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:8px 4px!important;font:800 11px/1.2 system-ui,-apple-system,sans-serif!important;background:#203e57!important;color:#f0f8ff!important;border:1px solid #4a7592!important;border-radius:10px!important;box-shadow:none!important;touch-action:manipulation}
+#mapToolsRow #btnMeasureRoof{background:#26475e!important;border-color:#668da9!important}
+.bottom-action-panel>div:last-child{display:flex!important;gap:6px!important;width:100%!important}
+.bottom-action-panel .btn-main-action{min-height:48px!important;padding:10px 8px!important;border-radius:11px!important;background:#1b668b!important;color:white!important;border:1px solid #5ca4c7!important;box-shadow:none!important;font:900 12px system-ui,-apple-system,sans-serif!important;touch-action:manipulation}
+.bottom-action-panel #btnMarkNoAptoZone{background:#483c50!important;border-color:#866f98!important}
+.bottom-action-panel #btnCommercialDumpMode{background:#1c6a80!important;border-color:#56b4c7!important}
+.bottom-action-panel #ks14Dispatch{background:#264a66!important;border-color:#5683a9!important}
+body[data-ks14-mode="comercial"] #btnBossAssignMode,body[data-ks14-mode="comercial"] #btnMarkNoAptoZone,body[data-ks14-mode="comercial"] #ks14Dispatch{display:none!important}
+body[data-ks14-mode="boss"] #btnCommercialDumpMode{display:none!important}
+body:not([data-ks14-ready="yes"]) .bottom-action-panel{display:none!important}
+/* Las ventanas de la V13 siguen siendo la capa de gestión detallada. */
+#k13{z-index:16000!important}
+#k13 .k13-sheet{box-shadow:0 -18px 60px #000b!important}
+#k13 .k13-head{background:#112b40!important;border-color:#365a75!important}
+#k13 .k13-tile,#k13 .k13-card,#k13 .k13-list{background:#1b364d!important;border-color:#446580!important}
+#k13 .k13-tile.primary,#k13 .k13-btn:not(.secondary){background:#1b6385!important;border-color:#4b9bc0!important}
+/* Evita solapamientos del mapa durante selección/medición. */
+body.ks14-drawing .bottom-action-panel{opacity:.32;pointer-events:none}
+@media(max-width:390px){
+ .hud-header .user-pill{max-width:calc(100% - 118px)}
+ .hud-header .user-name-text{max-width:85px;font-size:11px}
+ #ks14QuickNav button{font-size:10.7px!important}
+ .hud-header .shift-status-pill{font-size:9.5px!important}
+ .hud-header>.shift-bar .btn-hud{min-width:61px;font-size:10px!important;padding:7px 6px!important}
+}
+@media(min-width:700px){.bottom-action-panel{max-width:680px!important}}
+</style></head>
 <body>
 
   <!-- LOGIN -->
@@ -1407,6 +1471,14 @@
         </div>
       </div>
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
+      <nav id="ks14QuickNav" aria-label="Acciones inmediatas">
+<button class="ks14-commercial ks14-priority" type="button" onclick="ks14.page('poragendar')">📋 Organizar</button>
+<button class="ks14-commercial" type="button" onclick="ks14.page('citas')">📅 Mis citas</button>
+<button class="ks14-commercial" type="button" onclick="ks14.page('clientes')">🔎 Clientes</button>
+<button class="ks14-boss ks14-priority" type="button" onclick="ks14.page('dia')">📅 DÍA</button>
+<button class="ks14-boss" type="button" onclick="ks14.page('equipo')">📊 Equipo</button>
+<button class="ks14-boss" type="button" onclick="ks14.page('comerciales')">👥 Comerciales</button>
+</nav>
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
         <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda</button>
         <button id="btnCommercialPlan" class="btn-hud jefe-action" style="display:none;" onclick="showCommercialBriefing()">📋 Mi Plan</button>
@@ -1448,6 +1520,7 @@
       <div id="mapToolsRow" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; width:100%;">
         <button id="btnToggleCatastro" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
         <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">📐 Medir</button>
+        <button type="button" class="btn-hud" id="ks14Gps" onclick="centerOnUser()" title="Ir a mi ubicación">🎯 Mi GPS</button>
       </div>
 
       <!-- Fila inferior: Acciones principales -->
@@ -1460,6 +1533,7 @@
           🚫 NO APTA
         </button>
 
+        <button id="ks14Dispatch" type="button" class="btn-main-action" onclick="ks14.page('asignar')" style="flex:1">🚐 Asignar obra</button>
         <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="openSelectZoneToDumpModal()">
           📝 VOLCAR
         </button>
@@ -10638,6 +10712,56 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&$('k13')?.classLi
 window.addEventListener('popstate',()=>{if($('k13')?.classList.contains('open'))back();});
 })();
 
+</script>
+<script id="konsor-v14-street-control">
+/* Una pantalla de trabajo con accesos inmediatos; los mismos datos y fichas V13. */
+(function(){
+'use strict';
+let lastMode='',lastReady='',lastDraw=false;
+function mode(){
+ const name=typeof currentUserName==='string'?currentUserName:'';
+ const boss=typeof currentUserRole!=='undefined'&&currentUserRole==='jefe' &&
+  (name.startsWith('Mikel')||(typeof bossWorkspace!=='undefined'&&bossWorkspace==='boss'));
+ return boss?'boss':'comercial';
+}
+function ready(){
+ const name=typeof currentUserName==='string'?currentUserName:'';
+ const container=document.getElementById('appContainer');
+ const login=document.getElementById('loginScreen');
+ const workspace=document.getElementById('workspaceHome');
+ const hidden=(e)=>!e||getComputedStyle(e).display==='none';
+ return !!name && !hidden(container) && hidden(login) && hidden(workspace);
+}
+function sync(){
+ const currentMode=mode(),active=ready(),drawing=typeof isDrawingMode!=='undefined'&&isDrawingMode;
+ if(currentMode!==lastMode || String(active)!==lastReady){
+  document.body.dataset.ks14Mode=currentMode;
+  document.body.dataset.ks14Ready=active?'yes':'no';
+  lastMode=currentMode;lastReady=String(active);
+ }
+ if(drawing!==lastDraw){document.body.classList.toggle('ks14-drawing',!!drawing);lastDraw=!!drawing;}
+ // Old V4-V12 navigation moved the original shift bar into a hidden sheet.
+ // Return it to the visible map header if this occurred.
+ const shift=document.querySelector('.shift-bar'),header=document.querySelector('.hud-header'),nav=document.getElementById('ks14QuickNav');
+ if(shift&&header&&nav&&shift.parentElement!==header){nav.insertAdjacentElement('afterend',shift);}
+}
+function page(name){
+ sync();
+ if(!ready())return;
+ if(!window.k13 || typeof window.k13.openRoot!=='function'){
+  if(name==='clientes'&&typeof openGlobalClientSearchModal==='function')return openGlobalClientSearchModal();
+  if(name==='citas'&&typeof openAuditModal==='function')return openAuditModal();
+  alert('El centro de trabajo aún no está disponible.');return;
+ }
+ // Opening the requested section directly avoids an intermediate Herramientas screen.
+ const open=document.getElementById('k13')?.classList.contains('open');
+ if(!open)window.k13.openRoot();
+ window.k13.go(name);
+}
+window.ks14={page,sync};
+const whenReady=()=>{sync();setInterval(sync,1300);};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',whenReady,{once:true});else whenReady();
+})();
 </script>
 </body>
 </html>
