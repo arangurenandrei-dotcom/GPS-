@@ -15653,6 +15653,11 @@ function openCommercialStatsModalLegacy() {
     }
 
     function updateMiPlanBadge() {
+            if (currentUserName === 'Andrei (Jefe)') {
+        const boton = document.getElementById('btnCommercialPlan');
+        if (boton) boton.textContent = '📋 Trabajo del día';
+        return;
+      }
       const btn = document.getElementById('btnCommercialPlan');
       if (!btn || !currentUserName || isMikelTeamMember(currentUserName)) return;
       const seen = parseInt(localStorage.getItem('konsor_activity_seen_' + currentUserName) || '0', 10);
