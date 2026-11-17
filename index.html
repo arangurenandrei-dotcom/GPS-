@@ -1747,35 +1747,51 @@ function openHistoricalImportModal() {
   el('h2', '📥 Importar clientes antiguos', heading, 'margin:0;color:#e2e8f0;font-size:18px;');
   const close = el('button', '✕', heading, 'padding:6px 12px;border-radius:8px;background:#334155;color:#fff;border:0;');
   close.onclick=()=>overlay.remove();
-  el('p', 'Solo Andrei · Zona de preparación. Ninguna ficha se guarda todavía en Firestore ni se agenda en KONSOR.', card,
-    'font-size:12px;color:#fbbf24;line-height:1.5;margin:12px 0;');
-  el('p', 'Puedes añadir un cliente a mano o pegar una tabla CSV/Excel. Después revisamos el lote y lo importaremos de forma controlada. «Pendiente verificación» se transforma en «Por llamar».', card,
-    'font-size:12px;color:#cbd5e1;line-height:1.5;');
 
   const fields=[
     ['id','ID Euro Aisla'], ['nombre','Nombre'], ['telefono','Teléfono'],
     ['municipio','Municipio'], ['direccion','Calle y número'],
     ['m2','m² (opcional)'], ['comercial','Comercial'], ['estado','Estado original'], ['fecha','Fecha (opcional)'], ['hora','Hora (si agendada)'], ['equipo','Equipo 2/3 (si agendada)']
   ];
-  const manualBox=el('div',null,card,'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;');
-  const inputs={};
-  for(const [key,label] of fields){
-    const labelNode=el('label',label,manualBox,'font-size:11px;color:#cbd5e1;min-width:0;');
-    const input=el('input',null,labelNode,'display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:3px;background:#0f172a;border:1px solid #64748b;border-radius:7px;color:white;font-size:14px;');
-    input.type='text';input.placeholder=label;inputs[key]=input;
-    if(key==='estado') input.value='Pendiente verificación';
-  }
   const actionStyle='padding:10px 12px;border:1px solid #64748b;border-radius:8px;background:#1e293b;color:#fff;font-size:12px;cursor:pointer;';
-  const btnAdd=el('button','➕ Añadir a revisión',card,actionStyle);
-  el('h3','O pegar una tabla',card,'font-size:14px;margin:18px 0 7px;');
-  el('p','Columnas sugeridas: id, nombre, telefono, municipio, direccion, comercial, estado, fecha. Se aceptan datos separados por comas, punto y coma o tabulaciones (Excel).',card,'font-size:11px;color:#94a3b8;');
-  const paste=el('textarea',null,card,'box-sizing:border-box;width:100%;min-height:100px;background:#0f172a;color:#fff;border:1px solid #64748b;border-radius:8px;padding:9px;font-size:12px;');
-  paste.placeholder='id;nombre;telefono;municipio;direccion;comercial;estado;fecha';
+  el('h3','Pegar tabla de clientes',card,'font-size:14px;margin:12px 0 7px;');
+  el('p','Columnas: nombre, telefono, municipio, direccion y estado. Puedes añadir m². El comercial se asigna automáticamente si no viene en la tabla.',card,'font-size:12px;color:#94a3b8;');
+  const paste=el('textarea',null,card,'flex-shrink:0;box-sizing:border-box;width:100%;min-height:100px;background:#0f172a;color:#fff;border:1px solid #64748b;border-radius:8px;padding:9px;font-size:12px;');
+  paste.setAttribute('aria-label','Tabla de clientes antiguos');
+  paste.placeholder='nombre;telefono;municipio;direccion;estado';
   const file=el('input',null,card,'display:block;margin:12px 0;color:#cbd5e1;font-size:12px;');
   file.type='file';file.accept='.csv,.tsv,.txt,text/csv,text/plain';
   const btnParse=el('button','📋 Revisar tabla',card,actionStyle);
+  const manualToggle=el('button','Meter cliente manual de antigua CRM',card,actionStyle+'margin-top:10px;');
+  manualToggle.setAttribute('aria-expanded','false');
+  const manualBox=el('div',null,card,'flex-shrink:0;margin:10px 0;');
+  manualBox.hidden=true;
+  manualToggle.onclick=()=>{
+    manualBox.hidden=!manualBox.hidden;
+    manualToggle.setAttribute('aria-expanded',String(!manualBox.hidden));
+    if(!manualBox.hidden)inputs.nombre.focus();
+  };
+  const inputGrid=el('div',null,manualBox,'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;');
+  const inputs={};
+  const manualFields=fields.filter(([key])=>['nombre','telefono','municipio','direccion','m2','estado'].includes(key));
+  for(const [key,label] of manualFields){
+    const labelNode=el('label',label,inputGrid,'font-size:12px;color:#cbd5e1;min-width:0;');
+    const input=el(key==='estado'?'select':'input',null,labelNode,'display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:3px;background:#0f172a;border:1px solid #64748b;border-radius:7px;color:white;font-size:14px;');
+    inputs[key]=input;
+    if(key==='estado'){
+      for(const [value,title] of [['Por llamar','Por llamar'],['Contactado','Contactado'],['Obra Agendada','Obra agendada · histórico sin reservar'],['Obra Realizada','Obra realizada'],['No apto','No apto']]){
+        const option=el('option',title,input);option.value=value;
+      }
+      input.value='Por llamar';
+    }else{
+      input.type=key==='telefono'?'tel':'text';
+      input.placeholder=label;
+    }
+  }
+  el('p','Comercial asignado: '+currentUserName,manualBox,'font-size:12px;color:#94a3b8;');
+  const btnAdd=el('button','➕ Añadir a revisión',manualBox,actionStyle);
   const status=el('p','Todavía no hay fichas en la revisión.',card,'font-size:12px;color:#93c5fd;line-height:1.6;');
-  const tableHolder=el('div',null,card,'overflow-x:auto;margin:12px 0;');
+  const tableHolder=el('div',null,card,'flex-shrink:0;overflow-x:auto;margin:12px 0;');
   const btnSave=el('button','💾 Guardar fichas preparadas en Firestore',card,actionStyle+'margin:8px 8px 8px 0;background:#075985;');
   const btnExport=el('button','⬇ Exportar revisión CSV',card,actionStyle);
   btnExport.disabled=true;btnExport.style.opacity='.5';
@@ -1803,7 +1819,7 @@ function openHistoricalImportModal() {
     const st=nrm(raw);
     if(st==='pendiente verificacion'||st==='por llamar')return 'por_llamar';
     if(st==='no apto'||st==='no_apto'||st==='no apta')return 'no_apto';
-    if(st==='agendada'||st==='cita agendada'||st==='cita confirmada'||st==='obra asignada'||st==='cita')return 'agendada';
+    if(st==='agendada'||st==='obra agendada'||st==='cita agendada'||st==='cita confirmada'||st==='obra asignada'||st==='cita')return 'agendada';
     if(st==='realizada'||st==='obra realizada'||st==='terminada')return 'realizada';
     if(st==='contactado'||st==='llamado')return 'contactado';
     return 'revisar';
@@ -1826,26 +1842,29 @@ function openHistoricalImportModal() {
       const fingerprint=phone.length>=9&&r.direccion ? phone+'|'+nrm(r.municipio)+'|'+nrm(r.direccion) : '';
       const duplicate=Boolean((id&&(seenId.has(id)||original.ids.has(id)))||(fingerprint&&(seenAddress.has(fingerprint)||original.places.has(fingerprint))));
       if(id)seenId.add(id);if(fingerprint)seenAddress.add(fingerprint);
-      const missing=!r.id||!r.nombre||!r.municipio||!r.direccion||phone.length!==9;
-      const state=stateOf(r.estado);
+      const missing=!r.nombre||!r.municipio||!r.direccion||phone.length!==9;
+      const originalState=stateOf(r.estado);
+      const state=originalState==='agendada' && !r.fecha ? 'agendada_historica' : originalState;
       const pending=state==='revisar';
       const fullSlot=['09:00','11:00','15:00','17:00'].includes((r.hora||'').slice(0,5));
       const fullDate=ComercialCore.date(r.fecha);
       const teamOK=['2','3'].includes(String(r.equipo||'').trim());
       const bookingIncomplete=state==='agendada'&&!(fullSlot&&fullDate&&teamOK);
       const link=state==='agendada' && ComercialCore.linkable(r,savedZones);
-      const repeatedInBatch=rows.slice(0,rows.indexOf(r)).some(other=>nrm(other.id)===id || (fingerprint && ComercialCore.phone(other.telefono)+'|'+nrm(other.municipio)+'|'+nrm(other.direccion)===fingerprint));
+      const repeatedInBatch=rows.slice(0,rows.indexOf(r)).some(other=>(id && nrm(other.id)===id) || (fingerprint && ComercialCore.phone(other.telefono)+'|'+nrm(other.municipio)+'|'+nrm(other.direccion)===fingerprint));
       const invalidDate=r.fecha && !fullDate;
       const invalidArea=r.m2 && !(ComercialCore.area(r.m2)>0);
       const invalidOwner=r.comercial && !getActiveTeamUsers(false).includes(r.comercial);
-      return {...r,estadoDestino:state,
-        revision:repeatedInBatch?'ID repetido en el lote':missing?'Faltan datos o ID/teléfono inválido':pending?'Revisar estado':invalidDate?'Fecha inválida':invalidArea?'m² inválidos':invalidOwner?'Revisar comercial':bookingIncomplete?'Cita: falta fecha, hora o equipo':state==='agendada'&&!link&&!verifiedKonsor.has(r.id)?'Cita KONSOR sin vínculo verificado':duplicate&&!link?'Duplicado posible':'Preparado'};
+      return {...r,sourceRow:r,konsor:verifiedKonsor.get(r),estadoDestino:state,
+        revision:repeatedInBatch?'ID repetido en el lote':missing?'Faltan nombre, municipio, dirección o teléfono válido':pending?'Revisar estado':invalidDate?'Fecha inválida':invalidArea?'m² inválidos':invalidOwner?'Revisar comercial':bookingIncomplete?'Cita: falta fecha, hora o equipo':state==='agendada'&&!link&&!verifiedKonsor.has(r)?'Cita KONSOR sin vínculo verificado':duplicate&&!link?'Duplicado posible':'Preparado'};
     });
   }
   function render(){
     const data=assess();
     const review=data.filter(r=>r.revision!=='Preparado').length;
+    const reasons=[...new Set(data.filter(r=>r.revision!=='Preparado').map(r=>r.revision))];
     status.textContent=`${rows.length} ficha(s) pendientes de guardar · ${review} requieren revisión.`;
+    if(reasons.length)status.textContent+=' '+reasons.join(' · ')+'.';
     btnExport.disabled=!rows.length;btnExport.style.opacity=rows.length?'1':'.5';
     btnSave.disabled=!data.length || review>0;
     btnSave.style.opacity=btnSave.disabled?'.5':'1';
@@ -1853,13 +1872,13 @@ function openHistoricalImportModal() {
     if(!data.length)return;
     const table=el('table',null,tableHolder,'min-width:850px;width:100%;border-collapse:collapse;font-size:11px;color:#e2e8f0;');
     const thead=el('thead',null,table);const tr=el('tr',null,thead);
-    for(const title of ['ID','Nombre','Teléfono','Pueblo','Dirección','Comercial','Estado CRM','Destino','Revisión']){
+    for(const title of ['Nombre','Teléfono','Pueblo','Dirección','Comercial','Estado CRM','Destino','Revisión']){
       el('th',title,tr,'border-bottom:1px solid #64748b;padding:8px;text-align:left;');
     }
     const tbody=el('tbody',null,table);
     data.slice(0,100).forEach(r=>{
       const row=el('tr',null,tbody);
-      for(const v of [r.id,r.nombre,r.telefono,r.municipio,r.direccion,r.comercial,r.estado,r.estadoDestino,r.revision]){
+      for(const v of [r.nombre,r.telefono,r.municipio,r.direccion,r.comercial,r.estado,r.estadoDestino==='agendada_historica'?'Agendada · histórico sin reservar':r.estadoDestino,r.revision]){
         el('td',String(v||''),row,'padding:7px;border-bottom:1px solid #334155;vertical-align:top;');
       }
     });
@@ -1869,6 +1888,8 @@ function openHistoricalImportModal() {
     const obj={};for(const [key] of fields)obj[key]=String(raw[key]??'').trim();
     if(!Object.values(obj).some(Boolean))return;
     if(rows.length>=2000)throw new Error('Límite de 2000 fichas por lote.');
+    obj.comercial ||= currentUserName;
+    obj.estado ||= 'Por llamar';
     rows.push(obj);
   }
   function parseCSV(text,delimiter){
@@ -1889,8 +1910,14 @@ function openHistoricalImportModal() {
     return result;
   }
   btnAdd.onclick=()=>{
-    try{add(Object.fromEntries(fields.map(([k])=>[k,inputs[k].value])));render();
-      for(const [k] of fields)if(k!=='estado')inputs[k].value='';
+    try{
+      if(!['nombre','telefono','municipio','direccion'].every(k=>inputs[k].value.trim())){
+        alert('Completa nombre, teléfono, municipio y dirección.');return;
+      }
+      add(Object.fromEntries(manualFields.map(([k])=>[k,inputs[k].value])));
+      for(const [k] of manualFields)if(k!=='estado')inputs[k].value='';
+      inputs.estado.value='Por llamar';
+      render();
     }catch(err){alert(err.message);}
   };
   btnParse.onclick=()=>{
@@ -1925,23 +1952,27 @@ function openHistoricalImportModal() {
     if(typeof window.verificarHistoricoKonsor!=='function'){alert('Espera a que cargue Firebase.');return;}
     for(const control of [btnAdd,btnParse,btnClear,btnSave,btnVerify,file])control.disabled=true;
     const errors=[];
+    let attempted=0;
     try{
       for(const r of rows){
-        if(stateOf(r.estado)!=='agendada'||ComercialCore.linkable(r,savedZones))continue;
-        verifiedKonsor.delete(r.id);
-        status.textContent='Consultando KONSOR: '+r.id;
+        if(stateOf(r.estado)!=='agendada'||!r.fecha||ComercialCore.linkable(r,savedZones))continue;
+        attempted++;
+        const reference=r.id || verifiedKonsor.get(r)?.reference || 'local_'+crypto.randomUUID();
+        verifiedKonsor.delete(r);
+        status.textContent='Consultando KONSOR…';
         try{
-          const result=await window.verificarHistoricoKonsor({crmOrigenId:r.id,name:r.nombre,phone:r.telefono,street:r.direccion,crmKonsorTown:r.municipio,obraDate:r.fecha,obraTime:r.hora.slice(0,5),obraEquipoInstalacion:Number(r.equipo)});
+          const result=await window.verificarHistoricoKonsor({crmOrigenId:reference,name:r.nombre,phone:r.telefono,street:r.direccion,crmKonsorTown:r.municipio,obraDate:r.fecha,obraTime:r.hora.slice(0,5),obraEquipoInstalacion:Number(r.equipo)});
           if(result.data?.ok!==true||!result.data.eventId)throw Error('Respuesta incompleta de KONSOR.');
-          verifiedKonsor.set(r.id,result.data.eventId);
-        }catch(e){errors.push(r.id+': '+(e.message||'No se pudo verificar.'));}
+          verifiedKonsor.set(r,{eventId:result.data.eventId,reference});
+        }catch(e){errors.push((r.id||r.nombre)+': '+(e.message||'No se pudo verificar.'));}
       }
     }finally{
       for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=false;
       render();
     }
     if(errors.length)alert('Citas pendientes de revisión:\n'+errors.join('\n'));
-    else alert('Verificación terminada. Revisa la tabla antes de guardar. No se han creado eventos.');
+    else if(attempted)alert('Verificación terminada. Revisa el resultado antes de guardar.');
+    else alert('No hay citas nuevas con fecha para verificar. Las citas históricas sin fecha se pueden guardar sin reservar.');
   };
   btnExport.onclick=()=>{
     const cols=[...fields.map(f=>f[0]),'estadoDestino','revision'];
@@ -1968,11 +1999,7 @@ function openHistoricalImportModal() {
     if(!checked.length || checked.some(r=>r.revision!=='Preparado')){
       alert('Corrige duplicados, estados y datos incompletos antes de guardar.');return;
     }
-    // Identificadores externos obligatorios para reintentos seguros.
-    if(checked.some(r=>!r.id.trim())){
-      alert('Todas las fichas necesitan un ID original de Euro Aisla para prevenir duplicados.');return;
-    }
-    if(!confirm(`¿Importar o vincular ${checked.length} fichas históricas? Se conservará el comercial y la fecha indicados. Las citas coincidentes se vincularán a la ficha existente, sin crear otra reserva.`))return;
+    if(!confirm(`¿Importar o vincular ${checked.length} fichas históricas? Las citas históricas sin fecha se guardarán sin reservar.`))return;
     btnSave.disabled=true;
     const currentIds=new Set();
     const currentPlaces=new Set();
@@ -1983,58 +2010,65 @@ function openHistoricalImportModal() {
       if(c.phone && c.street)currentPlaces.add(placeKey(c.phone,z.town,c.street));
     }));
     const additions=[];
+    const addedRows=[];
     const linked=[];
     const already=new Set();
-    for(const r of checked){
-      const id=norm(r.id), place=placeKey(r.telefono,r.municipio,r.direccion);
-      const link=r.estadoDestino==='agendada' && ComercialCore.linkable(r,savedZones);
-      if(link){linked.push({row:r,uid:link.c.clientUid});already.add(id);continue;}
-      if(currentIds.has(id)||already.has(id)||currentPlaces.has(place)){
-        status.textContent='Importación cancelada: se detectó un duplicado. Recarga y revisa.';
-        btnSave.disabled=false;return;
-      }
-      already.add(id);
-      const state=r.estadoDestino;
-      const now=Date.now();
-      // Nunca se crea una cita nueva en Calendar. Una cita ya importada
-      // necesita fecha, franja y equipo, y el servidor valida la reserva.
-      const client={
-        clientUid:'f_'+crypto.randomUUID(),type:'vivienda',
-        name:r.nombre.trim(),street:r.direccion.trim(),phone:ComercialCore.phone(r.telefono),m2:ComercialCore.area(r.m2),
-        obraStatus:state==='agendada'?'agendada':state==='realizada'?'realizada':state==='no_apto'?'no_apto':'a_poner',
-        obraDate:state==='agendada'||state==='realizada'?r.fecha||'':'',
-        obraTime:state==='agendada'||state==='realizada'?(r.hora||'').slice(0,5):'',
-        callStatus:state==='por_llamar'?'pendiente':'ya_llamado',
-        crmOrigenId:r.id.trim(),crmOrigenEstado:r.estado.trim(),
-        importadoHistorico:true,createdAt:r.fecha?Date.parse(r.fecha+'T12:00:00'):now,statusChangedAt:now
-      };
-      if(state==='agendada'){
-        client.obraEquipoInstalacion=Number(r.equipo);
-        client.crmKonsorEventId=verifiedKonsor.get(r.id);
-        client.crmKonsorTown=r.municipio.trim();
-      }
-      const zid=String('hist_'+crypto.randomUUID().replace(/-/g,'').slice(0,24));
-      additions.push({
-        id:zid,isSingleHouse:true,singlePoint:null,
-        date:r.fecha||getTodayISO(),dumpDate:r.fecha||getTodayISO(),
-        town:r.municipio.trim(),sectorName:'🏠 '+r.direccion.trim(),
-        comercial:r.comercial||'Andrei (Jefe)',bossNote:'',pendingNote:'',
-        status:'completada',points:[],
-        stats:{no:0,ausente:0,papelito:0,si:state==='no_apto'?0:1},
-        clients:[client]
-      });
-    }
     let done=0;
     for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=true;
     try{
+      for(const r of checked){
+        const id=norm(r.id), place=placeKey(r.telefono,r.municipio,r.direccion);
+        const link=r.estadoDestino==='agendada' && ComercialCore.linkable(r,savedZones);
+        if(link){linked.push({row:r,uid:link.c.clientUid});if(id)already.add(id);continue;}
+        if((id && (currentIds.has(id)||already.has(id)))||currentPlaces.has(place)){
+          status.textContent='Importación cancelada: se detectó un duplicado. Recarga y revisa.';
+          btnSave.disabled=false;return;
+        }
+        if(id)already.add(id);
+        const state=r.estadoDestino;
+        const now=Date.now();
+        // Nunca se crea una cita nueva en Calendar. Una cita ya importada
+        // necesita fecha, franja y equipo, y el servidor valida la reserva.
+        const receiptKey=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(place));
+        const key=Array.from(new Uint8Array(receiptKey),byte=>byte.toString(16).padStart(2,'0')).join('');
+        const client={
+          clientUid:'f_hist_'+key,type:'vivienda',
+          name:r.nombre.trim(),street:r.direccion.trim(),phone:ComercialCore.phone(r.telefono),m2:ComercialCore.area(r.m2),
+          obraStatus:['agendada','agendada_historica','realizada','no_apto'].includes(state)?state:'a_poner',
+          obraDate:state==='agendada'||state==='realizada'?r.fecha||'':'',
+          obraTime:state==='agendada'||state==='realizada'?(r.hora||'').slice(0,5):'',
+          callStatus:state==='por_llamar'?'pendiente':'ya_llamado',
+          crmOrigenEstado:r.estado.trim(),
+          ...(r.id ? {crmOrigenId:r.id} : {}),
+          importadoHistorico:true,createdAt:r.fecha?Date.parse(r.fecha+'T12:00:00'):now,statusChangedAt:now
+        };
+        if(state==='agendada'){
+          client.obraEquipoInstalacion=Number(r.equipo);
+          client.crmKonsorEventId=r.konsor.eventId;
+          client.crmOrigenId=r.konsor.reference;
+          client.crmKonsorTown=r.municipio.trim();
+        }
+        const zid='hist_'+key;
+        addedRows.push(r.sourceRow);
+        additions.push({
+          id:zid,isSingleHouse:true,singlePoint:null,
+          date:r.fecha||getTodayISO(),dumpDate:r.fecha||getTodayISO(),
+          town:r.municipio.trim(),sectorName:'🏠 '+r.direccion.trim(),
+          comercial:r.comercial||'Andrei (Jefe)',bossNote:'',pendingNote:'',
+          status:'completada',points:[],
+          stats:{no:0,ausente:0,papelito:0,si:state==='no_apto'?0:1},
+          clients:[client]
+        });
+      }
       for(const {row,uid} of linked){
         const candidate=JSON.parse(JSON.stringify(savedZones));
         const target=candidate.flatMap(z=>z.clients||[]).find(c=>c.clientUid===uid);
         if(!target)throw Error('La cita ha cambiado. Recarga y revisa.');
-        target.crmOrigenId=row.id.trim();target.crmOrigenEstado=row.estado;target.importadoHistorico=true;
+        if(row.id)target.crmOrigenId=row.id;
+        target.crmOrigenEstado=row.estado;target.importadoHistorico=true;
         await window.KonsorBridge.save('comercial_custom_zones',candidate);
         savedZones=candidate;done++;
-        const i=rows.findIndex(r=>r.id===row.id);if(i>=0)rows.splice(i,1);
+        const i=rows.indexOf(row.sourceRow);if(i>=0)rows.splice(i,1);
       }
       // Máximo 20 zonas por operación (40 documentos nuevos). Conserva
       // el límite de 180 cambios del servidor y los recibos transaccionales.
@@ -2048,7 +2082,10 @@ function openHistoricalImportModal() {
         done+=group.length;
         // Retirar del lote las filas que ya se han confirmado para evitar
         // que un reintento vuelva a escribirlas si una franja futura falla.
-        rows.splice(0,group.length);
+        for(const sourceRow of addedRows.slice(n,n+group.length)){
+          const i=rows.indexOf(sourceRow);if(i>=0)rows.splice(i,1);
+          verifiedKonsor.delete(sourceRow);
+        }
       }
       status.textContent=`✅ ${done} fichas confirmadas por Firestore. Ya cuentan en tu equipo.`;
       if(typeof renderAllSavedZones==='function')renderAllSavedZones();
@@ -12188,6 +12225,7 @@ const labelStreet = clientObj.street ||
           </div>
           <select class="select-field client-obra-status" onchange="handleObraStatusChange(this)">
             <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>📝 Captación SÍ (Automática)</option>
+            ${existing.obraStatus==='agendada_historica'?'<option value="agendada_historica" selected>Agendada · histórico sin reservar</option>':''}
             <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Cita Agendada</option>
             <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
             <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
@@ -12364,6 +12402,7 @@ const labelStreet = clientObj.street ||
           </div>
           <select class="select-field client-obra-status" onchange="handleObraStatusChange(this)">
             <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>📝 Captación SÍ (Automática)</option>
+            ${existing.obraStatus==='agendada_historica'?'<option value="agendada_historica" selected>Agendada · histórico sin reservar</option>':''}
             <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Cita Agendada (Obra)</option>
             <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
             <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica/Junta)</option>
@@ -15503,6 +15542,7 @@ function openCommercialStatsModalLegacy() {
                   const dateTxt = cItem.obraDate ? ` (${formatDate(cItem.obraDate)}${cItem.obraTime ? ' ' + cItem.obraTime : ''})` : '';
                   badgeStatus = `<span style="color:#fde047; font-weight:800;">📅 Obra${dateTxt}</span>`;
                 }
+                if (cItem.obraStatus === 'agendada_historica') badgeStatus = 'Agendada · histórico sin reservar';
                 if (cItem.obraStatus === 'realizada') badgeStatus = '<span style="color:#34d399; font-weight:800;">✅ Obra Hecha</span>';
                 if (cItem.obraStatus === 'no_apto') badgeStatus = `<span class="no-apto-pill">🚫 No Apta</span>`;
 

@@ -36,7 +36,7 @@
     if (found.length!==1) return null;
     const {z,c}=found[0];
     if (String(z.comercial||'').startsWith('Mikel') || c.obraStatus!=='agendada' || !c.clientUid) return null;
-    if (c.crmOrigenId && norm(c.crmOrigenId)!==norm(row.id)) return null;
+    if (row.id && c.crmOrigenId && norm(c.crmOrigenId)!==norm(row.id)) return null;
     return c.obraDate===row.fecha && c.obraTime===String(row.hora||'').slice(0,5) && Number(c.obraEquipoInstalacion)===Number(row.equipo) ? found[0] : null;
   }
   const api={area,attic,date,norm,phone,matches,linkable};
