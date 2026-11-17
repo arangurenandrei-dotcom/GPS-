@@ -3253,6 +3253,7 @@ function buildGroupedAppointments() {
   return {
     proposals,
     unplaced,
+    agenda,
     towns: [...towns.entries()].map(([key, info]) => ({
       key,
       label: info.label
@@ -3322,20 +3323,281 @@ function groupedButton(parent, text, action) {
   return b;
 }
 
-function generateGroupedAppointments() {
+
+async function consultarKonsorFecha(fecha) {
+  if (typeof window.consultarDisponibilidadObras !== 'function') {
+    throw new Error('La conexión con KONSOR no está disponible.');
+  }
+
+  const respuesta = await window.consultarDisponibilidadObras({ fecha });
+  const equipos = respuesta.data?.equipos;
+
+  if (!equipos || !Array.isArray(equipos['2']) ||
+      !Array.isArray(equipos['3'])) {
+    throw new Error('KONSOR devolvió una disponibilidad incompleta.');
+  }
+
+  return equipos;
+}
+
+function equiposLibresKonsor(equipos, hora) {
+  const franja = {
+    '09:00': '09:00-11:00',
+    '11:00': '11:00-13:00',
+    '15:00': '15:00-17:00',
+    '17:00': '17:00-19:00'
+  }[hora] || hora;
+
+  return [2, 3].filter(numero => {
+    const slot = equipos[String(numero)].find(
+      item => item.horario === franja
+    );
+    return slot?.libre === true;
+  });
+}
+
+
+// Planificador con disponibilidad real de KONSOR.
+// Conserva las fichas, grupos y criterios de proximidad existentes.
+async function buildKonsorGroupedAppointments() {
+  const all = groupedCandidates();
+  const proposals = [];
+  const unplaced = [];
+  const towns = new Map();
+  const counts = new Map();
+
+  all.forEach(item => {
+    counts.set(item.key, (counts.get(item.key) || 0) + 1);
+  });
+
+  for (const item of all) {
+    let reason = '';
+
+    if (counts.get(item.key) > 1) {
+      reason = 'Ficha duplicada: revisa su zona.';
+    } else if (
+      !item.town ||
+      ![item.c.name, item.c.street, item.c.phone].every(
+        value => String(value || '').trim()
+      )
+    ) {
+      reason = 'Completa municipio, nombre, dirección y teléfono.';
+    }
+
+    if (reason) {
+      unplaced.push({ ...item, reason });
+      continue;
+    }
+
+    if (!towns.has(item.town)) {
+      towns.set(item.town, {
+        label: item.z.town || 'Sin municipio',
+        rows: []
+      });
+    }
+
+    towns.get(item.town).rows.push(item);
+  }
+
+  const first = new Date(getTomorrowISO() + 'T12:00:00');
+  const agenda = [];
+
+  // Consultar una sola vez cada fecha.
+  for (let day = 0; day < 14; day++) {
+    const d = new Date(first);
+    d.setDate(first.getDate() + day);
+
+    if (d.getDay() === 0) continue;
+
+    const fecha = getLocalDateISO(d);
+    const equipos = await consultarKonsorFecha(fecha);
+    const confirmadas = routeRecords(fecha);
+
+    agenda.push({
+      fecha,
+      day,
+      equipos,
+      confirmadas
+    });
+  }
+
+  const inicioFranja = time => {
+    const index = OBRA_SLOTS.findIndex(slot => slot.start === time);
+    return index;
+  };
+
+  const lugaresKonsor = (equipo, datos) =>
+    (datos.equipos[String(equipo)] || []).flatMap(slot =>
+      Array.isArray(slot.ubicaciones) ? slot.ubicaciones : []
+    ).map(value =>
+      typeof value === 'string'
+        ? value.toLowerCase()
+        : JSON.stringify(value).toLowerCase()
+    );
+
+  const propuestasDelEquipo = (fecha, equipo) =>
+    proposals.filter(p =>
+      p.date === fecha && p.equipoInstalador === equipo
+    );
+
+  const confirmadasDelEquipo = (datos, equipo) =>
+    datos.confirmadas.filter(row => {
+      const numero = Number(row.c?.obraEquipoInstalacion);
+      // Las citas antiguas sin equipo asignado se consideran
+      // ocupadas para ambos, por seguridad.
+      return ![2,3].includes(numero) || numero === equipo;
+    });
+
+  const ordered = [...towns.entries()].sort(
+    (a, b) => b[1].rows.length - a[1].rows.length
+  );
+
+  for (const [town, group] of ordered) {
+    const pool = group.rows.slice();
+    let previous = null;
+
+    while (pool.length) {
+      const item = groupedNearest(pool, previous);
+      const options = [];
+
+      for (const datos of agenda) {
+        for (const equipo of [2, 3]) {
+          const slotsKonsor = datos.equipos[String(equipo)];
+          const colocadas = propuestasDelEquipo(datos.fecha, equipo);
+          const confirmadas = confirmadasDelEquipo(datos, equipo);
+
+          const ocupadas = new Set([
+            ...colocadas.map(p => inicioFranja(p.time)),
+            ...confirmadas.map(p => p.slot)
+          ]);
+
+          const lugares = lugaresKonsor(equipo, datos);
+          const municipio = String(item.z.town || '').toLowerCase();
+
+          const mismaZonaKonsor = lugares.some(l =>
+            municipio && l.includes(municipio)
+          );
+
+          const mismaZonaPropia = colocadas.some(p =>
+            p.town === town
+          ) || confirmadas.some(r =>
+            r.town === town
+          );
+          const calle = groupedStreet(item.c);
+          const mismaCalle = calle && colocadas.some(p =>
+            p.town === town && groupedStreet(p.c) === calle
+          );
+          // Aproximación geográfica cuando ambas fichas tienen coordenadas.
+          const punto = routePoint(item.z, item.c);
+          const distancias = colocadas.concat(confirmadas.map(r => ({z:r.z,c:r.c})))
+            .map(p => {
+              const otro = routePoint(p.z, p.c);
+              return punto && otro ? routeDistance(punto, otro) : null;
+            }).filter(Number.isFinite);
+          const cercana = distancias.length && Math.min(...distancias) <= 5;
+
+          const franjasOcupadas = [...ocupadas].filter(n => n >= 0);
+
+          for (const slot of OBRA_SLOTS) {
+            const indice = inicioFranja(slot.start);
+
+            const entrada = slotsKonsor.find(x =>
+              x.horario?.startsWith(slot.start)
+            );
+
+            if (!entrada || entrada.libre !== true ||
+                ocupadas.has(indice)) continue;
+
+            const distanciaEnFranjas = franjasOcupadas.length
+              ? Math.min(...franjasOcupadas.map(n =>
+                  Math.abs(n - indice)
+                ))
+              : 0;
+
+            const score =
+              datos.day * 4 +
+              distanciaEnFranjas * 30 +
+              indice * 2 -
+              (mismaZonaKonsor ? 250 : 0) -
+              (mismaZonaPropia ? 350 : 0) -
+              (mismaCalle ? 160 : 0) -
+              (cercana ? 120 : 0) -
+              (colocadas.length ? 100 : 0);
+
+            options.push({
+              date: datos.fecha,
+              time: slot.start,
+              equipoInstalador: equipo,
+              score,
+              reason: mismaZonaKonsor
+                ? 'Cerca de una obra existente en KONSOR.'
+                : mismaZonaPropia
+                  ? 'Agrupada con otras obras del mismo pueblo.'
+                  : 'Franja libre comprobada en KONSOR.'
+            });
+          }
+        }
+      }
+
+      options.sort((a, b) =>
+        a.score - b.score ||
+        a.date.localeCompare(b.date) ||
+        a.time.localeCompare(b.time) ||
+        a.equipoInstalador - b.equipoInstalador
+      );
+
+      const best = options[0];
+
+      if (!best) {
+        unplaced.push({
+          ...item,
+          reason: 'Sin franja disponible en KONSOR durante 14 días.'
+        });
+      } else {
+        proposals.push({
+          ...item,
+          ...best
+        });
+        previous = item;
+      }
+
+      pool.splice(pool.indexOf(item), 1);
+    }
+  }
+
+  return {
+    proposals,
+    unplaced,
+    towns: [...towns.entries()].map(([key, info]) => ({
+      key,
+      label: info.label
+    }))
+  };
+}
+
+async function generateGroupedAppointments() {
   if (
     groupedPlan &&
     !confirm(
       'Se recalcularán las propuestas sin confirmar. ' +
-      'Las citas ya confirmadas se conservan. ¿Continuar?'
+      'Las citas confirmadas se conservan. ¿Continuar?'
     )
   ) return;
 
-  groupedPlan = buildGroupedAppointments();
-  groupedTown = groupedPlan.towns[0]?.key ?? '';
-  groupedEdits.clear();
+  try {
+    const nuevoPlan = await buildKonsorGroupedAppointments();
 
-  renderGroupedAppointments();
+    groupedPlan = nuevoPlan;
+    groupedTown = groupedPlan.towns[0]?.key ?? '';
+    groupedEdits.clear();
+    renderGroupedAppointments();
+  } catch (error) {
+    console.error('Error planificando con KONSOR:', error);
+    alert(
+      'No se pudo consultar la disponibilidad de KONSOR. ' +
+      'No se han generado propuestas nuevas.'
+    );
+  }
 }
 
 function groupedViewSource(key) {
@@ -3350,6 +3612,53 @@ function groupedViewSource(key) {
 
   const index = savedZones.indexOf(found.z);
   openDumpModal(index);
+}
+
+
+// Verifica KONSOR y las citas locales antes de confirmar.
+// El servidor volverá a comprobar la reserva al guardarla.
+async function elegirEquipoInstaladorKonsor(fecha, hora, preferido = null, cliente = null) {
+  const equipos = await consultarKonsorFecha(fecha);
+  const libres = equiposLibresKonsor(equipos, hora);
+
+  const indice = OBRA_SLOTS.findIndex(slot => slot.start === hora);
+  if (indice < 0) {
+    throw new Error('La franja seleccionada no es válida.');
+  }
+
+  const ocupados = new Set();
+
+  for (const row of routeRecords(fecha)) {
+    if (row.c === cliente || row.slot !== indice) continue;
+
+    const equipo = Number(row.c?.obraEquipoInstalacion);
+
+    if ([2, 3].includes(equipo)) {
+      ocupados.add(equipo);
+    } else {
+      // Una cita antigua sin equipo identificado no se
+      // considera automáticamente segura para ninguno.
+      ocupados.add(2);
+      ocupados.add(3);
+    }
+  }
+
+  const disponibles = libres.filter(equipo => !ocupados.has(equipo));
+
+  if (preferido !== null && preferido !== undefined) {
+    if (!disponibles.includes(Number(preferido))) {
+      throw new Error(
+        'El equipo propuesto ya no está disponible. Regenera las propuestas.'
+      );
+    }
+    return Number(preferido);
+  }
+
+  if (!disponibles.length) {
+    throw new Error('Los equipos 2 y 3 están ocupados en esa franja.');
+  }
+
+  return disponibles[0];
 }
 
 async function confirmGroupedAppointment(proposal) {
@@ -3374,18 +3683,17 @@ async function confirmGroupedAppointment(proposal) {
     )
   ) return;
 
-  const plan = routeSlotPlan(
-    proposal.date,
-    proposal.time,
-    z,
-    c
-  );
+  let equipoInstalador;
 
-  if (!plan.ok) {
-    alert(
-      'La propuesta ya no está disponible: ' + plan.reason
+  try {
+    equipoInstalador = await elegirEquipoInstaladorKonsor(
+      proposal.date,
+      proposal.time,
+      proposal.equipoInstalador,
+      c
     );
-    renderGroupedAppointments();
+  } catch (error) {
+    alert(error.message || 'No se pudo comprobar KONSOR.');
     return;
   }
 
@@ -3399,7 +3707,8 @@ async function confirmGroupedAppointment(proposal) {
     ...(groupedEdits.get(proposal.key) || {}),
     obraStatus: 'agendada',
     obraDate: proposal.date,
-    obraTime: proposal.time
+    obraTime: proposal.time,
+    obraEquipoInstalacion: equipoInstalador
   };
 
   if (draft.dni && !isValidDni(draft.dni)) {
@@ -3413,13 +3722,16 @@ async function confirmGroupedAppointment(proposal) {
     comercial: z.comercial
   })) return;
 
-  Object.assign(c, draft, {
-    statusChangedAt: Date.now()
-  });
-
+  const previousClient = {...c};
+  const previousUpdated = z._updatedAt;
+  Object.assign(c, draft, {statusChangedAt: Date.now()});
   z._updatedAt = Date.now();
-
-  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) {
+    Object.keys(c).forEach(k => {if (!(k in previousClient)) delete c[k];});
+    Object.assign(c, previousClient);
+    z._updatedAt = previousUpdated;
+    return;
+  }
 
   logActivity(
     'cita',
@@ -3434,11 +3746,9 @@ async function confirmGroupedAppointment(proposal) {
 
 function moveGroupedProposal(proposal) {
   const found = groupedResolve(proposal.key);
-
   if (!found || !groupedPending(found.c)) return;
 
   let modal = document.getElementById('moveGroupedModal');
-
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'moveGroupedModal';
@@ -3446,141 +3756,89 @@ function moveGroupedProposal(proposal) {
     modal.style.zIndex = '10060';
     document.body.appendChild(modal);
   }
-
   modal.replaceChildren();
-
-  const body = groupedNode(
-    'div',
-    null,
-    modal,
-    'width:100%;max-width:400px;padding:16px;' +
-    'background:#0f172a;border:1px solid #475569;' +
-    'border-radius:15px;'
-  );
-
-  groupedNode(
-    'strong',
-    'Cambiar propuesta · ' + found.c.name,
-    body
-  );
-
-  const date = groupedNode(
-    'input',
-    null,
-    body,
+  const body = groupedNode('div', null, modal,
+    'width:100%;max-width:420px;padding:16px;background:#0f172a;' +
+    'border:1px solid #475569;border-radius:15px;');
+  groupedNode('strong', 'Cambiar propuesta · ' + found.c.name, body);
+  const date = groupedNode('input', null, body,
     'display:block;width:100%;padding:10px;margin:12px 0;' +
-    'background:#1e293b;color:#fff;border:1px solid #475569;' +
-    'border-radius:8px;'
-  );
-
+    'background:#1e293b;color:#fff;border:1px solid #475569;border-radius:8px;');
   date.type = 'date';
   date.min = getTomorrowISO();
   date.value = proposal.date;
-
-  const select = groupedNode(
-    'select',
-    null,
-    body,
+  const select = groupedNode('select', null, body,
     'width:100%;padding:10px;background:#1e293b;color:#fff;' +
-    'border:1px solid #475569;border-radius:8px;'
-  );
-
-  const info = groupedNode(
-    'p',
-    '',
-    body,
-    'font-size:11px;color:#cbd5e1;line-height:1.5;margin:9px 0;'
-  );
-
-  const otherProposals = () =>
-    groupedPlan.proposals.filter(p => {
-      const current = groupedResolve(p.key);
-
-      return p.key !== proposal.key &&
-        current &&
-        groupedPending(current.c);
-    });
-
-  function update() {
-    select.replaceChildren();
-
-    OBRA_SLOTS.forEach(slot => {
-      const plan = routeSlotPlan(
-        date.value,
-        slot.start,
-        found.z,
-        found.c,
-        found.c,
-        otherProposals()
-      );
-
-      const option = groupedNode(
-        'option',
-        `${plan.ok ? '✅' : '⛔'} ${slot.start}–${slot.end}`,
-        select
-      );
-
-      option.value = slot.start;
-      option.disabled = !plan.ok;
-    });
-
-    const options = [...select.options].filter(
-      o => !o.disabled
-    );
-
-    select.value =
-      options.find(o => o.value === proposal.time)?.value ||
-      options[0]?.value ||
-      '';
-
-    info.textContent = options.length
-      ? 'Solo cambia la propuesta; la cita sigue sin reservar.'
-      : 'No hay franja compatible. Prueba otro día.';
-
-    save.disabled = !options.length;
-  }
-
-  const save = groupedButton(
-    body,
-    'Guardar propuesta',
-    () => {
-      const fresh = groupedResolve(proposal.key);
-
-      if (!fresh || !groupedPending(fresh.c)) {
-        alert('La ficha ha cambiado.');
-        return;
-      }
-
-      const plan = routeSlotPlan(
-        date.value,
-        select.value,
-        fresh.z,
-        fresh.c,
-        fresh.c,
-        otherProposals()
-      );
-
-      if (!plan.ok) {
-        alert(plan.reason);
-        update();
-        return;
-      }
-
+    'border:1px solid #475569;border-radius:8px;');
+  const info = groupedNode('p', '', body, 'font-size:11px;color:#cbd5e1;margin:9px 0;');
+  const save = groupedButton(body, 'Guardar propuesta', async () => {
+    const current = groupedResolve(proposal.key);
+    if (!current || !groupedPending(current.c)) {
+      alert('La ficha ha cambiado. Regenera las propuestas.');
+      return;
+    }
+    const [time, teamText] = select.value.split('|');
+    const equipo = Number(teamText);
+    save.disabled = true;
+    try {
+      await elegirEquipoInstaladorKonsor(date.value, time, equipo, current.c);
+      const otro = groupedPlan.proposals.some(p => p !== proposal &&
+        p.date === date.value && p.time === time && p.equipoInstalador === equipo &&
+        groupedPending(groupedResolve(p.key)?.c || {}));
+      if (otro) throw new Error('El equipo ya tiene otra propuesta en esa franja.');
       proposal.date = date.value;
-      proposal.time = select.value;
-      proposal.reason = plan.reason;
-
+      proposal.time = time;
+      proposal.equipoInstalador = equipo;
+      proposal.reason = 'Horario del equipo ' + equipo + ' comprobado en KONSOR.';
       closeModal('moveGroupedModal');
       renderGroupedAppointments();
+    } catch(error) {
+      alert(error.message || 'No se pudo comprobar KONSOR.');
+      save.disabled = false;
+      await update();
     }
-  );
+  });
+  groupedButton(body, 'Cancelar', () => closeModal('moveGroupedModal'));
 
-  groupedButton(
-    body,
-    'Cancelar',
-    () => closeModal('moveGroupedModal')
-  );
-
+  let sequence = 0;
+  async function update() {
+    const seq = ++sequence;
+    select.replaceChildren();
+    save.disabled = true;
+    info.textContent = 'Consultando equipos instaladores 2 y 3…';
+    if (!date.value) return;
+    try {
+      const fecha = new Date(date.value + 'T12:00:00');
+      if (fecha.getDay() === 0 || date.value <= getTodayISO())
+        throw new Error('Selecciona un día de lunes a sábado, desde mañana.');
+      const equipos = await consultarKonsorFecha(date.value);
+      if (seq !== sequence) return;
+      for (const slot of OBRA_SLOTS) {
+        const libres = equiposLibresKonsor(equipos, slot.start);
+        for (const equipo of libres) {
+          const indice = OBRA_SLOTS.findIndex(x => x.start === slot.start);
+          const reservas = routeRecords(date.value).filter(r => r.slot === indice);
+          if (reservas.some(r => ![2,3].includes(Number(r.c.obraEquipoInstalacion)) ||
+            Number(r.c.obraEquipoInstalacion) === equipo)) continue;
+          if (groupedPlan.proposals.some(p => p !== proposal &&
+            p.date === date.value && p.time === slot.start &&
+            p.equipoInstalador === equipo && groupedPending(groupedResolve(p.key)?.c || {}))) continue;
+          const option = groupedNode('option',
+            `${slot.start}–${slot.end} · Equipo ${equipo}`, select);
+          option.value = `${slot.start}|${equipo}`;
+        }
+      }
+      const preferred = `${proposal.time}|${proposal.equipoInstalador}`;
+      if ([...select.options].some(o => o.value === preferred)) select.value = preferred;
+      info.textContent = select.options.length
+        ? 'Solo modifica la propuesta; la reserva se confirmará después.'
+        : 'No quedan huecos libres para los equipos 2 y 3 en esa fecha.';
+      save.disabled = !select.options.length;
+    } catch(error) {
+      if (seq !== sequence) return;
+      info.textContent = error.message || 'No se pudo consultar KONSOR.';
+    }
+  }
   date.onchange = update;
   update();
   modal.classList.add('active');
@@ -3628,8 +3886,8 @@ function renderGroupedAppointments() {
   groupedNode(
     'p',
     'Organiza las fichas pendientes en jornadas. ' +
-    'Cada cuadrícula muestra las cuatro franjas: ' +
-    'propuestas, citas confirmadas y huecos libres.',
+    'Cada cuadrícula muestra las cuatro franjas para los equipos 2 y 3: ' +
+    'propuestas, citas confirmadas y disponibilidad de KONSOR.',
     root,
     'font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:10px;'
   );
@@ -3777,211 +4035,79 @@ function renderGroupedAppointments() {
       'gap:8px;margin-bottom:16px;'
     );
 
-    OBRA_SLOTS.forEach((slot, slotIndex) => {
-      const cell = groupedNode(
-        'div',
-        null,
-        grid,
-        'min-width:0;padding:10px;border-radius:12px;' +
-        'border:1px solid #475569;background:#1e293b;' +
-        'overflow-wrap:anywhere;'
-      );
-
-      groupedNode(
-        'strong',
-        `${slot.start}–${slot.end}`,
-        cell,
-        'display:block;font-size:13px;color:#fde047;margin-bottom:7px;'
-      );
-
-      const real = confirmed.filter(
-        r => r.slot === slotIndex
-      );
-
-      if (real.length) {
-        cell.style.borderColor = '#34d399';
-
-        real.forEach(r => {
-          const visible =
-            currentUserRole === 'jefe' ||
-            r.z.comercial === currentUserName;
-
-          groupedNode(
-            'strong',
-            '✅ ' + (
-              visible
-                ? r.c.name || 'Cliente'
-                : 'Obra confirmada'
-            ),
-            cell,
-            'font-size:12px;color:#6ee7b7;'
-          );
-
-          groupedNode(
-            'p',
-            `${r.z.town || ''}` +
-            (visible ? '\n' + (r.c.street || '') : ''),
-            cell,
-            'white-space:pre-line;font-size:11px;margin-top:5px;'
-          );
-        });
-
-        return;
-      }
-
-      const proposal = proposed.find(
-        p => p.time === slot.start
-      );
-
-      if (!proposal) {
-        groupedNode(
-          'p',
-          'Hueco libre',
-          cell,
-          'font-size:12px;color:#94a3b8;'
-        );
-        return;
-      }
-
-      const found = groupedResolve(proposal.key);
-
-      if (!found || !groupedPending(found.c)) {
-        groupedNode(
-          'p',
-          'Ficha modificada o movida. Regenera las propuestas.',
-          cell,
-          'font-size:11px;color:#fca5a5;'
-        );
-        return;
-      }
-
-      const { z, c } = found;
-
-      const available = routeSlotPlan(
-        date,
-        slot.start,
-        z,
-        c
-      );
-
-      groupedNode(
-        'strong',
-        `📝 ${c.name}`,
-        cell,
-        'font-size:12px;'
-      );
-
-      groupedNode(
-        'p',
-        `${c.street}\n${z.town}\n` +
-        getDisplayAlias(z.comercial),
-        cell,
-        'white-space:pre-line;font-size:11px;color:#cbd5e1;' +
-        'line-height:1.5;margin:6px 0;'
-      );
-
-      if (!available.ok) {
-        groupedNode(
-          'p',
-          available.reason,
-          cell,
-          'font-size:11px;color:#fca5a5;'
-        );
-      }
-
-      const phone = String(c.phone || '')
-        .replace(/[^\d+]/g, '');
-
-      if (/^\+?\d{7,15}$/.test(phone)) {
-        const a = groupedNode(
-          'a',
-          '📞 Llamar',
-          cell,
-          'display:block;text-align:center;padding:9px;' +
-          'background:#2563eb;color:#fff;text-decoration:none;' +
-          'border-radius:8px;font-size:11px;font-weight:800;' +
-          'margin-bottom:6px;'
-        );
-
-        a.href = 'tel:' + phone;
-      }
-
-      const details = groupedNode(
-        'details',
-        null,
-        cell,
-        'margin:7px 0;font-size:11px;'
-      );
-
-      groupedNode(
-        'summary',
-        'Datos y notas',
-        details,
-        'cursor:pointer;color:#7dd3fc;'
-      );
-
-      [
-        ['email', 'Correo electrónico'],
-        ['dni', 'DNI / NIE'],
-        ['callNotes', 'Notas de llamada']
-      ].forEach(([key, label]) => {
-        const input = groupedNode(
-          key === 'callNotes' ? 'textarea' : 'input',
-          null,
-          details,
-          'width:100%;box-sizing:border-box;margin-top:6px;' +
-          'padding:8px;background:#0f172a;color:#fff;' +
-          'border:1px solid #475569;border-radius:7px;font-size:12px;'
-        );
-
-        if (key !== 'callNotes') {
-          input.type = key === 'email' ? 'email' : 'text';
+    // Cada una de las cuatro franjas tiene dos casillas: equipo 2 y equipo 3.
+    for (const [slotIndex, slot] of OBRA_SLOTS.entries()) {
+      for (const equipo of [2, 3]) {
+        const cell = groupedNode('div', null, grid,
+          'min-width:0;padding:10px;border-radius:12px;' +
+          'border:1px solid #475569;background:#1e293b;overflow-wrap:anywhere;');
+        groupedNode('strong', `${slot.start}–${slot.end} · Equipo ${equipo}`,
+          cell, 'display:block;font-size:12px;color:#fde047;margin-bottom:7px;');
+        const real = confirmed.filter(r => r.slot === slotIndex &&
+          (![2,3].includes(Number(r.c.obraEquipoInstalacion)) ||
+           Number(r.c.obraEquipoInstalacion) === equipo));
+        const calendarDay = groupedPlan.agenda?.find(a => a.fecha === date);
+        const calendarSlot = calendarDay?.equipos?.[String(equipo)]?.find(x =>
+          x.horario === `${slot.start}-${slot.end}`);
+        if (real.length) {
+          cell.style.borderColor = '#34d399';
+          real.forEach(r => {
+            const visible = currentUserRole === 'jefe' || r.z.comercial === currentUserName;
+            groupedNode('strong', '✅ ' + (visible ? r.c.name || 'Cliente' : 'Obra confirmada'),
+              cell, 'font-size:12px;color:#6ee7b7;');
+            groupedNode('p', `${r.z.town || ''}` +
+              (visible ? '\n' + (r.c.street || '') : ''), cell,
+              'white-space:pre-line;font-size:11px;margin-top:5px;');
+          });
+          continue;
         }
-
-        input.placeholder = label;
-        input.setAttribute('aria-label', label);
-
-        input.value =
-          (groupedEdits.get(proposal.key) || {})[key] ??
-          c[key] ??
-          '';
-
-        input.oninput = () => {
-          const edit = groupedEdits.get(proposal.key) || {};
-          edit[key] = input.value;
-          groupedEdits.set(proposal.key, edit);
-        };
-      });
-
-      groupedButton(
-        details,
-        '💾 Guardar datos de llamada',
-        () => groupedSaveNotes(proposal.key)
-      );
-
-      groupedButton(
-        details,
-        '📂 Ver ficha / zona',
-        () => groupedViewSource(proposal.key)
-      );
-
-      groupedButton(
-        cell,
-        '↔️ Cambiar día / hora',
-        () => moveGroupedProposal(proposal)
-      );
-
-      const confirm = groupedButton(
-        cell,
-        '✅ Cliente acepta · reservar',
-        () => confirmGroupedAppointment(proposal)
-      );
-
-      confirm.disabled = !available.ok;
-
-      confirm.style.cssText +=
-        'width:100%;margin-top:5px;background:#047857;';
-    });
+        const proposal = proposed.find(p => p.time === slot.start && p.equipoInstalador === equipo);
+        if (!proposal) {
+          groupedNode('p', calendarSlot?.libre === false ? '🗓️ Ocupado en KONSOR' : 'Hueco libre',
+            cell, 'font-size:12px;color:#94a3b8;');
+          continue;
+        }
+        const found = groupedResolve(proposal.key);
+        if (!found || !groupedPending(found.c)) {
+          groupedNode('p', 'Ficha modificada. Regenera las propuestas.',
+            cell, 'font-size:11px;color:#fca5a5;');
+          continue;
+        }
+        const {z,c} = found;
+        groupedNode('strong', `📝 ${c.name}`, cell, 'font-size:12px;');
+        groupedNode('p', `${c.street}\n${z.town}\n${getDisplayAlias(z.comercial)}`,
+          cell, 'white-space:pre-line;font-size:11px;color:#cbd5e1;line-height:1.5;margin:6px 0;');
+        const phone = String(c.phone || '').replace(/[^\d+]/g, '');
+        if (/^\+?\d{7,15}$/.test(phone)) {
+          const a = groupedNode('a', '📞 Llamar', cell,
+            'display:block;text-align:center;padding:9px;background:#2563eb;color:#fff;' +
+            'text-decoration:none;border-radius:8px;font-size:11px;font-weight:800;margin-bottom:6px;');
+          a.href = 'tel:' + phone;
+        }
+        const details = groupedNode('details', null, cell, 'margin:7px 0;font-size:11px;');
+        groupedNode('summary', 'Datos y notas', details, 'cursor:pointer;color:#7dd3fc;');
+        for (const [key,label] of [['email','Correo electrónico'],['dni','DNI / NIE'],['callNotes','Notas de llamada']]) {
+          const input = groupedNode(key === 'callNotes' ? 'textarea' : 'input', null, details,
+            'width:100%;box-sizing:border-box;margin-top:6px;padding:8px;background:#0f172a;' +
+            'color:#fff;border:1px solid #475569;border-radius:7px;font-size:12px;');
+          if (key !== 'callNotes') input.type = key === 'email' ? 'email' : 'text';
+          input.placeholder = label;
+          input.value = (groupedEdits.get(proposal.key) || {})[key] ?? c[key] ?? '';
+          input.oninput = () => {
+            const edit = groupedEdits.get(proposal.key) || {};
+            edit[key] = input.value;
+            groupedEdits.set(proposal.key, edit);
+          };
+        }
+        groupedButton(details, '💾 Guardar datos de llamada', () => groupedSaveNotes(proposal.key));
+        groupedButton(details, '📂 Ver ficha / zona', () => groupedViewSource(proposal.key));
+        groupedButton(cell, '↔️ Cambiar día / hora', () => moveGroupedProposal(proposal));
+        const confirm = groupedButton(cell, '✅ Cliente acepta · reservar',
+          () => confirmGroupedAppointment(proposal));
+        confirm.disabled = calendarSlot?.libre !== true;
+        confirm.style.cssText += 'width:100%;margin-top:5px;background:#047857;';
+      }
+    }
   });
 
   const displaced = groupedPlan.proposals.filter(p => {
@@ -3990,8 +4116,10 @@ function renderGroupedAppointments() {
     return p.town === groupedTown &&
       current &&
       groupedPending(current.c) &&
-      routeRecords(p.date).some(
-        r => OBRA_SLOTS[r.slot]?.start === p.time
+      routeRecords(p.date).some(r =>
+        OBRA_SLOTS[r.slot]?.start === p.time &&
+        (![2,3].includes(Number(r.c?.obraEquipoInstalacion)) ||
+          Number(r.c.obraEquipoInstalacion) === p.equipoInstalador)
       );
   });
 
@@ -7727,11 +7855,26 @@ async function confirmScheduleFromFollowUp(
   const time =
     document.getElementById(timeInputId)?.value || '';
 
+  let equipoInstalador;
+
+  try {
+    equipoInstalador = await elegirEquipoInstaladorKonsor(
+      date,
+      time,
+      c.obraStatus === 'agendada' ? Number(c.obraEquipoInstalacion) : null,
+      c
+    );
+  } catch (error) {
+    alert(error.message || 'No se pudo comprobar KONSOR.');
+    return;
+  }
+
   const draft = {
     ...c,
     obraStatus: 'agendada',
     obraDate: date,
-    obraTime: time
+    obraTime: time,
+    obraEquipoInstalacion: equipoInstalador
   };
 
   const fields = [
@@ -7767,13 +7910,16 @@ async function confirmScheduleFromFollowUp(
     comercial: z.comercial
   })) return;
 
-  Object.assign(c, draft, {
-    statusChangedAt: Date.now()
-  });
-
+  const previousClient = {...c};
+  const previousUpdated = z._updatedAt;
+  Object.assign(c, draft, {statusChangedAt: Date.now()});
   z._updatedAt = Date.now();
-
-  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) {
+    Object.keys(c).forEach(k => {if (!(k in previousClient)) delete c[k];});
+    Object.assign(c, previousClient);
+    z._updatedAt = previousUpdated;
+    return;
+  }
 
   logActivity(
     'cita',
@@ -7826,7 +7972,7 @@ function findFreeObraDay(fromIso, step) {
     if (
       iso > getTodayISO() &&
       d.getDay() !== 0 &&
-      rows.length < 4 &&
+      rows.length < 8 &&
       !rows.some(r => r.slot < 0)
     ) {
       return iso;
@@ -7844,7 +7990,7 @@ function obraDayInfoText(iso) {
   if (!iso) return 'Sin fecha disponible.';
 
   return `📅 ${formatDate(iso)} · ` +
-    `${routeRecords(iso).length}/4 obras`;
+    `${routeRecords(iso).length}/8 reservas posibles (equipos 2 y 3)`;
 }
 
 function moveObraDay(dateInpId, step) {
@@ -7886,13 +8032,10 @@ function obraSlotsUsage(iso) {
 
 function obraSlotOptionsForDate(iso) {
   const used = obraSlotsUsage(iso);
-  const full = routeRecords(iso).length >= 4;
-
-  return '<option value="">Selecciona franja</option>' +
+  return '<option value="">Selecciona franja (equipo 2 o 3)</option>' +
     OBRA_SLOTS.map(s => `
-      <option value="${s.start}"
-        ${used[s.start] || full ? 'disabled' : ''}>
-        ${used[s.start] || full ? '⛔' : '✅'}
+      <option value="${s.start}">
+        ✅
         ${s.start} – ${s.end}
       </option>
     `).join('');
@@ -7935,14 +8078,14 @@ function updateObraDayInfo(dateInpId, preferred = '') {
 
   const free = plans
     .filter(p => p.ok)
-    .sort((a, b) =>
-      a.score - b.score ||
-      a.start.localeCompare(b.start)
-    );
+    .sort((a, b) => a.score - b.score || a.start.localeCompare(b.start));
+  // Las cuatro franjas siguen siendo elegibles: KONSOR y el equipo
+  // concreto se comprueban al confirmar, no con el planificador antiguo.
+  const available = OBRA_SLOTS.map(slot => ({...slot, ok:true}));
 
   const chosen =
-    free.find(p => p.start === preferred) ||
-    free[0];
+    available.find(p => p.start === preferred) ||
+    available[0];
 
   select.replaceChildren();
 
@@ -7953,7 +8096,7 @@ function updateObraDayInfo(dateInpId, preferred = '') {
     select.appendChild(option);
   }
 
-  plans.forEach(p => {
+  available.forEach(p => {
     const option = document.createElement('option');
 
     option.value = p.start;
@@ -7981,7 +8124,7 @@ function updateObraDayInfo(dateInpId, preferred = '') {
       obraDayInfoText(input.value) + ' · ' +
       (
         chosen
-          ? chosen.reason
+          ? 'Equipo concreto sujeto a confirmación de KONSOR.'
           : 'No hay franja compatible: ' +
             'cambia de día o revisa la agenda.'
       );
@@ -8014,13 +8157,13 @@ function routeValidateAppointment(c, ctx) {
   const original =
     originals.length === 1 ? originals[0] : null;
 
-  const plan = routeSlotPlan(
-    c.obraDate,
-    c.obraTime,
-    { town: ctx.town },
-    c,
-    original
-  );
+  // La capacidad definitiva la valida KONSOR y guardarTrabajoV2.
+  const plan = {
+    ok: Boolean(c.obraDate && c.obraDate > getTodayISO() &&
+      OBRA_SLOTS.some(slot => slot.start === c.obraTime) &&
+      new Date(c.obraDate + 'T12:00:00').getDay() !== 0),
+    reason: 'Fecha u horario inválidos.'
+  };
 
   if (!plan.ok) {
     alert('No se puede reservar: ' + plan.reason);
@@ -16354,6 +16497,8 @@ function openCommercialStatsModalLegacy() {
  window.readWorkV2 = httpsCallable(functionsEu, 'leerTrabajoV2');
  window.teamSummaryV2 = httpsCallable(functionsEu, 'resumenTrabajoV2');
  window.writeWorkV2 = httpsCallable(functionsEu, 'guardarTrabajoV2');
+  window.consultarDisponibilidadObras =
+    httpsCallable(functionsEu, 'consultarDisponibilidadObras');
  window.db = db;
  window.auth = auth;
  window.doc = doc;
