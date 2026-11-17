@@ -1753,7 +1753,7 @@ function openHistoricalImportModal() {
   const fields=[
     ['id','ID Euro Aisla'], ['nombre','Nombre'], ['telefono','Teléfono'],
     ['municipio','Municipio'], ['direccion','Calle y número'],
-    ['comercial','Comercial'], ['estado','Estado original'], ['fecha','Fecha (opcional)']
+    ['comercial','Comercial'], ['estado','Estado original'], ['fecha','Fecha (opcional)'], ['hora','Hora (si agendada)'], ['equipo','Equipo 2/3 (si agendada)']
   ];
   const manualBox=el('div',null,card,'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;');
   const inputs={};
@@ -1774,6 +1774,7 @@ function openHistoricalImportModal() {
   const btnParse=el('button','📋 Revisar tabla',card,actionStyle);
   const status=el('p','Todavía no hay fichas en la revisión.',card,'font-size:12px;color:#93c5fd;line-height:1.6;');
   const tableHolder=el('div',null,card,'overflow-x:auto;margin:12px 0;');
+  const btnSave=el('button','💾 Guardar fichas preparadas en Firestore',card,actionStyle+'margin:8px 8px 8px 0;background:#075985;');
   const btnExport=el('button','⬇ Exportar revisión CSV',card,actionStyle);
   btnExport.disabled=true;btnExport.style.opacity='.5';
   const btnClear=el('button','Vaciar revisión',card,actionStyle+'margin-left:8px;');
@@ -1788,14 +1789,16 @@ function openHistoricalImportModal() {
     direccion:['direccion','calle','domicilio','street','calle y numero'],
     comercial:['comercial','responsable','asignado','owner','agente'],
     estado:['estado','status','estado original','situacion'],
-    fecha:['fecha','fecha alta','date']
+    fecha:['fecha','fecha alta','date'],
+    hora:['hora','horario','franja','obratime','hora cita'],
+    equipo:['equipo','equipo instalador','equipo instalacion','cuadrilla','obrateam']
   };
   const normKey=v=>nrm(v).replace(/[^a-z0-9]/g,'');
   function stateOf(raw){
     const st=nrm(raw);
     if(st==='pendiente verificacion'||st==='por llamar')return 'por_llamar';
     if(st==='no apto'||st==='no_apto'||st==='no apta')return 'no_apto';
-    if(st==='agendada'||st==='cita agendada'||st==='cita confirmada')return 'agendada';
+    if(st==='agendada'||st==='cita agendada'||st==='cita confirmada'||st==='obra asignada'||st==='cita')return 'agendada';
     if(st==='realizada'||st==='obra realizada'||st==='terminada')return 'realizada';
     if(st==='contactado'||st==='llamado')return 'contactado';
     return 'revisar';
@@ -1819,8 +1822,14 @@ function openHistoricalImportModal() {
       const duplicate=Boolean((id&&(seenId.has(id)||original.ids.has(id)))||(fingerprint&&(seenAddress.has(fingerprint)||original.places.has(fingerprint))));
       if(id)seenId.add(id);if(fingerprint)seenAddress.add(fingerprint);
       const missing=!r.nombre||!r.municipio||!r.direccion||!r.telefono;
-      const pending=stateOf(r.estado)==='revisar';
-      return {...r,estadoDestino:stateOf(r.estado), revision: duplicate?'Duplicado posible':missing?'Faltan datos':pending?'Revisar estado':'Preparado'};
+      const state=stateOf(r.estado);
+      const pending=state==='revisar';
+      const fullSlot=['09:00','11:00','15:00','17:00'].includes((r.hora||'').slice(0,5));
+      const fullDate=/^\d{4}-\d{2}-\d{2}$/.test(r.fecha||'') && !Number.isNaN(Date.parse(r.fecha+'T12:00:00'));
+      const teamOK=['2','3'].includes(String(r.equipo||'').trim());
+      const bookingIncomplete=state==='agendada'&&!(fullSlot&&fullDate&&teamOK);
+      return {...r,estadoDestino:state,
+        revision:duplicate?'Duplicado posible':missing?'Faltan datos':pending?'Revisar estado':bookingIncomplete?'Cita: falta fecha, hora o equipo':'Preparado'};
     });
   }
   function render(){
@@ -1828,6 +1837,8 @@ function openHistoricalImportModal() {
     const review=data.filter(r=>r.revision!=='Preparado').length;
     status.textContent=`${rows.length} ficha(s) en revisión · ${review} requieren revisión. No se han guardado en CRM ni Calendar.`;
     btnExport.disabled=!rows.length;btnExport.style.opacity=rows.length?'1':'.5';
+    btnSave.disabled=!data.length || review>0;
+    btnSave.style.opacity=btnSave.disabled?'.5':'1';
     tableHolder.replaceChildren();
     if(!data.length)return;
     const table=el('table',null,tableHolder,'min-width:850px;width:100%;border-collapse:collapse;font-size:11px;color:#e2e8f0;');
@@ -1908,6 +1919,95 @@ function openHistoricalImportModal() {
     link.download='revision-clientes-comercial-navarra.csv';
     document.body.appendChild(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
+  };
+  // HIST_IMPORT_SAVE_V1: registro de las fichas mediante el MISMO bridge de la CRM.
+  // No se escriben calendarios ni se sobrescriben fichas existentes.
+  btnSave.onclick=async()=>{
+    if(currentUserName!=='Andrei (Jefe)' ||
+       sessionStorage.getItem('auth_user_key')!=='jefe' ||
+       window.auth?.currentUser?.uid==null){
+      alert('Solo Andrei (Jefe) con sesión activa puede importar.');return;
+    }
+    if(window.KonsorBridge?.busy || typeof window.KonsorBridge?.save!=='function'){
+      alert('Hay un guardado en curso o pendiente. Actualiza la página antes de importar.');return;
+    }
+    const checked=assess();
+    if(!checked.length || checked.some(r=>r.revision!=='Preparado')){
+      alert('Corrige duplicados, estados y datos incompletos antes de guardar.');return;
+    }
+    // Identificadores externos obligatorios para reintentos seguros.
+    if(checked.some(r=>!r.id.trim())){
+      alert('Todas las fichas necesitan un ID original de Euro Aisla para prevenir duplicados.');return;
+    }
+    if(!confirm(`¿Importar ${checked.length} fichas históricas de Andrei a Firestore? Se contabilizarán como fichas normales. No se creará ningún evento en KONSOR.`))return;
+    btnSave.disabled=true;
+    const currentIds=new Set();
+    const currentPlaces=new Set();
+    const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+    const placeKey=(phone,town,address)=>String(phone||'').replace(/\D/g,'')+'|'+norm(town)+'|'+norm(address);
+    (savedZones||[]).forEach(z=>(z.clients||[]).forEach(c=>{
+      if(c.crmOrigenId)currentIds.add(norm(c.crmOrigenId));
+      if(c.phone && c.street)currentPlaces.add(placeKey(c.phone,z.town,c.street));
+    }));
+    const additions=[];
+    const already=new Set();
+    for(const r of checked){
+      const id=norm(r.id), place=placeKey(r.telefono,r.municipio,r.direccion);
+      if(currentIds.has(id)||already.has(id)||currentPlaces.has(place)){
+        status.textContent='Importación cancelada: se detectó un duplicado. Recarga y revisa.';
+        btnSave.disabled=false;return;
+      }
+      already.add(id);
+      const state=r.estadoDestino;
+      const now=Date.now();
+      // Nunca se crea una cita nueva en Calendar. Una cita ya importada
+      // necesita fecha, franja y equipo, y el servidor valida la reserva.
+      const client={
+        clientUid:'f_'+crypto.randomUUID(),type:'vivienda',
+        name:r.nombre.trim(),street:r.direccion.trim(),phone:r.telefono.trim(),
+        obraStatus:state==='agendada'?'agendada':state==='realizada'?'realizada':state==='no_apto'?'no_apto':'a_poner',
+        obraDate:state==='agendada'||state==='realizada'?r.fecha||'':'',
+        obraTime:state==='agendada'||state==='realizada'?(r.hora||'').slice(0,5):'',
+        callStatus:state==='por_llamar'?'pendiente':'ya_llamado',
+        crmOrigenId:r.id.trim(),crmOrigenEstado:r.estado.trim(),
+        importadoHistorico:true,createdAt:now,statusChangedAt:now
+      };
+      if(state==='agendada')client.obraEquipoInstalacion=Number(r.equipo);
+      const zid=String('hist_'+crypto.randomUUID().replace(/-/g,'').slice(0,24));
+      additions.push({
+        id:zid,isSingleHouse:true,singlePoint:null,
+        date:getTodayISO(),dumpDate:getTodayISO(),
+        town:r.municipio.trim(),sectorName:'🏠 '+r.direccion.trim(),
+        comercial:'Andrei (Jefe)',bossNote:'',pendingNote:'',
+        status:'completada',points:[],
+        stats:{no:0,ausente:0,papelito:0,si:state==='no_apto'?0:1},
+        clients:[client]
+      });
+    }
+    let done=0;
+    try{
+      // Máximo 20 zonas por operación (40 documentos nuevos). Conserva
+      // el límite de 180 cambios del servidor y los recibos transaccionales.
+      for(let n=0;n<additions.length;n+=20){
+        if(window.KonsorBridge.busy)throw Error('Hay otro guardado en curso.');
+        const group=additions.slice(n,n+20);
+        const candidate=[...savedZones,...group];
+        status.textContent=`Guardando ${done+1} a ${done+group.length} de ${additions.length}…`;
+        await window.KonsorBridge.save('comercial_custom_zones',candidate);
+        savedZones=candidate;
+        done+=group.length;
+        // Retirar del lote las filas que ya se han confirmado para evitar
+        // que un reintento vuelva a escribirlas si una franja futura falla.
+        rows.splice(0,group.length);
+      }
+      status.textContent=`✅ ${done} fichas confirmadas por Firestore. Ya cuentan en tu equipo.`;
+      if(typeof renderAllSavedZones==='function')renderAllSavedZones();
+      render();
+      alert('Importación completa: '+done+' fichas confirmadas en Firestore.');
+    }catch(error){
+      status.textContent=`Guardadas ${done} de ${additions.length}; las restantes NO se han guardado. ${error.message}`;
+      alert(`Importación detenida. Confirmadas: ${done}. No repitas el lote sin recargar y revisar los duplicados.\n${error.message}`);
+    }finally{btnSave.disabled=false;}
   };
   overlay.addEventListener('click',ev=>{if(ev.target===overlay)overlay.remove();});
   render();
