@@ -1714,6 +1714,205 @@ function setMapDisplay(mode) {
   }
 }
 
+
+// Historial CRM: zona de preparación, SIN escrituras en Firestore.
+// Solo accesible desde Herramientas para la cuenta Andrei (Jefe).
+function openHistoricalImportModal() {
+  if (currentUserName !== 'Andrei (Jefe)' ||
+      sessionStorage.getItem('auth_user_key') !== 'jefe') return;
+
+  const existing = document.getElementById('historicalImportModal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'historicalImportModal';
+  overlay.className = 'modal-overlay active';
+  overlay.style.zIndex = '11000';
+  const card = document.createElement('div');
+  card.className = 'modal-card';
+  card.style.cssText = 'max-width:820px;width:calc(100% - 24px);max-height:88dvh;overflow:auto;padding:16px;';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  function el(tag, content, parent, css='') {
+    const node = document.createElement(tag);
+    if (content !== null) node.textContent = content;
+    if (css) node.style.cssText = css;
+    (parent || card).appendChild(node);
+    return node;
+  }
+  const heading = el('div', null, card, 'display:flex;align-items:center;justify-content:space-between;gap:8px;');
+  el('h2', '📥 Importar clientes antiguos', heading, 'margin:0;color:#e2e8f0;font-size:18px;');
+  const close = el('button', '✕', heading, 'padding:6px 12px;border-radius:8px;background:#334155;color:#fff;border:0;');
+  close.onclick=()=>overlay.remove();
+  el('p', 'Solo Andrei · Zona de preparación. Ninguna ficha se guarda todavía en Firestore ni se agenda en KONSOR.', card,
+    'font-size:12px;color:#fbbf24;line-height:1.5;margin:12px 0;');
+  el('p', 'Puedes añadir un cliente a mano o pegar una tabla CSV/Excel. Después revisamos el lote y lo importaremos de forma controlada. «Pendiente verificación» se transforma en «Por llamar».', card,
+    'font-size:12px;color:#cbd5e1;line-height:1.5;');
+
+  const fields=[
+    ['id','ID Euro Aisla'], ['nombre','Nombre'], ['telefono','Teléfono'],
+    ['municipio','Municipio'], ['direccion','Calle y número'],
+    ['comercial','Comercial'], ['estado','Estado original'], ['fecha','Fecha (opcional)']
+  ];
+  const manualBox=el('div',null,card,'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;');
+  const inputs={};
+  for(const [key,label] of fields){
+    const labelNode=el('label',label,manualBox,'font-size:11px;color:#cbd5e1;min-width:0;');
+    const input=el('input',null,labelNode,'display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:3px;background:#0f172a;border:1px solid #64748b;border-radius:7px;color:white;font-size:14px;');
+    input.type='text';input.placeholder=label;inputs[key]=input;
+    if(key==='estado') input.value='Pendiente verificación';
+  }
+  const actionStyle='padding:10px 12px;border:1px solid #64748b;border-radius:8px;background:#1e293b;color:#fff;font-size:12px;cursor:pointer;';
+  const btnAdd=el('button','➕ Añadir a revisión',card,actionStyle);
+  el('h3','O pegar una tabla',card,'font-size:14px;margin:18px 0 7px;');
+  el('p','Columnas sugeridas: id, nombre, telefono, municipio, direccion, comercial, estado, fecha. Se aceptan datos separados por comas, punto y coma o tabulaciones (Excel).',card,'font-size:11px;color:#94a3b8;');
+  const paste=el('textarea',null,card,'box-sizing:border-box;width:100%;min-height:100px;background:#0f172a;color:#fff;border:1px solid #64748b;border-radius:8px;padding:9px;font-size:12px;');
+  paste.placeholder='id;nombre;telefono;municipio;direccion;comercial;estado;fecha';
+  const file=el('input',null,card,'display:block;margin:12px 0;color:#cbd5e1;font-size:12px;');
+  file.type='file';file.accept='.csv,.tsv,.txt,text/csv,text/plain';
+  const btnParse=el('button','📋 Revisar tabla',card,actionStyle);
+  const status=el('p','Todavía no hay fichas en la revisión.',card,'font-size:12px;color:#93c5fd;line-height:1.6;');
+  const tableHolder=el('div',null,card,'overflow-x:auto;margin:12px 0;');
+  const btnExport=el('button','⬇ Exportar revisión CSV',card,actionStyle);
+  btnExport.disabled=true;btnExport.style.opacity='.5';
+  const btnClear=el('button','Vaciar revisión',card,actionStyle+'margin-left:8px;');
+
+  const rows=[];
+  const nrm=v=>String(v??'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const aliases={
+    id:['id','codigo','referencia','ref','leadid','idcrm','id euro aisla'],
+    nombre:['nombre','cliente','name','nombre cliente'],
+    telefono:['telefono','movil','phone','tel','numero telefono'],
+    municipio:['municipio','pueblo','localidad','town','ciudad'],
+    direccion:['direccion','calle','domicilio','street','calle y numero'],
+    comercial:['comercial','responsable','asignado','owner','agente'],
+    estado:['estado','status','estado original','situacion'],
+    fecha:['fecha','fecha alta','date']
+  };
+  const normKey=v=>nrm(v).replace(/[^a-z0-9]/g,'');
+  function stateOf(raw){
+    const st=nrm(raw);
+    if(st==='pendiente verificacion'||st==='por llamar')return 'por_llamar';
+    if(st==='no apto'||st==='no_apto'||st==='no apta')return 'no_apto';
+    if(st==='agendada'||st==='cita agendada'||st==='cita confirmada')return 'agendada';
+    if(st==='realizada'||st==='obra realizada'||st==='terminada')return 'realizada';
+    if(st==='contactado'||st==='llamado')return 'contactado';
+    return 'revisar';
+  }
+  function existingKeys(){
+    const ids=new Set(), places=new Set();
+    (savedZones||[]).forEach(z=>(z.clients||[]).forEach(c=>{
+      const id=nrm(c.crmOrigenId||c.euroAislaId||c.externalId||'');
+      if(id)ids.add(id);
+      const phone=String(c.phone||'').replace(/\D/g,'');
+      const loc=nrm(z.town)+'|'+nrm(c.street);
+      if(phone.length>=9&&nrm(c.street))places.add(phone+'|'+loc);
+    }));
+    return {ids,places};
+  }
+  function assess(){
+    const seenId=new Set(), seenAddress=new Set(), original=existingKeys();
+    return rows.map(r=>{
+      const id=nrm(r.id), phone=String(r.telefono||'').replace(/\D/g,'');
+      const fingerprint=phone.length>=9&&r.direccion ? phone+'|'+nrm(r.municipio)+'|'+nrm(r.direccion) : '';
+      const duplicate=Boolean((id&&(seenId.has(id)||original.ids.has(id)))||(fingerprint&&(seenAddress.has(fingerprint)||original.places.has(fingerprint))));
+      if(id)seenId.add(id);if(fingerprint)seenAddress.add(fingerprint);
+      const missing=!r.nombre||!r.municipio||!r.direccion||!r.telefono;
+      const pending=stateOf(r.estado)==='revisar';
+      return {...r,estadoDestino:stateOf(r.estado), revision: duplicate?'Duplicado posible':missing?'Faltan datos':pending?'Revisar estado':'Preparado'};
+    });
+  }
+  function render(){
+    const data=assess();
+    const review=data.filter(r=>r.revision!=='Preparado').length;
+    status.textContent=`${rows.length} ficha(s) en revisión · ${review} requieren revisión. No se han guardado en CRM ni Calendar.`;
+    btnExport.disabled=!rows.length;btnExport.style.opacity=rows.length?'1':'.5';
+    tableHolder.replaceChildren();
+    if(!data.length)return;
+    const table=el('table',null,tableHolder,'min-width:850px;width:100%;border-collapse:collapse;font-size:11px;color:#e2e8f0;');
+    const thead=el('thead',null,table);const tr=el('tr',null,thead);
+    for(const title of ['ID','Nombre','Teléfono','Pueblo','Dirección','Comercial','Estado CRM','Destino','Revisión']){
+      el('th',title,tr,'border-bottom:1px solid #64748b;padding:8px;text-align:left;');
+    }
+    const tbody=el('tbody',null,table);
+    data.slice(0,100).forEach(r=>{
+      const row=el('tr',null,tbody);
+      for(const v of [r.id,r.nombre,r.telefono,r.municipio,r.direccion,r.comercial,r.estado,r.estadoDestino,r.revision]){
+        el('td',String(v||''),row,'padding:7px;border-bottom:1px solid #334155;vertical-align:top;');
+      }
+    });
+    if(data.length>100)el('p','Mostrando las primeras 100 fichas. La exportación incluye todas.',tableHolder,'font-size:11px;color:#fbbf24;');
+  }
+  function add(raw){
+    const obj={};for(const [key] of fields)obj[key]=String(raw[key]??'').trim();
+    if(!Object.values(obj).some(Boolean))return;
+    if(rows.length>=2000)throw new Error('Límite de 2000 fichas por lote.');
+    rows.push(obj);
+  }
+  function parseCSV(text,delimiter){
+    const result=[];let item='',row=[],quoted=false;
+    for(let i=0;i<text.length;i++){
+      const ch=text[i];
+      if(ch==='"'){
+        if(quoted&&text[i+1]==='"'){item+='"';i++;}else quoted=!quoted;
+      }else if(ch===delimiter&&!quoted){row.push(item);item='';}
+      else if((ch==='\n'||ch==='\r')&&!quoted){
+        if(ch==='\r'&&text[i+1]==='\n')i++;
+        row.push(item);if(row.some(v=>v.trim()))result.push(row);
+        row=[];item='';
+      }else item+=ch;
+    }
+    if(quoted)throw new Error('Comillas sin cerrar en CSV.');
+    row.push(item);if(row.some(v=>v.trim()))result.push(row);
+    return result;
+  }
+  btnAdd.onclick=()=>{
+    try{add(Object.fromEntries(fields.map(([k])=>[k,inputs[k].value])));render();
+      for(const [k] of fields)if(k!=='estado')inputs[k].value='';
+    }catch(err){alert(err.message);}
+  };
+  btnParse.onclick=()=>{
+    try{
+      const raw=paste.value.replace(/^\uFEFF/,'');
+      if(!raw.trim())throw new Error('Pega primero la tabla.');
+      const head=raw.split(/\r?\n/,1)[0];
+      const delimiter=['\t',';',','].sort((a,b)=>head.split(b).length-head.split(a).length)[0];
+      const table=parseCSV(raw,delimiter);
+      if(table.length<2)throw new Error('La tabla necesita encabezados y al menos una ficha.');
+      const headers=table.shift().map(normKey);
+      const positions={};
+      for(const [key,names] of Object.entries(aliases))positions[key]=headers.findIndex(h=>names.some(n=>normKey(n)===h));
+      if(['nombre','telefono','municipio','direccion'].some(k=>positions[k]<0))
+        throw new Error('Faltan columnas: nombre, telefono, municipio y direccion.');
+      if(table.length+rows.length>2000)throw new Error('Demasiadas fichas para un único lote.');
+      for(const line of table){
+        const obj={};for(const [key] of fields)obj[key]=positions[key]>=0?(line[positions[key]]||''):'';
+        add(obj);
+      }
+      paste.value='';render();
+    }catch(err){alert('No se pudo leer la tabla: '+err.message);}
+  };
+  file.onchange=async()=>{
+    if(!file.files?.[0])return;
+    if(file.files[0].size>5_000_000){alert('Archivo demasiado grande (máximo 5 MB).');return;}
+    try{paste.value=await file.files[0].text();}catch(err){alert('No se pudo leer el archivo: '+err.message);}
+  };
+  btnClear.onclick=()=>{if(rows.length&& !confirm('¿Vaciar la revisión? No se ha guardado en Firestore.'))return;rows.length=0;render();};
+  btnExport.onclick=()=>{
+    const cols=[...fields.map(f=>f[0]),'estadoDestino','revision'];
+    const csv=[cols,...assess().map(r=>cols.map(k=>r[k]||''))].map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');link.href=url;
+    link.download='revision-clientes-comercial-navarra.csv';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+  };
+  overlay.addEventListener('click',ev=>{if(ev.target===overlay)overlay.remove();});
+  render();
+}
+
 function openMapToolsMenu() {
   openWorkMenu(
     '🛠 Herramientas del mapa',
@@ -1744,6 +1943,11 @@ function openMapToolsMenu() {
         'Dibujar una zona descartada y anotar el motivo.',
         startNoAptoZoneDrawing
       ],
+      ...(currentUserName === 'Andrei (Jefe)' ? [[
+        '📥 Importar clientes',
+        'Preparar fichas históricas, revisar estados y duplicados antes de importarlas.',
+        openHistoricalImportModal
+      ]] : []),
       [
         '🧭 Orientar al norte',
         'Restablecer la orientación del mapa.',
