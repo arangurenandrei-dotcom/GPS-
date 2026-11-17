@@ -66,6 +66,8 @@ class Element {
  constructor(tag){this.tag=tag;this.children=[];this.style={};this.value='';}
  appendChild(el){this.children.push(el);return el;}
  replaceChildren(){this.children=[];}
+ setAttribute(){}
+ focus(){}
  addEventListener(){}
  remove(){}
 }
@@ -75,14 +77,27 @@ function importer(zones=[],verify){
  const fn=loadFunction('openHistoricalImportModal',{
   document:doc,currentUserName:'Andrei (Jefe)',sessionStorage:{getItem:()=> 'jefe'},
   savedZones:zones,getActiveTeamUsers:()=>['Andrei (Jefe)','Comercial 1'],
-  getTodayISO:()=> '2026-11-17',crypto:require('node:crypto').webcrypto,
+  getTodayISO:()=> '2026-11-17',TextEncoder,crypto:require('node:crypto').webcrypto,
   window:{auth:{currentUser:{uid:'test'}},verificarHistoricoKonsor:verify,KonsorBridge:{busy:false,save:async(k,c)=>writes.push(structuredClone(c))}},
   alert:()=>{},confirm:()=>true
  });fn();
  const all=[];const walk=e=>{all.push(e);e.children.forEach(walk);};walk(body);
  const buttons=all.filter(e=>e.tag==='button');
- const inputs=all.filter(e=>e.tag==='input'&&e.type==='text');
- return {writes,buttons,add:r=>{const keys=['id','nombre','telefono','municipio','direccion','m2','comercial','estado','fecha','hora','equipo'];inputs.forEach((e,i)=>e.value=r[keys[i]]||'');buttons.find(b=>/Añadir/.test(b.textContent)).onclick();},save:()=>buttons.find(b=>/Guardar fichas/.test(b.textContent)).onclick()};
+ const paste=all.find(e=>e.tag==='textarea');
+ const inputs=all.filter(e=>e.tag==='select'||e.tag==='input'&&e.type!=='file');
+ const keys=['id','nombre','telefono','municipio','direccion','m2','comercial','estado','fecha','hora','equipo'];
+ return {
+  writes,buttons,paste,inputs,all,
+  add:r=>{
+   paste.value=keys.join(';')+'\n'+keys.map(k=>r[k]||'').join(';');
+   buttons.find(b=>/Revisar tabla/.test(b.textContent)).onclick();
+  },
+  manual:r=>{
+   ['nombre','telefono','municipio','direccion','m2','estado'].forEach((key,i)=>inputs[i].value=r[key]||'');
+   buttons.find(b=>/Añadir/.test(b.textContent)).onclick();
+  },
+  save:()=>buttons.find(b=>/Guardar fichas/.test(b.textContent)).onclick()
+ };
 }
 test('historical save keeps owner, date and m² in confirmed batch',async()=>{
  const ui=importer();ui.add({...row,nombre:'Cliente de prueba',comercial:'Comercial 1',estado:'Por llamar',fecha:'2025-03-15',m2:'52,5'});
@@ -107,4 +122,41 @@ test('verified external appointment saves event ID for server revalidation',asyn
  await ui.save();assert.equal(ui.writes.length,1);
  assert.equal(ui.writes[0][0].clients[0].crmKonsorEventId,'calendar-event-1');
  assert.equal(ui.writes[0][0].clients[0].crmKonsorTown,'Pamplona');
+});
+
+test('manual form opens on demand and stores agendada without a reservation, ID or date',async()=>{
+ const ui=importer();
+ const toggle=ui.buttons.find(b=>/Meter cliente manual/.test(b.textContent));
+ const box=ui.all.find(e=>e.hidden===true);
+ assert.ok(ui.all.indexOf(ui.paste)<ui.all.indexOf(toggle));
+ assert.ok(box);
+ toggle.onclick();assert.equal(box.hidden,false);
+ assert.deepEqual(ui.inputs.filter(e=>e.tag==='input').map(e=>e.placeholder),['Nombre','Teléfono','Municipio','Calle y número','m² (opcional)']);
+ assert.equal(ui.inputs.at(-1).tag,'select');
+ ui.manual({...row,nombre:'Cliente',estado:'Obra Agendada'});
+ await ui.save();
+ const z=ui.writes[0][0];
+ assert.equal(z.comercial,'Andrei (Jefe)');
+ assert.equal(z.clients[0].obraStatus,'agendada_historica');
+ assert.equal(z.clients[0].obraDate,'');
+ assert.equal(z.clients[0].crmOrigenId,undefined);
+});
+test('two different CSV clients without IDs save under the assigned commercial',async()=>{
+ const ui=importer();
+ ui.add({...row,id:'',fecha:'',nombre:'Uno',estado:'Por llamar'});
+ ui.add({...row,id:'',fecha:'',nombre:'Dos',direccion:'Mayor 2',estado:'Por llamar'});
+ await ui.save();
+ assert.equal(ui.writes[0].length,2);
+ assert.ok(ui.writes[0].every(z=>z.comercial==='Andrei (Jefe)'));
+ assert.notEqual(ui.writes[0][0].id,ui.writes[0][1].id);
+});
+test('a dated CSV without original ID uses one technical reference for verification and saving',async()=>{
+ let reference;
+ const ui=importer([],async d=>{reference=d.crmOrigenId;return {data:{ok:true,eventId:'calendar-event-2'}};});
+ ui.add({...row,id:'',nombre:'Cliente',estado:'Obra Agendada'});
+ await ui.buttons.find(b=>/Verificar citas/.test(b.textContent)).onclick();
+ await ui.save();
+ assert.match(reference,/^local_/);
+ assert.equal(ui.writes[0][0].clients[0].crmOrigenId,reference);
+ assert.equal(ui.writes[0][0].clients[0].obraStatus,'agendada');
 });
