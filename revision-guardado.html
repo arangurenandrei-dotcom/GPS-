@@ -1,0 +1,38 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Revisión de guardado</title>
+<style>*{box-sizing:border-box}body{font:16px system-ui;background:#111827;color:#f8fafc;max-width:700px;margin:0 auto;padding:20px}button{background:#2457c3;color:white;border:0;border-radius:8px;padding:12px;margin:.35em 0;font:inherit}pre{white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px}iframe{width:100%;height:60vh;border:1px solid #64748b;border-radius:10px}p{line-height:1.45}</style>
+<h1>Revisión de guardado</h1><p>Entra con tu cuenta de Andrei en la app de abajo. Cuando aparezca el mapa, pulsa Revisar. Se consultarán los documentos visibles para tu cuenta.</p>
+<button id="check">Revisar</button> <button id="copy" hidden>Copiar informe</button>
+<pre id="result" aria-live="polite">Pendiente de consulta.</pre><iframe id="app" title="Aplicación comercial" src="./index.html"></iframe>
+<script>
+function informe(state){
+ const zones=new Map(), totals=new Map(), groups=new Map(), rows=[];
+ for(const d of state.docs){
+   totals.set(d.col,(totals.get(d.col)||0)+1);
+   if(d.col==='zonas')zones.set(d.id,d);
+ }
+ let linked=0,owners=0;
+ for(const f of state.docs.filter(d=>d.col==='fichas')){
+   const z=zones.get(f.zona);
+   if(z){linked++;if(z.owner!==f.owner)owners++;continue;}
+   const ref=String(f.zona??'').trim();
+   if(!groups.has(ref))groups.set(ref,groups.size+1);
+   const reason=!ref?'sin referencia de zona':zones.has(ref)?'la referencia coincide al normalizar su formato':'referencia sin documento de zona visible';
+   rows.push('Ficha '+(rows.length+1)+' · '+reason+(ref?' · referencia '+groups.get(ref):''));
+ }
+ return ['Informe de lectura · '+(state.key==='jefe'?'cuenta de Andrei, jefe':'vista limitada del perfil'),
+   ...[...totals].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>k+' = '+v),
+   'Fichas enlazadas = '+linked,'Fichas sin zona visible = '+rows.length,'Fichas enlazadas con propietario distinto al de la zona = '+owners,...rows].join('\n');
+}
+const by=id=>document.getElementById(id);
+by('check').onclick=async()=>{
+ by('copy').hidden=true;by('check').disabled=true;by('result').textContent='Consultando…';
+ try{
+   const app=by('app').contentWindow;
+   if(!app.auth?.currentUser || typeof app.readWorkV2!=='function')throw Error('Abre la página desde tu GitHub Pages y entra en la app de abajo con la cuenta de Andrei.');
+   const {data}=await app.readWorkV2({});
+   if(data.key!=='jefe')throw Error('Esta sesión corresponde a otro perfil. Entra como Andrei para revisar su equipo completo.');
+   by('result').textContent=informe(data);by('copy').hidden=false;
+ }catch(e){by('result').textContent='No se pudo completar la consulta. '+e.message;}finally{by('check').disabled=false;}
+};
+by('copy').onclick=async()=>{try{await navigator.clipboard.writeText(by('result').textContent);by('copy').textContent='Copiado';}catch{const r=document.createRange();r.selectNodeContents(by('result'));const s=getSelection();s.removeAllRanges();s.addRange(r);}};
+</script></html>
