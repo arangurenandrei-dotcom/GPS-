@@ -99,6 +99,7 @@
     const delay=node('select');delay.setAttribute('aria-label','Tiempo de aplazamiento');delay.innerHTML='<option value="60">En 1 hora</option><option value="120">En 2 horas</option><option value="1440">En 24 horas</option>';
     actions.append(delay,button('Recordármelo',()=>api.call('gestionarAviso',{id:n.id,action:'snooze',minutes:Number(delay.value)})));
     const context=n.context||{};
+    if(context.reminderId)actions.append(button('Abrir recordatorios y encargos',()=>{tab='reminders';render();}));
     if(context.zoneId)actions.append(button('Abrir zona/ficha',()=>{
      const idx=typeof savedZones!=='undefined'?savedZones.findIndex(z=>String(z.id)===String(context.zoneId)):-1;
      if(idx<0){status.textContent='La zona ya no está disponible.';return;}modal.classList.remove('active');openDumpModal(idx);
@@ -116,28 +117,34 @@
  function renderReminders(){
   body.append(node('p',me.key==='jefe'?'Crea recordatorios para ti o para cualquier miembro de tu equipo.':'Crea recordatorios personales. Aquí también verás los que te asigne Andrei.'));
   body.append(button('＋ Crear recordatorio',()=>editReminder()));
+  if(me.key==='jefe')body.append(button('Asignar visita o encargo',()=>editReminder({assignment:true})));
   reminders.forEach(r=>{const card=node('article',undefined,'av-card');card.append(node('h3',r.title),node('p',r.body||''),node('small',`${alias(r.to)} · ${date(r.dueAt)} · ${r.repeat==='daily'?'Diario':r.repeat==='weekly'?'Semanal':'Una vez'} · ${r.enabled?'Activo':'Desactivado'}`));
+   if(r.assignment){
+    card.append(node('p',r.completedAt?'Completado':r.confirmedAt?'Confirmado':r.enabled?'Pendiente de confirmar':'Desactivado'));
+    if(r.to===me.name&&r.enabled){if(!r.confirmedAt)card.append(button('Confirmar recibido',()=>api.call('actualizarEncargo',{id:r.id,action:'confirm'})));
+    card.append(button('Marcar completado',()=>api.call('actualizarEncargo',{id:r.id,action:'complete'})));}
+   }
    if(me.key==='jefe'||r.creatorUid===me.uid){const actions=node('div',undefined,'av-actions');actions.append(button('Editar',()=>editReminder(r)),button('Desactivar',()=>api.call('guardarRecordatorio',{...r,to:keys[names.indexOf(r.to)],enabled:false})));card.append(actions);}body.append(card);
   });
  }
  function editReminder(r={}){
   body.replaceChildren();const form=node('form');
   function input(label,type,value){const l=node('label',label),el=node('input');el.type=type;el.value=value||'';l.append(el);form.append(l);return el;}
-  const title=input('Título','text',r.title);title.required=true;title.maxLength=120;
-  const l=node('label','Mensaje'),text=node('textarea');text.value=r.body||'';text.rows=4;text.maxLength=1500;l.append(text);form.append(l);
+  const title=input(r.assignment?'Visita o tarea':'Título','text',r.title);title.required=true;title.maxLength=120;
+  const l=node('label',r.assignment?'Lugar, objetivo e instrucciones':'Mensaje'),text=node('textarea');text.value=r.body||'';text.rows=4;text.maxLength=1500;l.append(text);form.append(l);
   const recipient=node('select');const allowed=me.key==='jefe'?keys:[me.key];recipient.innerHTML=allowed.map(k=>`<option value="${k}">${esc(alias(names[keys.indexOf(k)]))}</option>`).join('');recipient.value=keys[names.indexOf(r.to)]||me.key;
   const rl=node('label','Para');rl.append(recipient);form.append(rl);
   const due=r.dueAt&&r.dueAt>Date.now()?r.dueAt:Date.now()+3600000;
   const parts=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(due)).replace(' ','T');
   const when=input('Fecha y hora (Madrid)','datetime-local',parts);when.required=true;
-  const repeat=node('select');repeat.innerHTML='<option value="none">Una vez</option><option value="daily">Cada día</option><option value="weekly">Cada semana</option>';repeat.value=r.repeat||'none';const re=node('label','Repetir');re.append(repeat);form.append(re);
-  const save=button('Guardar recordatorio',async()=>{
+  const repeat=node('select');repeat.innerHTML='<option value="none">Una vez</option><option value="daily">Cada día</option><option value="weekly">Cada semana</option>';repeat.value=r.repeat||'none';const re=node('label','Repetir');re.append(repeat);if(!r.assignment)form.append(re);
+  const save=button(r.assignment?'Asignar encargo':'Guardar recordatorio',async()=>{
    if(!form.reportValidity())return;
    // Interpretar la hora elegida como Madrid incluso en otro huso horario.
    const [day,time]=when.value.split('T');const [hh,mm]=time.split(':').map(Number);let dueAt=Date.parse(day+'T00:00Z')+(hh*60+mm)*60000;
    for(let i=0;i<4;i++){const p=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',dateStyle:'short',timeStyle:'short',hourCycle:'h23'}).format(new Date(dueAt));const [d,t]=p.split(' ');const [h,m]=t.split(':').map(Number);const delta=(Date.parse(day+'T00:00Z')-Date.parse(d+'T00:00Z'))/86400000*1440+hh*60+mm-h*60-m;if(!delta)break;dueAt+=delta*60000;}
    const check=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(dueAt)).replace(' ','T');if(check!==when.value)throw Error('Esa hora no existe por el cambio de hora. Elige otra.');
-   await api.call('guardarRecordatorio',{...(r.id?{id:r.id}:{}),title:title.value,body:text.value,to:recipient.value,dueAt,repeat:repeat.value,enabled:true});render();
+   await api.call('guardarRecordatorio',{...(r.id?{id:r.id}:{}),assignment:!!r.assignment,title:title.value,body:text.value,to:recipient.value,dueAt,repeat:repeat.value,enabled:true});render();
   });form.append(save,button('Volver',render));form.onsubmit=e=>e.preventDefault();body.append(form);
  }
  function renderPreferences(){
