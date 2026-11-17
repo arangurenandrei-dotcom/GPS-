@@ -26,22 +26,24 @@
  // Conservar la actividad original y añadir un registro individual para el servidor.
  if(typeof window.logActivity==='function'){
   const original=window.logActivity;
-  window.logActivity=function(type,text,owner){
-   original.apply(this,arguments);
+  window.logActivity=async function(type,text,owner){
+   const event=await original.apply(this,arguments);
+   if (!event)return;
    if(!['ficha','hoja','llamada','cita','obra','cancelada','jornada'].includes(type))return;
    const key=sessionStorage.getItem('auth_user_key');if(!keys.includes(key))return;
-   const last=typeof activityLog!=='undefined'?activityLog[activityLog.length-1]:null;
+   const last=event;
    if(!last||last.type!==type||last.text!==text)return;
    pending.push({key,event:{id:String(last.id),type,text,owner:last.owner,t:last.t}});savePending();flush();
   };
  }
  function wrapShift(fn,reopen){const original=window[fn];if(typeof original!=='function')return;
-  window[fn]=function(){
+  window[fn]=async function(){
    const before=typeof getTodayShift==='function'?getTodayShift(currentUserName)?.status:null;
-   const result=original.apply(this,arguments);
+   const result=await original.apply(this,arguments);
+   if(result!==true)return result;
    const shift=getTodayShift(currentUserName),after=shift?.status;
    if(after&&after!==before){
-    shift._updatedAt=Date.now();saveAndSync('comercial_shifts',savedShifts);
+
     const label=reopen?'Reabre la jornada':after==='working'?(before==='lunch'?'Reanuda la jornada':'Empieza la jornada'):after==='lunch'?'Pausa para comer':'Cierra la jornada';
     window.logActivity('jornada',label,currentUserName);
    }

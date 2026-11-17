@@ -958,7 +958,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
 
   <!-- APP PRINCIPAL -->
   <div id="appContainer">
-    <div id="map"></div>
+    <div id="map"></div><output hidden id="workSaveStatus" aria-live="polite" style="position:fixed;bottom:155px;left:10px;z-index:10020;background:#172554;color:white;border-radius:10px;padding:8px 12px;font-size:12px"></output>
 
     <!-- BANNER DE DIBUJO CON OPCIÓN SECUNDARIA DE VIVIENDA ÚNICA -->
     <div id="drawingBanner" class="banner-drawing">
@@ -1337,7 +1337,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
   </div>
 
   <!-- PUENTE LIGERO KONSOR V2 (BLOQUE D) -->
-  <script src="konsor-v2-bridge.js?v=4"></script>
+  <script src="konsor-v2-bridge.js?v=5"></script>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
@@ -1360,7 +1360,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
       mikel_com5: 'Mikel Com. 5'
     };
 
-    let customUserProfiles = safeLoadStorage('comercial_user_profiles');
+    let customUserProfiles = {};
     if (Array.isArray(customUserProfiles)) customUserProfiles = {};
 
     function getUserPassword(userKey) {
@@ -2069,7 +2069,7 @@ function openUserProfileModal() {
       modal.classList.add('active');
     }
 
-    function saveUserProfileSettings() {
+    async function saveUserProfileSettings() {
       const userKey = sessionStorage.getItem('auth_user_key');
       if (!userKey) return;
       const newAlias = document.getElementById('profileAliasInput').value.trim();
@@ -2085,10 +2085,7 @@ function openUserProfileModal() {
       }
 
       customUserProfiles[userKey] = { alias: newAlias, updatedAt: Date.now() };
-      localStorage.setItem('comercial_user_profiles', JSON.stringify(customUserProfiles));
-      if (typeof window.pushToFirestore === 'function') {
-        window.pushToFirestore('comercial_user_profiles', customUserProfiles);
-      }
+      if (!await saveAndSync('comercial_user_profiles', customUserProfiles)) return;
 
       refreshLoginDropdownAliases();
       document.getElementById('displayUserName').innerText = newAlias;
@@ -2141,10 +2138,10 @@ function openUserProfileModal() {
     let currentUserRole = null;
     let currentUserName = null;
 
-    let savedZones = safeLoadStorage('comercial_custom_zones');
-    let savedShifts = safeLoadStorage('comercial_shifts');
-    let completedTowns = safeLoadStorage('comercial_completed_towns');
-    let hotLeadMissions = safeLoadStorage('comercial_hot_lead_missions');
+    let savedZones = [];
+    let savedShifts = [];
+    let completedTowns = [];
+    let hotLeadMissions = [];
 
     let loadedMapLayers = [];
     let tempPoints = [];
@@ -2172,95 +2169,12 @@ function openUserProfileModal() {
       } catch (e) { return []; }
     }
 
-   function saveAndSync(key, data) {
-   const stamped = Array.isArray(data)
-     ? data.map(item => (item && typeof item === 'object' ? { ...item, _updatedAt: item._updatedAt || Date.now() } : item))
-     : data;
-   try {
-     localStorage.setItem(key, JSON.stringify(stamped));
-   } catch (e) {}
-   if (typeof window.pushToFirestore === 'function') {
-     window.pushToFirestore(key, stamped);
+   async function saveAndSync(key,data) {
+     try { await window.KonsorBridge.save(key,data); return true; }
+     catch (error) { alert('No se ha confirmado el guardado. ' + error.message); return false; }
    }
-   if (key === 'comercial_custom_zones' && window.KonsorBridge && typeof window.KonsorBridge.syncZonesToFichasV2 === 'function') {
-     window.KonsorBridge.syncZonesToFichasV2(stamped);
-   }
- }
 
-    window.applyCloudDataUpdate = function(key, newData) {
-      if (key === 'comercial_user_profiles') {
-        if (!newData || typeof newData !== 'object' || Array.isArray(newData)) return;
-        const mergedProfiles = { ...customUserProfiles };
-        Object.keys(newData).forEach(uKey => {
-          const localEntry = mergedProfiles[uKey];
-          const cloudEntry = newData[uKey];
-          if (cloudEntry && (!localEntry || (cloudEntry.updatedAt || 0) >= (localEntry.updatedAt || 0))) {
-            mergedProfiles[uKey] = cloudEntry;
-          }
-        });
-        customUserProfiles = mergedProfiles;
-        try { localStorage.setItem(key, JSON.stringify(customUserProfiles)); } catch (e) {}
-        refreshLoginDropdownAliases();
-        const activeKey = sessionStorage.getItem('auth_user_key');
-        if (activeKey && !isMikelTeamMember(currentUserName)) {
-          const nameLbl = document.getElementById('displayUserName');
-          if (nameLbl) nameLbl.innerText = getDisplayAlias(activeKey);
-        }
-        return;
-      }
 
-      if (!Array.isArray(newData)) return;
-      try {
-        localStorage.setItem(key, JSON.stringify(newData));
-      } catch (e) {}
-
-      if (key === 'comercial_custom_zones') {
-        if (currentUserName === 'Andrei (Jefe)' && Array.isArray(savedZones) && savedZones.length > 0) {
-          const prevTotalSi = savedZones.reduce((acc, z) => acc + (!isMikelTeamMember(z.comercial) ? (z.stats?.si || 0) : 0), 0);
-          const nextTotalSi = newData.reduce((acc, z) => acc + (!isMikelTeamMember(z.comercial) ? (z.stats?.si || 0) : 0), 0);
-          if (nextTotalSi > prevTotalSi) {
-            const diffSi = nextTotalSi - prevTotalSi;
-            triggerHapticAndSound('success');
-            showCelebrationToast(`🚀 ¡Tu equipo acaba de sumar +${diffSi} SÍ!`);
-            sendLocalMobileNotification('🔥 ¡Nuevo SÍ en tu Equipo!', `Se ha registrado +${diffSi} nueva captación en Navarra.`);
-          }
-        }
-        savedZones = newData;
-      }
-      else if (key === 'comercial_shifts') savedShifts = newData;
-      else if (key === 'comercial_completed_towns') completedTowns = newData;
-      else if (key === 'comercial_hot_lead_missions') hotLeadMissions = newData;
-      else if (key === 'comercial_activity') {
-        const prevIds = new Set((activityLog || []).map(a => a.id));
-        const isBossMe = currentUserName === 'Andrei (Jefe)';
-        const fresh = newData.filter(a => !prevIds.has(a.id) && a.user !== currentUserName && (Date.now() - a.t) < 120000 && (isBossMe || a.owner === currentUserName));
-        activityLog = newData;
-        if (fresh.length > 0 && currentUserName && !isMikelTeamMember(currentUserName)) {
-          const last = fresh[fresh.length - 1];
-          triggerHapticAndSound(last.type === 'cancelada' ? 'alert' : 'success');
-          showCelebrationToast(last.text.length > 60 ? last.text.slice(0, 57) + '...' : last.text);
-          sendLocalMobileNotification('Konsor Navarra', last.text);
-        }
-      }
-
-      if (currentUserName) {
-        if (map) renderAllSavedZones();
-        updateShiftUI();
-        updateHudLiveSalaryPill();
-        if (currentUserRole === 'jefe' && key === 'comercial_custom_zones' && !bossEntrySummaryShown) {
-          showBossDailySummaryAndObras(false);
-        }
-        const isEditingForm = document.getElementById('dumpModal')?.classList.contains('active') ||
-                              document.getElementById('singleHouseModal')?.classList.contains('active');
-        if (!isEditingForm) {
-          if (document.getElementById('auditModal')?.classList.contains('active')) renderCurrentAuditView();
-          if (document.getElementById('followUpsModal')?.classList.contains('active')) renderFollowUpsModal();
-          if (document.getElementById('globalSearchModal')?.classList.contains('active')) renderGlobalClientSearchResults();
-          if (document.getElementById('leagueRankingModal')?.classList.contains('active')) openLeagueRankingModal();
-          if (document.getElementById('commercialStatsModal')?.classList.contains('active')) openCommercialStatsModal();
-        }
-      }
-    };
 
     function getLocalDateISO(dateObj = new Date()) {
       const offsetMs = dateObj.getTimezoneOffset() * 60000;
@@ -2419,48 +2333,10 @@ function openUserProfileModal() {
       document.getElementById('loginError').style.display = 'none';
     }
 
-    function executeLogin() {
-      const userVal = document.getElementById('userSelect').value;
-      const passVal = document.getElementById('passInput').value.trim();
-      const expectedPin = String(getUserPassword(userVal) || '').trim();
-
-      if (expectedPin && passVal === expectedPin) {
-        sessionStorage.setItem('auth_user_key', userVal);
-        if (userVal === 'jefe') {
-          currentUserRole = 'jefe';
-          currentUserName = 'Andrei (Jefe)';
-        } else if (userVal === 'jefe_mikel') {
-          currentUserRole = 'jefe';
-          currentUserName = 'Mikel (Jefe)';
-        } else if (userVal.startsWith('mikel_com')) {
-          currentUserRole = 'comercial';
-          currentUserName = userVal.replace('mikel_com', 'Mikel Com. ');
-        } else {
-          currentUserRole = 'comercial';
-          currentUserName = userVal.replace('comercial', 'Comercial ');
-        }
-
-        sessionStorage.setItem('auth_role', currentUserRole);
-        sessionStorage.setItem('auth_name', currentUserName);
-
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'block';
-
-        setupRoleInterface();
-        updateShiftUI();
-        initMap();
-
-        if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
-          showCommercialBriefing();
-        } else if (currentUserName === 'Andrei (Jefe)') {
-          checkAndShowBossTodayObras(true);
-        }
-      } else {
-        document.getElementById('loginError').style.display = 'block';
-      }
-    }
+    function executeLogin() { authDoLogin(); }
 
         function executeLogout() {
+   if (window.KonsorBridge?.busy) { alert('Hay cambios pendientes. Mantén la sesión abierta y recarga para recuperarlos.'); return; }
    sessionStorage.clear();
    [
      'comercial_custom_zones',
@@ -2642,7 +2518,10 @@ function openUserProfileModal() {
         try { await window.authApi.logout(); } catch (e) {}
         return;
       }
-      startSessionForUserKey(prof.userKey);
+      try {
+        await window.KonsorBridge.open(user.uid, prof.userKey);
+        if (!currentUserName && window.auth.currentUser?.uid === user.uid) startSessionForUserKey(prof.userKey);
+      } catch (e) { authSetMsg('No se pudo cargar tu trabajo. ' + e.message, 'err'); }
     }
 
     window.onAuthUserReady = function(user) {
@@ -2651,7 +2530,7 @@ function openUserProfileModal() {
     };
 
     function startSessionForUserKey(userVal) {
-      try { if (typeof window.startFirestoreSync === 'function') window.startFirestoreSync(); } catch (e) {}
+
       sessionStorage.setItem('auth_user_key', userVal);
       if (userVal === 'jefe') {
         currentUserRole = 'jefe';
@@ -3473,7 +3352,7 @@ function groupedViewSource(key) {
   openDumpModal(index);
 }
 
-function confirmGroupedAppointment(proposal) {
+async function confirmGroupedAppointment(proposal) {
   const found = groupedResolve(proposal.key);
 
   if (!found || !groupedPending(found.c)) {
@@ -3540,7 +3419,7 @@ function confirmGroupedAppointment(proposal) {
 
   z._updatedAt = Date.now();
 
-  saveAndSync('comercial_custom_zones', savedZones);
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
 
   logActivity(
     'cita',
@@ -3707,7 +3586,7 @@ function moveGroupedProposal(proposal) {
   modal.classList.add('active');
 }
 
-function groupedSaveNotes(key) {
+async function groupedSaveNotes(key) {
   const found = groupedResolve(key);
 
   if (
@@ -3733,7 +3612,7 @@ function groupedSaveNotes(key) {
 
   found.z._updatedAt = Date.now();
 
-  saveAndSync('comercial_custom_zones', savedZones);
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
   groupedEdits.delete(key);
   renderGroupedAppointments();
 }
@@ -5843,7 +5722,7 @@ function bossPlanStartWatch() {
 function openBossWorkMenu() {
   if (currentUserName !== 'Andrei (Jefe)') return;
 
-  const cache = safeLoadStorage('comercial_boss_tasks');
+  const cache = bossPlanItems;
 
   if (!bossPlanWatch && Array.isArray(cache)) {
     bossPlanItems = cache;
@@ -7134,7 +7013,7 @@ function renderBossPlan() {
     function removeClientAtticPhoto(btn) {
       const box = btn.closest('.client-box, .comunidad-box');
       if (!box) return;
-      delete box.dataset.atticPhoto;
+      box.dataset.atticPhoto = '';
       const previewSlot = box.querySelector('.attic-photo-preview-slot');
       if (previewSlot) previewSlot.innerHTML = '';
     }
@@ -7185,7 +7064,7 @@ function renderBossPlan() {
       document.getElementById('fuFilterEsperando').className = `subtab-btn ${activeFollowUpFilter==='esperando_confirmacion'?'active':''}`;
     }
 
-    function updateClientCallStatus(zoneIdx, clientIdx, newCallStatus) {
+    async function updateClientCallStatus(zoneIdx, clientIdx, newCallStatus) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       const c = z.clients[clientIdx];
@@ -7209,17 +7088,17 @@ function renderBossPlan() {
       c.callLog = (c.callLog || []).concat([{ t: Date.now(), s: newCallStatus, r: c.waitReason || '' }]).slice(-20);
       logActivity('llamada', `${newCallStatus === 'ya_llamado' ? '🟡 Ya llamado' : (newCallStatus === 'esperando_confirmacion' ? '🟣 Esperando confirmación' : '🔴 Por llamar')}: ${c.name || 'Cliente'}${c.waitReason ? ' (' + c.waitReason + ')' : ''} · ${z.town || ''}`, z.comercial);
       z._updatedAt = Date.now();
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       renderFollowUpsModal();
     }
 
-    function updateClientCallStatusOld(zoneIdx, clientIdx, newCallStatus) {
+    async function updateClientCallStatusOld(zoneIdx, clientIdx, newCallStatus) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       z.clients[clientIdx].callStatus = newCallStatus;
       z.clients[clientIdx].statusChangedAt = Date.now();
       z._updatedAt = Date.now();
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       renderFollowUpsModal();
     }
 
@@ -7383,7 +7262,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       container.innerHTML = html || '<div style="text-align:center; padding:22px; color:#94a3b8; font-size:12px;">Todavía no hay citas de obra agendadas.</div>';
     }
 
-    function saveCallNotes(zoneIdx, clientIdx, emailId, notesId) {
+    async function saveCallNotes(zoneIdx, clientIdx, emailId, notesId) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       const c = z.clients[clientIdx];
@@ -7398,7 +7277,7 @@ Por favor, asegúrate de que haya alguien en casa y de que se pueda acceder a la
       c.dni = dniRaw;
       c.callNotes = nt;
       z._updatedAt = Date.now();
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       alert("✅ Datos guardados en la ficha.");
     }
 
@@ -7804,7 +7683,7 @@ function toggleInlineScheduleBox(boxId) {
   );
 }
 
-function confirmScheduleFromFollowUp(
+async function confirmScheduleFromFollowUp(
   zoneIdx,
   clientIdx,
   dateInputId,
@@ -7894,7 +7773,7 @@ function confirmScheduleFromFollowUp(
 
   z._updatedAt = Date.now();
 
-  saveAndSync('comercial_custom_zones', savedZones);
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
 
   logActivity(
     'cita',
@@ -9270,7 +9149,7 @@ function renderGlobalClientSearchResults() {
       }
     }
 
-    function dispatchCommercialToObra(townName, selectElementId) {
+    async function dispatchCommercialToObra(townName, selectElementId) {
       const selectEl = document.getElementById(selectElementId);
       if (!selectEl) return;
       const chosenComercial = selectEl.value;
@@ -9293,7 +9172,7 @@ function renderGlobalClientSearchResults() {
         comercial: chosenComercial,
         streetsSummary: streetsSummary
       });
-      saveAndSync('comercial_hot_lead_missions', hotLeadMissions);
+
 
       savedZones.push({
         id: Date.now() + 1,
@@ -9311,19 +9190,19 @@ function renderGlobalClientSearchResults() {
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
         clients: []
       });
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await guardarMisionYZona()) return;
 
       renderAllSavedZones();
       checkAndShowBossTodayObras(false);
     }
 
-    function removeHotLeadMission(missionId) {
+    async function removeHotLeadMission(missionId) {
       const target = hotLeadMissions.find(m => m.id === missionId);
       const delList = safeLoadStorage('comercial_deleted_ids');
       if (missionId && !delList.includes(missionId)) delList.push(missionId);
 
       hotLeadMissions = hotLeadMissions.filter(m => m.id !== missionId);
-      saveAndSync('comercial_hot_lead_missions', hotLeadMissions);
+
 
       if (target) {
         savedZones.forEach(z => {
@@ -9332,31 +9211,27 @@ function renderGlobalClientSearchResults() {
           }
         });
         savedZones = savedZones.filter(z => !(z.isHotMission && z.comercial === target.comercial && z.date === target.date && z.town === target.town));
-        saveAndSync('comercial_custom_zones', savedZones);
+
       }
+      if (!await guardarMisionYZona()) return;
       localStorage.setItem('comercial_deleted_ids', JSON.stringify(delList));
 
       renderAllSavedZones();
       checkAndShowBossTodayObras(false);
     }
 
+    async function guardarMisionYZona() {
+      try {
+        await window.KonsorBridge.saveGroups({comercial_custom_zones:savedZones, comercial_hot_lead_missions:hotLeadMissions});
+        return true;
+      } catch(e) { alert('La misión y su zona no se han confirmado. '+e.message);return false; }
+    }
+
     let bossEntrySummaryShown = false;
 
-    function showBossDailySummaryAndObras(forceShow = false) {
+    async function showBossDailySummaryAndObras(forceShow = false) {
       if (currentUserRole !== 'jefe') return;
       if (!forceShow && bossEntrySummaryShown) return;
-
-      // Limpiar misiones en caliente huérfanas cuya obra o zona ya fue eliminada
-      const { groupedByTown: activeObrasTowns } = getTodayScheduledObrasGrouped();
-      const validMissions = hotLeadMissions.filter(m => {
-        const hasObra = Boolean(activeObrasTowns[m.town]);
-        const hasHotZ = savedZones.some(z => z.isHotMission && z.comercial === m.comercial && z.date === m.date && z.town === m.town);
-        return hasObra || hasHotZ;
-      });
-      if (validMissions.length !== hotLeadMissions.length) {
-        hotLeadMissions = validMissions;
-        saveAndSync('comercial_hot_lead_missions', hotLeadMissions);
-      }
 
       const teamList = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
       const statusLines = [];
@@ -9991,15 +9866,16 @@ function renderCommercialWorkDay() {
       return savedShifts.find(s => s.user === userName && (s.localDate || getLocalDateISO(new Date(s.date))) === todayIso);
     }
 
-    function reopenTodayShift() {
+    async function reopenTodayShift() {
       const shift = getTodayShift(currentUserName);
       if (!shift) return;
       shift.status = 'working';
       shift.endTime = null;
       shift.lunchStart = null;
       shift._updatedAt = Date.now();
-      saveAndSync('comercial_shifts', savedShifts);
+      if (!await saveAndSync('comercial_shifts', savedShifts)) return;
       updateShiftUI();
+      return true;
     }
 
     function updateShiftUI() {
@@ -10039,7 +9915,7 @@ function renderCommercialWorkDay() {
       }
     }
 
-    function handleShiftAction(action) {
+    async function handleShiftAction(action) {
       const now = new Date();
       const timeStr = now.toTimeString().slice(0, 5);
       let shift = getTodayShift(currentUserName);
@@ -10084,8 +9960,9 @@ function renderCommercialWorkDay() {
         }
       }
 
-      saveAndSync('comercial_shifts', savedShifts);
+      if (!await saveAndSync('comercial_shifts', savedShifts)) return;
       updateShiftUI();
+      return true;
     }
 
     /* =====================================================================
@@ -10573,7 +10450,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
       const emailVal = box.querySelector('.client-email')?.value.trim() || '';
       const accessTypeVal = box.querySelector('.client-access-type')?.value || 'Trampilla';
       const accessOtherVal = accessTypeVal === 'Otro' ? (box.querySelector('.client-access-other')?.value.trim() || '') : '';
-      const atticPhotoVal = box.dataset.atticPhoto || existingMeta.atticPhoto || '';
+      const atticPhotoVal = box.dataset.atticPhoto ?? existingMeta.atticPhoto ?? '';
       if (typeVal === 'comunidad') {
         const atticCards = box.querySelectorAll('.attic-item-card');
         const atticsDetails = [];
@@ -10645,7 +10522,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
       }
     }
 
-    function saveSingleHouseData() {
+    async function saveSingleHouseData() {
       const container = document.getElementById('singleHouseCardContainer');
       const box = container.querySelector('.client-box, .comunidad-box');
       if (!box) return;
@@ -10709,7 +10586,7 @@ const labelStreet = clientObj.street ||
         });
       }
 
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
            logActivity('ficha', `🏠 Registró ${clientObj.type === 'comunidad' ? 'una comunidad' : 'una vivienda'}: ${clientObj.name || clientObj.street || 'sin nombre'} · ${townVal}`, comercialVal);
       editingSingleHouseIndex = null;
       pendingSingleHouseCoords = null;
@@ -10718,7 +10595,7 @@ const labelStreet = clientObj.street ||
       updateHudLiveSalaryPill();
     }
 
-    function deleteSingleHouse(idx) {
+    async function deleteSingleHouse(idx) {
       const z = savedZones[idx];
       if (!z) return;
       if (currentUserRole !== 'jefe' && z.comercial !== currentUserName) {
@@ -10727,13 +10604,13 @@ const labelStreet = clientObj.street ||
       }
       if (confirm('¿Seguro que quieres eliminar esta vivienda/edificio del mapa?')) {
         savedZones.splice(idx, 1);
-        saveAndSync('comercial_custom_zones', savedZones);
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
         closeModal('singleHouseModal');
         renderAllSavedZones();
       }
     }
 
-    function finishSectorDrawing() {
+    async function finishSectorDrawing() {
       if (tempPoints.length < 3) {
         alert("Toca al menos 3 puntos para delimitar.");
         return;
@@ -10762,7 +10639,7 @@ const labelStreet = clientObj.street ||
           stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
           clients: []
         });
-        saveAndSync('comercial_custom_zones', savedZones);
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
         cancelDrawing();
         renderAllSavedZones();
         return;
@@ -10777,7 +10654,7 @@ const labelStreet = clientObj.street ||
         z.date = getTomorrowISO();
         z.isUrgentContinuation = true;
         z._updatedAt = Date.now();
-        saveAndSync('comercial_custom_zones', savedZones);
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
         isCropMode = false;
         isDrawingMode = false;
         tempPoints = [];
@@ -10800,7 +10677,9 @@ const labelStreet = clientObj.street ||
       }
     }
 
+    let pendingSectorId = null;
     function cancelDrawing() {
+      pendingSectorId = null;
       isDrawingMode = false;
       isCropMode = false;
       isSingleHouseMode = false;
@@ -10835,7 +10714,7 @@ const labelStreet = clientObj.street ||
       document.getElementById('drawingBannerText').innerText = "🚫 Toca las esquinas de la urbanización o manzana NO APTA...";
     }
 
-    function deleteNoAptoZone(idx) {
+    async function deleteNoAptoZone(idx) {
       const z = savedZones[idx];
       if (!z) return;
       if (z.id) {
@@ -10846,12 +10725,12 @@ const labelStreet = clientObj.street ||
         }
       }
       savedZones.splice(idx, 1);
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       map.closePopup();
       renderAllSavedZones();
     }
 
-   function confirmSectorAssignment() {
+   async function confirmSectorAssignment() {
       const dateVal = document.getElementById('assignDate').value || getTodayISO();
       let town = document.getElementById('assignTown').value.trim();
       if (!town || town === 'Detectando localidad...') {
@@ -10869,8 +10748,12 @@ const labelStreet = clientObj.street ||
 
       const comercial = document.getElementById('assignComercial').value;
 
-      savedZones.push({
-        id: Date.now(),
+      const button = document.querySelector('#assignModal .btn-modal-save');
+      if (button.disabled) return;
+      button.disabled = true;
+      pendingSectorId ??= Date.now();
+      const sector = {
+        id: pendingSectorId,
         date: dateVal,
         town,
         sectorName,
@@ -10878,12 +10761,15 @@ const labelStreet = clientObj.street ||
         bossNote: bossNote || '',
         pendingNote: '',
         status: 'sin_comprobar',
-        points: tempPoints,
+        points: tempPoints.map(p => [...p]),
         stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
         clients: []
-      });
-
-      saveAndSync('comercial_custom_zones', savedZones);
+      };
+      try {
+        const proposal = savedZones.filter(z => z.id !== sector.id).concat(sector);
+        if (!await saveAndSync('comercial_custom_zones', proposal)) return;
+        savedZones.push(sector);
+      } finally { button.disabled = false; }
       cancelDrawing();
       closeModal('assignModal');
       renderAllSavedZones();
@@ -11074,12 +10960,12 @@ const labelStreet = clientObj.street ||
       }
     }
 
-    function toggleSupervisorComunidadDoc(zoneIdx, clientIdx, docKey, isChecked) {
+    async function toggleSupervisorComunidadDoc(zoneIdx, clientIdx, docKey, isChecked) {
       const z = savedZones[zoneIdx];
       if (!z || !z.clients || !z.clients[clientIdx]) return;
       if (!z.clients[clientIdx].comunidadDocs) z.clients[clientIdx].comunidadDocs = {};
       z.clients[clientIdx].comunidadDocs[docKey] = isChecked;
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       openDumpModal(zoneIdx);
     }
 
@@ -11331,12 +11217,12 @@ const labelStreet = clientObj.street ||
       document.getElementById('dumpModal').classList.add('active');
     }
 
-    function saveSupervisionBossNote() {
+    async function saveSupervisionBossNote() {
       if (selectedZoneIndexToDump === null) return;
       const noteInput = document.getElementById('supervisionBossNoteInput');
       if (noteInput) {
         savedZones[selectedZoneIndexToDump].bossNote = noteInput.value.trim();
-        saveAndSync('comercial_custom_zones', savedZones);
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       }
       closeModal('dumpModal');
       renderAllSavedZones();
@@ -11433,7 +11319,7 @@ const labelStreet = clientObj.street ||
       }
     }
 
-    function deleteZone(idx) {
+    async function deleteZone(idx) {
       if (currentUserRole !== 'jefe') {
         alert("⛔ Acceso Denegado: Solo Andrei (Jefe de Equipo) puede borrar sectores del mapa.");
         return;
@@ -11451,7 +11337,7 @@ const labelStreet = clientObj.street ||
           }
         }
         savedZones.splice(idx, 1);
-        saveAndSync('comercial_custom_zones', savedZones);
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
         closeModal('dumpModal');
         closeModal('auditModal');
         renderAllSavedZones();
@@ -11483,7 +11369,7 @@ const labelStreet = clientObj.street ||
       const z = selectedZoneIndexToDump !== null ? savedZones[selectedZoneIndexToDump] : null;
       const inMemoryClients = Array.from(currentDOMBoxes).map((box, idx) => {
         const prevCall = (z && z.clients && z.clients[idx]?.callStatus) || 'pendiente';
-        return extractClientFromBox(box, prevCall);
+        return extractClientFromBox(box, prevCall, z?.clients?.[idx] || {});
       });
 
       container.innerHTML = '';
@@ -12102,7 +11988,7 @@ const labelStreet = clientObj.street ||
       }
     }
 
-    function saveDumpData() {
+    async function saveDumpData() {
       if (selectedZoneIndexToDump === null) return;
 
       const z = savedZones[selectedZoneIndexToDump];
@@ -12142,7 +12028,7 @@ const labelStreet = clientObj.street ||
       z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
       z._updatedAt = Date.now();
 
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       closeModal('dumpModal');
       renderAllSavedZones();
       updateHudLiveSalaryPill();
@@ -12312,7 +12198,7 @@ function leagueRows(
   period,
   date,
   metric,
-  previous = false
+  previous = false, totals = null
 ) {
   const fields = {
     captadas: ['m2Captado', 'validas'],
@@ -12331,7 +12217,7 @@ function leagueRows(
 
   const rows = getActiveTeamUsers(false)
     .map(name => {
-      const data = personalStatsMetrics(
+      const data = totals?.[name] || personalStatsMetrics(
         name,
         ...range
       );
@@ -12387,7 +12273,9 @@ function openLeagueRankingModal() {
   modal.classList.add('active');
 }
 
-function renderLeagueRanking() {
+let leagueGeneration=0;
+async function renderLeagueRanking() {
+  const request=++leagueGeneration;
   const root = document.getElementById(
     'leagueRankingContainer'
   );
@@ -12404,24 +12292,16 @@ function renderLeagueRanking() {
     date
   );
 
-  const rows = leagueRows(
-    leaguePeriod,
-    date,
-    leagueMetric
-  );
-
-  const previousRows = leagueRows(
-    leaguePeriod,
-    date,
-    leagueMetric,
-    true
-  );
-
-  const previousRange = personalStatsRange(
-    leaguePeriod,
-    date,
-    true
-  );
+  const previousRange = personalStatsRange(leaguePeriod,date,true);
+  let totals=null;
+  if(currentUserRole==='comercial'){
+    root.textContent='Cargando la clasificación del equipo…';
+    try{totals=(await window.teamSummaryV2({mode:'liga',range,previous:previousRange,phase:leagueMetric})).data;}
+    catch(e){if(request===leagueGeneration)root.textContent='No se pudo cargar la clasificación. '+e.message;return;}
+    if(request!==leagueGeneration)return;
+  }
+  const rows=leagueRows(leaguePeriod,date,leagueMetric,false,totals?.current);
+  const previousRows=leagueRows(leaguePeriod,date,leagueMetric,true,totals?.previous);
 
   const me = rows.find(
     r => r.name === currentUserName
@@ -12997,7 +12877,9 @@ function radarTownModel(mikel, range, phase) {
   );
 }
 
-function renderMikelRadarContent() {
+let radarGeneration=0;
+async function renderMikelRadarContent() {
+  const request=++radarGeneration;
   if (currentUserName !== 'Andrei (Jefe)') return;
 
   const root = document.getElementById(
@@ -13020,7 +12902,12 @@ function renderMikelRadarContent() {
   );
 
   const a = radarTeamModel(false, range, radarPhase);
-  const b = radarTeamModel(true, range, radarPhase);
+  let remote;
+  root.textContent='Cargando totales del otro equipo…';
+  try {remote=(await window.teamSummaryV2({mode:'radar',range,previous:previousRange,phase:radarPhase})).data;}
+  catch(e){if(request===radarGeneration)root.textContent='No se pudo cargar la comparación. '+e.message;return;}
+  if(request!==radarGeneration)return;
+  const b=remote.current;
 
   const ap = radarTeamModel(
     false,
@@ -13028,14 +12915,10 @@ function renderMikelRadarContent() {
     radarPhase
   );
 
-  const bp = radarTeamModel(
-    true,
-    previousRange,
-    radarPhase
-  );
+  const bp=remote.previous;
 
   const at = radarTownModel(false, range, radarPhase);
-  const bt = radarTownModel(true, range, radarPhase);
+  const bt=new Map(remote.towns.map(([k,t])=>[k,{...t,dates:new Set(t.dates)}]));
 
   const money = n => n.toLocaleString('es-ES', {
     style: 'currency',
@@ -14046,7 +13929,7 @@ function renderPersonalStats() {
   );
 }
 
-function recordCompletedObra(zoneIdx, clientIdx) {
+async function recordCompletedObra(zoneIdx, clientIdx) {
   const z = savedZones[zoneIdx];
   const c = z?.clients?.[clientIdx];
 
@@ -14092,7 +13975,7 @@ function recordCompletedObra(zoneIdx, clientIdx) {
   c.statusChangedAt = Date.now();
   z._updatedAt = Date.now();
 
-  saveAndSync('comercial_custom_zones', savedZones);
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
 
   logActivity(
     'obra',
@@ -15717,7 +15600,7 @@ function openCommercialStatsModalLegacy() {
     function togglePaBox(boxId) {
   toggleInlineScheduleBox(boxId);
 }
-        function confirmFromPorAgendar(zIdx, cIdx, dateId, timeId) {
+        async function confirmFromPorAgendar(zIdx, cIdx, dateId, timeId) {
       const c0 = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
       if (!c0) return;
       const key = `${zIdx}_${cIdx}`;
@@ -15734,14 +15617,14 @@ function openCommercialStatsModalLegacy() {
       const fuDni = document.getElementById('fu_dni_' + key);
       if (fuDni) fuDni.value = c0.dni || '';
 
-      confirmScheduleFromFollowUp(zIdx, cIdx, dateId, timeId);
+      await confirmScheduleFromFollowUp(zIdx, cIdx, dateId, timeId);
       const c = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
       if (c && c.obraStatus === 'agendada') renderPorAgendarView();
     }
 
-    let activityLog = safeLoadStorage('comercial_activity');
+    let activityLog = [];
 
-    function logActivity(type, text, owner) {
+    async function logActivity(type, text, owner) {
       try {
         if (!currentUserName || isMikelTeamMember(currentUserName)) return;
         if (!Array.isArray(activityLog)) activityLog = [];
@@ -15755,7 +15638,9 @@ function openCommercialStatsModalLegacy() {
         });
         const limit = Date.now() - 45 * 24 * 3600 * 1000;
         activityLog = activityLog.filter(a => a.t >= limit).slice(-250);
-        saveAndSync('comercial_activity', activityLog);
+        const event = activityLog[activityLog.length-1];
+        if (!await saveAndSync('comercial_activity', activityLog)) return;
+        return event;
       } catch (e) {}
     }
 
@@ -15861,7 +15746,7 @@ function openCommercialStatsModalLegacy() {
       return html;
     }
 
-    function cancelObra(zIdx, cIdx) {
+    async function cancelObra(zIdx, cIdx) {
       const z = savedZones[zIdx];
       const c = z && z.clients && z.clients[cIdx];
       if (!c) return;
@@ -15879,7 +15764,7 @@ function openCommercialStatsModalLegacy() {
       c.crmUploaded = false;
       c.statusChangedAt = Date.now();
       z._updatedAt = Date.now();
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       logActivity('cancelada', `❌ Obra cancelada: ${c.name || 'Cliente'} · ${z.town || ''} (era el ${formatDate(oldDate)}). Motivo: ${reason}`, z.comercial);
       renderFollowUpsModal();
     }
@@ -15897,12 +15782,12 @@ function openCommercialStatsModalLegacy() {
       document.getElementById('noteModal').classList.add('active');
     }
 
-    function saveBossNoteFromModal() {
+    async function saveBossNoteFromModal() {
       if (selectedZoneIndexForNote === null) return;
 
       const text = document.getElementById('modalNoteText').value.trim();
       savedZones[selectedZoneIndexForNote].bossNote = text;
-      saveAndSync('comercial_custom_zones', savedZones);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
 
       closeModal('noteModal');
       renderCurrentAuditView();
@@ -16065,7 +15950,7 @@ function openCommercialStatsModalLegacy() {
       }
     }
 
-    function toggleTownCompletion(townName) {
+    async function toggleTownCompletion(townName) {
       if (currentUserRole !== 'jefe') return;
 
       const idx = completedTowns.indexOf(townName);
@@ -16075,7 +15960,7 @@ function openCommercialStatsModalLegacy() {
         completedTowns.splice(idx, 1);
       }
 
-      saveAndSync('comercial_completed_towns', completedTowns);
+      if (!await saveAndSync('comercial_completed_towns', completedTowns)) return;
       renderPueblosAudit();
     }
 
@@ -16286,7 +16171,7 @@ function openCommercialStatsModalLegacy() {
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-    function repairNoAptoSiCounts() {
+    async function repairNoAptoSiCounts() {
       let fixed = 0;
       savedZones.forEach(z => {
         if (!z.clients || z.clients.length === 0 || !z.stats) return;
@@ -16299,12 +16184,12 @@ function openCommercialStatsModalLegacy() {
           fixed++;
         }
       });
-      if (fixed > 0) saveAndSync('comercial_custom_zones', savedZones);
+      if (fixed > 0 && !await saveAndSync('comercial_custom_zones', savedZones)) return 0;
       return fixed;
     }
 
-    function openComplianceModal() {
-      const n = repairNoAptoSiCounts();
+    async function openComplianceModal() {
+      const n = await repairNoAptoSiCounts();
       openComplianceModalBase();
       if (n > 0) setTimeout(() => alert(`🛠️ He corregido el contador de SÍ en ${n} zona(s): las fichas no aptas ya no cuentan como SÍ.`), 300);
     }
@@ -16437,7 +16322,7 @@ function openCommercialStatsModalLegacy() {
     import { arrayUnion, getDoc, collection } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
     import { 
-   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+   initializeFirestore, memoryLocalCache,
    doc, setDoc, onSnapshot 
  } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-functions.js";
@@ -16453,49 +16338,17 @@ function openCommercialStatsModalLegacy() {
     };
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    try { getAnalytics(app); } catch (e) { console.info('Analítica no disponible.'); }
     const db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      localCache: memoryLocalCache()
     });
-
-       const SYNC_KEYS = [
-      'comercial_custom_zones',
-      'comercial_shifts',
-      'comercial_completed_towns',
-      'comercial_hot_lead_missions',
-      'comercial_user_profiles',
-      'comercial_activity'
-    ];
-
-    function mergeArraysById(localArr, cloudArr) {
-      if (!Array.isArray(cloudArr)) return localArr || [];
-      if (!Array.isArray(localArr) || localArr.length === 0) return cloudArr;
-      if (typeof cloudArr[0] !== 'object' || !cloudArr[0]?.id) return cloudArr;
-
-      const map = new Map();
-      cloudArr.forEach(item => map.set(item.id, item));
-      localArr.forEach(item => {
-        const cloudItem = map.get(item.id);
-        if (!cloudItem || (item._updatedAt || 0) > (cloudItem._updatedAt || 0)) {
-          map.set(item.id, item);
-        }
-      });
-     return Array.from(map.values());
-    }
-
-    window.pushToFirestore = async function(key, data) {
-      try {
-        await setDoc(doc(db, 'gestion_navarra', key), {
-          payload: JSON.stringify(data),
-          updatedAt: Date.now()
-        }, { merge: true });
-      } catch (err) {
-        console.error('Error sincronizando con Firestore:', err);
-      }
-    };
 
     const auth = getAuth(app);
  const functionsEu = getFunctions(app, 'europe-west1');
+ window.watchWorkV2 = (team, changed, error) => onSnapshot(doc(db,'estado_trabajo',team), snap => {if (!snap.metadata.fromCache) changed();}, error);
+ window.readWorkV2 = httpsCallable(functionsEu, 'leerTrabajoV2');
+ window.teamSummaryV2 = httpsCallable(functionsEu, 'resumenTrabajoV2');
+ window.writeWorkV2 = httpsCallable(functionsEu, 'guardarTrabajoV2');
  window.db = db;
  window.auth = auth;
  window.doc = doc;
@@ -16569,154 +16422,23 @@ function openCommercialStatsModalLegacy() {
     };
 
     window.bossTasksApi = {
-  watch(onData, onError) {
-    return onSnapshot(
-      doc(db, 'gestion_navarra', 'comercial_boss_tasks'),
-      { includeMetadataChanges: true },
-      snap => {
-        try {
-          const rows = snap.exists()
-            ? JSON.parse(snap.data().payload || '[]')
-            : [];
-
-          if (!Array.isArray(rows)) {
-            throw new Error('El formato de las tareas no es válido.');
-          }
-
-          onData(rows, snap.metadata.fromCache);
-        } catch (error) {
-          onError(error);
-        }
-      },
-      onError
-    );
-  },
-
-  async save(patch) {
-    if (!auth.currentUser) {
-      throw new Error('Inicia sesión antes de guardar.');
-    }
-
-    const { runTransaction } = await import(
-      'https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js'
-    );
-
-    const ref = doc(
-      db,
-      'gestion_navarra',
-      'comercial_boss_tasks'
-    );
-
-    return runTransaction(db, async transaction => {
-      const snap = await transaction.get(ref);
-
-      const rows = snap.exists()
-        ? JSON.parse(snap.data().payload || '[]')
-        : [];
-
-      if (!Array.isArray(rows)) {
-        throw new Error('El formato de las tareas no es válido.');
+      watch(cb) { return window.KonsorBridge.watchTasks(cb); },
+      async save(patch) {
+        const rows = bossPlanItems.slice();
+        const index = rows.findIndex(t => t.id === patch.id);
+        const previous = rows[index] || {};
+        const task = {...previous,...patch,createdAt:previous.createdAt || Date.now(),_updatedAt:Date.now()};
+        if (!task.id || !String(task.title || '').trim() || !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || ''))
+          throw Error('Completa el título y la fecha.');
+        if (index < 0 && task.sourceId && rows.some(t => t.sourceId === task.sourceId && t.status !== 'done'))
+          throw Error('Esta revisión ya figura en el plan.');
+        if (index < 0) rows.push(task); else rows[index] = task;
+        await window.KonsorBridge.save('comercial_boss_tasks', rows);
+        return rows;
       }
-
-      const index = rows.findIndex(t => t.id === patch.id);
-      const previous = index >= 0 ? rows[index] : {};
-
-      const task = {
-        ...previous,
-        ...patch,
-        createdAt: previous.createdAt || Date.now(),
-        _updatedAt: Math.max(
-          Date.now(),
-          (previous._updatedAt || 0) + 1
-        )
-      };
-
-      if (
-        !task.id ||
-        !String(task.title || '').trim() ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')
-      ) {
-        throw new Error('Completa el título y la fecha de la tarea.');
-      }
-
-      if (
-        index < 0 &&
-        task.sourceId &&
-        rows.some(t =>
-          t.sourceId === task.sourceId &&
-          t.status !== 'done'
-        )
-      ) {
-        throw new Error(
-          'Esta revisión ya está añadida al plan. Actualiza la vista.'
-        );
-      }
-
-      if (index >= 0) rows[index] = task;
-      else rows.push(task);
-
-      const payload = JSON.stringify(rows);
-
-      if (
-        new TextEncoder().encode(payload).length > 900000
-      ) {
-        throw new Error(
-          'La lista de tareas necesita archivarse antes de seguir creciendo.'
-        );
-      }
-
-      transaction.set(
-        ref,
-        { payload, updatedAt: Date.now() },
-        { merge: true }
-      );
-
-      return rows;
-    });
-  }
-};
-
-window.startFirestoreSync = function() {
-    if (window.__syncStarted) return;
-    window.__syncStarted = true;
-    SYNC_KEYS.forEach((key) => {
-      onSnapshot(doc(db, 'gestion_navarra', key), (snap) => {
-        if (snap.exists() && snap.data().payload) {
-          try {
-            if (snap.metadata && snap.metadata.hasPendingWrites) return;
-            const cloudParsed = JSON.parse(snap.data().payload);
-            const localRaw = localStorage.getItem(key);
-            const localParsed = localRaw ? JSON.parse(localRaw) : [];
-            const deletedIds = JSON.parse(localStorage.getItem('comercial_deleted_ids') || '[]');
-            const filteredCloud = Array.isArray(cloudParsed)
-              ? cloudParsed.filter(item => !item || !item.id || !deletedIds.includes(item.id))
-              : cloudParsed;
-            const merged = (key === 'comercial_user_profiles')
-              ? filteredCloud
-              : mergeArraysById(localParsed, filteredCloud);
-            if (typeof window.applyCloudDataUpdate === 'function') {
-              window.applyCloudDataUpdate(key, merged);
-            }
-          } catch (e) {
-            console.error('Error leyendo datos de Firestore:', e);
-          }
-        } else {
-          // Si la nube aún está vacía pero hay datos locales en este dispositivo, los sube automáticamente
-          try {
-            const localRaw = localStorage.getItem(key);
-            if (localRaw) {
-              const localParsed = JSON.parse(localRaw);
-              if (Array.isArray(localParsed) && localParsed.length > 0) {
-                window.pushToFirestore(key, localParsed);
-              }
-            }
-          } catch (e) {}
-        }
-      });
-       });
     };
   </script>
-<script src="./jornadas-seguimiento.js?v=1"></script>
-<script src="./avisos-app.js?v=2"></script>
+<script src="./jornadas-seguimiento.js?v=2"></script>
+<script src="./avisos-app.js?v=3"></script>
 </body>
 </html>
