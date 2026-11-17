@@ -375,6 +375,10 @@ html[data-login-team="mikel"] #loginTeamBadge {
     }
     .input-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
 
+    .attic-compact { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.7fr) minmax(0,1fr); gap:6px; margin-bottom:8px; width:100%; box-sizing:border-box; }
+    .attic-compact label { min-width:0; font-size:9px; color:#94a3b8; font-weight:800; }
+    .attic-compact .input-field { width:100%; min-width:0; box-sizing:border-box; margin-top:3px; }
+    .address-choices { width:100%; margin-bottom:8px; }
     .grid-row-2 { display: flex; gap: 6px; width: 100%; margin-bottom: 8px; box-sizing: border-box; }
     .grid-row-2 > * { flex: 1; min-width: 0; }
 
@@ -1337,7 +1341,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
   </div>
 
   <!-- PUENTE LIGERO KONSOR V2 (BLOQUE D) -->
-  <script src="comercial-core.js?v=2"></script>
+  <script src="comercial-core.js?v=3"></script>
 <script src="konsor-v2-bridge.js?v=5"></script>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -11032,6 +11036,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
           postalCode: postalCodeVal,
+          locality: box.querySelector('.client-locality')?.value || '',
           cteZone: cteZoneVal,
           phone: box.querySelector('.client-phone').value.trim(),
           email: emailVal,
@@ -11057,6 +11062,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
           postalCode: postalCodeVal,
+          locality: box.querySelector('.client-locality')?.value || '',
           cteZone: cteZoneVal,
           phone: box.querySelector('.client-phone').value.trim(),
           email: emailVal,
@@ -11085,6 +11091,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
       const box = container.querySelector('.client-box, .comunidad-box');
       if (!box) return;
       await fillPostalCodeFromStreet(box.querySelector('.client-street'));
+      if(box.querySelector('.address-choices:not([hidden])')){alert('Selecciona la localidad de la dirección antes de guardar.');return;}
 
       const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
            const prevClientMeta = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]) || {};
@@ -11100,7 +11107,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
       }
       const dateVal = document.getElementById('singleHouseDate').value || getTodayISO();
       let townVal = document.getElementById('singleHouseTown').value.trim();
-      if (!townVal || townVal === 'Detectando...') townVal = 'Peralta';
+      if (!townVal || townVal === 'Detectando...') { alert('Indica la localidad de la vivienda antes de guardar.'); return; }
       const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
 
       if (!ensureCrmUpload(clientObj, {
@@ -12113,30 +12120,55 @@ const labelStreet = clientObj.street ||
       const key=JSON.stringify([address,town]);
       if(postal.dataset.lookupKey===key)return pendingPostalLookups.get(postal);
       postal.dataset.lookupKey=key;
+      const choices=area.querySelector('.address-choices');
+      const locality=area.querySelector('.client-locality');
+      if(choices){choices.hidden=true;choices.replaceChildren();}
       if(postal.dataset.autoPostalCode){
         postal.value='';postal.dataset.autoPostalCode='';
         updateClientCteFromCp(postal);
       }
-      if(!town || town==='Detectando...' || !ComercialCore.postalAddress(address)){
-        postal.placeholder='Ej. 31360';
-        return;
-      }
+      if(!ComercialCore.postalAddress(address)){postal.placeholder='Ej. 31360';return;}
       postal.placeholder='Buscando…';
+      const current=()=>postal.isConnected && postal.dataset.lookupKey===key &&
+        streetInput.value.trim()===address && readTown()===town && !postal.value;
+      const apply=match=>{
+        if(!current())return;
+        const foundTown=match.localities[0] || town;
+        if(house)house.querySelector('#singleHouseTown').value=foundTown;
+        if(locality)locality.value=foundTown;
+        postal.value=match.cp;
+        postal.dataset.autoPostalCode=match.cp;
+        postal.dataset.lookupKey=JSON.stringify([address,readTown()]);
+        if(choices)choices.hidden=true;
+        updateClientCteFromCp(postal);
+      };
       const lookup=(async()=>{
         try{
-          const candidates=await queryCartoCiudadNavarra(address+', '+town+', Navarra',true);
-          if(!postal.isConnected || postal.dataset.lookupKey!==key ||
-              streetInput.value.trim()!==address || readTown()!==town || postal.value)return;
-          const code=ComercialCore.exactPostalCode(candidates,address,town);
-          if(code){
-            postal.value=code;
-            postal.dataset.autoPostalCode=code;
-            updateClientCteFromCp(postal);
+          const context=town && town!=='Detectando...' ? town : '';
+          let candidates=await queryCartoCiudadNavarra([address,context,'Navarra'].filter(Boolean).join(', '),true);
+          let matches=ComercialCore.postalMatches(candidates,address,context);
+          // A house without a resolved municipality can choose among Navarra portals.
+          if(!matches.length && house && context){
+            candidates=await queryCartoCiudadNavarra(address+', Navarra',true);
+            matches=ComercialCore.postalMatches(candidates,address);
+          }
+          if(!current())return;
+          const unique=[...new Map(matches.map(m=>[JSON.stringify([m.localities,m.cp]),m])).values()];
+          if(unique.length===1){apply(unique[0]);}
+          else if(choices && unique.length){
+            choices.replaceChildren(new Option('Selecciona localidad y código postal',''));
+            unique.forEach((m,i)=>choices.add(new Option(m.localities.join(' / ')+' · '+m.cp,String(i))));
+            choices.hidden=false;
+            choices.onchange=()=>{if(choices.value!=='')apply(unique[Number(choices.value)]);};
+          }else{
+            delete postal.dataset.lookupKey;
+            postal.placeholder='Indica localidad o CP';
           }
         }catch(error){
           if(postal.dataset.lookupKey===key)delete postal.dataset.lookupKey;
         }finally{
-          if(postal.dataset.lookupKey===key || !postal.dataset.lookupKey)postal.placeholder='Ej. 31360';
+          if(postal.value)postal.placeholder='Ej. 31360';
+          else if(postal.placeholder==='Buscando…')postal.placeholder='Indica localidad o CP';
         }
       })();
       pendingPostalLookups.set(postal,lookup);
@@ -12224,6 +12256,8 @@ const labelStreet = clientObj.street ||
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
         </div>
 
+        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" readonly value="${String(existing.locality || townCtx || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
+        <select class="select-field address-choices" aria-label="Elegir localidad y código postal" hidden></select>
         <div class="grid-row-2">
           <div>
             <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
@@ -12262,34 +12296,22 @@ const labelStreet = clientObj.street ||
           ${isInvalidYear ? `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>` : ''}
         </div>
 
-        <div class="grid-row-2">
-          ${!isMikelTeamMember(currentUserName) ? `
-          <div style="grid-column:1 / -1;padding:10px;border:1px solid #475569;border-radius:10px;">
-            <strong>Superficie a aislar del desván</strong>
-            <label style="display:block;margin:8px 0;">m² aproximados del forjado
-              <input type="number" min="0" step="0.1" inputmode="decimal" class="input-field client-m2" value="${existing.m2!==undefined?getM2NumericValue(existing.m2):''}" oninput="clearClientAtticCalculation(this)">
-            </label>
-            <details>
-              <summary style="cursor:pointer;color:#7dd3fc;">Estimar a partir del edificio</summary>
-              <div class="grid-row-2" style="margin:8px 0;">
-                <label>m² totales de Catastro
-                  <input class="input-field client-total-m2" type="number" min="0" step="0.1" inputmode="decimal" value="${getM2NumericValue(existing.m2Total)||''}" oninput="calculateClientAttic(this)">
-                </label>
-                <label>Plantas de ese total
-                  <input class="input-field client-floors" type="number" min="1" step="1" inputmode="numeric" value="${Number(existing.m2Floors)>0?Number(existing.m2Floors):''}" oninput="calculateClientAttic(this)">
-                </label>
-                <label>Parte de la planta que ocupa el desván (%)
-                  <input class="input-field client-attic-coverage" type="number" min="1" max="100" step="1" inputmode="numeric" value="${Number(existing.m2Coverage)||100}" oninput="calculateClientAttic(this)">
-                </label>
-                <label>Grosor exterior de muro (cm)
-                  <input class="input-field client-attic-wall" type="number" min="0" max="100" step="1" inputmode="numeric" value="${existing.m2WallCm!=='' && existing.m2WallCm!=null && Number.isFinite(Number(existing.m2WallCm))?Number(existing.m2WallCm):25}" oninput="calculateClientAttic(this)">
-                </label>
-              </div>
-              <small class="client-m2-explanation" aria-live="polite">Estimación con plantas similares. Ajusta el porcentaje si el desván solo cubre una parte.</small>
-            </details>
-          </div>` : ''}
+        ${!isMikelTeamMember(currentUserName) ? `
+        <div class="attic-compact">
+          <label>m² de buhardilla
+            <input class="input-field client-total-m2" type="number" min="0" step="0.1" inputmode="decimal" placeholder="m²" value="${getM2NumericValue(existing.m2Total)||''}" oninput="calculateClientAttic(this)">
+          </label>
+          <label>Plantas
+            <input class="input-field client-floors" type="number" min="1" step="1" inputmode="numeric" placeholder="1" value="${Number(existing.m2Floors)>0?Number(existing.m2Floors):1}" oninput="calculateClientAttic(this)">
+          </label>
+          <label>Resultado ≈ m²
+            <input class="input-field client-m2" type="number" readonly aria-live="polite" value="${existing.m2!==undefined?getM2NumericValue(existing.m2):''}">
+          </label>
+          <input type="hidden" class="client-attic-coverage" value="${Number(existing.m2Coverage)||100}">
+          <input type="hidden" class="client-attic-wall" value="${existing.m2WallCm!=='' && existing.m2WallCm!=null?Number(existing.m2WallCm):25}">
+        </div>` : ''}
 
-          
+        <div class="grid-row-2" style="align-items:start;">
           <div style="grid-column:1 / -1; margin-bottom:6px;">
             <select class="select-field client-origen">
               <option value="puerta" ${(!existing.origen || existing.origen==='puerta')?'selected':''}>🚪 Captado puerta a puerta</option>
@@ -12392,6 +12414,8 @@ const labelStreet = clientObj.street ||
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección">🎙️</button>` : ''}
         </div>
 
+        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" readonly value="${String(existing.locality || townCtxCom || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
+        <select class="select-field address-choices" aria-label="Elegir localidad y código postal" hidden></select>
         <div class="grid-row-2">
           <div>
             <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
@@ -12573,12 +12597,6 @@ const labelStreet = clientObj.street ||
       renderAtticsBreakdownList(parentBox, preserved, newCount);
     }
 
-    function clearClientAtticCalculation(input) {
-      const box=input.closest('.client-box');
-      box.querySelector('.client-total-m2').value='';
-      box.querySelector('.client-floors').value='';
-      box.querySelector('.client-m2-explanation').textContent='Superficie introducida manualmente.';
-    }
     function calculateClientAttic(input) {
       if(isMikelTeamMember(currentUserName))return;
       const box=input.closest('.client-box');
@@ -12588,10 +12606,7 @@ const labelStreet = clientObj.street ||
         box.querySelector('.client-attic-coverage').value,
         box.querySelector('.client-attic-wall').value
       );
-      if(result)box.querySelector('.client-m2').value=result.net;
-      box.querySelector('.client-m2-explanation').textContent=result
-        ? Math.round(result.footprint)+' m² de desván antes de muros · '+Math.round(result.walls)+' m² de muros · ≈ '+result.net+' m² a aislar'
-        : 'Completa los m² totales, las plantas y los valores del desván.';
+      box.querySelector('.client-m2').value=result ? result.net : '';
     }
     function recalculateComunidadTotalM2(inputEl) {
       if(isMikelTeamMember(currentUserName))return;
@@ -12638,6 +12653,7 @@ const labelStreet = clientObj.street ||
 
       const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
       await Promise.all(Array.from(clientBoxes,box=>pendingPostalLookups.get(box.querySelector('.client-cp'))));
+      if(Array.from(clientBoxes).some(box=>box.querySelector('.address-choices:not([hidden])'))){alert('Selecciona la localidad de las direcciones pendientes antes de guardar.');return;}
       const z = savedZones[selectedZoneIndexToDump];
       const prevClients = z.clients ? [...z.clients] : [];
       z.dumpDate = document.getElementById('dumpDate').value;

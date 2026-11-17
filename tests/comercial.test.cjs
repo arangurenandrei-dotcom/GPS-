@@ -175,12 +175,13 @@ test('postal lookup requires the same portal and town with one Navarra postal co
  const suffix={...portal,street:'Mayor',portalNumber:'7B'};
  assert.equal(match([suffix],'Mayor 7 B','Iruña'),'31008');
  assert.equal(match([suffix],'Mayor 7','Iruña'),'');
+
  assert.equal(match([{...suffix,street:'Bayona',streetType:'AVENIDA'}],'Av. Bayona 7B','Pamplona'),'31008');
 });
 test('postal lookup preserves manual values and rejects delayed responses for another address',async()=>{
  const pending=[];
  const postal={value:'',dataset:{},isConnected:true};
- const area={closest:()=>null,querySelector:()=>postal};
+ const area={closest:()=>null,querySelector:s=>s==='.client-cp'?postal:null};
  const street={value:'Mayor 7',closest:()=>area};
  let updates=0;
  const resolve=loadFunction('fillPostalCodeFromStreet',{
@@ -195,3 +196,41 @@ test('postal lookup preserves manual values and rejects delayed responses for an
  postal.value='31005';postal.dataset.autoPostalCode='';street.value='Mayor 10';
  await resolve(street);assert.equal(postal.value,'31005');assert.equal(pending.length,2);
 });
+
+test('street lookup without town returns both towns instead of guessing',()=>{
+ const portal={isPortal:true,localities:['Pamplona'],street:'Mayor',portalNumber:7,cp:'31001'};
+ const other={...portal,localities:['Tudela'],cp:'31500'};
+ assert.equal(core.postalMatches([portal,other],'Mayor 7').length,2);
+ assert.equal(core.postalMatches([portal,other],'Mayor 7','Tudela')[0].cp,'31500');
+ assert.equal(core.postalMatches([portal],'Mayor 8').length,0);
+});
+
+test('house lookup fills town and postal code; ambiguous address waits for selection',async()=>{
+ const town={value:''},locality={value:''},postal={value:'',dataset:{},isConnected:true};
+ const choices={hidden:true,value:'',options:[],replaceChildren(...items){this.options=items;},add(item){this.options.push(item);}};
+ const house={querySelector:()=>town};
+ const area={closest:()=>house,querySelector:s=>({'.client-cp':postal,'.client-locality':locality,'.address-choices':choices}[s])};
+ const street={value:'Mayor 7',closest:()=>area};
+ const portal={isPortal:true,localities:['Pamplona'],street:'Mayor',portalNumber:7,cp:'31001'};
+ let candidates=[portal];
+ const resolve=loadFunction('fillPostalCodeFromStreet',{
+  pendingPostalLookups:new WeakMap(),queryCartoCiudadNavarra:async()=>candidates,
+  updateClientCteFromCp:()=>{},Option:function(text,value){this.text=text;this.value=value;}
+ });
+ await resolve(street);
+ assert.equal(town.value,'Pamplona');assert.equal(locality.value,'Pamplona');assert.equal(postal.value,'31001');
+ town.value='';postal.value='';postal.dataset={};candidates=[portal,{...portal,localities:['Tudela'],cp:'31500'}];
+ await resolve(street);assert.equal(postal.value,'');assert.equal(choices.hidden,false);
+ choices.value='1';choices.onchange();
+ assert.equal(town.value,'Tudela');assert.equal(postal.value,'31500');assert.equal(choices.hidden,true);
+});
+
+test('compact calculator recalculates and clears a stale result after invalid input',()=>{
+ const fields={'.client-total-m2':{value:'200'},'.client-floors':{value:'2'},
+  '.client-attic-coverage':{value:'100'},'.client-attic-wall':{value:'25'},'.client-m2':{value:''}};
+ const box={querySelector:s=>fields[s]};
+ const calculate=loadFunction('calculateClientAttic',{isMikelTeamMember:()=>false,currentUserName:'Andrei'});
+ calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,90);
+ fields['.client-floors'].value='';calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,'');
+});
+
