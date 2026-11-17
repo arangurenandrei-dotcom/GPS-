@@ -1337,7 +1337,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
   </div>
 
   <!-- PUENTE LIGERO KONSOR V2 (BLOQUE D) -->
-  <script src="comercial-core.js?v=1"></script>
+  <script src="comercial-core.js?v=2"></script>
 <script src="konsor-v2-bridge.js?v=5"></script>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -7278,9 +7278,9 @@ function renderBossPlan() {
 
     let lastSearchCandidates = [];
 
-    async function queryCartoCiudadNavarra(searchStr) {
+    async function queryCartoCiudadNavarra(searchStr, postalOnly = false) {
       const url = `https://www.cartociudad.es/geocoder/api/geocoder/candidatesJsonp?q=${encodeURIComponent(searchStr)}&limit=10`;
-      const res = await fetch(url);
+      const res = await fetch(url, postalOnly ? {signal:AbortSignal.timeout(4000)} : undefined);
       const rawText = await res.text();
       // CartoCiudad responde JSON puro o envuelto en callback(...)
       const jsonStr = rawText.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, '');
@@ -7298,6 +7298,13 @@ function renderBossPlan() {
       const mapped = [];
 
       for (const item of finalPool) {
+        if(postalOnly){
+          if(item.type!=='portal' || !/^31\d{3}$/.test(String(item.postalCode||'')) || !item.portalNumber)continue;
+          mapped.push({street:item.address,streetType:item.tip_via,
+            portalNumber:String(item.portalNumber)+(item.extension||''),
+            localities:[item.muni,item.poblacion].filter(Boolean),cp:item.postalCode,isPortal:true});
+          continue;
+        }
         let lat = parseFloat(item.lat);
         let lon = parseFloat(item.lng);
 
@@ -10808,6 +10815,9 @@ function renderCommercialWorkDay() {
 
       document.getElementById('singleHouseModal').classList.add('active');
 
+      const townField=body.querySelector('#singleHouseTown');
+      townField.addEventListener('change',()=>fillPostalCodeFromStreet(body.querySelector('.client-street')));
+      if(existingZoneIdx!==null)void fillPostalCodeFromStreet(body.querySelector('.client-street'));
       if (existingZoneIdx === null) {
         const townInput = document.getElementById('singleHouseTown');
         const streetInput = body.querySelector('.client-street');
@@ -10827,9 +10837,10 @@ function renderCommercialWorkDay() {
           }
           const cpInput = body.querySelector('.client-cp');
           if (cpInput && !cpInput.value) {
-            const autoCp = addr.postcode || detectCteZoneFromCpAndTown('', detectedTown).cp;
+            const autoCp = /^31\d{3}$/.test(String(addr.postcode || '')) ? String(addr.postcode) : '';
             if (autoCp) {
               cpInput.value = autoCp;
+              cpInput.dataset.autoPostalCode=autoCp;
               updateClientCteFromCp(cpInput);
             }
           }
@@ -11056,6 +11067,8 @@ if (!routeValidateAppointment(c, ctx)) return false;
           m2: box.querySelector('.client-m2') ? getM2NumericValue(box.querySelector('.client-m2').value) : (existingMeta.m2 ?? 0),
           m2Total: box.querySelector('.client-total-m2')?.value || '',
           m2Floors: box.querySelector('.client-floors')?.value || '',
+          m2Coverage: box.querySelector('.client-attic-coverage')?.value || '',
+          m2WallCm: box.querySelector('.client-attic-wall')?.value || '',
           obraStatus: statusVal,
           obraDate: obraDateVal,
           obraTime: obraTimeVal,
@@ -11071,6 +11084,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
       const container = document.getElementById('singleHouseCardContainer');
       const box = container.querySelector('.client-box, .comunidad-box');
       if (!box) return;
+      await fillPostalCodeFromStreet(box.querySelector('.client-street'));
 
       const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
            const prevClientMeta = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]) || {};
@@ -12085,6 +12099,50 @@ const labelStreet = clientObj.street ||
       return { cp: resolvedCp, cteZone: '', isApto: true };
     }
 
+    const pendingPostalLookups=new WeakMap();
+    function fillPostalCodeFromStreet(streetInput) {
+      if(!streetInput)return;
+      const area=streetInput.closest('.client-fields-dynamic-area');
+      const postal=area?.querySelector('.client-cp');
+      if(!postal || (postal.value && postal.value!==postal.dataset.autoPostalCode))return;
+      const house=area.closest('#singleHouseModal');
+      const readTown=()=>String(house
+        ? house.querySelector('#singleHouseTown')?.value
+        : savedZones[selectedZoneIndexToDump]?.town || '').trim();
+      const address=streetInput.value.trim(),town=readTown();
+      const key=JSON.stringify([address,town]);
+      if(postal.dataset.lookupKey===key)return pendingPostalLookups.get(postal);
+      postal.dataset.lookupKey=key;
+      if(postal.dataset.autoPostalCode){
+        postal.value='';postal.dataset.autoPostalCode='';
+        updateClientCteFromCp(postal);
+      }
+      if(!town || town==='Detectando...' || !ComercialCore.postalAddress(address)){
+        postal.placeholder='Ej. 31360';
+        return;
+      }
+      postal.placeholder='Buscando…';
+      const lookup=(async()=>{
+        try{
+          const candidates=await queryCartoCiudadNavarra(address+', '+town+', Navarra',true);
+          if(!postal.isConnected || postal.dataset.lookupKey!==key ||
+              streetInput.value.trim()!==address || readTown()!==town || postal.value)return;
+          const code=ComercialCore.exactPostalCode(candidates,address,town);
+          if(code){
+            postal.value=code;
+            postal.dataset.autoPostalCode=code;
+            updateClientCteFromCp(postal);
+          }
+        }catch(error){
+          if(postal.dataset.lookupKey===key)delete postal.dataset.lookupKey;
+        }finally{
+          if(postal.dataset.lookupKey===key || !postal.dataset.lookupKey)postal.placeholder='Ej. 31360';
+        }
+      })();
+      pendingPostalLookups.set(postal,lookup);
+      return lookup;
+    }
+
     function updateClientCteFromCp(inputEl) {
       const area = inputEl.closest('.client-fields-dynamic-area');
       if (!area) return;
@@ -12143,7 +12201,7 @@ const labelStreet = clientObj.street ||
         || document.getElementById('singleHouseTown')?.value
         || '';
       const cteAuto = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtx);
-      const cpDisplay = existing.postalCode || cteAuto.cp || '';
+      const cpDisplay = existing.postalCode || '';
       const cteDisplay = existing.cteZone || cteAuto.cteZone || '';
       const isCteInvalid = cteDisplay && !/^[DE][123]$/.test(cteDisplay);
 
@@ -12162,14 +12220,14 @@ const labelStreet = clientObj.street ||
         </div>
         
         <div style="display:flex; gap:4px; margin-bottom:6px;">
-          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
         </div>
 
         <div class="grid-row-2">
           <div>
             <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
-            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplay}" oninput="updateClientCteFromCp(this)">
+            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplay}" oninput="this.dataset.autoPostalCode=''; updateClientCteFromCp(this)" onfocus="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))">
           </div>
           <div>
             <label style="font-size:9px; color:#94a3b8; font-weight:800;">🌡️ ZONA CTE (D1-D3 / E1-E3)</label>
@@ -12206,13 +12264,29 @@ const labelStreet = clientObj.street ||
 
         <div class="grid-row-2">
           ${!isMikelTeamMember(currentUserName) ? `
-          <div style="grid-column:1 / -1">
-            <label>Calcular m² de buhardilla</label>
-            <input class="input-field client-total-m2" type="number" min="0" step="0.01" placeholder="m² totales construidos" value="${getM2NumericValue(existing.m2Total)||''}" oninput="calculateClientAttic(this)">
-            <input class="input-field client-floors" type="number" min="1" step="1" placeholder="Número de plantas" value="${Number(existing.m2Floors)>0?Number(existing.m2Floors):''}" oninput="calculateClientAttic(this)">
-            <span class="client-m2-explanation">Total ÷ plantas, menos 5–10 m² por paredes. Estimación orientativa.</span>
-            <label>m² útiles estimados (puedes introducirlos directamente)</label>
-            <input type="number" min="0" step="0.01" class="input-field client-m2" value="${existing.m2!==undefined?getM2NumericValue(existing.m2):''}" oninput="clearClientAtticCalculation(this)">
+          <div style="grid-column:1 / -1;padding:10px;border:1px solid #475569;border-radius:10px;">
+            <strong>Superficie a aislar del desván</strong>
+            <label style="display:block;margin:8px 0;">m² aproximados del forjado
+              <input type="number" min="0" step="0.1" inputmode="decimal" class="input-field client-m2" value="${existing.m2!==undefined?getM2NumericValue(existing.m2):''}" oninput="clearClientAtticCalculation(this)">
+            </label>
+            <details>
+              <summary style="cursor:pointer;color:#7dd3fc;">Estimar a partir del edificio</summary>
+              <div class="grid-row-2" style="margin:8px 0;">
+                <label>m² totales de Catastro
+                  <input class="input-field client-total-m2" type="number" min="0" step="0.1" inputmode="decimal" value="${getM2NumericValue(existing.m2Total)||''}" oninput="calculateClientAttic(this)">
+                </label>
+                <label>Plantas de ese total
+                  <input class="input-field client-floors" type="number" min="1" step="1" inputmode="numeric" value="${Number(existing.m2Floors)>0?Number(existing.m2Floors):''}" oninput="calculateClientAttic(this)">
+                </label>
+                <label>Parte de la planta que ocupa el desván (%)
+                  <input class="input-field client-attic-coverage" type="number" min="1" max="100" step="1" inputmode="numeric" value="${Number(existing.m2Coverage)||100}" oninput="calculateClientAttic(this)">
+                </label>
+                <label>Grosor exterior de muro (cm)
+                  <input class="input-field client-attic-wall" type="number" min="0" max="100" step="1" inputmode="numeric" value="${existing.m2WallCm!=='' && existing.m2WallCm!=null && Number.isFinite(Number(existing.m2WallCm))?Number(existing.m2WallCm):25}" oninput="calculateClientAttic(this)">
+                </label>
+              </div>
+              <small class="client-m2-explanation" aria-live="polite">Estimación con plantas similares. Ajusta el porcentaje si el desván solo cubre una parte.</small>
+            </details>
           </div>` : ''}
 
           
@@ -12284,7 +12358,7 @@ const labelStreet = clientObj.street ||
         || document.getElementById('singleHouseTown')?.value
         || '';
       const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
-      const cpDisplayCom = existing.postalCode || cteAutoCom.cp || '';
+      const cpDisplayCom = existing.postalCode || '';
       const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
       const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
 
@@ -12314,14 +12388,14 @@ const labelStreet = clientObj.street ||
         </div>
 
         <div style="display:flex; gap:4px; margin-bottom:6px;">
-          <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)">
+          <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección">🎙️</button>` : ''}
         </div>
 
         <div class="grid-row-2">
           <div>
             <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
-            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplayCom}" oninput="updateClientCteFromCp(this)">
+            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplayCom}" oninput="this.dataset.autoPostalCode=''; updateClientCteFromCp(this)" onfocus="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))">
           </div>
           <div>
             <label style="font-size:9px; color:#94a3b8; font-weight:800;">🌡️ ZONA CTE (D1-D3 / E1-E3)</label>
@@ -12508,11 +12582,16 @@ const labelStreet = clientObj.street ||
     function calculateClientAttic(input) {
       if(isMikelTeamMember(currentUserName))return;
       const box=input.closest('.client-box');
-      const result=ComercialCore.attic(box.querySelector('.client-total-m2').value,box.querySelector('.client-floors').value);
-      box.querySelector('.client-m2').value=result?result.net:'';
+      const result=ComercialCore.attic(
+        box.querySelector('.client-total-m2').value,
+        box.querySelector('.client-floors').value,
+        box.querySelector('.client-attic-coverage').value,
+        box.querySelector('.client-attic-wall').value
+      );
+      if(result)box.querySelector('.client-m2').value=result.net;
       box.querySelector('.client-m2-explanation').textContent=result
-        ? result.perFloor.toFixed(2)+' m² por planta − '+result.walls.toFixed(2)+' m² de paredes = '+result.net+' m² útiles estimados'
-        : 'Introduce m² totales y un número entero de plantas mayor que cero.';
+        ? Math.round(result.footprint)+' m² de desván antes de muros · '+Math.round(result.walls)+' m² de muros · ≈ '+result.net+' m² a aislar'
+        : 'Completa los m² totales, las plantas y los valores del desván.';
     }
     function recalculateComunidadTotalM2(inputEl) {
       if(isMikelTeamMember(currentUserName))return;
@@ -12557,12 +12636,13 @@ const labelStreet = clientObj.street ||
     async function saveDumpData() {
       if (selectedZoneIndexToDump === null) return;
 
+      const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      await Promise.all(Array.from(clientBoxes,box=>pendingPostalLookups.get(box.querySelector('.client-cp'))));
       const z = savedZones[selectedZoneIndexToDump];
       const prevClients = z.clients ? [...z.clients] : [];
       z.dumpDate = document.getElementById('dumpDate').value;
 
       z.clients = [];
-      const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
       clientBoxes.forEach((box, idx) => {
         const prev = prevClients[idx] || {};
         const preservedCallStatus = prev.callStatus || 'pendiente';

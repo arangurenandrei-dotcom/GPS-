@@ -6,12 +6,18 @@
     const n = Number(String(value ?? '').trim().replace(',', '.'));
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }
-  function attic(total, floors) {
+  function attic(total, floors, coverage = 100, wallCm = 25) {
     const gross = area(total), count = Number(floors);
-    if (!gross || !Number.isInteger(count) || count < 1) return null;
+    const share = Number(coverage), wall = Number(wallCm) / 100;
+    if (!gross || !Number.isInteger(count) || count < 1 ||
+        !Number.isFinite(share) || share <= 0 || share > 100 ||
+        !Number.isFinite(wall) || wall < 0 || wall > 1) return null;
     const perFloor = gross / count;
-    const walls = Math.min(perFloor, Math.max(5, Math.min(10, 5 + (perFloor - 55) / 15)));
-    return {perFloor, walls, net: Math.round((perFloor - walls) * 100) / 100};
+    const footprint = perFloor * share / 100;
+    // Square footprint proxy when the exterior lengths are unknown.
+    const innerSide = Math.max(0, Math.sqrt(footprint) - 2 * wall);
+    const net = innerSide ** 2;
+    return {perFloor, footprint, walls:footprint-net, net:Math.round(net)};
   }
   function date(value) {
     const s = String(value || '').trim();
@@ -21,6 +27,31 @@
   }
   const norm = v => String(v ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const phone = v => String(v || '').replace(/\D/g,'').replace(/^(0034|34)(?=\d{9}$)/,'');
+  function addressKey(value) {
+    return norm(value).replace(/^(?:c\/|c\.|calle\b|cl\b)\s*/, '')
+      .replace(/^av(?:da)?\.?\s+/, 'avenida ')
+      .replace(/^pza\.?\s+/, 'plaza ')
+      .replace(/^ctra\.?\s+/, 'carretera ')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  }
+  function postalAddress(value) {
+    const base = String(value || '').trim().replace(/(?:,\s*|\s+)(?:piso\s+.+|\d+\s*[ºª].*)$/iu, '');
+    const parts = base.match(/^(.+)\s*,?\s+(?:(?:n[º°o.]|núm\.?)\s*)?(\d+\s*(?:bis|ter|[a-z](?=\s|,|$))?)(?=$|[\s,;\/ªº-])/iu);
+    return parts ? {street:addressKey(parts[1]), number:norm(parts[2]).replace(/\s+/g, '')} : null;
+  }
+  function exactPostalCode(candidates, address, town) {
+    const target = postalAddress(address);
+    if (!target || !target.street || !norm(town)) return '';
+    const matches = candidates.filter(item =>
+      item.isPortal && Array.isArray(item.localities) &&
+      item.localities.some(name => norm(name) === norm(town) || String(name).split('/').some(part => norm(part) === norm(town))) &&
+      (addressKey(item.street) === target.street ||
+       addressKey([item.streetType,item.street].filter(Boolean).join(' ')) === target.street) &&
+      norm(item.portalNumber).replace(/\s+/g, '') === target.number
+    );
+    const codes = new Set(matches.map(item => String(item.cp || '').trim()).filter(cp => /^31\d{3}$/.test(cp)));
+    return codes.size === 1 ? [...codes][0] : '';
+  }
   function matches(row, zones) {
     const found=[];
     for (const z of zones) for (const c of z.clients || []) {
@@ -39,7 +70,7 @@
     if (row.id && c.crmOrigenId && norm(c.crmOrigenId)!==norm(row.id)) return null;
     return c.obraDate===row.fecha && c.obraTime===String(row.hora||'').slice(0,5) && Number(c.obraEquipoInstalacion)===Number(row.equipo) ? found[0] : null;
   }
-  const api={area,attic,date,norm,phone,matches,linkable};
+  const api={area,attic,date,norm,phone,postalAddress,exactPostalCode,matches,linkable};
   if (typeof module!=='undefined') module.exports=api;
   root.ComercialCore=api;
 })(typeof window!=='undefined'?window:globalThis);
