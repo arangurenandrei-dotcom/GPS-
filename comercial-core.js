@@ -39,16 +39,21 @@
     const parts = base.match(/^(.+)\s*,?\s+(?:(?:n[º°o.]|núm\.?)\s*)?(\d+\s*(?:bis|ter|[a-z](?=\s|,|$))?)(?=$|[\s,;\/ªº-])/iu);
     return parts ? {street:addressKey(parts[1]), number:norm(parts[2]).replace(/\s+/g, '')} : null;
   }
-  function exactPostalCode(candidates, address, town) {
+  function postalMatches(candidates, address, town = '') {
     const target = postalAddress(address);
-    if (!target || !target.street || !norm(town)) return '';
-    const matches = candidates.filter(item =>
+    if (!target || !target.street) return [];
+    return candidates.filter(item =>
       item.isPortal && Array.isArray(item.localities) &&
-      item.localities.some(name => norm(name) === norm(town) || String(name).split('/').some(part => norm(part) === norm(town))) &&
+      (!norm(town) || item.localities.some(name => norm(name) === norm(town) || String(name).split('/').some(part => norm(part) === norm(town)))) &&
       (addressKey(item.street) === target.street ||
        addressKey([item.streetType,item.street].filter(Boolean).join(' ')) === target.street) &&
+      /^31\d{3}$/.test(String(item.cp || '')) &&
       norm(item.portalNumber).replace(/\s+/g, '') === target.number
     );
+  }
+  function exactPostalCode(candidates, address, town) {
+    if (!norm(town)) return '';
+    const matches = postalMatches(candidates,address,town);
     const codes = new Set(matches.map(item => String(item.cp || '').trim()).filter(cp => /^31\d{3}$/.test(cp)));
     return codes.size === 1 ? [...codes][0] : '';
   }
@@ -70,7 +75,7 @@
     if (row.id && c.crmOrigenId && norm(c.crmOrigenId)!==norm(row.id)) return null;
     return c.obraDate===row.fecha && c.obraTime===String(row.hora||'').slice(0,5) && Number(c.obraEquipoInstalacion)===Number(row.equipo) ? found[0] : null;
   }
-  const api={area,attic,date,norm,phone,postalAddress,exactPostalCode,matches,linkable};
+  const api={area,attic,date,norm,phone,postalAddress,postalMatches,exactPostalCode,matches,linkable};
   if (typeof module!=='undefined') module.exports=api;
   root.ComercialCore=api;
 })(typeof window!=='undefined'?window:globalThis);
