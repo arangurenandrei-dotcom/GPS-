@@ -2,7 +2,7 @@
 <style>*{box-sizing:border-box}body{font:16px system-ui;background:#111827;color:#f8fafc;max-width:700px;margin:0 auto;padding:20px}button{background:#2457c3;color:white;border:0;border-radius:8px;padding:12px;margin:.35em 0;font:inherit}pre{white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px}iframe{width:100%;height:60vh;border:1px solid #64748b;border-radius:10px}p{line-height:1.45}</style>
 <h1>Revisión de guardado</h1><p>Entra con tu cuenta de Andrei en la app de abajo. Cuando aparezca el mapa, pulsa Revisar. Se consultarán los documentos visibles para tu cuenta.</p>
 <button id="check">Revisar</button> <button id="copy" hidden>Copiar informe</button>
-<pre id="result" aria-live="polite">Pendiente de consulta.</pre><iframe id="app" title="Aplicación comercial" src="./index.html"></iframe>
+<div id="refs"></div><pre id="result" aria-live="polite">Pendiente de consulta.</pre><iframe id="app" title="Aplicación comercial" src="./index.html"></iframe>
 <script>
 function informe(state){
  const zones=new Map(), totals=new Map(), groups=new Map(), rows=[];
@@ -25,12 +25,28 @@ function informe(state){
 }
 const by=id=>document.getElementById(id);
 by('check').onclick=async()=>{
- by('copy').hidden=true;by('check').disabled=true;by('result').textContent='Consultando…';
+ by('refs').replaceChildren();by('copy').hidden=true;by('check').disabled=true;by('result').textContent='Consultando…';
  try{
    const app=by('app').contentWindow;
    if(!app.auth?.currentUser || typeof app.readWorkV2!=='function')throw Error('Abre la página desde tu GitHub Pages y entra en la app de abajo con la cuenta de Andrei.');
    const {data}=await app.readWorkV2({});
    if(data.key!=='jefe')throw Error('Esta sesión corresponde a otro perfil. Entra como Andrei para revisar su equipo completo.');
+   const visible=new Set(data.docs.filter(d=>d.col==='zonas').map(d=>d.id));
+   const links=new Map();
+   for(const f of data.docs.filter(d=>d.col==='fichas'&&!visible.has(d.zona))){
+     const ref=String(f.zona??'').trim();
+     links.set(ref,(links.get(ref)||0)+1);
+   }
+   let num=0;
+   for(const [ref,count] of links){
+     num++;
+     const p=document.createElement('p');p.textContent='Referencia '+num+' · '+count+' ficha(s) · ';
+     if(/^[A-Za-z0-9_-]{1,100}$/.test(ref)){
+       const a=document.createElement('a');a.href='https://console.firebase.google.com/project/gestion-comercial-navarr-3b028/firestore/databases/-default-/data/~2Fzonas~2F'+encodeURIComponent(ref);
+       a.target='_blank';a.rel='noopener noreferrer';a.style.color='#9edbff';a.textContent='Ver zonas/'+ref+' en Firebase';p.append(a);
+     }else p.append('Sin identificador compatible con el enlace.');
+     by('refs').append(p);
+   }
    by('result').textContent=informe(data);by('copy').hidden=false;
  }catch(e){by('result').textContent='No se pudo completar la consulta. '+e.message;}finally{by('check').disabled=false;}
 };
