@@ -12656,6 +12656,7 @@ const labelStreet = clientObj.street ||
       if(Array.from(clientBoxes).some(box=>box.querySelector('.address-choices:not([hidden])'))){alert('Selecciona la localidad de las direcciones pendientes antes de guardar.');return;}
       const z = savedZones[selectedZoneIndexToDump];
       const prevClients = z.clients ? [...z.clients] : [];
+      if(!z.dumpDate && !z.firstDumpRecordedAt)z.firstDumpRecordedAt=Date.now();
       z.dumpDate = document.getElementById('dumpDate').value;
 
       z.clients = [];
@@ -17096,7 +17097,7 @@ function openCommercialStatsModalLegacy() {
     };
   </script>
 <script src="./jornadas-seguimiento.js?v=konsor-v4"></script>
-<script src="./avisos-app.js?v=3"></script>
+<script src="./avisos-app.js?v=4"></script>
 </body>
 </html>
 

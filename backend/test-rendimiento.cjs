@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {periods,extraEvents}=require('./rendimiento');
+assert.deepEqual(periods('2026-03-01'),[['Mes','2026-02-01','2026-02-28','2026-01-01','2026-01-31']]);
+assert.equal(periods('2026-11-16').length,2);
+const now=Date.parse('2026-11-16T10:00:00Z'),owner='Comercial 1';
+const dates=['2026-11-03','2026-11-04','2026-11-05','2026-11-10','2026-11-11','2026-11-12'];
+const shifts=dates.map(localDate=>({user:owner,localDate,startTime:'09:00',endTime:'17:00',lunchMinutes:60}));
+const zones=dates.map((date,i)=>({id:i,comercial:owner,date,dumpDate:date,stats:{si:i<3?6:2,no:i<3?8:12},clients:[]}));
+const events=extraEvents({now,zones,shifts});
+assert.match(events.find(e=>e.title==='Semana · '+owner).body,/21.0 h.*conversión pasa/i);
+assert(!events.some(e=>e.to.includes('Mikel')));
+assert.equal(new Set(events.map(e=>e.to+'|'+e.key)).size,events.length);
+console.log('Comparaciones, destinatarios, periodos y horas correctos.');
