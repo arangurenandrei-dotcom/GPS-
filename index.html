@@ -1775,7 +1775,7 @@ function openHistoricalImportModal() {
   file.type='file';file.accept='.csv,.tsv,.txt,text/csv,text/plain';
   const btnParse=el('button','📋 Revisar tabla',card,actionStyle);
   const status=el('p','Todavía no hay fichas en la revisión.',card,'font-size:12px;color:#93c5fd;line-height:1.6;');
-  const tableHolder=el('div',null,card,'overflow-x:auto;margin:12px 0;');
+  const tableHolder=el('div',null,card,'flex-shrink:0;overflow-x:auto;margin:12px 0;');
   const btnSave=el('button','💾 Guardar fichas preparadas en Firestore',card,actionStyle+'margin:8px 8px 8px 0;background:#075985;');
   const btnExport=el('button','⬇ Exportar revisión CSV',card,actionStyle);
   btnExport.disabled=true;btnExport.style.opacity='.5';
@@ -1845,7 +1845,9 @@ function openHistoricalImportModal() {
   function render(){
     const data=assess();
     const review=data.filter(r=>r.revision!=='Preparado').length;
-    status.textContent=`${rows.length} ficha(s) pendientes de guardar · ${review} requieren revisión.`;
+    const reasons = [...new Set(data.filter(r => r.revision !== 'Preparado').map(r => r.revision))];
+    status.textContent = `${rows.length} ficha(s) pendientes de guardar · ${review} requieren revisión.`;
+    if (reasons.length) status.textContent += ` ${reasons.join(' · ')}.`;
     btnExport.disabled=!rows.length;btnExport.style.opacity=rows.length?'1':'.5';
     btnSave.disabled=!data.length || review>0;
     btnSave.style.opacity=btnSave.disabled?'.5':'1';
