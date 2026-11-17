@@ -1,8 +1,8 @@
 <!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Revisión de guardado</title>
 <style>*{box-sizing:border-box}body{font:16px system-ui;background:#111827;color:#f8fafc;max-width:700px;margin:0 auto;padding:20px}button{background:#2457c3;color:white;border:0;border-radius:8px;padding:12px;margin:.35em 0;font:inherit}pre{white-space:pre-wrap;background:#1e293b;padding:12px;border-radius:8px}iframe{width:100%;height:60vh;border:1px solid #64748b;border-radius:10px}p{line-height:1.45}</style>
-<h1>Revisión de guardado</h1><p>Entra con tu cuenta de Andrei en la app de abajo. Cuando aparezca el mapa, pulsa Revisar. Se consultarán los documentos visibles para tu cuenta.</p>
+<h1>Revisión de guardado</h1><p>Entra con tu cuenta de Andrei en la app de abajo. Cuando aparezca el mapa, pulsa Revisar. Si faltan las dos zonas históricas, verás su comercial y podrás indicar el pueblo de cada una según tu hoja. Se crearán sin dibujo ni fecha histórica.</p>
 <button id="check">Revisar</button> <button id="copy" hidden>Copiar informe</button>
-<div id="refs"></div><pre id="result" aria-live="polite">Pendiente de consulta.</pre><iframe id="app" title="Aplicación comercial" src="./index.html"></iframe>
+<section id="repair"></section><div id="refs"></div><pre id="result" aria-live="polite">Pendiente de consulta.</pre><iframe id="app" title="Aplicación comercial" src="./index.html"></iframe>
 <script>
 function informe(state){
  const zones=new Map(), totals=new Map(), groups=new Map(), rows=[];
@@ -23,9 +23,49 @@ function informe(state){
    ...[...totals].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>k+' = '+v),
    'Fichas enlazadas = '+linked,'Fichas sin zona visible = '+rows.length,'Fichas enlazadas con propietario distinto al de la zona = '+owners,...rows].join('\n');
 }
+const targets=[['1794584194402',2],['1794874572305',1]];
+function plan(state){
+ if(state.key!=='jefe')throw Error('Entra con la cuenta de Andrei.');
+ const rows=[];
+ for(const [id,n] of targets){
+   const fichas=state.docs.filter(d=>d.col==='fichas'&&d.zona===id);
+   const owners=new Set(fichas.map(d=>d.owner));
+   const zone=state.docs.find(d=>d.col==='zonas'&&d.id===id);
+   if(fichas.length!==n || owners.size!==1)throw Error('Ha cambiado el grupo de fichas de '+id+'. Revisa su asignación.');
+   const owner=fichas[0].owner;
+   if(!(owner==='jefe'||/^comercial[1-5]$/.test(owner)))throw Error('Perfil desconocido en '+id);
+   if(zone){if(zone.owner!==owner)throw Error('Propietario distinto en '+id);continue;}
+   rows.push({id,n,owner,commercial:owner==='jefe'?'Andrei (Jefe)':'Comercial '+owner.slice(-1),ids:fichas.map(d=>d.id).sort()});
+ }
+ return rows;
+}
+function preview(state,app){
+ const panel=by('repair');panel.replaceChildren();const rows=plan(state);
+ if(!rows.length){panel.textContent='Verificado: las tres fichas están vinculadas a sus zonas y comerciales.';return;}
+ const fields=rows.map(row=>{
+   const label=document.createElement('label'),input=document.createElement('input');
+   label.style.display='block';label.textContent=row.id+' · '+row.commercial+' · '+row.n+' ficha(s). Pueblo según tu hoja: ';
+   input.maxLength=100;label.append(input);panel.append(label);return input;
+ });
+ const button=document.createElement('button');button.textContent='Crear zonas pendientes';panel.append(button);
+ button.onclick=async()=>{
+   if(fields.some(el=>!el.value.trim())){alert('Indica el pueblo de cada zona según tu hoja.');return;}
+   button.disabled=true;by('check').disabled=true;
+   try{
+     const fresh=await app.readWorkV2({});
+     if(JSON.stringify(plan(fresh.data))!==JSON.stringify(rows))throw Error('La situación ha cambiado. Pulsa Revisar.');
+     const changes=rows.map((r,i)=>({col:'zonas',id:r.id,rev:0,datos:{id:Number(r.id),town:fields[i].value.trim(),comercial:r.commercial,sectorName:'Sector recuperado '+r.id,date:'',points:[],stats:{},status:'sin_comprobar',bossNote:'Zona histórica reconstruida para enlazar las fichas existentes.',pendingNote:''}}));
+     await app.writeWorkV2({op:crypto.randomUUID(),changes});
+     const result=await app.readWorkV2({});
+     if(plan(result.data).length)throw Error('Pendiente de verificar. Pulsa Revisar.');
+     by('refs').replaceChildren();by('result').textContent=informe(result.data);preview(result.data,app);
+   }catch(e){by('result').textContent='Pulsa Revisar para comprobar el estado en Firebase. '+e.message;}
+   finally{button.disabled=false;by('check').disabled=false;}
+ };
+}
 const by=id=>document.getElementById(id);
 by('check').onclick=async()=>{
- by('refs').replaceChildren();by('copy').hidden=true;by('check').disabled=true;by('result').textContent='Consultando…';
+ by('repair').replaceChildren();by('refs').replaceChildren();by('copy').hidden=true;by('check').disabled=true;by('result').textContent='Consultando…';
  try{
    const app=by('app').contentWindow;
    if(!app.auth?.currentUser || typeof app.readWorkV2!=='function')throw Error('Abre la página desde tu GitHub Pages y entra en la app de abajo con la cuenta de Andrei.');
@@ -47,7 +87,7 @@ by('check').onclick=async()=>{
      }else p.append('Sin identificador compatible con el enlace.');
      by('refs').append(p);
    }
-   by('result').textContent=informe(data);by('copy').hidden=false;
+   by('result').textContent=informe(data);by('copy').hidden=false;preview(data,app);
  }catch(e){by('result').textContent='No se pudo completar la consulta. '+e.message;}finally{by('check').disabled=false;}
 };
 by('copy').onclick=async()=>{try{await navigator.clipboard.writeText(by('result').textContent);by('copy').textContent='Copiado';}catch{const r=document.createRange();r.selectNodeContents(by('result'));const s=getSelection();s.removeAllRanges();s.addRange(r);}};
