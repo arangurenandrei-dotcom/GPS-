@@ -31,10 +31,13 @@ test('area accepts comma and old ranges; empty/invalid never invents 70',()=>{
  assert.equal(core.area('80,25'),80.25);assert.equal(core.area('60-80'),70);
 });
 test('attic formula and invalid inputs',()=>{
- assert.equal(core.attic(110,2).net,50);assert.equal(core.attic(260,2).net,120);
- assert.equal(core.attic(180,2).net,82.67);
+ assert.equal(core.attic(110,2).net,48);assert.equal(core.attic(260,2).net,119);
+ assert.equal(core.attic(180,2).net,81);
  for(const v of [0,-1,1.5,''])assert.equal(core.attic(100,v),null);
- assert.equal(core.attic(3,1).net,0);
+ assert.equal(core.attic(3,1,100,100).net,0);
+ assert.equal(core.attic(200,2,50,45).net,38);
+ assert.equal(core.attic(200,2,50,0).net,50);
+ assert.equal(core.attic(200,2,101,25),null);
 });
 test('calendar dates reject rollover',()=>{
  assert.ok(core.date('2024-02-29'));assert.ok(!core.date('2026-02-29'));
@@ -159,4 +162,36 @@ test('a dated CSV without original ID uses one technical reference for verificat
  assert.match(reference,/^local_/);
  assert.equal(ui.writes[0][0].clients[0].crmOrigenId,reference);
  assert.equal(ui.writes[0][0].clients[0].obraStatus,'agendada');
+});
+
+test('postal lookup requires the same portal and town with one Navarra postal code',()=>{
+ const portal={isPortal:true,localities:['Pamplona/Iruña'],street:'Calle 1 de Mayo',portalNumber:7,cp:'31008'};
+ const match=core.exactPostalCode;
+ assert.equal(match([portal],'C/ 1 de Mayo 7, 2º A','Pamplona'),'31008');
+ assert.equal(match([portal],'C/ 1 de Mayo 17','Pamplona'),'');
+ assert.equal(match([portal],'C/ 1 de Mayo 7','Tudela'),'');
+ assert.equal(match([portal],'C/ 1 de Mayo','Pamplona'),'');
+ assert.equal(match([portal,{...portal,cp:'31009'}],'C/ 1 de Mayo 7','Pamplona'),'');
+ const suffix={...portal,street:'Mayor',portalNumber:'7B'};
+ assert.equal(match([suffix],'Mayor 7 B','Iruña'),'31008');
+ assert.equal(match([suffix],'Mayor 7','Iruña'),'');
+ assert.equal(match([{...suffix,street:'Bayona',streetType:'AVENIDA'}],'Av. Bayona 7B','Pamplona'),'31008');
+});
+test('postal lookup preserves manual values and rejects delayed responses for another address',async()=>{
+ const pending=[];
+ const postal={value:'',dataset:{},isConnected:true};
+ const area={closest:()=>null,querySelector:()=>postal};
+ const street={value:'Mayor 7',closest:()=>area};
+ let updates=0;
+ const resolve=loadFunction('fillPostalCodeFromStreet',{
+  pendingPostalLookups:new WeakMap(),selectedZoneIndexToDump:0,savedZones:[{town:'Pamplona'}],
+  queryCartoCiudadNavarra:()=>new Promise(done=>pending.push(done)),updateClientCteFromCp:()=>updates++
+ });
+ const candidate={isPortal:true,localities:['Pamplona'],street:'Mayor',portalNumber:7,cp:'31008'};
+ const first=resolve(street);assert.equal(resolve(street),first);
+ street.value='Mayor 9';const second=resolve(street);
+ pending[0]([candidate]);await first;assert.equal(postal.value,'');
+ pending[1]([{...candidate,portalNumber:9}]);await second;assert.equal(postal.value,'31008');assert.equal(updates,1);
+ postal.value='31005';postal.dataset.autoPostalCode='';street.value='Mayor 10';
+ await resolve(street);assert.equal(postal.value,'31005');assert.equal(pending.length,2);
 });
