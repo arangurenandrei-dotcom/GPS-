@@ -69,14 +69,14 @@ class Element {
  addEventListener(){}
  remove(){}
 }
-function importer(zones=[]){
+function importer(zones=[],verify){
  const body=new Element('body'),writes=[];
  const doc={body,createElement:t=>new Element(t),getElementById:()=>null};
  const fn=loadFunction('openHistoricalImportModal',{
   document:doc,currentUserName:'Andrei (Jefe)',sessionStorage:{getItem:()=> 'jefe'},
   savedZones:zones,getActiveTeamUsers:()=>['Andrei (Jefe)','Comercial 1'],
   getTodayISO:()=> '2026-11-17',crypto:require('node:crypto').webcrypto,
-  window:{auth:{currentUser:{uid:'test'}},KonsorBridge:{busy:false,save:async(k,c)=>writes.push(structuredClone(c))}},
+  window:{auth:{currentUser:{uid:'test'}},verificarHistoricoKonsor:verify,KonsorBridge:{busy:false,save:async(k,c)=>writes.push(structuredClone(c))}},
   alert:()=>{},confirm:()=>true
  });fn();
  const all=[];const walk=e=>{all.push(e);e.children.forEach(walk);};walk(body);
@@ -97,4 +97,14 @@ test('historical appointment links same UID and creates no extra reservation',as
 test('unverified KONSOR booking and duplicate batch never write',async()=>{
  const ui=importer();ui.add({...row,nombre:'Cliente',estado:'agendada'});await ui.save();assert.equal(ui.writes.length,0);
  const dup=importer();const r={...row,nombre:'Cliente',estado:'Por llamar'};dup.add(r);dup.add(r);await dup.save();assert.equal(dup.writes.length,0);
+});
+test('verified external appointment saves event ID for server revalidation',async()=>{
+ const requests=[];
+ const ui=importer([],async d=>{requests.push(d);return {data:{ok:true,eventId:'calendar-event-1'}};});
+ ui.add({...row,nombre:'Cliente',estado:'agendada'});
+ await ui.buttons.find(b=>/Verificar citas/.test(b.textContent)).onclick();
+ assert.equal(requests[0].crmOrigenId,row.id);assert.equal(ui.writes.length,0);
+ await ui.save();assert.equal(ui.writes.length,1);
+ assert.equal(ui.writes[0][0].clients[0].crmKonsorEventId,'calendar-event-1');
+ assert.equal(ui.writes[0][0].clients[0].crmKonsorTown,'Pamplona');
 });

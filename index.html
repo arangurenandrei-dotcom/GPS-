@@ -1782,6 +1782,8 @@ function openHistoricalImportModal() {
   const btnClear=el('button','Vaciar revisión',card,actionStyle+'margin-left:8px;');
 
   const rows=[];
+  const verifiedKonsor=new Map();
+  const btnVerify=el('button','Verificar citas antiguas en KONSOR',card,actionStyle+'margin:8px 0;');
   const nrm=v=>String(v??'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const aliases={
     id:['id','codigo','referencia','ref','leadid','idcrm','id euro aisla'],
@@ -1837,13 +1839,13 @@ function openHistoricalImportModal() {
       const invalidArea=r.m2 && !(ComercialCore.area(r.m2)>0);
       const invalidOwner=r.comercial && !getActiveTeamUsers(false).includes(r.comercial);
       return {...r,estadoDestino:state,
-        revision:repeatedInBatch?'ID repetido en el lote':missing?'Faltan datos o ID/teléfono inválido':pending?'Revisar estado':invalidDate?'Fecha inválida':invalidArea?'m² inválidos':invalidOwner?'Revisar comercial':bookingIncomplete?'Cita: falta fecha, hora o equipo':state==='agendada'&&!link?'Cita KONSOR sin vínculo verificado':duplicate&&!link?'Duplicado posible':'Preparado'};
+        revision:repeatedInBatch?'ID repetido en el lote':missing?'Faltan datos o ID/teléfono inválido':pending?'Revisar estado':invalidDate?'Fecha inválida':invalidArea?'m² inválidos':invalidOwner?'Revisar comercial':bookingIncomplete?'Cita: falta fecha, hora o equipo':state==='agendada'&&!link&&!verifiedKonsor.has(r.id)?'Cita KONSOR sin vínculo verificado':duplicate&&!link?'Duplicado posible':'Preparado'};
     });
   }
   function render(){
     const data=assess();
     const review=data.filter(r=>r.revision!=='Preparado').length;
-    status.textContent=`${rows.length} ficha(s) en revisión · ${review} requieren revisión. No se han guardado en CRM ni Calendar.`;
+    status.textContent=`${rows.length} ficha(s) pendientes de guardar · ${review} requieren revisión.`;
     btnExport.disabled=!rows.length;btnExport.style.opacity=rows.length?'1':'.5';
     btnSave.disabled=!data.length || review>0;
     btnSave.style.opacity=btnSave.disabled?'.5':'1';
@@ -1917,7 +1919,30 @@ function openHistoricalImportModal() {
     if(file.files[0].size>5_000_000){alert('Archivo demasiado grande (máximo 5 MB).');return;}
     try{paste.value=await file.files[0].text();}catch(err){alert('No se pudo leer el archivo: '+err.message);}
   };
-  btnClear.onclick=()=>{if(rows.length&& !confirm('¿Vaciar la revisión? No se ha guardado en Firestore.'))return;rows.length=0;render();};
+  btnClear.onclick=()=>{if(rows.length&& !confirm('¿Vaciar la revisión? No se ha guardado en Firestore.'))return;rows.length=0;verifiedKonsor.clear();render();};
+  btnVerify.onclick=async()=>{
+    if(currentUserName!=='Andrei (Jefe)' || sessionStorage.getItem('auth_user_key')!=='jefe')return;
+    if(typeof window.verificarHistoricoKonsor!=='function'){alert('Espera a que cargue Firebase.');return;}
+    for(const control of [btnAdd,btnParse,btnClear,btnSave,btnVerify,file])control.disabled=true;
+    const errors=[];
+    try{
+      for(const r of rows){
+        if(stateOf(r.estado)!=='agendada'||ComercialCore.linkable(r,savedZones))continue;
+        verifiedKonsor.delete(r.id);
+        status.textContent='Consultando KONSOR: '+r.id;
+        try{
+          const result=await window.verificarHistoricoKonsor({crmOrigenId:r.id,name:r.nombre,phone:r.telefono,street:r.direccion,crmKonsorTown:r.municipio,obraDate:r.fecha,obraTime:r.hora.slice(0,5),obraEquipoInstalacion:Number(r.equipo)});
+          if(result.data?.ok!==true||!result.data.eventId)throw Error('Respuesta incompleta de KONSOR.');
+          verifiedKonsor.set(r.id,result.data.eventId);
+        }catch(e){errors.push(r.id+': '+(e.message||'No se pudo verificar.'));}
+      }
+    }finally{
+      for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=false;
+      render();
+    }
+    if(errors.length)alert('Citas pendientes de revisión:\n'+errors.join('\n'));
+    else alert('Verificación terminada. Revisa la tabla antes de guardar. No se han creado eventos.');
+  };
   btnExport.onclick=()=>{
     const cols=[...fields.map(f=>f[0]),'estadoDestino','revision'];
     const csv=[cols,...assess().map(r=>cols.map(k=>r[k]||''))].map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
@@ -1983,7 +2008,11 @@ function openHistoricalImportModal() {
         crmOrigenId:r.id.trim(),crmOrigenEstado:r.estado.trim(),
         importadoHistorico:true,createdAt:r.fecha?Date.parse(r.fecha+'T12:00:00'):now,statusChangedAt:now
       };
-      if(state==='agendada')client.obraEquipoInstalacion=Number(r.equipo);
+      if(state==='agendada'){
+        client.obraEquipoInstalacion=Number(r.equipo);
+        client.crmKonsorEventId=verifiedKonsor.get(r.id);
+        client.crmKonsorTown=r.municipio.trim();
+      }
       const zid=String('hist_'+crypto.randomUUID().replace(/-/g,'').slice(0,24));
       additions.push({
         id:zid,isSingleHouse:true,singlePoint:null,
@@ -1996,7 +2025,7 @@ function openHistoricalImportModal() {
       });
     }
     let done=0;
-    for(const control of [btnAdd,btnParse,btnClear,file])control.disabled=true;
+    for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=true;
     try{
       for(const {row,uid} of linked){
         const candidate=JSON.parse(JSON.stringify(savedZones));
@@ -2013,7 +2042,7 @@ function openHistoricalImportModal() {
         if(window.KonsorBridge.busy)throw Error('Hay otro guardado en curso.');
         const group=additions.slice(n,n+20);
         const candidate=[...savedZones,...group];
-        status.textContent=`Guardando ${done+1} a ${done+group.length} de ${additions.length}…`;
+        status.textContent=`Guardando ${done+1} a ${done+group.length} de ${checked.length}…`;
         await window.KonsorBridge.save('comercial_custom_zones',candidate);
         savedZones=candidate;
         done+=group.length;
@@ -2026,9 +2055,9 @@ function openHistoricalImportModal() {
       render();
       alert('Importación completa: '+done+' fichas confirmadas en Firestore.');
     }catch(error){
-      status.textContent=`Guardadas ${done} de ${additions.length}; las restantes NO se han guardado. ${error.message}`;
+      status.textContent=`Confirmadas ${done} de ${checked.length}. Recarga para comprobar las restantes antes de reintentar. ${error.message}`;
       alert(`Importación detenida. Confirmadas: ${done}. No repitas el lote sin recargar y revisar los duplicados.\n${error.message}`);
-    }finally{for(const control of [btnAdd,btnParse,btnClear,file])control.disabled=false;render();}
+    }finally{for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=false;render();}
   };
   overlay.addEventListener('click',ev=>{if(ev.target===overlay)overlay.remove();});
   render();
@@ -16837,6 +16866,7 @@ function openCommercialStatsModalLegacy() {
  window.readWorkV2 = httpsCallable(functionsEu, 'leerTrabajoV2');
  window.teamSummaryV2 = httpsCallable(functionsEu, 'resumenTrabajoV2');
  window.writeWorkV2 = httpsCallable(functionsEu, 'guardarTrabajoV2');
+ window.verificarHistoricoKonsor = httpsCallable(functionsEu, 'verificarHistoricoKonsor');
   window.consultarDisponibilidadObras =
     httpsCallable(functionsEu, 'consultarDisponibilidadObras');
  window.db = db;
