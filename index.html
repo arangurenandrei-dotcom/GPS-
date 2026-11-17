@@ -3568,6 +3568,7 @@ async function buildKonsorGroupedAppointments() {
   return {
     proposals,
     unplaced,
+    agenda,
     towns: [...towns.entries()].map(([key, info]) => ({
       key,
       label: info.label
@@ -4063,7 +4064,11 @@ function renderGroupedAppointments() {
         }
         const proposal = proposed.find(p => p.time === slot.start && p.equipoInstalador === equipo);
         if (!proposal) {
-          groupedNode('p', calendarSlot?.libre === false ? '🗓️ Ocupado en KONSOR' : 'Hueco libre',
+          groupedNode('p', calendarSlot?.libre === false
+               ? '🗓️ Ocupado en KONSOR'
+               : calendarSlot?.libre === true
+                 ? 'Hueco libre'
+                 : '⚠️ Disponibilidad sin verificar',
             cell, 'font-size:12px;color:#94a3b8;');
           continue;
         }
