@@ -12,7 +12,7 @@ Importador individual y CSV/TSV: ID obligatorio, teléfono español normalizado,
 
 Una fila agendada solo se vincula si coincide de forma inequívoca con una ficha sincronizada: ID externo o teléfono/dirección/pueblo, más fecha, hora y equipo instalador. Conserva su UID y reserva; añade la referencia histórica. Si no existe coincidencia verificable, queda bloqueada en revisión. No se considera que una franja ocupada identifique por sí sola al cliente.
 
-El repositorio no contiene las Cloud Functions `guardarTrabajoV2`, `consultarDisponibilidadObras` ni el acceso al calendario KONSOR. Para enlazar citas que solo existen en KONSOR hace falta implementar/verificar allí una búsqueda autenticada e idempotente de la reserva original y devolver su identidad. Esta parte no se ha desplegado ni probado contra producción. Tampoco se han importado datos reales.
+La ampliación `backend/` añade la verificación autenticada del evento original de KONSOR y su reclamación única desde el guardado transaccional existente. El importador ofrece “Verificar citas antiguas en KONSOR”; el servidor vuelve a verificar al guardar. Requiere instalar y desplegar las funciones según `backend/README.md`. No se ha desplegado ni probado contra producción desde este entorno. No se han importado datos reales.
 
 ## Mikel
 
