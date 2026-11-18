@@ -106,7 +106,7 @@
   status=node('div','', 'av-status');body=node('div',undefined,'modal-scrollable-content');card.append(head,tabs,status,body);modal.append(card);document.body.append(modal);
  }
  function badge(){if(bell){const n=notices.filter(n=>!n.resolvedAt&&((isTask(n))||!n.readAt)).length+reminders.filter(r=>r.assignment&&r.to===me?.name&&r.enabled&&!r.completedAt&&!r.confirmedAt).length;bell.textContent='🔔'+(n?' '+n:'');bell.setAttribute('aria-label',`${n} avisos o tareas pendientes`);}}
- function open(){if(!me)return;mount();modal.classList.add('active');render();}
+ function open(target){if(!me)return;mount();if(['inbox','tasks','preferences'].includes(target))tab=target;modal.classList.add('active');render();}
  window.openNotificationsCenterV2=open;
  function render(){if(!body||!me)return;status.textContent='';body.replaceChildren();modal.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.tab===tab));
   if(tab==='preferences')renderPreferences();else if(tab==='tasks')renderTasks();else renderInbox();
@@ -142,6 +142,9 @@
   }
   if(n.category==='followups'&&!context.zoneId){
    const b=button('Abrir llamadas',()=>{modal.classList.remove('active');if(typeof window.openCnOffice==='function')window.openCnOffice();});b.className='av-primary';actions.append(b);
+  }
+  if(n.category==='zones'&&!context.reminderId){
+   actions.append(button('He revisado esta zona',()=>resolveNotice(n)));
   }
   if(n.category==='quality'&&!context.zoneId){
    const b=button('Ver fichas',()=>{modal.classList.remove('active');window.openCnClients?.();});b.className='av-primary';actions.append(b);
@@ -270,10 +273,20 @@
  function renderPreferences(){
   const form=node('form');const check=(label,value)=>{const l=node('label'),el=node('input');el.type='checkbox';el.checked=value;l.append(el,document.createTextNode(label));form.append(l);return el;};
   const enabled=check('Recibir avisos en el móvil',preferences.enabled!==false);
-  form.append(node('p','Silenciar el móvil conserva los avisos en esta bandeja. Las horas se interpretan en Madrid.'));
+  form.append(node('p','Puedes silenciar las notificaciones del móvil sin perder las tareas de la app. Los avisos informativos se pueden descartar; los encargos conservan su estado. Horario de Madrid.'));
   const time=(label,minutes)=>{const l=node('label',label),el=node('input');el.type='time';el.value=String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');l.append(el);form.append(l);return el;};
   const start=time('No molestar desde',preferences.quietStart??1320),end=time('Hasta',preferences.quietEnd??480);
-  const controls={};Object.entries(categories).forEach(([k,label])=>{if(k==='management'&&me.key!=='jefe')return;controls[k]=check(label,preferences.categories?.[k]!==false);});
+  const groups=[
+   ['Avisos informativos',['daily','motivation','activity']],
+   ['Gestiones y tareas',['zones','followups','quality','reminders','appointments']],
+   ['Dirección',['management']]
+  ];
+  const controls={};
+  groups.forEach(([heading,keysGroup])=>{
+   if(heading==='Dirección'&&me.key!=='jefe')return;
+   form.append(node('h3',heading,'av-section'));
+   keysGroup.forEach(k=>{controls[k]=check(categories[k],preferences.categories?.[k]!==false);});
+  });
   form.append(button('Guardar preferencias',async()=>{const mins=s=>{const [h,m]=s.split(':').map(Number);return h*60+m;};if(!start.value||!end.value)throw Error('Completa las horas.');await api.call('guardarPreferenciasAvisos',{enabled:enabled.checked,quietStart:mins(start.value),quietEnd:mins(end.value),categories:Object.fromEntries(Object.entries(controls).map(([k,v])=>[k,v.checked]))});status.textContent='Preferencias guardadas.';}));
   form.append(button('Activar permisos de este móvil',async()=>{if(typeof window.requestMobileNotifications==='function')await window.requestMobileNotifications();else throw Error('No se encuentra el botón de activación de avisos.');}));
   form.append(node('p','Los controles automáticos se ejecutan cada 5 minutos. No recibir un aviso no demuestra que alguien no haya trabajado: el sistema usa los datos registrados.'));
@@ -293,7 +306,7 @@
     if(me?.key===profile.userKey)return;stop();me={uid:user.uid,key:profile.userKey,name:names[keys.indexOf(profile.userKey)]};mount();flush();
     unsub.push(fs.onSnapshot(fs.query(fs.collection(db,'notification_messages'),fs.where('to','==',me.name),fs.orderBy('createdAt','desc'),fs.limit(100)),snap=>{notices=snap.docs.map(d=>({...d.data(),id:d.id}));badge();if(modal.classList.contains('active')&&tab==='inbox'&&!body.querySelector('textarea:focus'))render();},report));
     const rem=me.key==='jefe'?fs.query(fs.collection(db,'app_reminders'),fs.orderBy('updatedAt','desc'),fs.limit(100)):fs.query(fs.collection(db,'app_reminders'),fs.where('to','==',me.name),fs.orderBy('updatedAt','desc'),fs.limit(100));
-    unsub.push(fs.onSnapshot(rem,snap=>{reminders=snap.docs.map(d=>({...d.data(),id:d.id}));if(modal.classList.contains('active')&&tab==='reminders'&&!body.querySelector('form'))render();},report));
+    unsub.push(fs.onSnapshot(rem,snap=>{reminders=snap.docs.map(d=>({...d.data(),id:d.id}));if(modal.classList.contains('active')&&tab==='tasks'&&!body.querySelector('form'))render();},report));
     unsub.push(fs.onSnapshot(fs.doc(db,'notification_preferences',me.key),snap=>{preferences=snap.data()||{};},report));
     if(new URLSearchParams(location.search).has('aviso'))open();
    },report);
