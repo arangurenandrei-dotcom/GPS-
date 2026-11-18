@@ -4,7 +4,7 @@
 const ID="konsorOfficeCallV2";
 const SLOTS=[["09:00","11:00"],["11:00","13:00"],["15:00","17:00"],["17:00","19:00"]];
 let current=null, view="list", scope="mine", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
-let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null;
+let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null,clusterAutoSearch=false,clusterSearchSeq=0,clusterPlanNotice="";
 const e=(t,c,txt,p)=>{let x=document.createElement(t);if(c)x.className=c;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
 const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.type="button";b.onclick=fn;return b;};
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
@@ -81,7 +81,7 @@ function groupRows(){
 function startGroup(item){
  if(!item)return;
  clusterFocus={town:town(item),street:street(item)};
- clusterDate=clusterDate&&clusterDate>=tomorrow()?clusterDate:tomorrow();
+ clusterDate=tomorrow();clusterPlanNotice="";clusterAutoSearch=true;
  clusterTeam=Number(clusterTeam)||2;view="group";draw();
 }
 function clusterStatus(item){
@@ -115,6 +115,55 @@ function remoteSlotLocations(slot){
  return [...new Set(items.map(occupiedLocationText).filter(Boolean))].slice(0,3);
 }
 
+/* Busca fechas que permiten agrupar hasta cuatro vecinos por un mismo equipo.
+   No confirma ni guarda reservas; solo consume la disponibilidad del servidor. */
+async function findClusterDay(body,host,indicator,automatic=false){
+ if(!clusterFocus||!host.isConnected)return;
+ const token=++clusterSearchSeq,focusKey=clusterFocus.town+"|"+clusterFocus.street;
+ const rows=groupRows().filter(candidateOf);
+ if(!rows.length){indicator.textContent="No quedan clientes con teléfono y dirección completos para programar.";return;}
+ indicator.textContent="Buscando una jornada con hasta "+Math.min(rows.length,4)+" franjas para el mismo equipo…";
+ const days=[];let day=new Date(tomorrow()+"T12:00:00");
+ while(days.length<9){if(day.getDay()!==0)days.push([day.getFullYear(),String(day.getMonth()+1).padStart(2,"0"),String(day.getDate()).padStart(2,"0")].join("-"));day.setDate(day.getDate()+1);}
+ let checked=0;const options=[];
+ // Limitamos la concurrencia para no saturar el servicio de disponibilidad.
+ for(let offset=0;offset<days.length;offset+=3){
+  const batch=await Promise.allSettled(days.slice(offset,offset+3).map(async(date)=>{
+   const remote=await consultarKonsorFecha(date);
+   const previous=typeof routeRecords==="function"?routeRecords(date):[];
+   const teamFree={};
+   for(const team of [2,3]){
+    teamFree[team]=SLOTS.map(([from,to],idx)=>{
+     const state=remote[String(team)]?.find(x=>x.horario===from+"-"+to);
+     const occupied=previous.some(p=>p.slot===idx&&(![2,3].includes(Number(p.c?.obraEquipoInstalacion))||Number(p.c?.obraEquipoInstalacion)===team));
+     return state?.libre===true&&!occupied;
+    });
+   }
+   return{date,teamFree};
+  }));
+  batch.forEach((result,i)=>{
+   if(result.status!=="fulfilled")return;
+   checked++;
+   const {date,teamFree}=result.value;
+   for(const team of [2,3]){
+    const free=teamFree[team],count=free.filter(Boolean).length;
+    let current=0,maxRun=0;
+    free.forEach(yes=>{current=yes?current+1:0;maxRun=Math.max(maxRun,current);});
+    const total=teamFree[2].filter(Boolean).length+teamFree[3].filter(Boolean).length;
+    options.push({date,team,count,total,maxRun,dayIndex:offset+i});
+   }
+  });
+  if(token!==clusterSearchSeq||view!=="group"||!host.isConnected||clusterFocus?.town+"|"+clusterFocus?.street!==focusKey)return;
+ }
+ if(!options.length){indicator.textContent="No se pudieron verificar fechas. Mantengo el día actual; no se ofrecen huecos sin confirmar disponibilidad.";return;}
+ options.sort((a,b)=>b.maxRun-a.maxRun||b.count-a.count||b.total-a.total||a.dayIndex-b.dayIndex||a.team-b.team);
+ const best=options[0],target=Math.min(4,rows.length);
+ const msg=best.count>=target?"Jornada agrupable":"Mejor alternativa encontrada";
+ clusterPlanNotice=msg+": "+best.date+" · Equipo "+best.team+" · "+best.count+" franjas libres ("+best.maxRun+" seguidas) · "+checked+" días consultados. Son propuestas, no reservas.";
+ indicator.textContent=clusterPlanNotice;
+ if(best.date!==clusterDate||automatic){clusterDate=best.date;clusterTeam=best.team;renderGroupAgendaReplace(body,host);}
+}
+
 async function renderGroupAgenda(body,insertBefore=null){
  const ticket=++clusterSeq,group=groupRows();
  const host=e("section","koc-card koc-group-schedule",undefined,body);
@@ -128,11 +177,18 @@ async function renderGroupAgenda(body,insertBefore=null){
  const shiftDate=delta=>{
    const d=new Date((clusterDate||tomorrow())+"T12:00:00");d.setDate(d.getDate()+delta);
    const next=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
-   if(next<tomorrow())return;clusterDate=next;renderGroupAgendaReplace(body,host);
+   if(next<tomorrow())return;++clusterSearchSeq;clusterPlanNotice="";clusterDate=next;renderGroupAgendaReplace(body,host);
  };
  dButtons.append(button("‹ Día anterior",()=>shiftDate(-1),"koc-quiet"));
  dButtons.append(button("Día siguiente ›",()=>shiftDate(1),"koc-quiet"));
- dateInput.onchange=()=>{clusterDate=dateInput.value;renderGroupAgendaReplace(body,host);};
+ dateInput.onchange=()=>{++clusterSearchSeq;clusterPlanNotice="";clusterDate=dateInput.value;renderGroupAgendaReplace(body,host);};
+ const planSearch=button("Buscar jornada para agrupar 4 viviendas",()=>{clusterPlanNotice="";findClusterDay(body,host,searchInfo,false);},"koc-primary");
+ host.append(planSearch);
+ const searchInfo=e("p","koc-muted",clusterPlanNotice||"",host);
+ if(clusterAutoSearch){
+  clusterAutoSearch=false;
+  Promise.resolve().then(()=>findClusterDay(body,host,searchInfo,true));
+ }
  const summary=e("p","koc-muted","Comprobando disponibilidad de ambos equipos…",host);
  const board=e("div","koc-dual-board",undefined,host);
  if(!/^\d{4}-\d{2}-\d{2}$/.test(clusterDate)||clusterDate<tomorrow()||new Date(clusterDate+"T12:00:00").getDay()===0){
