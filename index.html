@@ -1385,6 +1385,33 @@ html,body{background:#f5f5f7;color:#17202c}
 .cn-territorio .cn-footer{display:flex;margin-top:5px}.cn-territorio .cn-footer button{width:100%}
 @media(max-width:420px){.cn-territorio .cn-page{border-radius:22px}.cn-territorio .cn-page-body{padding:12px}.cn-territorio .cn-kpi{padding:10px 7px}.cn-territorio .cn-kpi strong{font-size:19px}}
 </style>
+<style id="cnOfficeWorkflow">
+/* Flujo iOS para el trabajo de oficina */
+.cn-oficina{display:none;align-items:center!important;justify-content:center!important;background:rgba(19,32,52,.33)!important;backdrop-filter:blur(13px)!important}
+.cn-oficina.active{display:flex!important}
+.cn-oficina .cn-office-page{width:100%;max-width:570px;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);background:#f5f5f7;color:#1e293b;border:1px solid #fff;border-radius:26px;box-shadow:0 25px 70px rgba(15,23,42,.18);overflow:hidden;display:flex;flex-direction:column}
+.cn-oficina .cn-office-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:21px 18px 15px;background:rgba(255,255,255,.82);border-bottom:1px solid #e6eaf0}
+.cn-oficina .cn-office-header span{color:#8993a1;font-size:10px;font-weight:700;letter-spacing:1.1px}
+.cn-oficina .cn-office-header h2{font-size:27px;letter-spacing:-.8px;color:#202a37;margin:5px 0 0;font-weight:750}
+.cn-oficina .cn-office-exit{background:#eff2f6;border:1px solid #e1e7ed;color:#41536a;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:650}
+.cn-oficina .cn-office-body{padding:15px;display:flex;flex-direction:column;gap:15px;overflow-y:auto}
+.cn-oficina .cn-office-stepper{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;background:#e9edf3;border-radius:15px;padding:4px}
+.cn-oficina .cn-office-stepper button{font-size:11px;font-weight:640;padding:10px 3px;color:#68778b;background:transparent;border:0;border-radius:11px;min-height:42px}
+.cn-oficina .cn-office-stepper button.selected{background:#fff;color:#24344b;box-shadow:0 2px 10px rgba(15,23,42,.08)}
+.cn-oficina .cn-office-card{background:#fff;border:1px solid #e6eaf0;border-radius:20px;padding:17px;display:flex;flex-direction:column;gap:13px}
+.cn-oficina .cn-office-kicker{font-size:10px;color:#8290a2;letter-spacing:1px;font-weight:750}
+.cn-oficina .cn-office-card h3{font-size:21px;color:#1f2937;letter-spacing:-.4px;line-height:1.25;margin:0}
+.cn-oficina .cn-office-card p{font-size:13px;color:#64748b;line-height:1.55;margin:0}
+.cn-oficina .cn-office-list{display:flex;flex-direction:column;gap:8px;max-height:32dvh;overflow-y:auto}
+.cn-oficina .cn-office-row{display:flex;flex-direction:column;gap:4px;padding:12px;background:#f8fafc;border-radius:14px;border:1px solid #edf0f5}
+.cn-oficina .cn-office-row strong{font-size:14px;color:#293547}
+.cn-oficina .cn-office-row span{font-size:12px;color:#526277}
+.cn-oficina .cn-office-row small{font-size:11px;color:#8692a1}
+.cn-oficina .cn-office-btn{background:#fff;border:1px solid #dfe5ed;color:#334155;border-radius:13px;min-height:43px;font-weight:650;font-size:13px;padding:11px 13px;text-align:center}
+.cn-oficina .cn-office-btn.primary{background:#263449;color:#fff;border-color:#263449}
+.cn-oficina .cn-office-btn.subtle{background:#f0f4f8;color:#395270;border-color:#e0e8ef}
+.cn-oficina .cn-office-summary{display:flex;flex-direction:column;gap:8px;padding:13px;background:#f7f9fc;border-radius:13px;font-size:13px;color:#526277}
+</style>
 </head>
 <body>
 
@@ -4121,7 +4148,7 @@ function renderIosPrimaryNavigation(area='commercial'){
   ['Herramientas','settings',openMapToolsMenu,true]
  ]:[
   ['Mi jornada','calendar',()=>abrirCentroJornadaCN('jornada'),true],
-  ['Oficina','building',()=>abrirCentroJornadaCN('oficina'),true],
+  ['Oficina','building',()=>window.openCnOffice?.(),true],
   ['Clientes','contact',openGlobalClientSearchModal,true],
   ['Resultados','chart',openCommercialStatsModal,true],
   ['Liga','trophy',openLeagueRankingModal,true],
@@ -19193,6 +19220,7 @@ function openCommercialStatsModalLegacy() {
     };
   </script>
 <script src="./territorio-ios.js?v=1"></script>
+<script src="./oficina-ios.js?v=1"></script>
 <script src="./jornadas-seguimiento.js?v=konsor-v4"></script>
 <script src="./avisos-app.js?v=4"></script>
 <script>
