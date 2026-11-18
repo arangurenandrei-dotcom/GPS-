@@ -175,6 +175,7 @@ function renderGroup(body){
  const stats=e("div","koc-group-metrics",undefined,heading);
  const bookedHere=group.filter(x=>booked(x)),ready=group.filter(x=>clusterStatus(x)==="ready");
  [["Viviendas",group.length],["Confirmadas",bookedHere.length],["Por llamar",ready.length]].forEach(([label,v])=>{const box=e("div","koc-group-metric",undefined,stats);e("strong","",v,box);e("small","",label,box);});
+ renderGroupAgenda(body);
  const clients=card(body);title(clients,"Quiénes son los vecinos","Verde = agendado · Azul = pendiente · Gris = seguimiento u otra respuesta");
  group.forEach(item=>{
   const status=clusterStatus(item),line=e("div","koc-group-client "+status,undefined,clients);
@@ -186,7 +187,6 @@ function renderGroup(body){
   if(status==="ready")line.append(button("Llamar",()=>open(item),"koc-primary"));
   else if(status==="confirmed")line.append(button("Ver",()=>open(item),"koc-quiet"));
  });
- renderGroupAgenda(body);
 }
 function proximityLeads(candidates){
  if(typeof routeRecords!=="function")return [];
