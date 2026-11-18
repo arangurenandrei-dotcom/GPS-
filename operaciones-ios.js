@@ -50,6 +50,7 @@ function openZone(entry,mode){
 function zoneCard(root,entry){
  const {z}=entry;
  const c=card(root,z.town||"Pueblo sin indicar",z.sectorName||"Sector");
+ if(z.isHotMission){$("p","cnx-intro","Prioridad especial · obras en curso en la zona",c);if(z.bossNote)$("p","cnx-intro",z.bossNote,c);}
  const line=$("div","cnx-meta",undefined,c);
  chip(line,zoneStatus(z));chip(line,z.date||"Sin fecha");chip(line,z.comercial||"Sin asignar");
  actions(c,b("Abrir ficha",()=>openZone(entry),"primary"),b("Ver mapa",()=>openZone(entry,"map"),"outline"));
@@ -76,15 +77,15 @@ function openDay(){
  if(!shift)actions(status,b("Iniciar jornada",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("start"))openDay();},"primary"));
  else if(shift.status==="working")actions(status,b("Comida",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"outline"),b("Finalizar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("end"))openDay();},"outline"));
  else if(shift.status==="lunch")actions(status,b("Reanudar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"primary"));
- const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&!z.isHotMission&&z.status!=="completada");
+ const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&z.status!=="completada");
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
  const overdue=all.filter(({z})=>z.date&&z.date<today);
- const scheduled=all.filter(({z})=>z.date===today);
+ const scheduled=all.filter(({z})=>z.date===today).sort((a,b)=>Number(!!b.z.isHotMission)-Number(!!a.z.isHotMission));
  const future=all.filter(({z})=>!z.date||z.date>today);
  const k=$("div","cnx-metrics",undefined,body);
  metric(k,"Atrasados",overdue.length);metric(k,"Hoy",scheduled.length);metric(k,"Próximos",future.length);
  const display=(title,items)=>{$("h3","cnx-section",title,body);if(!items.length)$("p","cnx-empty","No hay sectores en este grupo.",body);else items.sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999")).slice(0,15).forEach(x=>zoneCard(body,x));};
- display("Pendientes anteriores",overdue);display("Planificados para hoy",scheduled);display("Próximos",future);
+ display("Planificados para hoy",scheduled);display("Pendientes anteriores",overdue);display("Próximos",future);
  const foot=card(body,"Al regresar","Cuando termines el trabajo de calle, entra en Oficina para revisar fichas y organizar llamadas.");
  actions(foot,b("Abrir Oficina",()=>{close();window.openCnOffice?.();},"primary"));
 }
