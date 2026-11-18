@@ -28,44 +28,8 @@ function street(i){
 }
 const sameStreet=(a,b)=>!!(street(a)&&street(a)===street(b)&&town(a)&&town(a)===town(b));
 const sameTown=(a,b)=>!!(town(a)&&town(a)===town(b));
-function geo(i){
- try{if(typeof routePoint!=="function")return null;
- const p=routePoint(i.z,i.c);return p&&Number.isFinite(p.lat)&&Number.isFinite(p.lon)?p:null;
- }catch{return null;}
-}
-function km(a,b){
- const p=geo(a),q=geo(b);
- if(!p||!q)return null;
- if(typeof routeDistance==="function")return routeDistance(p,q);
- return null;
-}
-function clusters(rows){
- const groups=new Map();
- rows.filter(callable).forEach(item=>{
-  const k=town(item)+"|"+street(item);
-  if(!town(item)||!street(item))return;
-  if(!groups.has(k))groups.set(k,[]);
-  groups.get(k).push(item);
- });
- return [...groups.values()].filter(group=>group.length>=2).sort((a,b)=>b.length-a.length||String(a[0].date).localeCompare(String(b[0].date)));
-}
-function existing(date,team){
- if(typeof routeRecords!=="function")return [];
- return routeRecords(date).filter(r=>Number(r.c?.obraEquipoInstalacion)===team||![2,3].includes(Number(r.c?.obraEquipoInstalacion))).map(r=>({z:r.z,c:r.c,slot:r.slot}));
-}
-function logistics(item,date,time,team){
- const index=SLOTS.findIndex(s=>s[0]===time),rows=existing(date,team).filter(r=>r.c!==item.c);
- const nearby=rows.filter(r=>r.slot===index-1||r.slot===index+1);
- const same=nearby.find(r=>sameStreet(item,r));
- if(same)return{rank:0,label:"Misma calle",detail:"Continuidad con una obra contigua · Equipo "+team};
- const exact=nearby.map(r=>({r,dist:km(item,r)})).filter(v=>v.dist!==null).sort((a,b)=>a.dist-b.dist)[0];
- if(exact&&exact.dist<=2)return{rank:1,label:"Muy cerca",detail:"A "+exact.dist.toFixed(1).replace(".",",")+" km en línea recta de una obra contigua (no tiempo de viaje)"};
- const townMatch=nearby.find(r=>sameTown(item,r));
- if(townMatch)return{rank:2,label:"Mismo municipio",detail:"Otra obra contigua en "+(item.z.town||"el municipio")};
- if(exact&&exact.dist<=8)return{rank:3,label:"Zona próxima",detail:"A "+exact.dist.toFixed(1).replace(".",",")+" km en línea recta; revisar desplazamiento"};
- if(rows.length)return{rank:5,label:"Hueco libre",detail:"Existen otras obras del equipo ese día; comprobar desplazamiento"};
- return{rank:4,label:"Jornada nueva",detail:"Equipo sin obras locales asignadas ese día"};
-}
+/* El nuevo motor no emplea radios arbitrarios de 2, 5 u 8 km.
+   Las rutas entre municipios requieren comprobación de carretera. */
 const candidateOf=i=>!!(i&&callable(i)&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim()));
 function firstRecommended(){
  const candidates=all().filter(candidateOf),groups=clusters(candidates);
@@ -134,12 +98,14 @@ function remoteTown(slot){
    if(v)known.add(norm(v));
   }else if(typeof value==="string"){
    const raw=value.trim();
-   if(raw.length<=45&&!/\d/.test(raw)&&!/\b(calle|avenida|avda|paseo|plaza|carretera|callejon|camino|cl\b)\b/i.test(raw))known.add(norm(raw));
-   else{
-    // Direcciones del tipo "Calle Mayor 7, 31592, Cintruénigo, Navarra".
-    const segments=raw.split(",").map(x=>x.trim()).filter(Boolean);
-    const tail=segments.filter(x=>!/\d/.test(x)&&!/\b(navarra|españa|spain|zaragoza|huesca)\b/i.test(x));
-    if(tail.length&&segments.length>=3)known.add(norm(tail[tail.length-1]));
+   const segments=raw.split(",").map(x=>x.trim()).filter(Boolean);
+   const postal=segments.map(x=>x.match(/^\d{5}\s+(.+)$/)).find(Boolean);
+   if(postal){known.add(norm(postal[1]));return;}
+   const provinces=/^(navarra|españa|spain|zaragoza|huesca|aragon|aragón)$/i;
+   const last=segments.filter(x=>!provinces.test(x));
+   const likely=last[last.length-1]||"";
+   if(likely&&!/\d/.test(likely)&&!/\b(calle|avenida|avda|paseo|plaza|carretera|callejon|camino|cl\b)\b/i.test(likely)&&likely.length<50){
+    known.add(norm(likely));
    }
   }
  });
