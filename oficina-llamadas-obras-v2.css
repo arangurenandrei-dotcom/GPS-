@@ -16,3 +16,19 @@
 .koc-slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}.koc-slot{font-size:12px;min-height:60px}.koc-slot.selected{background:#e4edff;border-color:#2864e9;color:#2057ce}
 .koc-closed{background:#fff;padding:15px;border:1px solid #e5ebf3;border-radius:18px}.koc-closed summary{font-weight:680;cursor:pointer;margin-bottom:8px}.koc-closed .koc-btn{margin-top:8px}.koc-message{color:#334155;white-space:pre-wrap;line-height:1.7;font-size:14px}.koc-error{background:#fff2f2;border:1px solid #fecaca;color:#9f1239;padding:14px;border-radius:13px;font-size:13px}
 @media(max-width:680px){.koc-overlay{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.koc-page{border-radius:0;width:100%;height:100%;max-height:100%}.koc-body{padding:17px}.koc-header{padding:18px}.koc-slots{grid-template-columns:1fr 1fr}}
+
+
+/* Agrupaciones y sugerencias de itinerario; no son reservas. */
+.koc-opportunity{display:flex;gap:11px;align-items:center;padding:12px;background:#f4f8ff;border:1px solid #dfeaff;border-radius:15px}
+.koc-opportunity-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px}
+.koc-opportunity-text strong{font-size:13px;color:#273a51}
+.koc-opportunity-text small{font-size:11px;line-height:1.5;color:#78879d}
+.koc-opportunity .koc-btn{width:auto;min-width:100px;min-height:39px;font-size:12px;padding:8px 10px}
+.koc-recommendations{display:flex;flex-direction:column;gap:7px}
+.koc-recommendations:empty{display:none}
+.koc-btn.koc-suggestion{background:#f8fafc;border:1px solid #dfe8f2;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;color:#27354a;font-weight:700}
+.koc-btn.koc-suggestion small{color:#79879d;font-size:11px;font-weight:480;line-height:1.4}
+.koc-slots .koc-btn.koc-slot{display:flex;flex-direction:column;gap:4px;line-height:1.3}
+.koc-slot small{font-size:11px;color:#7b899d}
+.koc-slot.selected small{color:#2859b3}
+@media(max-width:400px){.koc-opportunity{flex-direction:column;align-items:stretch}.koc-opportunity .koc-btn{width:100%}.koc-slots{grid-template-columns:1fr 1fr}}
