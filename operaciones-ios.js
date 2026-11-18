@@ -94,13 +94,13 @@ function openClients(){
     const {z,idx}=item;
     if(scope==="mine"&&z.comercial!==currentUserName)continue;
     (z.clients||[]).forEach((c,cidx)=>{
-      if(!c||(typeof isClientValidFilled==="function"&&!isClientValidFilled(c)))return;
+      if(!c||![c.name,c.phone,c.street].some(x=>String(x||"").trim()))return;
       const hay=norm([c.name,c.phone,c.street,c.locality,z.town,z.sectorName].join(" "));
       if(query&& !hay.includes(norm(query)))return;
       records.push({c,z,idx,cidx});
     });
   }
-  records.sort((a,b)=>(b.z.dumpDate||b.z.date||"").localeCompare(a.z.dumpDate||a.z.date||""));
+  records.sort((a,b)=>Number(!(a.c.name&&a.c.phone&&a.c.street))-Number(!(b.c.name&&b.c.phone&&b.c.street))||(b.z.dumpDate||b.z.date||"").localeCompare(a.z.dumpDate||a.z.date||""));
   summary.textContent=records.length+" fichas encontradas"+(records.length>80?" · mostrando las primeras 80":"");
   if(!records.length){$("p","cnx-empty","No hay coincidencias. Prueba con otra parte del nombre, teléfono o dirección.",results);return;}
   for(const item of records.slice(0,80)){
@@ -109,8 +109,10 @@ function openClients(){
     const badges=$("div","cnx-meta",undefined,row);
     chip(badges,z.sectorName||"Sector");
     if(c.phone)chip(badges,c.phone);
+    const missing=[!c.name?"nombre":null,!c.street?"calle":null,!c.phone?"teléfono":null].filter(Boolean);
+    if(missing.length)chip(badges,"Faltan: "+missing.join(", "));
     chip(badges,c.obraStatus==="no_apto"?"No apta":c.obraStatus==="agendada"?"Cita agendada":c.obraStatus==="realizada"?"Obra realizada":"Registrada");
-    actions(row,b("Abrir ficha",()=>{close();openDumpModal(idx);},"primary"),b("Localizar",()=>{close();focusMapOnTownOrZone(z.town,idx);},"outline"));
+    actions(row,b(missing.length?"Completar ficha":"Abrir ficha",()=>{close();openDumpModal(idx);},"primary"),b("Localizar",()=>{close();focusMapOnTownOrZone(z.town,idx);},"outline"));
   }
  }
  input.addEventListener("input",render);render();
