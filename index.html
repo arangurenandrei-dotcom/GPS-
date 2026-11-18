@@ -1305,6 +1305,23 @@ html,body{background:#f5f5f7;color:#17202c}
 #appContainer .modern-map-dock .modern-dock-row button{min-height:44px!important;font-size:12px!important}
 @media(prefers-reduced-motion:reduce){#appContainer .modal-overlay.active .modal-card{animation:none!important}}
 </style>
+<style id="iosStructuralMenusV6">
+/* Fase estructural: acciones de menú y ajustes coherentes con las tarjetas iOS. */
+#appContainer #workNavigationModal .modal-card{max-width:520px!important;background:#f5f5f7!important}
+#appContainer #workNavigationModal #workNavigationDescription{color:#667085!important;font-size:13px!important;line-height:1.5!important}
+#appContainer #workNavigationModal #workNavigationActions>button{
+ background:#fff!important;color:#1f2937!important;border:1px solid #e4e8ee!important;
+ border-radius:16px!important;min-height:66px!important;box-shadow:none!important}
+#appContainer #workNavigationModal #workNavigationActions>button>strong{color:#202b39!important;font-size:15px!important}
+#appContainer #workNavigationModal #workNavigationActions>button>span{color:#667085!important;font-size:12px!important}
+#appContainer #userProfileModal details.settings-section{background:white!important;border:1px solid #e4e8ee!important;border-radius:17px!important;margin-bottom:10px!important}
+#appContainer #userProfileModal details.settings-section>summary{color:#243247!important;padding:5px 2px!important}
+#appContainer #userProfileModal :is(input,select,textarea){background:#f7f8fa!important;color:#263244!important}
+#appContainer #briefingModal .modal-card,#appContainer #globalSearchModal .modal-card,#appContainer #commercialStatsModal .modal-card,
+#appContainer #leagueRankingModal .modal-card,#appContainer #dumpModal .modal-card{background:#f5f5f7!important}
+#appContainer .modal-card .modal-header-sticky{background:transparent!important}
+#appContainer .modal-card .modal-scrollable-content{background:transparent!important}
+</style>
 </head>
 <body>
 
@@ -2568,49 +2585,49 @@ function openHistoricalImportModal() {
 
 function openMapToolsMenu() {
   openWorkMenu(
-    '🛠 Herramientas del mapa',
+    'Herramientas del mapa',
     'Elige la vista o una herramienta.',
     [
       ...(currentUserName === 'Andrei (Jefe)' ? [[
-        '🏘️ Dibujar pueblo',
+        'Dibujar pueblo',
         'Delimitar manualmente un pueblo y guardarlo en Firebase.',
         iniciarDibujoPueblo
       ]] : []),
 
       [
-        '🛰 Satélite',
+        'Satélite',
         'Fotografía aérea.',
         () => setMapDisplay('satellite')
       ],
       ...(!isMikelTeamMember(currentUserName) ? [
       [
-        '🏘 Catastro',
+        'Catastro',
         'Parcelas y edificaciones.',
         () => setMapDisplay('catastro')
       ],
       [
-        '🗺 Satélite + Catastro',
+        'Satélite + catastro',
         'Superponer parcelas sobre la fotografía.',
         () => setMapDisplay('both')
       ],
       [
-        '📐 Medir superficie aproximada',
+        'Medir superficie aproximada',
         'Medición orientativa; pendiente de corregir su precisión.',
         startRoofMeasureMode
       ],
       ] : []),
       [
-        '🚫 Marcar zona no apta',
+        'Marcar zona no apta',
         'Dibujar una zona descartada y anotar el motivo.',
         startNoAptoZoneDrawing
       ],
       ...(currentUserName === 'Andrei (Jefe)' ? [[
-        '📥 Importar clientes',
+        'Importar clientes',
         'Preparar fichas históricas, revisar estados y duplicados antes de importarlas.',
         openHistoricalImportModal
       ]] : []),
       [
-        '🧭 Orientar al norte',
+        'Orientar al norte',
         'Restablecer la orientación del mapa.',
         resetMapNorth
       ]
@@ -4121,7 +4138,7 @@ function openWorkMenu(title, description, actions) {
       </div>
     `;
 
-    document.body.appendChild(modal);
+    document.getElementById('appContainer').appendChild(modal);
   }
 
   document.getElementById('workNavigationTitle').textContent = title;
@@ -4136,9 +4153,9 @@ function openWorkMenu(title, description, actions) {
     button.type = 'button';
 
     button.style.cssText =
-      'width:100%;text-align:left;padding:13px;border-radius:12px;' +
-      'border:1px solid rgba(255,255,255,0.18);' +
-      'background:#1e293b;color:#fff;cursor:pointer;';
+      'width:100%;text-align:left;padding:15px;border-radius:16px;' +
+      'border:1px solid #e4e8ee;' +
+      'background:#fff;color:#1f2937;cursor:pointer;box-shadow:none;';
 
     const heading = document.createElement('strong');
     heading.textContent = label;
@@ -4147,7 +4164,7 @@ function openWorkMenu(title, description, actions) {
     const detail = document.createElement('span');
     detail.textContent = explanation;
     detail.style.cssText =
-      'display:block;font-size:11px;color:#94a3b8;' +
+      'display:block;font-size:12px;color:#64748b;' +
       'line-height:1.4;margin-top:5px;';
 
     button.append(heading, detail);
