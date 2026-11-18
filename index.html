@@ -1322,6 +1322,29 @@ html,body{background:#f5f5f7;color:#17202c}
 #appContainer .modal-card .modal-header-sticky{background:transparent!important}
 #appContainer .modal-card .modal-scrollable-content{background:transparent!important}
 </style>
+<style id="iosMainNavigationV1">
+/* Pantalla principal v1 — tarjetas iOS, mapa intacto, navegación funcional. */
+#appContainer #hudNavGrid,#appContainer #workAreaSwitcher{display:none!important}
+#appContainer .hud-header{gap:9px!important;max-height:min(70dvh,550px);overflow-y:auto;scrollbar-width:none}
+#appContainer .hud-header::-webkit-scrollbar{display:none}
+#appContainer #iosPrimaryNavigation{display:flex;flex-direction:column;gap:10px;min-width:0}
+#appContainer .ios-main-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 1px}
+#appContainer .ios-main-heading>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+#appContainer .ios-eyebrow{font-size:9px;letter-spacing:1.3px;color:#8490a1;font-weight:750}
+#appContainer .ios-main-heading strong{color:#1c2532!important;font-size:18px;font-weight:760;letter-spacing:-.5px}
+#appContainer .ios-menu-toggle{background:rgba(241,244,248,.9);color:#405066;border:1px solid #e1e6ec;border-radius:999px;padding:8px 12px;min-width:74px;font-size:11px}
+#appContainer .ios-work-segment{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:rgba(231,235,242,.8);border:1px solid rgba(205,212,222,.5);border-radius:14px;padding:4px}
+#appContainer .ios-work-segment button{background:transparent;color:#69778a;border:0;border-radius:10px;min-height:38px;font-weight:630;font-size:12px}
+#appContainer .ios-work-segment button.selected{background:white;color:#192332;box-shadow:0 2px 8px rgba(15,23,42,.09)}
+#appContainer .ios-main-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#appContainer .ios-main-grid[hidden]{display:none!important}
+#appContainer .ios-nav-card{min-width:0;min-height:78px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:9px;text-align:left;background:rgba(255,255,255,.82);border:1px solid rgba(215,223,231,.9);border-radius:17px;padding:12px 10px;color:#1c2736;box-shadow:0 2px 8px rgba(16,24,40,.04);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#appContainer .ios-nav-card .ios-nav-icon{color:#3b4b60;display:flex;align-items:center}
+#appContainer .ios-nav-card>span:last-child{font-size:11px;line-height:1.25;font-weight:650;color:#202b39}
+#appContainer .ios-nav-card:active{transform:scale(.98);background:#f0f3f7}
+#appContainer .ios-nav-card:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+@media(max-width:370px){#appContainer .ios-main-grid{gap:6px}#appContainer .ios-nav-card{padding:10px 8px;min-height:72px}#appContainer .ios-nav-card>span:last-child{font-size:10px}}
+</style>
 </head>
 <body>
 
@@ -4006,6 +4029,89 @@ function abrirCentroJornadaCN(vista='jornada') {
   modal.classList.add('active');
 }
 
+
+/* Navegación principal v1: representación independiente, acciones ya existentes. */
+function renderIosPrimaryNavigation(area='commercial'){
+ const header=document.querySelector('#appContainer .hud-header');
+ if(!header)return;
+ let shell=document.getElementById('iosPrimaryNavigation');
+ if(!shell){
+   shell=document.createElement('section');
+   shell.id='iosPrimaryNavigation';
+   shell.setAttribute('aria-label','Navegación principal');
+   const shift=header.querySelector('.shift-bar');
+   if(shift)header.insertBefore(shell,shift);
+   else header.appendChild(shell);
+ }
+ const isAndrei=currentUserName==='Andrei (Jefe)';
+ const isMikel=isMikelTeamMember(currentUserName);
+ const direction=isAndrei&&area==='management';
+ shell.replaceChildren();
+ const top=document.createElement('div');
+ top.className='ios-main-heading';
+ const heading=document.createElement('div');
+ const eyebrow=document.createElement('span');eyebrow.className='ios-eyebrow';eyebrow.textContent='COMERCIAL NAVARRA';
+ const title=document.createElement('strong');title.textContent=direction?'Dirección del equipo':'Mi espacio de trabajo';
+ heading.append(eyebrow,title);
+ const toggle=document.createElement('button');toggle.type='button';toggle.className='ios-menu-toggle';
+ toggle.setAttribute('aria-expanded','true');toggle.textContent='Ocultar';
+ top.append(heading,toggle);shell.append(top);
+ if(isAndrei){
+  const seg=document.createElement('div');seg.className='ios-work-segment';
+  [['commercial','Mi trabajo'],['management','Dirección']].forEach(([key,label])=>{
+    const b=document.createElement('button');b.type='button';b.textContent=label;
+    if(area===key)b.className='selected';
+    b.onclick=()=>renderWorkNavigation(key);
+    seg.appendChild(b);
+  });
+  shell.appendChild(seg);
+ }
+ const grid=document.createElement('div');grid.className='ios-main-grid';
+ const choices=isMikel?[
+  ['Mi equipo','users',openAuditModal,currentUserRole==='jefe'],
+  ['Llamadas','phone',openFollowUpsModal,true],
+  ['Fichas','contact',openGlobalClientSearchModal,true],
+  ['Resultados','chart',openCommercialStatsModal,true]
+ ]:direction?[
+  ['Gestión del equipo','users',openTeamManagementMenu,true],
+  ['Comerciales','contact',openPeopleManagement,true],
+  ['Comparar equipos','chart',openMikelRadarModal,true],
+  ['Plan de dirección','calendar',openBossWorkMenu,true],
+  ['Herramientas','settings',openMapToolsMenu,true]
+ ]:[
+  ['Mi jornada','calendar',()=>abrirCentroJornadaCN('jornada'),true],
+  ['Oficina','building',()=>abrirCentroJornadaCN('oficina'),true],
+  ['Clientes','contact',openGlobalClientSearchModal,true],
+  ['Resultados','chart',openCommercialStatsModal,true],
+  ['Liga','trophy',openLeagueRankingModal,true],
+  ['Llamadas','phone',openFollowUpsModal,true]
+ ];
+ const paths={
+ calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 15h3"/>',
+ building:'<path d="M3 21V7l9-4 9 4v14M9 21v-6h6v6M3 11h18"/>',
+ contact:'<circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2M4 3h16"/>',
+ chart:'<path d="M4 20V4M4 20h17M8 16v-4M13 16V8M18 16V5"/>',
+ trophy:'<path d="M8 3h8v8a4 4 0 0 1-8 0V3ZM8 5H4v3a4 4 0 0 0 4 4M16 5h4v3a4 4 0 0 1-4 4M12 15v4M8 21h8"/>',
+ phone:'<path d="M6 3h4l1 5-2 2a15 15 0 0 0 5 5l2-2 5 1v4a3 3 0 0 1-3 3C9 21 3 15 3 6a3 3 0 0 1 3-3Z"/>',
+ users:'<circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M17 5a3 3 0 0 1 0 6M18 15c2 1 4 3 4 6"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'
+ };
+ choices.filter(x=>x[3]).forEach(([label,icon,action])=>{
+   const btn=document.createElement('button');btn.type='button';btn.className='ios-nav-card';
+   const glyph=document.createElement('span');glyph.className='ios-nav-icon';
+   glyph.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[icon]+'</svg>';
+   const t=document.createElement('span');t.textContent=label;
+   btn.append(glyph,t);btn.onclick=action;grid.appendChild(btn);
+ });
+ shell.append(grid);
+ toggle.onclick=()=>{
+   const hidden=grid.hidden;
+   grid.hidden=!hidden;
+   toggle.textContent=hidden?'Ocultar':'Mostrar';
+   toggle.setAttribute('aria-expanded',String(hidden));
+ };
+}
+
 function renderWorkNavigation(area) {
   setTimeout(() => refreshMapDock(area), 0);
   const nav = document.getElementById('hudNavGrid');
@@ -4052,6 +4158,7 @@ function renderWorkNavigation(area) {
     add('btnFollowUps', '📞 Llamadas', openFollowUpsModal);
     add('btnCommercialStats', '📈 Estadísticas', openCommercialStatsModal);
     add('btnClientManagement', '📂 Fichas', openGlobalClientSearchModal);
+    renderIosPrimaryNavigation(area);
     return;
   }
 
@@ -4091,6 +4198,7 @@ function renderWorkNavigation(area) {
       '#6d28d9'
     );
 
+    renderIosPrimaryNavigation(area);
     return;
   }
 
@@ -4100,6 +4208,7 @@ function renderWorkNavigation(area) {
   add('btnCommercialStats','📈 Mis resultados',openCommercialStatsModal,'#1d4ed8');
   add('btnLeagueRanking','🏆 Liga',openLeagueRankingModal,'#b45309');
 
+  renderIosPrimaryNavigation(area);
   try {
     updateMiPlanBadge();
   } catch (e) {
