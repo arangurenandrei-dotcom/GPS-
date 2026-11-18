@@ -55,9 +55,11 @@
       if (number !== target.number) return false;
 
       if (norm(town) && !Array.isArray(item.localities)) return false;
-      if (norm(town) && !item.localities.some(name =>
-        String(name).split('/').some(part => norm(part) === norm(town))
-      )) return false;
+      if (norm(town) && !item.localities.some(name => {
+        const valid = [name, ...String(name).split('/')].map(norm);
+        return [town, ...String(town).split('/')].map(norm)
+          .some(part => part && valid.includes(part));
+      })) return false;
 
       const raw = String(item.street || '').split(',')[0];
       const variants = raw.split('/').map(cleanStreet);
