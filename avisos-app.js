@@ -117,6 +117,9 @@
   const title=String(n.title||"").replace(/^\s*[🏠📋📅✅⚠️🔔]+\s*/u,"").trim();
   const body=String(n.body||"").replace(/^\s*[🏠📋📅✅⚠️🔔]+\s*/u,"").trim();
   if(n.category==='motivation'&&/liga/i.test(title))return{title:"Tu posición en la Liga",body,icon:"🏆"};
+  if(n.category==='motivation'&&/actividad|quincena|mes|semana/i.test(title))return{title:"Resumen de tu rendimiento",body,icon:"🏆"};
+  if(n.category==='daily'&&/10:00|todav[ií]a no has iniciado/i.test(title+' '+body))return{title:"Revisa el fichaje de entrada",body,icon:"🕘"};
+  if(n.category==='daily'&&/comida|pausa/i.test(title+' '+body))return{title:"Comprueba tu pausa de comida",body,icon:"🕘"};
   if(n.category==='quality')return{title:"Hay fichas por completar",body:body||"Abre las fichas incompletas y revisa los datos.",icon:"📋"};
   if(n.category==='zones')return{title:/asignad/i.test(title)?"Nueva zona de trabajo":title||"Zona de trabajo",body,icon:"📍"};
   if(n.category==='daily')return{title:title||"Tu jornada",body,icon:"🕘"};
@@ -160,7 +163,11 @@
   const h=node('div',undefined,'av-card-header'),symbol=node('div',undefined,'av-card-icon'),content=node('div',undefined,'av-card-text');
   const display=human(n);symbol.textContent=display.icon;
   content.append(node('h3',display.title),node('small',(categories[n.category]||'KONSOR')+' · '+date(n.createdAt)));
-  h.append(symbol,content);card.append(h,node('p',display.body,'av-copy'));
+  h.append(symbol,content);card.append(h);
+  const fullBody=display.body||'Sin detalles adicionales.';
+  const compact=fullBody.length>210?fullBody.slice(0,207).replace(/\s+\S*$/,'').trim()+'…':fullBody;
+  card.append(node('p',compact,'av-copy'));
+  if(fullBody.length>210){const more=node('details'),summary=node('summary','Leer detalles completos');more.append(summary,node('p',fullBody,'av-copy'));card.append(more);}
   if(task){taskAction(card,n);}
   else{
    const actions=node('div',undefined,'av-actions');
@@ -304,7 +311,7 @@
    profileStop=fs.onSnapshot(fs.doc(db,'usuarios',user.uid),snapshot=>{
     const profile=snapshot.data();if(!profile||profile.estado!=='aprobado'||!keys.includes(profile.userKey)){stop();return;}
     if(me?.key===profile.userKey)return;stop();me={uid:user.uid,key:profile.userKey,name:names[keys.indexOf(profile.userKey)]};mount();flush();
-    unsub.push(fs.onSnapshot(fs.query(fs.collection(db,'notification_messages'),fs.where('to','==',me.name),fs.orderBy('createdAt','desc'),fs.limit(100)),snap=>{notices=snap.docs.map(d=>({...d.data(),id:d.id}));badge();if(modal.classList.contains('active')&&tab==='inbox'&&!body.querySelector('textarea:focus'))render();},report));
+    unsub.push(fs.onSnapshot(fs.query(fs.collection(db,'notification_messages'),fs.where('to','==',me.name),fs.orderBy('createdAt','desc'),fs.limit(100)),snap=>{notices=snap.docs.map(d=>({...d.data(),id:d.id}));badge();if(modal.classList.contains('active')&&['inbox','tasks'].includes(tab)&&!body.querySelector('form'))render();},report));
     const rem=me.key==='jefe'?fs.query(fs.collection(db,'app_reminders'),fs.orderBy('updatedAt','desc'),fs.limit(100)):fs.query(fs.collection(db,'app_reminders'),fs.where('to','==',me.name),fs.orderBy('updatedAt','desc'),fs.limit(100));
     unsub.push(fs.onSnapshot(rem,snap=>{reminders=snap.docs.map(d=>({...d.data(),id:d.id}));if(modal.classList.contains('active')&&tab==='tasks'&&!body.querySelector('form'))render();},report));
     unsub.push(fs.onSnapshot(fs.doc(db,'notification_preferences',me.key),snap=>{preferences=snap.data()||{};},report));
