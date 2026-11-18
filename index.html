@@ -12097,7 +12097,7 @@ function renderCommercialWorkDay() {
           const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
           const data = await resp.json();
           const addr = data.address || {};
-          const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || 'Peralta';
+          const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || '';
           const road = addr.road || addr.pedestrian || addr.square || addr.footway || '';
           const houseNum = addr.house_number ? ` ${addr.house_number}` : '';
 
@@ -12115,7 +12115,7 @@ function renderCommercialWorkDay() {
             }
           }
         } catch (e) {
-          if (townInput && townInput.value === 'Detectando...') townInput.value = 'Peralta';
+          if (townInput && townInput.value === 'Detectando...') { townInput.value = ''; townInput.placeholder = 'Confirma el pueblo'; }
         }
       }
     }
@@ -18735,7 +18735,7 @@ function openCommercialStatsModalLegacy() {
 
       savedZones.forEach(z => {
         if (isMikelTeamMember(z.comercial) || z.isNoAptoZone) return;
-        const t = z.town || 'Peralta';
+        const t = z.town || 'Sin pueblo asignado';
         if (!townsMap[t]) {
           townsMap[t] = {
             name: t,
