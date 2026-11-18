@@ -62,9 +62,9 @@ function openDay(){
  const {body,close}=page("jornada","Mi jornada","Tu trabajo, ordenado por fecha y estado. Sin menús innecesarios.");
  const shift=currentShift();
  const status=card(body,"Estado de jornada",!shift?"Todavía no has iniciado el fichaje.":shift.status==="finished"?"Tu jornada está cerrada.":shift.status==="lunch"?"Estás en pausa de comida.":"Jornada en curso desde "+(shift.startTime||"la hora registrada")+".");
- if(!shift)actions(status,b("Iniciar jornada",()=>{document.getElementById("btnStartShift")?.click();setTimeout(openDay,450);},"primary"));
- else if(shift.status==="working")actions(status,b("Comida",()=>{document.getElementById("btnLunchShift")?.click();setTimeout(openDay,450);},"outline"),b("Finalizar",()=>{document.getElementById("btnEndShift")?.click();setTimeout(openDay,450);},"outline"));
- else if(shift.status==="lunch")actions(status,b("Reanudar",()=>{document.getElementById("btnLunchShift")?.click();setTimeout(openDay,450);},"primary"));
+ if(!shift)actions(status,b("Iniciar jornada",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("start"))openDay();},"primary"));
+ else if(shift.status==="working")actions(status,b("Comida",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"outline"),b("Finalizar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("end"))openDay();},"outline"));
+ else if(shift.status==="lunch")actions(status,b("Reanudar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"primary"));
  const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&!z.isHotMission&&z.status!=="completada");
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
  const overdue=all.filter(({z})=>z.date&&z.date<today);
