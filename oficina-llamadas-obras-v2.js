@@ -100,7 +100,7 @@ function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
 function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
 function open(item){current={key:item.key};view="client";draw();}
-function next(){const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||firstRecommended()||remaining[0];if(row)open(row);else{view="list";draw();}}
+function next(){const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||remaining.find(i=>i.key===firstRecommended()?.key)||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
  e("small","",(item.z.town||"Sin municipio")+" · "+(item.c.street||"Sin calle"),txt);
@@ -122,7 +122,7 @@ function draw(){
   todo.forEach(i=>row(list,i));
   if(!todo.length)e("p","koc-muted","No hay llamadas vencidas. Los recordatorios futuros permanecen guardados.",list);
   if(deferred.length){const waits=e("details","koc-closed",undefined,body);e("summary","","Seguimientos futuros ("+deferred.length+")",waits);deferred.forEach(i=>row(waits,i));}
-  const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+(items.length-todo.length)+")",details);items.filter(i=>!pending(i)).forEach(i=>row(details,i));
+  const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+items.filter(i=>!pending(i)).length+")",details);items.filter(i=>!pending(i)).forEach(i=>row(details,i));
   return;
  }
  const item=resolve();if(!item){view="list";current=null;draw();return;}
@@ -136,6 +136,7 @@ function draw(){
   const group=all().filter(x=>callable(x)&&sameStreet(item,x));
   if(group.length>1){const hint=card(body);e("strong","","Oportunidad · Misma calle",hint);e("p","koc-muted",group.length+" viviendas por llamar en esta calle. Conviene proponer franjas del mismo día y equipo antes de abrir otra ruta.",hint);}
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
+  if(!callable(item)&&pending(item)){const nextAt=new Date(Number(c.nextContactAt)).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});e("p","koc-muted","Seguimiento programado para "+nextAt+". Puedes consultar la ficha sin adelantar la llamada.",body);}
   if(booked(item)){
    body.append(button("Ver confirmación y WhatsApp",()=>{view="whatsapp";draw();},"koc-primary"));
    body.append(button("Cambiar fecha",()=>{chosenDate=c.obraDate||tomorrow();view="calendar";draw();},"koc-quiet"));
@@ -203,7 +204,7 @@ function draw(){
   const msg=message(c,z);
   const note=card(body);e("p","koc-message",msg,note);
   const phone=normalizePhone(c.phone);
-  if(phone)body.append(button("Abrir WhatsApp",()=>window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank","noopener"),"koc-green"));
+  if(phone)body.append(button("Abrir WhatsApp",()=>{const a=document.createElement("a");a.href="https://wa.me/"+phone+"?text="+encodeURIComponent(msg);a.target="_blank";a.rel="noopener noreferrer";document.body.append(a);a.click();a.remove();},"koc-green"));
   else body.append(show("El número no es válido. Corrige el teléfono antes de abrir WhatsApp."));
   body.append(button(c.whatsappObraEnviadoAt?"Enviado · "+new Date(c.whatsappObraEnviadoAt).toLocaleString("es-ES"):"Marcar WhatsApp como enviado",()=>markWhatsApp(),""));
   body.append(button("Siguiente cliente",next,"koc-primary"));
