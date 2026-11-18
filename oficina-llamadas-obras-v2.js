@@ -101,72 +101,108 @@ async function renderGroupAgenda(body,insertBefore=null){
  const ticket=++clusterSeq,group=groupRows();
  const host=e("section","koc-card koc-group-schedule",undefined,body);
  if(insertBefore&&insertBefore.parentNode===body)body.insertBefore(host,insertBefore);
- e("h3","","Agenda del equipo",host);
- e("p","koc-muted","Primero se muestran las reservas confirmadas. Las propuestas azules aún no son citas: confirma cada cliente por teléfono.",host);
- const controls=e("div","koc-group-controls",undefined,host);
- const dateInput=e("input","koc-input",undefined,controls);dateInput.type="date";dateInput.min=tomorrow();dateInput.value=clusterDate;
- const teamInput=e("select","koc-input",undefined,controls);
- for(const num of [2,3]){const option=e("option","","Equipo "+num,teamInput);option.value=String(num);}
- teamInput.value=String(clusterTeam);
- const reload=()=>{clusterDate=dateInput.value;clusterTeam=Number(teamInput.value);renderGroupAgendaReplace(body,host);};
- dateInput.onchange=reload;teamInput.onchange=reload;
- const summary=e("p","koc-muted","Comprobando las cuatro franjas…",host);
- const grid=e("div","koc-group-grid",undefined,host);
+ e("h3","","Plan del día · Dos equipos",host);
+ e("p","koc-muted","Toca a cada vecino para llamarlo. Verde: reserva guardada. Azul: propuesta que avanzará automáticamente si otro vecino no acepta.",host);
+ const controls=e("div","koc-group-controls koc-group-date-only",undefined,host);
+ const dateInput=e("input","koc-input",undefined,controls);
+ dateInput.type="date";dateInput.min=tomorrow();dateInput.value=clusterDate;dateInput.setAttribute("aria-label","Día de las obras");
+ const dButtons=e("div","koc-day-actions",undefined,controls);
+ const shiftDate=delta=>{
+   const d=new Date((clusterDate||tomorrow())+"T12:00:00");d.setDate(d.getDate()+delta);
+   const next=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+   if(next<tomorrow())return;clusterDate=next;renderGroupAgendaReplace(body,host);
+ };
+ dButtons.append(button("‹ Día anterior",()=>shiftDate(-1),"koc-quiet"));
+ dButtons.append(button("Día siguiente ›",()=>shiftDate(1),"koc-quiet"));
+ dateInput.onchange=()=>{clusterDate=dateInput.value;renderGroupAgendaReplace(body,host);};
+ const summary=e("p","koc-muted","Comprobando disponibilidad de ambos equipos…",host);
+ const board=e("div","koc-dual-board",undefined,host);
  if(!/^\d{4}-\d{2}-\d{2}$/.test(clusterDate)||clusterDate<tomorrow()||new Date(clusterDate+"T12:00:00").getDay()===0){
   summary.textContent="Elige una fecha futura de lunes a sábado.";return;
  }
  let remote=null,error=null;
- try{remote=await consultarKonsorFecha(clusterDate);}
+ try{if(typeof consultarKonsorFecha!=="function")throw Error("No está disponible la consulta de KONSOR.");remote=await consultarKonsorFecha(clusterDate);}
  catch(err){error=err;}
  if(ticket!==clusterSeq||view!=="group"||!host.isConnected)return;
- const slots=Array.isArray(remote?.[String(clusterTeam)])?remote[String(clusterTeam)]:[];
  const allBooked=typeof routeRecords==="function"?routeRecords(clusterDate):[];
- const teamBooked=allBooked.filter(r=>Number(r.c?.obraEquipoInstalacion)===clusterTeam||![2,3].includes(Number(r.c?.obraEquipoInstalacion)));
- let confirmed=0,proposed=0;
- const used=new Set();
+ const occupiedBy=(slot,team)=>allBooked.find(r=>r.slot===slot&&(![2,3].includes(Number(r.c?.obraEquipoInstalacion))||Number(r.c?.obraEquipoInstalacion)===team));
+ const calendar=new Map();
+ for(const team of [2,3])for(let idx=0;idx<SLOTS.length;idx++){
+  const [from,to]=SLOTS[idx],server=remote?.[String(team)]?.find(x=>x.horario===from+"-"+to);
+  const confirmed=occupiedBy(idx,team);
+  calendar.set(team+"|"+idx,{team,idx,from,to,confirmed,available:!confirmed&&server?.libre===true&&!!remote});
+ }
+ const freeCandidates=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x));
+ // Rellenamos primero la misma secuencia del Equipo 2 y después la del 3.
+ // No se modifica ninguna reserva anterior: el reparto azul solo existe en pantalla.
+ const availablePositions=[...calendar.values()].filter(x=>x.available).sort((a,b)=>a.team-b.team||a.idx-b.idx);
+ const proposed=new Map(),used=new Set();
+ for(const pos of availablePositions){
+  const item=freeCandidates.find(x=>!used.has(x.key));
+  if(!item)break;
+  proposed.set(pos.team+"|"+pos.idx,item);used.add(item.key);
+ }
+ const header=e("div","koc-dual-head",undefined,board);
+ e("span","","Horario",header);e("strong","","Equipo 2",header);e("strong","","Equipo 3",header);
+ let confirmedCount=0,proposalCount=0;
  SLOTS.forEach(([from,to],idx)=>{
-  const cell=e("section","koc-group-slot",undefined,grid);
-  e("span","koc-slot-hour",from+" – "+to,cell);
-  const reservation=teamBooked.find(r=>r.slot===idx);
-  const server=slots.find(r=>r.horario===from+"-"+to);
-  if(reservation){
-   const isOwn=group.find(x=>x.c===reservation.c);
-   cell.classList.add("confirmed");confirmed++;
-   e("strong","",reservation.c?.name||"Obra confirmada",cell);
-   e("small","",(reservation.c?.street||"Sin dirección")+" · "+(reservation.z?.town||""),cell);
-   e("span","koc-slot-state","CONFIRMADA",cell);
-   if(isOwn)cell.append(button("Ver ficha",()=>open(isOwn),"koc-quiet"));
-   return;
-  }
-  if(!remote){cell.classList.add("unverified");e("strong","","Sin verificar",cell);e("small","",error?.message||"No se pudo consultar KONSOR",cell);return;}
-  if(server?.libre!==true){cell.classList.add("occupied");e("strong","","Ocupado / no disponible",cell);e("small","","La disponibilidad del equipo no permite reservar.",cell);return;}
-  const eligible=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x)&&!used.has(x.key));
-  const candidate=eligible[0];
-  if(candidate){
-   used.add(candidate.key);proposed++;
-   cell.classList.add("suggested");
-   e("strong","",candidate.c.name||"Cliente pendiente",cell);
-   e("small","",candidate.c.street||"Sin dirección",cell);
-   e("span","koc-slot-state","PROPUESTA · POR LLAMAR",cell);
-   cell.append(button("Llamar para esta franja",()=>preferGroupDate(candidate,clusterDate,from,clusterTeam),"koc-primary"));
-  }else{
-   cell.classList.add("free");e("strong","","Hueco libre",cell);e("small","","Disponible según KONSOR. Sin cliente asignado.",cell);
+  const row=e("div","koc-dual-row",undefined,board);
+  e("div","koc-dual-time",from+" – "+to,row);
+  for(const team of [2,3]){
+   const pos=calendar.get(team+"|"+idx);
+   const cell=e("section","koc-dual-cell",undefined,row);
+   if(pos.confirmed){
+    const client=pos.confirmed.c,own=group.find(x=>x.c===client);
+    confirmedCount++;
+    cell.classList.add("confirmed");
+    e("strong","",client?.name||"Obra confirmada",cell);
+    e("small","",client?.street||pos.confirmed.z?.town||"Sin dirección",cell);
+    e("span","koc-dual-state","CONFIRMADA",cell);
+    if(own)cell.append(button("Ver ficha",()=>open(own),"koc-quiet"));
+   }else if(!remote){
+    cell.classList.add("unverified");e("strong","","Sin verificar",cell);
+   }else if(!pos.available){
+    cell.classList.add("occupied");e("strong","","Ocupado",cell);
+    e("small","","No disponible",cell);
+   }else{
+    const item=proposed.get(team+"|"+idx);
+    if(item){
+     proposalCount++;cell.classList.add("suggested");
+     e("strong","",item.c.name||"Sin nombre",cell);
+     e("small","",item.c.street||"Sin calle",cell);
+     e("span","koc-dual-state","POR LLAMAR",cell);
+     cell.append(button("Llamar",()=>preferGroupDate(item,clusterDate,from,team),"koc-primary"));
+    }else{
+     cell.classList.add("free");e("strong","","Libre",cell);e("small","","Sin propuesta",cell);
+    }
+   }
   }
  });
- summary.textContent=error?"No se pudo verificar la disponibilidad: no se propondrán reservas.":confirmed+" obras confirmadas · "+proposed+" propuestas para llamar · Equipo "+clusterTeam;
+ summary.textContent=error?"No hay disponibilidad verificada: "+(error.message||"Fallo de conexión")+". No se proponen huecos.":confirmedCount+" obras confirmadas · "+proposalCount+" vecinos propuestos · "+freeCandidates.length+" por llamar en total";
  const remainder=group.filter(x=>clusterStatus(x)==="ready"&&!used.has(x.key));
  if(remainder.length){
-  const rest=e("div","koc-group-remainder",undefined,host);
-  e("strong","",remainder.length+" viviendas pendientes para otras franjas o días",rest);
-  remainder.forEach(x=>{const r=e("div","koc-remain-row",undefined,rest);e("span","",(x.c.name||"Sin nombre")+" · "+x.c.street,r);r.append(button("Ver ficha",()=>open(x),"koc-quiet"));});
+  const extra=e("div","koc-group-remainder",undefined,host);
+  e("strong","",remainder.length+" vecinos para intentar en otro día o hueco",extra);
+  remainder.forEach(item=>{
+   const line=e("div","koc-remain-row",undefined,extra);
+   e("span","",(item.c.name||"Sin nombre")+" · "+(item.c.street||"Sin dirección"),line);
+   line.append(button("Llamar",()=>open(item),"koc-quiet"));
+  });
  }
- if(group.some(x=>clusterStatus(x)==="deferred"))e("p","koc-muted","Algunos vecinos tienen un seguimiento programado para más adelante y no se proponen para llamar ahora.",host);
+ const bookedElsewhere=group.filter(x=>booked(x)&&x.c.obraDate!==clusterDate);
+ if(bookedElsewhere.length){
+  const other=e("details","koc-other-days",undefined,host);
+  e("summary","",bookedElsewhere.length+" vecinos ya agendados en otros días",other);
+  bookedElsewhere.forEach(item=>{const line=e("p","koc-muted",(item.c.name||"Sin nombre")+" · "+item.c.obraDate+" "+(item.c.obraTime||"")+" · Equipo "+(item.c.obraEquipoInstalacion||"sin asignar"),other);});
+ }
+ if(group.some(x=>clusterStatus(x)==="deferred"))e("p","koc-muted","Los contactos con seguimiento futuro no ocupan propuestas hasta que llegue su fecha de llamada.",host);
 }
 function renderGroupAgendaReplace(body,previous){
  const next=previous?.nextSibling||null;
  if(previous)previous.remove();
  renderGroupAgenda(body,next);
 }
+
 function renderGroup(body){
  const group=groupRows();
  if(!group.length){clusterFocus=null;view="list";draw();return;}
@@ -178,7 +214,7 @@ function renderGroup(body){
  const bookedHere=group.filter(x=>booked(x)),ready=group.filter(x=>clusterStatus(x)==="ready");
  [["Viviendas",group.length],["Confirmadas",bookedHere.length],["Por llamar",ready.length]].forEach(([label,v])=>{const box=e("div","koc-group-metric",undefined,stats);e("strong","",v,box);e("small","",label,box);});
  renderGroupAgenda(body);
- const clients=card(body);title(clients,"Quiénes son los vecinos","Verde = agendado · Azul = pendiente · Gris = seguimiento u otra respuesta");
+ const clients=e("details","koc-card koc-neighbors-details",undefined,body);e("summary","","Ver las "+group.length+" fichas de la calle",clients);
  group.forEach(item=>{
   const status=clusterStatus(item),line=e("div","koc-group-client "+status,undefined,clients);
   const content=e("div","koc-group-client-content",undefined,line);
@@ -334,7 +370,7 @@ function draw(opts={}){
   e("strong","","Recomendación logística",advice);
   e("p","koc-muted","Priorizaremos los huecos junto a obras del mismo equipo y la misma calle. Puedes elegir otra fecha si el cliente no puede.",advice);
   const recButton=button("Buscar las mejores opciones de los próximos 7 días",()=>recommendDays(item,body),"koc-primary");
-  advice.append(recButton);
+  if(!clusterFocus)advice.append(recButton);
   const proposals=e("div","koc-recommendations",undefined,advice);proposals.id="koc-recommendations";
   const board=e("div","koc-slots",undefined,body);
   const info=e("p","koc-muted","",body);
