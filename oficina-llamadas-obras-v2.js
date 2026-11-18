@@ -238,28 +238,30 @@ async function findClusterDay(body,host,indicator,automatic=false){
    }
    const plans=buildSafeClusterAssignments(rows, date,remote,previous);
    const planCounts={2:plans.filter(p=>p.team===2).length,3:plans.filter(p=>p.team===3).length};
-   return{date,teamFree,planCounts};
+   return{date,teamFree,planCounts,alreadyBusy:previous.length};
   }));
   batch.forEach((result,i)=>{
    if(result.status!=="fulfilled")return;
    checked++;
-   const {date,teamFree,planCounts}=result.value;
+   const {date,teamFree,planCounts,alreadyBusy}=result.value;
    for(const team of [2,3]){
     const free=teamFree[team],count=free.filter(Boolean).length;
     let current=0,maxRun=0;
     free.forEach(yes=>{current=yes?current+1:0;maxRun=Math.max(maxRun,current);});
     const total=teamFree[2].filter(Boolean).length+teamFree[3].filter(Boolean).length;
-    options.push({date,team,count,total,maxRun,safe:planCounts[team]||0,dayIndex:offset+i});
+    options.push({date,team,count,total,maxRun,safe:planCounts[team]||0,alreadyBusy,dayIndex:offset+i});
    }
   });
   if(token!==clusterSearchSeq||view!=="group"||!host.isConnected||clusterFocus?.town+"|"+clusterFocus?.street!==focusKey)return;
  }
  if(!options.length){indicator.textContent="No se pudieron verificar fechas. Mantengo el día actual; no se ofrecen huecos sin confirmar disponibilidad.";return;}
- options.sort((a,b)=>b.safe-a.safe||b.maxRun-a.maxRun||b.count-a.count||a.dayIndex-b.dayIndex||a.team-b.team);
+ // Primero completar el día anterior viable, evitando abrir otro mientras sea posible.
+ // En esa fecha, aprovechar el equipo con más huecos compatibles y continuidad.
+ options.sort((a,b)=>(a.safe===0)-(b.safe===0)||a.dayIndex-b.dayIndex||b.safe-a.safe||b.maxRun-a.maxRun||b.alreadyBusy-a.alreadyBusy||a.team-b.team);
  const best=options[0],target=Math.min(4,rows.length);
  if(best.safe===0){clusterPlanNotice="No se han encontrado franjas con proximidad verificable en los "+checked+" días consultados. No recomendaré desplazamientos sin conocer las ubicaciones de las otras obras.";indicator.textContent=clusterPlanNotice;return;}
- const msg=best.safe>=target?"Jornada agrupable por cercanía":"Mejor alternativa compatible encontrada";
- clusterPlanNotice=msg+": "+best.date+" · Equipo "+best.team+" · "+best.safe+" propuestas cercanas de "+best.count+" huecos libres · "+checked+" días consultados. Son propuestas, no reservas.";
+ const msg=best.safe>=target?"Jornada agrupable de cuatro viviendas":"Completar primera jornada compatible";
+ clusterPlanNotice=msg+": "+best.date+" · Equipo "+best.team+" · "+best.safe+" propuestas del mismo pueblo de "+best.count+" huecos disponibles. Se priorizan las fechas anteriores. Son propuestas, no reservas.";
  indicator.textContent=clusterPlanNotice;
  if(best.date!==clusterDate||automatic){clusterDate=best.date;clusterTeam=best.team;renderGroupAgendaReplace(body,host);}
 }
@@ -591,8 +593,7 @@ async function availableChoices(item,d){
   if(slot?.libre!==true||localBusy)return;
   const fit=slotRouteFit(item,d,team,slotIdx,data,old);
   if(!fit.ok)return;
-  const plan=logistics(item,d,from,team);
-  choices.push({date:d,time:from,to,team,...plan});
+  choices.push({date:d,time:from,to,team,rank:fit.category,label:fit.category===0?"Encaja con la siguiente obra":fit.category===1?"Completar localidad":"Jornada nueva",detail:fit.reason});
  }));
  return choices.sort((a,b)=>a.rank-b.rank||a.time.localeCompare(b.time)||a.team-b.team);
 }
@@ -606,7 +607,7 @@ async function recommendDays(item,body){
   const results=await Promise.allSettled(days.map(d=>availableChoices(item,d)));
   if(ticket!==seq||view!=="calendar"||resolve()?.key!==item.key)return;
   const options=results.flatMap((r,i)=>r.status==="fulfilled"?r.value.map(v=>({...v,day:i})):[])
-   .sort((a,b)=>a.rank-b.rank||a.day-b.day||a.time.localeCompare(b.time)).slice(0,8);
+   .sort((a,b)=>a.day-b.day||a.rank-b.rank||a.time.localeCompare(b.time)).slice(0,8);
   panel.replaceChildren();
   if(!options.length){e("p","koc-muted","No hay propuestas verificadas para los próximos siete días. Prueba otra fecha manualmente.",panel);return;}
   options.forEach(o=>{
