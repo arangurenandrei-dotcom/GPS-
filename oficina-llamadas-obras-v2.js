@@ -139,7 +139,7 @@ async function renderGroupAgenda(body){
   }
   if(!remote){cell.classList.add("unverified");e("strong","","Sin verificar",cell);e("small","",error?.message||"No se pudo consultar KONSOR",cell);return;}
   if(server?.libre!==true){cell.classList.add("occupied");e("strong","","Ocupado / no disponible",cell);e("small","","La disponibilidad del equipo no permite reservar.",cell);return;}
-  const eligible=group.filter(x=>clusterStatus(x)==="ready"&&!used.has(x.key));
+  const eligible=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x)&&!used.has(x.key));
   const candidate=eligible[0];
   if(candidate){
    used.add(candidate.key);proposed++;
@@ -181,6 +181,7 @@ function renderGroup(body){
   const content=e("div","koc-group-client-content",undefined,line);
   e("strong","",(item.c.name||"Sin nombre")+" · "+(item.c.street||"Sin dirección"),content);
   let desc=status==="confirmed"?"CONFIRMADA · "+(item.c.obraDate||"")+" "+(item.c.obraTime||"")+" · Equipo "+(item.c.obraEquipoInstalacion||"?"):status==="ready"?"PENDIENTE DE LLAMADA":status==="deferred"?"SEGUIMIENTO PENDIENTE":"NO DISPONIBLE";
+  if(status==="ready"&&!candidateOf(item))desc="FICHA INCOMPLETA · Revisa nombre, teléfono y dirección";
   e("small","",desc,content);
   if(status==="ready")line.append(button("Llamar",()=>open(item),"koc-primary"));
   else if(status==="confirmed")line.append(button("Ver",()=>open(item),"koc-quiet"));
@@ -247,7 +248,7 @@ function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
 function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
 function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};view="client";draw();}
-function next(){const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||remaining.find(i=>i.key===firstRecommended()?.key)||remaining[0];if(row)open(row);else{view="list";draw();}}
+function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||remaining.find(i=>i.key===firstRecommended()?.key)||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
  e("small","",(item.z.town||"Sin municipio")+" · "+(item.c.street||"Sin calle"),txt);
