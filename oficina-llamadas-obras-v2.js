@@ -115,6 +115,67 @@ function remoteSlotLocations(slot){
  return [...new Set(items.map(occupiedLocationText).filter(Boolean))].slice(0,3);
 }
 
+/* Comprobación conservadora de cercanía a las obras contiguas del mismo equipo.
+   Mismo municipio o coordenadas conocidas a <=5 km en línea recta. No calcula
+   tiempos reales en carretera; una ubicación desconocida no se presume cercana. */
+function slotRouteFit(item,date,team,slotIdx,remote,localRows,extraSuggested=[]){
+ const local=localRows||[];
+ const source=remote?.[String(team)];
+ if(!Array.isArray(source))return{ok:false,reason:"Sin disponibilidad del equipo"};
+ const neighbors=[];
+ for(const offset of [-1,1]){
+  const pos=slotIdx+offset;
+  if(pos<0||pos>=SLOTS.length)continue;
+  const placed=extraSuggested.find(x=>x.team===team&&x.idx===pos);
+  if(placed){neighbors.push({kind:"internal",item:placed.item});continue;}
+  const rows=local.filter(r=>r.slot===pos&&(![2,3].includes(Number(r.c?.obraEquipoInstalacion))||Number(r.c.obraEquipoInstalacion)===team));
+  if(rows.length){rows.forEach(r=>neighbors.push({kind:"local",item:{z:r.z,c:r.c}}));continue;}
+  const [from,to]=SLOTS[pos],slot=source.find(x=>x.horario===from+"-"+to);
+  if(!slot){return{ok:false,reason:"No consta la franja contigua del equipo"};}
+  if(slot.libre!==true)neighbors.push({kind:"server",places:remoteSlotLocations(slot)});
+ }
+ if(!neighbors.length)return{ok:true,reason:"Ruta libre, sin obra contigua"};
+ for(const neighbor of neighbors){
+  if(neighbor.kind==="server"){
+   if(!neighbor.places?.length)return{ok:false,reason:"Obra contigua sin localidad verificable"};
+   // No se aceptan topónimos parciales, como "Pamplona" dentro de "Cuenca de Pamplona".
+   const target=town(item);
+   if(!neighbor.places.every(p=>{
+    const normalized=norm(p).replace(/[·,]/g," ").replace(/\s+/g," ").trim();
+    return normalized===target||normalized.endsWith(" "+target)||normalized.startsWith(target+" ");
+   }))return{ok:false,reason:"La obra contigua es de otra localidad o no tiene una ubicación inequívoca"};
+  }else{
+   const other=neighbor.item;
+   if(sameTown(item,other))continue;
+   const distance=km(item,other);
+   if(distance===null)return{ok:false,reason:"Faltan coordenadas para comprobar el cambio de municipio"};
+   if(distance>5)return{ok:false,reason:"La obra contigua queda a "+distance.toFixed(1)+" km en línea recta"};
+  }
+ }
+ return{ok:true,reason:"Cercanía preliminar compatible; comprobar tiempo de conducción"};
+}
+function buildSafeClusterAssignments(group,date,remote,local){
+ const free=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x));
+ const used=new Set(),suggestions=[];
+ const available=[];
+ for(const team of [2,3]){
+  for(let idx=0;idx<SLOTS.length;idx++){
+   const [from,to]=SLOTS[idx],status=remote?.[String(team)]?.find(x=>x.horario===from+"-"+to);
+   const occupied=local.some(r=>r.slot===idx&&(![2,3].includes(Number(r.c?.obraEquipoInstalacion))||Number(r.c.obraEquipoInstalacion)===team));
+   if(status?.libre===true&&!occupied)available.push({team,idx});
+  }
+ }
+ // Agrupa primero dentro de un mismo equipo; los slots vetados por distancia no
+ // se presentan como propuestas aunque técnicamente estén libres.
+ for(const spot of available){
+  const candidate=free.find(x=>!used.has(x.key)&&slotRouteFit(x,date,spot.team,spot.idx,remote,local,suggestions).ok);
+  if(!candidate)continue;
+  used.add(candidate.key);
+  suggestions.push({...spot,item:candidate});
+ }
+ return suggestions;
+}
+
 /* Busca fechas que permiten agrupar hasta cuatro vecinos por un mismo equipo.
    No confirma ni guarda reservas; solo consume la disponibilidad del servidor. */
 async function findClusterDay(body,host,indicator,automatic=false){
@@ -139,27 +200,29 @@ async function findClusterDay(body,host,indicator,automatic=false){
      return state?.libre===true&&!occupied;
     });
    }
-   return{date,teamFree};
+   const plans=buildSafeClusterAssignments(rows, date,remote,previous);
+   const planCounts={2:plans.filter(p=>p.team===2).length,3:plans.filter(p=>p.team===3).length};
+   return{date,teamFree,planCounts};
   }));
   batch.forEach((result,i)=>{
    if(result.status!=="fulfilled")return;
    checked++;
-   const {date,teamFree}=result.value;
+   const {date,teamFree,planCounts}=result.value;
    for(const team of [2,3]){
     const free=teamFree[team],count=free.filter(Boolean).length;
     let current=0,maxRun=0;
     free.forEach(yes=>{current=yes?current+1:0;maxRun=Math.max(maxRun,current);});
     const total=teamFree[2].filter(Boolean).length+teamFree[3].filter(Boolean).length;
-    options.push({date,team,count,total,maxRun,dayIndex:offset+i});
+    options.push({date,team,count,total,maxRun,safe:planCounts[team]||0,dayIndex:offset+i});
    }
   });
   if(token!==clusterSearchSeq||view!=="group"||!host.isConnected||clusterFocus?.town+"|"+clusterFocus?.street!==focusKey)return;
  }
  if(!options.length){indicator.textContent="No se pudieron verificar fechas. Mantengo el día actual; no se ofrecen huecos sin confirmar disponibilidad.";return;}
- options.sort((a,b)=>b.maxRun-a.maxRun||b.count-a.count||b.total-a.total||a.dayIndex-b.dayIndex||a.team-b.team);
+ options.sort((a,b)=>b.safe-a.safe||b.maxRun-a.maxRun||b.count-a.count||a.dayIndex-b.dayIndex||a.team-b.team);
  const best=options[0],target=Math.min(4,rows.length);
- const msg=best.count>=target?"Jornada agrupable":"Mejor alternativa encontrada";
- clusterPlanNotice=msg+": "+best.date+" · Equipo "+best.team+" · "+best.count+" franjas libres ("+best.maxRun+" seguidas) · "+checked+" días consultados. Son propuestas, no reservas.";
+ const msg=best.safe>=target?"Jornada agrupable por cercanía":"Mejor alternativa compatible encontrada";
+ clusterPlanNotice=msg+": "+best.date+" · Equipo "+best.team+" · "+best.safe+" propuestas cercanas de "+best.count+" huecos libres · "+checked+" días consultados. Son propuestas, no reservas.";
  indicator.textContent=clusterPlanNotice;
  if(best.date!==clusterDate||automatic){clusterDate=best.date;clusterTeam=best.team;renderGroupAgendaReplace(body,host);}
 }
@@ -169,7 +232,7 @@ async function renderGroupAgenda(body,insertBefore=null){
  const host=e("section","koc-card koc-group-schedule",undefined,body);
  if(insertBefore&&insertBefore.parentNode===body)body.insertBefore(host,insertBefore);
  e("h3","","Plan del día · Dos equipos",host);
- e("p","koc-muted","Toca a cada vecino para llamarlo. Verde: reserva guardada. Azul: propuesta que avanzará automáticamente si otro vecino no acepta.",host);
+ e("p","koc-muted","Solo se proponen huecos compatibles con las obras contiguas del mismo equipo. Si faltan ubicaciones, no se supone que el desplazamiento sea corto.",host);
  const controls=e("div","koc-group-controls koc-group-date-only",undefined,host);
  const dateInput=e("input","koc-input",undefined,controls);
  dateInput.type="date";dateInput.min=tomorrow();dateInput.value=clusterDate;dateInput.setAttribute("aria-label","Día de las obras");
@@ -207,15 +270,10 @@ async function renderGroupAgenda(body,insertBefore=null){
   calendar.set(team+"|"+idx,{team,idx,from,to,confirmed,server,available:!confirmed&&server?.libre===true&&!!remote});
  }
  const freeCandidates=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x));
- // Rellenamos primero la misma secuencia del Equipo 2 y después la del 3.
- // No se modifica ninguna reserva anterior: el reparto azul solo existe en pantalla.
- const availablePositions=[...calendar.values()].filter(x=>x.available).sort((a,b)=>a.team-b.team||a.idx-b.idx);
- const proposed=new Map(),used=new Set();
- for(const pos of availablePositions){
-  const item=freeCandidates.find(x=>!used.has(x.key));
-  if(!item)break;
-  proposed.set(pos.team+"|"+pos.idx,item);used.add(item.key);
- }
+ // Solamente se proponen franjas con continuidad geográfica preliminar.
+ const plans=remote?buildSafeClusterAssignments(group,clusterDate,remote,allBooked):[];
+ const proposed=new Map(plans.map(p=>[p.team+"|"+p.idx,p.item]));
+ const used=new Set(plans.map(p=>p.item.key));
  const header=e("div","koc-dual-head",undefined,board);
  e("span","","Horario",header);e("strong","","Equipo 2",header);e("strong","","Equipo 3",header);
  let confirmedCount=0,proposalCount=0;
@@ -489,6 +547,8 @@ async function availableChoices(item,d){
   const slot=data[String(team)]?.find(x=>x.horario===from+"-"+to);
   const localBusy=old.some(x=>x.slot===slotIdx&&(![2,3].includes(Number(x.c?.obraEquipoInstalacion))||Number(x.c?.obraEquipoInstalacion)===team)&&x.c!==item.c);
   if(slot?.libre!==true||localBusy)return;
+  const fit=slotRouteFit(item,d,team,slotIdx,data,old);
+  if(!fit.ok)return;
   const plan=logistics(item,d,from,team);
   choices.push({date:d,time:from,to,team,...plan});
  }));
@@ -565,6 +625,11 @@ async function saveBooking(){
  const {z,c}=row;
  try{
   if(typeof elegirEquipoInstaladorKonsor!=="function")throw Error("Falta la comprobación de instalaciones.");
+  const remote=await consultarKonsorFecha(chosenDate);
+  const local=typeof routeRecords==="function"?routeRecords(chosenDate,c):[];
+  const index=SLOTS.findIndex(x=>x[0]===selectedSlot);
+  const fit=slotRouteFit(row,chosenDate,selectedTeam,index,remote,local);
+  if(!fit.ok)throw Error("No se puede confirmar esta ruta: "+fit.reason);
   const team=await elegirEquipoInstaladorKonsor(chosenDate,selectedSlot,selectedTeam,c);
   if(team!==selectedTeam)throw Error("El equipo seleccionado ya no está libre.");
   const draft={...c,obraStatus:"agendada",obraDate:chosenDate,obraTime:selectedSlot,obraEquipoInstalacion:team,whatsappObraEnviadoAt:null,callStatus:"citas",statusChangedAt:Date.now(),nextContactAt:null};
