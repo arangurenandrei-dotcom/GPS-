@@ -7997,6 +7997,35 @@ function renderBossPlan() {
        INICIALIZACIÓN DE MAPA + CATASTRO OFICIAL DE NAVARRA (IDENA / SITNA)
        ===================================================================== */
     let isManualGpsRequest = false;
+    let lastGpsAccuracy = null;
+
+    function requestReliableGps(manual = false) {
+      if (!map || !navigator.geolocation) {
+        if (manual) alert('El dispositivo no ofrece acceso a la ubicación.');
+        return;
+      }
+      isManualGpsRequest = manual;
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const {latitude,longitude,accuracy}=position.coords;
+          if (![latitude,longitude,accuracy].every(Number.isFinite)) return;
+          const ll=L.latLng(latitude,longitude);
+          lastGpsAccuracy=accuracy;
+          map.fire('locationfound',{latlng:ll,accuracy});
+          const reliable=accuracy<=100;
+          if(reliable)map.setView(ll,Math.max(map.getZoom(),16));
+          const gpsBtn=document.querySelector('.hud-header .btn-hud.gps');
+          if(gpsBtn)gpsBtn.title='Precisión GPS estimada: ±'+Math.round(accuracy)+' m';
+          if(manual&&!reliable)alert('La precisión recibida es de ±'+Math.round(accuracy)+' m. No se ha centrado el mapa para evitar una posición engañosa. Prueba al aire libre y vuelve a pulsar GPS.');
+          isManualGpsRequest=false;
+        },
+        error => {
+          isManualGpsRequest=false;
+          if(manual)alert('No se pudo obtener una ubicación fiable. Comprueba los permisos y vuelve a intentarlo. '+(error?.message||''));
+        },
+        {enableHighAccuracy:true,maximumAge:0,timeout:15000}
+      );
+    }
 
     function initMap() {
       if (map) return;
@@ -8077,8 +8106,8 @@ function renderBossPlan() {
       map.on('zoomend', actualizarAgrupacionTerritorial);
       map.on('click', handleMapClick);
 
-      // Centra automáticamente en la ubicación GPS real de quien abra la app
-      map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
+      // La primera lectura sólo centra el mapa si la precisión es suficiente.
+      requestReliableGps(false);
       setTimeout(() => { if (map) map.invalidateSize(); }, 250);
     }
 
@@ -19075,8 +19104,7 @@ function openCommercialStatsModalLegacy() {
     }
 
     function centerOnUser() {
-      isManualGpsRequest = true;
-      map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
+      requestReliableGps(true);
     }
 
     window.onload = () => {
