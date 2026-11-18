@@ -61,7 +61,7 @@ function tile(grid,label,detail,name,fn){
 function go(fn){return ()=>{if(typeof fn==="function")fn();};}
 function showHome(){
  if(!hasSession())return;
- screen="home";document.body.classList.remove("cnv-map-active");document.body.classList.add("cnv-home-active");
+ screen="home";window.cnvStopLiveGps?.();document.body.classList.remove("cnv-map-active");document.body.classList.add("cnv-home-active");
  const home=root();home.replaceChildren();
  const top=el("header","cnv-home-head",undefined,home);
  const title=el("div","",undefined,top);
@@ -114,7 +114,7 @@ function makeMapBar(){
   ["ruler","Medir m²",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
   ["pin","Parcela",()=>{if(typeof cancelDrawing==="function")cancelDrawing();const p=document.getElementById("cnvMapInstruction");if(p)p.textContent="Toca un tejado o parcela del mapa para consultar el catastro."; }]
  ];
- items.forEach(([key,label,fn])=>{
+ items.filter(([key])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["layers","ruler","pin"].includes(key))).forEach(([key,label,fn])=>{
   const b=btn("",fn,"cnv-map-tool");b.append(icon(key));el("span","",label,b);controls.append(b);
  });
  const second=el("div","cnv-map-actions",undefined,mapBar);
@@ -129,6 +129,7 @@ function showMap(){
  screen="map";
  document.body.classList.remove("cnv-home-active");document.body.classList.add("cnv-map-active");
  makeMapBar();
+ window.cnvStartLiveGps?.();
  if(typeof map!=="undefined"&&map&&typeof map.invalidateSize==="function"){
   requestAnimationFrame(()=>map.invalidateSize());
  }
