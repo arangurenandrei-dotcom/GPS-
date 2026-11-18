@@ -115,6 +115,7 @@ function render(){
 }
 window.openCnResults=()=>{if(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName)){if(typeof openCommercialStatsModalLegacy==="function")openCommercialStatsModalLegacy();return;}open("mine");};
 window.openKonsorResults=window.openCnResults;
+window.openKonsorTeamResults=()=>{scope="team";open("mine");};
 window.openKonsorLeague=()=>open("league");
 window.openCommercialStatsModal=window.openCnResults;
 window.openLeagueRankingModal=window.openKonsorLeague;
