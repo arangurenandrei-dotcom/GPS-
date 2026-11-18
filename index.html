@@ -1569,6 +1569,16 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 #singleHouseModal .cn-house-original{padding-top:13px}
 </style>
 <link rel="stylesheet" href="./ios-unified.css?v=1">
+<style id="cnMapCompactV2">
+/* Mapa: búsqueda compacta y herramientas sin ocupar toda la pantalla. */
+.cnv-map-toolbar .cnv-map-search{position:absolute;top:calc(env(safe-area-inset-top) + 83px);left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));display:flex;gap:7px;background:rgba(255,255,255,.86);border:1px solid rgba(225,231,239,.9);padding:7px;border-radius:16px;pointer-events:auto;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 4px 18px rgba(15,23,42,.08)}
+.cnv-map-toolbar .cnv-map-search input{flex:1;min-width:0;min-height:36px;background:transparent;border:0;color:#2b3e57;font-size:16px;padding:5px 10px;outline:0}
+.cnv-map-toolbar .cnv-map-search .cnv-button{min-height:36px;padding:8px 12px}
+.cnv-map-toolbar .cnv-map-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:218px;gap:7px}
+.cnv-map-toolbar .cnv-map-tool{min-height:43px;padding:8px;gap:6px;font-size:11px;justify-content:flex-start}
+.cnv-map-toolbar .cnv-map-tip{top:calc(env(safe-area-inset-top) + 151px)}
+@media(max-width:370px){.cnv-map-toolbar .cnv-map-controls{width:198px}.cnv-map-toolbar .cnv-map-tool{font-size:10px}}
+</style>
 </head>
 <body>
 
