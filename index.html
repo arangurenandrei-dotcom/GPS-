@@ -13116,6 +13116,8 @@ async function confirmSectorAssignment() {
       });
       dibujarSectoresMikelSupervision();
       actualizarAgrupacionTerritorial();
+      window.cnvRefreshHome?.();
+      window.refreshCnTerritory?.();
     }
 
     function formatDate(dateStr) {
