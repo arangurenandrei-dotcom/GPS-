@@ -2683,6 +2683,9 @@ function openUserProfileModal() {
         poligono.bindPopup(panel);
         poligono.bringToBack();
         loadedMapLayers.push(poligono);
+        capasSectoresAgrupables.push({
+          capa:poligono, zona:sector
+        });
       }
     }
 
@@ -7290,6 +7293,7 @@ function renderBossPlan() {
       });
 
       renderAllSavedZones();
+      map.on('zoomend', actualizarAgrupacionTerritorial);
       map.on('click', handleMapClick);
 
       // Centra automáticamente en la ubicación GPS real de quien abra la app
@@ -11651,9 +11655,126 @@ async function confirmSectorAssignment() {
       renderAllSavedZones();
     }
 
+
+    // Agrupación visual: nunca modifica sectores ni fichas.
+    let capasSectoresAgrupables = [];
+    let capasMacrosector = [];
+
+    function envolventeTerritorial(puntos) {
+      const p = puntos.map(v => [Number(v[1]), Number(v[0])])
+        .filter(v => Number.isFinite(v[0]) && Number.isFinite(v[1]))
+        .sort((a,b) => a[0]-b[0] || a[1]-b[1]);
+
+      const orient = (a,b,c) =>
+        (b[0]-a[0])*(c[1]-a[1]) -
+        (b[1]-a[1])*(c[0]-a[0]);
+
+      const lower = [];
+      for (const v of p) {
+        while (lower.length >= 2 &&
+          orient(lower[lower.length-2], lower[lower.length-1], v) <= 0)
+          lower.pop();
+        lower.push(v);
+      }
+
+      const upper = [];
+      for (const v of [...p].reverse()) {
+        while (upper.length >= 2 &&
+          orient(upper[upper.length-2], upper[upper.length-1], v) <= 0)
+          upper.pop();
+        upper.push(v);
+      }
+
+      lower.pop();
+      upper.pop();
+
+      return [...lower,...upper].map(v => [v[1],v[0]]);
+    }
+
+    function actualizarAgrupacionTerritorial() {
+      if (!map) return;
+
+      for (const capa of capasMacrosector)
+        map.removeLayer(capa);
+      capasMacrosector = [];
+
+      for (const entrada of capasSectoresAgrupables) {
+        if (!map.hasLayer(entrada.capa))
+          entrada.capa.addTo(map);
+      }
+
+      if (map.getZoom() >= 13) return;
+
+      const agrupados = new Map();
+
+      for (const entrada of capasSectoresAgrupables) {
+        const z = entrada.zona;
+        const clave = ComercialCore.norm(z.town) + '|' +
+          ComercialCore.norm(z.comercial);
+
+        if (!agrupados.has(clave))
+          agrupados.set(clave, []);
+
+        agrupados.get(clave).push(entrada);
+      }
+
+      for (const entradas of agrupados.values()) {
+        if (entradas.length < 2) continue;
+
+        const puntos = entradas.flatMap(x => x.zona.points);
+        const contorno = envolventeTerritorial(puntos);
+        if (contorno.length < 3) continue;
+
+        const pueblo = entradas[0].zona.town || 'Sin pueblo';
+        const comercial = entradas[0].zona.comercial || 'Sin responsable';
+        const terminados = entradas.filter(x =>
+          x.zona.status === 'completada'
+        ).length;
+        const total = entradas.length;
+        const cerrado = completedTowns.some(t =>
+          ComercialCore.norm(t) === ComercialCore.norm(pueblo)
+        );
+
+        const color = cerrado ? '#22c55e' :
+          getComercialColor(comercial);
+
+        const macro = L.polygon(contorno, {
+          color,
+          weight: cerrado ? 5 : 3,
+          fillColor: color,
+          fillOpacity: 0.17,
+          dashArray: cerrado ? null : '9,5'
+        }).addTo(map);
+
+        const panel = document.createElement('div');
+        const titulo = document.createElement('strong');
+        titulo.textContent = pueblo + ' · ' + comercial;
+        panel.appendChild(titulo);
+
+        const resumen = document.createElement('div');
+        resumen.textContent =
+          terminados + '/' + total + ' sectores terminados';
+        panel.appendChild(resumen);
+
+        const nota = document.createElement('small');
+        nota.textContent = cerrado
+          ? 'Pueblo marcado como finalizado. Contorno del trabajo registrado.'
+          : 'Macrosector visual. Acerca el mapa para ver los sectores.';
+        panel.appendChild(nota);
+
+        macro.bindPopup(panel);
+
+        for (const entrada of entradas)
+          map.removeLayer(entrada.capa);
+
+        capasMacrosector.push(macro);
+      }
+    }
+
     function renderAllSavedZones() {
       loadedMapLayers.forEach(l => map.removeLayer(l));
       loadedMapLayers = [];
+      capasSectoresAgrupables = [];
 
       const viewerIsMikelTeam = isMikelTeamMember(currentUserName);
       savedZones.forEach((z, idx) => {
@@ -11770,8 +11891,10 @@ async function confirmSectorAssignment() {
         });
 
         loadedMapLayers.push(polygon);
+        capasSectoresAgrupables.push({capa:polygon,zona:z});
       });
       dibujarSectoresMikelSupervision();
+      actualizarAgrupacionTerritorial();
     }
 
     function formatDate(dateStr) {
@@ -17374,6 +17497,7 @@ function openCommercialStatsModalLegacy() {
 
       completedTowns=propuesta;
       renderPueblosAudit();
+      if (map) renderAllSavedZones();
     }
 
     function toggleDetailPanel(panelId) {
