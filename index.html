@@ -1346,6 +1346,45 @@ html,body{background:#f5f5f7;color:#17202c}
 @media(max-width:370px){#appContainer .ios-main-grid{gap:6px}#appContainer .ios-nav-card{padding:10px 8px;min-height:72px}#appContainer .ios-nav-card>span:last-child{font-size:10px}}
 </style>
 <style id="iosCaptureGuidanceV2">#captacionGuiadaModal .captacion-ios-correccion{background:#fff;border:1px solid #e1e7f0;border-radius:14px;padding:12px;color:#334155}#captacionGuiadaModal .captacion-ios-correccion summary{font-size:13px;font-weight:600;cursor:pointer;color:#536277}#captacionGuiadaModal .captacion-ios-correction-fields{display:grid;gap:10px;padding-top:14px}#captacionGuiadaModal .captacion-ios-summary strong{display:block;margin-bottom:6px;color:#1e293b}#captacionGuiadaModal .captacion-ios-choice{text-align:left;padding:16px;font-size:15px;font-weight:600;border-radius:16px}</style>
+<style id="cnTerritorialSystem">
+/* Sistema territorial nativo iOS */
+.cn-territorio{display:none;align-items:center!important;justify-content:center!important;background:rgba(19,32,52,.33)!important;backdrop-filter:blur(13px)!important;-webkit-backdrop-filter:blur(13px)!important}
+.cn-territorio.active{display:flex!important}
+.cn-territorio .cn-page{width:100%;max-width:640px;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);display:flex;flex-direction:column;background:#f5f5f7;color:#192333;border-radius:27px;overflow:hidden;border:1px solid rgba(255,255,255,.9);box-shadow:0 25px 75px rgba(15,23,42,.16);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.cn-territorio .cn-page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 20px 15px;background:rgba(255,255,255,.8);border-bottom:1px solid #e6eaf0}
+.cn-territorio .cn-page-head h2{font-size:27px;letter-spacing:-.8px;line-height:1.15;font-weight:760;color:#1b2532;margin:5px 0 0}
+.cn-territorio .cn-eyebrow{font-size:10px;font-weight:700;letter-spacing:1.3px;color:#7b8798}
+.cn-territorio .cn-close{background:#eff2f6;border:1px solid #e1e7ef;color:#38495f;border-radius:12px;padding:10px 14px;font-weight:650;font-size:13px}
+.cn-territorio .cn-page-body{padding:16px;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:13px}
+.cn-territorio .cn-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cn-territorio .cn-kpi{background:#fff;border:1px solid #edf0f4;border-radius:16px;padding:12px 9px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cn-territorio .cn-kpi strong{font-size:22px;color:#1b2533;letter-spacing:-.5px;font-weight:750}
+.cn-territorio .cn-kpi span{color:#66758a;font-size:10.5px;line-height:1.25}
+.cn-territorio .cn-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:#e8ecf2;padding:4px;border-radius:14px}
+.cn-territorio .cn-tabs button{background:transparent;border:0;color:#5f7084;min-height:42px;padding:8px 4px;border-radius:11px;font-size:12px;font-weight:650}
+.cn-territorio .cn-tabs button.selected{background:white;color:#1e2a3a;box-shadow:0 3px 12px rgba(16,24,40,.08)}
+.cn-territorio .cn-search{min-height:46px;width:100%;padding:11px 14px;border:1px solid #e1e7ed;background:#fff;border-radius:14px;font-size:16px;color:#182432}
+.cn-territorio .cn-town-list{display:flex;flex-direction:column;gap:10px}
+.cn-territorio .cn-town,.cn-territorio .cn-sector,.cn-territorio .cn-summary{background:#fff;border:1px solid #e5e9ef;border-radius:19px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.cn-territorio .cn-flex{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cn-territorio .cn-town-name{font-size:18px;letter-spacing:-.3px;color:#1c2838}
+.cn-territorio .cn-town-title{font-size:25px;color:#1c2838;margin:6px 0}
+.cn-territorio .cn-sector-name{font-size:14px;color:#1c2838}
+.cn-territorio .cn-town-progress span{font-size:12px;color:#66758a}
+.cn-territorio .cn-tag{border:1px solid #e2e8f0;background:#f2f5f9;color:#5e6d81;font-size:11px;font-weight:650;border-radius:999px;padding:6px 9px;white-space:nowrap}
+.cn-territorio .cn-progress{height:8px;width:100%;background:#e9edf2;border-radius:99px;overflow:hidden}
+.cn-territorio .cn-progress-fill{background:#829abd;height:100%;border-radius:99px;transition:width .2s ease}
+.cn-territorio .cn-detail,.cn-territorio .cn-hint{color:#66758a;line-height:1.5;font-size:12px;margin:0}
+.cn-territorio .cn-hint{padding:3px 2px}
+.cn-territorio .cn-section-title{font-size:15px;color:#1c2838;margin:6px 0 0}
+.cn-territorio .cn-actions{display:flex;flex-wrap:wrap;gap:8px}
+.cn-territorio .cn-btn{min-height:42px;border:1px solid #e1e7ed;border-radius:13px;background:rgba(255,255,255,.87);color:#26364d;padding:10px 14px;font-size:13px;font-weight:650}
+.cn-territorio .cn-btn.primary{background:#263449;border-color:#263449;color:#fff}
+.cn-territorio .cn-btn.subtle{align-self:flex-start;background:transparent;border-color:transparent;padding-left:0;color:#536b8b}
+.cn-territorio .cn-btn:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.cn-territorio .cn-footer{display:flex;margin-top:5px}.cn-territorio .cn-footer button{width:100%}
+@media(max-width:420px){.cn-territorio .cn-page{border-radius:22px}.cn-territorio .cn-page-body{padding:12px}.cn-territorio .cn-kpi{padding:10px 7px}.cn-territorio .cn-kpi strong{font-size:19px}}
+</style>
 </head>
 <body>
 
@@ -4074,6 +4113,7 @@ function renderIosPrimaryNavigation(area='commercial'){
   ['Fichas','contact',openGlobalClientSearchModal,true],
   ['Resultados','chart',openCommercialStatsModal,true]
  ]:direction?[
+  ['Pueblos','building',()=>window.openCnTerritory?.(),true],
   ['Gestión del equipo','users',openTeamManagementMenu,true],
   ['Comerciales','contact',openPeopleManagement,true],
   ['Comparar equipos','chart',openMikelRadarModal,true],
@@ -19152,6 +19192,7 @@ function openCommercialStatsModalLegacy() {
       }
     };
   </script>
+<script src="./territorio-ios.js?v=1"></script>
 <script src="./jornadas-seguimiento.js?v=konsor-v4"></script>
 <script src="./avisos-app.js?v=4"></script>
 <script>
