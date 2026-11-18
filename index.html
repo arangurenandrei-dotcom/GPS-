@@ -7236,6 +7236,8 @@ function renderBossPlan() {
         if (!cur || isOnlyPreviousBase) {
           inp.value = base ? `${base} ` : '';
           inp.dataset.lastBulkBase = base;
+          inp.dataset.streetBase = base;
+          inp.dataset.autoFilled = 'true';
         }
       });
     }
@@ -12119,26 +12121,57 @@ const labelStreet = clientObj.street ||
 
     function propagateStreetToNextEmpty(inputEl) {
       if (isMikelTeamMember(currentUserName)) return;
-      const val = inputEl.value;
-      const baseStreet = val.replace(/\s+\d+.*$/, '').trim();
-      if (baseStreet.length < 3) return;
 
-      const currentBox = inputEl.closest('.client-box, .comunidad-box');
-      const allBoxes = Array.from(document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box'));
-      const currentIdx = allBoxes.indexOf(currentBox);
-      if (currentIdx === -1) return;
+      const nueva = inputEl.value.trim()
+        .replace(/\\s+\\d+(?:\\s+.*)?$/, '').trim();
 
-      for (let i = currentIdx + 1; i < allBoxes.length; i++) {
-        const nextStreetInp = allBoxes[i].querySelector('.client-street');
-        if (!nextStreetInp) continue;
-        const nextVal = nextStreetInp.value.trim();
-        if (!nextVal || nextStreetInp.dataset.autoFilled === 'true') {
-          nextStreetInp.value = `${baseStreet} `;
-          nextStreetInp.dataset.autoFilled = 'true';
-        } else {
-          break;
+      if (nueva.length < 3) return;
+
+      const anterior = inputEl.dataset.streetBase ||
+        inputEl.dataset.lastBulkBase || '';
+
+      // Si solo se modifica el portal, no cambiar otras fichas.
+      if (anterior === nueva) return;
+
+      const cajas = Array.from(document.querySelectorAll(
+        '#clientsContainer .client-box, #clientsContainer .comunidad-box'
+      ));
+      const indice = cajas.indexOf(
+        inputEl.closest('.client-box, .comunidad-box')
+      );
+
+      if (indice < 0) return;
+
+      for (let i = indice + 1; i < cajas.length; i++) {
+        const campo = cajas[i].querySelector('.client-street');
+        if (!campo) continue;
+
+        const valor = campo.value.trim();
+        const baseAnterior = campo.dataset.streetBase ||
+          campo.dataset.lastBulkBase || '';
+
+        // Detenerse al encontrar otra calle fijada manualmente.
+        if (valor && !baseAnterior) break;
+        if (baseAnterior &&
+            baseAnterior !== anterior &&
+            baseAnterior !== nueva) break;
+
+        // Mantener el número de portal que ya tuviera esa ficha.
+        let portal = '';
+        if (baseAnterior &&
+            valor.toLowerCase().startsWith(baseAnterior.toLowerCase())) {
+          const resto = valor.slice(baseAnterior.length).trim();
+          if (/^\\d/.test(resto)) portal = resto;
         }
+
+        campo.value = nueva + (portal ? ' ' + portal : ' ');
+        campo.dataset.streetBase = nueva;
+        campo.dataset.lastBulkBase = nueva;
+        campo.dataset.autoFilled = 'true';
       }
+
+      inputEl.dataset.streetBase = nueva;
+      inputEl.dataset.lastBulkBase = nueva;
       inputEl.dataset.autoFilled = 'false';
     }
 
@@ -12704,7 +12737,7 @@ const labelStreet = clientObj.street ||
         </div>
         
         <div style="display:flex; gap:4px; margin-bottom:6px;">
-          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
+          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" onchange="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
         </div>
 
@@ -12863,7 +12896,7 @@ const labelStreet = clientObj.street ||
         </div>
 
         <div style="display:flex; gap:4px; margin-bottom:6px;">
-          <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" oninput="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
+          <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" onchange="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección">🎙️</button>` : ''}
         </div>
 
