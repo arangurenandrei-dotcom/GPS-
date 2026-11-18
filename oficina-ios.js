@@ -35,11 +35,29 @@ function render(){
   work.append(btn("Volcar hojas",()=>{section="volcados";render();},"primary"));
   work.append(btn("Llamar y agendar obras",()=>{r.classList.remove("active");window.openKonsorOfficeClients?.();},"primary"));
   work.append(btn("Buscar un cliente",()=>{r.classList.remove("active");window.openCnClients?.();},"subtle"));
-  work.append(btn("Consultar agenda de obras",()=>{r.classList.remove("active");if(typeof openManagementAudit==="function"&&currentUserRole==="jefe")openManagementAudit("obras");else if(typeof openFollowUpsModal==="function")openFollowUpsModal();},"subtle"));
+  work.append(btn("Agenda de obras",()=>{section="agenda";render();},"subtle"));
   const closing=node("section","cn-office-card",undefined,body);
   node("h3","","Al terminar",closing);
   node("p","","Comprueba tus fichas pendientes y vuelve a Inicio. Salir de Oficina nunca cierra el fichaje.",closing);
   closing.append(btn("Revisión del trabajo",()=>{section="review";render();},"outline"));
+ }else if(section==="agenda"){
+  back(body);
+  const card=node("section","cn-office-card",undefined,body);
+  node("span","cn-office-kicker","OBRAS PROGRAMADAS",card);
+  node("h3","","Agenda",card);
+  node("p","","Obras confirmadas agrupadas por día. Los horarios se comprueban en KONSOR al reservar.",card);
+  const records=zones().flatMap(({z})=>(z.clients||[]).filter(c=>c&&c.obraDate&&["agendada","realizada"].includes(c.obraStatus)).map(c=>({c,z})))
+   .sort((a,b)=>String(a.c.obraDate).localeCompare(String(b.c.obraDate))||String(a.c.obraTime).localeCompare(String(b.c.obraTime)));
+  if(!records.length)node("p","","No hay obras con fecha registrada.",card);
+  let last="";
+  records.forEach(({c,z})=>{
+   if(last!==c.obraDate){last=c.obraDate;node("h3","",last,card);}
+   const line=node("div","cn-office-row",undefined,card);
+   node("strong","",(c.obraTime||"Sin hora")+" · "+(c.name||"Sin nombre"),line);
+   node("span","",(z.town||"")+" · Equipo "+(c.obraEquipoInstalacion||"sin asignar"),line);
+   node("small","",c.obraStatus==="realizada"?"Realizada":"Programada",line);
+  });
+  card.append(btn("Gestionar clientes",()=>{r.classList.remove("active");window.openKonsorOfficeClients?.();},"primary"));
  }else if(section==="volcados"){
   back(body);
   const card=node("section","cn-office-card",undefined,body);
