@@ -122,6 +122,11 @@
   if(n.category==='daily'&&/comida|pausa/i.test(title+' '+body))return{title:"Comprueba tu pausa de comida",body,icon:"🕘"};
   if(n.category==='quality')return{title:"Hay fichas por completar",body:body||"Abre las fichas incompletas y revisa los datos.",icon:"📋"};
   if(n.category==='zones')return{title:/asignad/i.test(title)?"Nueva zona de trabajo":title||"Zona de trabajo",body,icon:"📍"};
+  if(n.category==='daily'&&/zonas pendientes/i.test(body)&&/fichas por cerrar/i.test(body)){
+   const z=body.match(/(\d+)\s+zonas pendientes/i),c=body.match(/(\d+)\s+fichas por cerrar/i),f=body.match(/(\d+)\s+seguimientos vencidos/i);
+   const short=[z?"Sectores pendientes: "+z[1]:null,c?"Fichas por cerrar: "+c[1]:null,f?"Seguimientos vencidos: "+f[1]:null].filter(Boolean).join(" · ");
+   return{title:"Tu trabajo pendiente",body:short||body,icon:"📋"};
+  }
   if(n.category==='daily')return{title:title||"Tu jornada",body,icon:"🕘"};
   if(n.category==='activity')return{title:title||"Actividad registrada",body,icon:"✓"};
   if(n.category==='appointments')return{title:title||"Obra o cita",body,icon:"📅"};
