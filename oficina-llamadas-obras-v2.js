@@ -259,7 +259,7 @@ async function renderGroupAgenda(body,insertBefore=null){
    }
   }
  });
- summary.textContent=error?"No hay disponibilidad verificada: "+(error.message||"Fallo de conexión")+". No se proponen huecos.":confirmedCount+" obras confirmadas · "+proposalCount+" vecinos propuestos · "+freeCandidates.length+" por llamar en total";
+ summary.textContent=error?"No hay disponibilidad verificada: "+(error.message||"Fallo de conexión")+". No se proponen huecos.":proposalCount+" de "+freeCandidates.length+" vecinos propuestos · "+confirmedCount+" obras confirmadas · "+[...calendar.values()].filter(x=>x.available).length+" de 8 franjas libres en KONSOR. Las demás no están disponibles para esa fecha.";
  const remainder=group.filter(x=>clusterStatus(x)==="ready"&&!used.has(x.key));
  if(remainder.length){
   const extra=e("div","koc-group-remainder",undefined,host);
