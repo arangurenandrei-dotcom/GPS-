@@ -52,7 +52,7 @@
  }
  wrapShift('handleShiftAction',false);wrapShift('reopenTodayShift',true);
  window.addEventListener('online',flush);setInterval(flush,60000);
- const style=node('style');style.textContent=\`
+ const style=node('style');style.textContent=`
  #avisosCenterV2{z-index:10250!important;position:fixed;inset:0;background:rgba(27,37,54,.30)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);align-items:center;justify-content:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
  #avisosCenterV2.active{display:flex!important}
  #avisosCenterV2 .modal-card{max-width:600px!important;width:min(100%,600px);height:min(100%,900px);max-height:100%;display:flex;flex-direction:column;border:1px solid #e3eaf3!important;border-radius:26px!important;background:#f7f9fc!important;color:#263449!important;box-shadow:0 30px 80px rgba(15,23,42,.22)!important;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif!important}
@@ -93,7 +93,7 @@
  #avisosCenterV2 details summary{font-size:12px;color:#50647d;cursor:pointer;padding:6px 0}
  #btnKonsorAvisos{font-size:17px!important;border-radius:12px!important}
  @media(max-width:680px){#avisosCenterV2 .modal-card{height:100%;max-height:100%;width:100%;border-radius:0!important}#avisosCenterV2 .modal-scrollable-content{padding:15px!important}#avisosCenterV2 .modal-header{padding:18px!important}}
- \`;document.head.appendChild(style);
+ `;document.head.appendChild(style);
  function report(e){console.error(e);if(status)status.textContent='No se pudo completar: '+(e.message||e);}
  function mount(){
   if(!bell){bell=button('🔔',()=>open());bell.className='btn-hud';bell.id='btnKonsorAvisos';bell.title='Avisos y recordatorios';bell.style.cssText='padding:6px 8px;flex-shrink:0';}
