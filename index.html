@@ -1579,6 +1579,33 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 .cnv-map-toolbar .cnv-map-tip{top:calc(env(safe-area-inset-top) + 151px)}
 @media(max-width:370px){.cnv-map-toolbar .cnv-map-controls{width:198px}.cnv-map-toolbar .cnv-map-tool{font-size:10px}}
 </style>
+<style id="cnCallsQueueAndLeague">
+.cn-call-overlay{display:none;align-items:center!important;justify-content:center!important;background:rgba(15,23,42,.36)!important;backdrop-filter:blur(14px)!important;-webkit-backdrop-filter:blur(14px)!important}
+.cn-call-overlay.active{display:flex!important}
+.cn-call-overlay .cn-call-page{width:100%;max-width:560px;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);background:#f5f5f7;border:1px solid #fff;border-radius:25px;box-shadow:0 22px 65px rgba(15,23,42,.16);display:flex;flex-direction:column;overflow:hidden;color:#263449}
+.cn-call-overlay .cn-call-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:19px;background:#fff;border-bottom:1px solid #e5eaf0}
+.cn-call-overlay .cn-call-kicker{font-size:10px;font-weight:730;letter-spacing:.85px;color:#8492a4}
+.cn-call-overlay .cn-call-head h2{font-size:24px;letter-spacing:-.6px;font-weight:740;margin:6px 0 0;color:#25344a}
+.cn-call-overlay .cn-call-body{padding:16px;display:flex;flex-direction:column;gap:13px;overflow-y:auto}
+.cn-call-overlay .cn-call-progress{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#65778c}
+.cn-call-overlay .cn-call-progress strong{color:#253b55;font-weight:720}
+.cn-call-overlay .cn-call-progress span{font-size:11px;color:#8895a4}
+.cn-call-overlay .cn-call-card{background:#fff;border:1px solid #e5eaf0;border-radius:21px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.cn-call-overlay .cn-call-card h3{font-size:23px;letter-spacing:-.6px;color:#203149;margin:0;font-weight:730}
+.cn-call-overlay .cn-call-card p{font-size:13px;color:#63758b;line-height:1.5;margin:0}
+.cn-call-overlay .cn-call-choices{display:flex;flex-direction:column;gap:8px}
+.cn-call-overlay .cn-call-button,.cn-call-overlay .cn-call-dial{display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;padding:11px 13px;font-size:13px;font-weight:660;border-radius:14px;background:#fff;color:#34516f;border:1px solid #dfe7ef;text-decoration:none}
+.cn-call-overlay .cn-call-button.primary{background:#293a52;color:#fff;border-color:#293a52}
+.cn-call-overlay .cn-call-button.subtle{background:#f1f5f9}
+.cn-call-overlay .cn-call-dial{background:#eaf2fa;color:#345b87;border-color:#d6e4f2}
+.cn-call-overlay .cn-call-nav{display:flex;gap:9px}.cn-call-overlay .cn-call-nav button{flex:1}
+.cn-call-overlay .cn-call-note{padding:13px 15px;border-radius:15px;border:1px solid #e4ebf3;background:#fff}
+.cn-call-overlay .cn-call-note p{font-size:11.5px;color:#728196;line-height:1.5;margin:0}
+#leagueRankingContainer>div[style*="display:flex;gap:5px"]{background:#e9edf3!important;padding:4px!important;border-radius:14px!important}
+#leagueRankingContainer>div[style*="display:flex;gap:5px"] button{background:transparent!important;color:#526983!important;border:0!important;border-radius:11px!important;min-height:40px!important}
+#leagueRankingContainer>div[style*="display:flex;gap:5px"] button[aria-pressed="true"]{background:#fff!important;color:#293d56!important;box-shadow:0 2px 8px rgba(15,23,42,.08)!important}
+#leagueRankingContainer [style*="background:#422006"]{background:#fff!important;color:#29384b!important;border:1px solid #e6ebf1!important;box-shadow:none!important}
+</style>
 </head>
 <body>
 
@@ -8854,6 +8881,7 @@ function renderBossPlan() {
       z._updatedAt = Date.now();
       if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       renderFollowUpsModal();
+      return true;
     }
 
     async function updateClientCallStatusOld(zoneIdx, clientIdx, newCallStatus) {
@@ -19451,6 +19479,7 @@ function openCommercialStatsModalLegacy() {
 <script src="./inicio-ios.js?v=1"></script>
 <script src="./volcado-guiado-ios.js?v=1"></script>
 <script src="./vivienda-guiada-ios.js?v=1"></script>
+<script src="./llamadas-guiadas-ios.js?v=1"></script>
 <script src="./jornadas-seguimiento.js?v=konsor-v4"></script>
 <script src="./avisos-app.js?v=4"></script>
 <script>
