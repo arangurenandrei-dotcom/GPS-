@@ -100,7 +100,7 @@ function openClients(){
       records.push({c,z,idx,cidx});
     });
   }
-  records.sort((a,b)=>Number(!(a.c.name&&a.c.phone&&a.c.street))-Number(!(b.c.name&&b.c.phone&&b.c.street))||(b.z.dumpDate||b.z.date||"").localeCompare(a.z.dumpDate||a.z.date||""));
+  records.sort((a,b)=>Number(!(b.c.name&&b.c.phone&&b.c.street))-Number(!(a.c.name&&a.c.phone&&a.c.street))||(b.z.dumpDate||b.z.date||"").localeCompare(a.z.dumpDate||a.z.date||""));
   summary.textContent=records.length+" fichas encontradas"+(records.length>80?" · mostrando las primeras 80":"");
   if(!records.length){$("p","cnx-empty","No hay coincidencias. Prueba con otra parte del nombre, teléfono o dirección.",results);return;}
   for(const item of records.slice(0,80)){
