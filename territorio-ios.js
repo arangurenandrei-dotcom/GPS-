@@ -66,6 +66,10 @@ function sectorCard(container,entry){
  const estado=z.status==="completada"?"Terminado":z.status==="en_proceso"?"Haciendo":"Por hacer";
  el("span","cn-tag",estado,row);
  el("p","cn-detail",[z.comercial||"Sin comercial",z.date||"Sin fecha"].join(" · "),card);
+ if(z.comercial){
+  const received=Number(z.assignmentReceivedAt)>0&&z.assignmentReceivedBy===z.comercial;
+  el("p","cn-detail",z.status==="completada"?"Trabajo terminado":received?"Recibida por "+z.comercial+" · Pendiente de terminar":"Sin confirmar recepción del comercial",card);
+ }
  const stats=z.stats||{};
  const doors=["si","no","ausente","papelito"].reduce((n,key)=>n+nval(stats[key]),0);
  el("p","cn-detail",doors+" puertas registradas · "+nval(stats.si)+" sí",card);
@@ -87,6 +91,8 @@ function renderDetail(target,p){
  stat(row,"Sectores terminados",p.terminados+" / "+p.total);
  stat(row,"Comerciales",p.comerciales.length);
  stat(row,"Progreso de sectores",p.avance+"%");
+ const waiting=p.sectores.filter(({z})=>z.comercial&&z.status!=="completada"&&!(z.assignmentReceivedAt&&z.assignmentReceivedBy===z.comercial)).length;
+ el("p","cn-hint",waiting?waiting+" sectores todavía sin confirmación de recepción.":"No hay sectores pendientes de confirmar recepción en este pueblo.",target);
  progress(target,p.avance);
  notice(target,"El progreso refleja sectores terminados, no superficie física cubierta. La cobertura territorial requiere delimitar el área objetivo y medir los sectores.");
  const summary=el("div","cn-summary",undefined,target);
