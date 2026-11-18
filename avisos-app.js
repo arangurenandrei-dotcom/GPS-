@@ -135,33 +135,66 @@
  };
  const resolveNotice=async n=>{await api.call('gestionarAviso',{id:n.id,action:'resolve'});};
  function taskAction(card,n){
-  const context=n.context||{};
-  const actions=node('div',undefined,'av-actions');
-  if(context.zoneId){
-   const idx=typeof savedZones!=='undefined'?savedZones.findIndex(z=>String(z.id)===String(context.zoneId)):-1;
-   if(idx>=0){
-    const b=button('Abrir zona',()=>{modal.classList.remove('active');openDumpModal(idx);});
-    b.className='av-primary';actions.append(b);
-   }else actions.append(node('p','La zona ya no está disponible en las fichas actuales.'));
+  const context=n.context||{},actions=node('div',undefined,'av-actions');
+  const zoneId=context.zoneId;
+  if(zoneId){
+   const zone=window.konsorZoneAssignment?.get(zoneId);
+   if(zone){
+    const place=[zone.town,zone.street].filter(Boolean).join(" · ");
+    const statusLine=node('p',(zone.complete?"Trabajo terminado":zone.receivedAt?"Asignación recibida":"Pendiente de confirmar recepción")+(place?" · "+place:""),'av-task-state');
+    card.append(statusLine);
+    if(zone.bossNote){
+     const details=node('details'),summary=node('summary','Instrucciones de la zona');details.append(summary,node('p',zone.bossNote,'av-copy'));card.append(details);
+    }
+    const openZone=button('Abrir zona',()=>{modal.classList.remove('active');window.konsorZoneAssignment?.open(zoneId);});
+    openZone.className='av-primary';actions.append(openZone);
+    if(!zone.receivedAt&&zone.owner===me.name){
+     actions.append(button('He recibido esta zona',async()=>{
+      await window.konsorZoneAssignment.acknowledge(zoneId);
+      await api.call('gestionarAviso',{id:n.id,action:'resolve'});
+      status.textContent='Recepción registrada y sincronizada. La zona sigue pendiente hasta terminar el trabajo.';
+      render();
+     }));
+    }else if(zone.receivedAt){
+     if(!n.resolvedAt)actions.append(button('Archivar aviso de la zona',()=>resolveNotice(n)));
+    }
+   }else{
+    const go=button('Ver mis zonas',()=>{modal.classList.remove('active');window.openCnDay?.();});
+    go.className='av-primary';actions.append(go);
+    card.append(node('p','No se encuentra la zona asociada a este aviso. Comprueba las asignaciones actuales.','av-hint'));
+   }
+  }else if(n.category==='zones'){
+   const go=button('Ver mis zonas',()=>{modal.classList.remove('active');window.openCnDay?.();});
+   go.className='av-primary';actions.append(go);
+   card.append(node('p','Este aviso antiguo no incluye el identificador de zona; no se puede confirmar su recepción desde aquí.','av-hint'));
+   actions.append(button('Marcar como leído',()=>api.call('gestionarAviso',{id:n.id,action:'read'})));
   }
   if(context.reminderId){
-   const b=button('Ver encargo y responder',()=>{tab='tasks';render();const el=body.querySelector('[data-reminder-id="'+String(context.reminderId).replace(/"/g,'')+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});});
+   const b=button('Ver encargo y responder',()=>{
+    tab='tasks';render();
+    const el=body.querySelector('[data-reminder-id="'+String(context.reminderId).replace(/"/g,'')+'"]');
+    if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+   });
    b.className='av-primary';actions.append(b);
   }
-  if(n.category==='followups'&&!context.zoneId){
-   const b=button('Abrir llamadas',()=>{modal.classList.remove('active');if(typeof window.openCnOffice==='function')window.openCnOffice();});b.className='av-primary';actions.append(b);
+  if(n.category==='followups'&&!zoneId){
+   const b=button('Abrir llamadas',()=>{modal.classList.remove('active');window.openCnOffice?.();});
+   b.className='av-primary';actions.append(b);
   }
-  if(n.category==='zones'&&!context.reminderId){
-   actions.append(button('He revisado esta zona',()=>resolveNotice(n)));
-  }
-  if(n.category==='quality'&&!context.zoneId){
-   const b=button('Ver fichas',()=>{modal.classList.remove('active');window.openCnClients?.();});b.className='av-primary';actions.append(b);
+  if(n.category==='quality'&&!zoneId){
+   const b=button('Completar fichas',()=>{modal.classList.remove('active');window.openCnClients?.();});
+   b.className='av-primary';actions.append(b);
   }
   if(context.taskId&&me.key==='jefe'){
-   const b=button('Abrir planificación',()=>{modal.classList.remove('active');window.openBossWorkMenu?.();});b.className='av-primary';actions.append(b);
+   const b=button('Abrir planificación',()=>{modal.classList.remove('active');window.openBossWorkMenu?.();});
+   b.className='av-primary';actions.append(b);
   }
-  if(['quality','followups'].includes(n.category)&&!context.reminderId){const finished=button('Ya está solucionado',()=>resolveNotice(n));actions.append(finished);}
-  if(n.category!=='zones')actions.append(button('Marcar como leído',()=>api.call('gestionarAviso',{id:n.id,action:'read'})));
+  if(['quality','followups'].includes(n.category)&&!context.reminderId){
+   actions.append(button('Ya está solucionado',()=>resolveNotice(n)));
+  }
+  if(!zoneId&&n.category!=='zones'){
+   actions.append(button('Marcar como leído',()=>api.call('gestionarAviso',{id:n.id,action:'read'})));
+  }
   card.append(actions);
  }
  function noticeCard(n,task=false){
