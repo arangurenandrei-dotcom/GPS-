@@ -2598,6 +2598,95 @@ function openUserProfileModal() {
     let currentUserName = null;
 
     let savedZones = [];
+    let sectoresMikelSupervision = [];
+
+    async function cargarSectoresMikelSupervision() {
+      if (currentUserName !== 'Andrei (Jefe)' ||
+          typeof window.consultarSectoresMikel !== 'function') return;
+
+      try {
+        const respuesta = await window.consultarSectoresMikel({});
+        if (currentUserName !== 'Andrei (Jefe)') return;
+
+        sectoresMikelSupervision =
+          Array.isArray(respuesta.data?.sectores)
+            ? respuesta.data.sectores : [];
+
+        if (map) renderAllSavedZones();
+        console.info(
+          'Sectores de Mikel visibles:',
+          sectoresMikelSupervision.length
+        );
+      } catch (error) {
+        console.error('Supervisión de Mikel:', error);
+      }
+    }
+
+    function dibujarSectoresMikelSupervision() {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+
+      for (const sector of sectoresMikelSupervision) {
+        const puntos = sector.points;
+        if (!Array.isArray(puntos) || puntos.length < 3) continue;
+
+        const valido = puntos.every(p =>
+          Array.isArray(p) && p.length === 2 &&
+          Number.isFinite(p[0]) && Number.isFinite(p[1]) &&
+          Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180
+        );
+        if (!valido) continue;
+
+        const colores = {
+          completada: '#22c55e',
+          en_proceso: '#f59e0b',
+          sin_comprobar: '#94a3b8',
+          por_hacer: '#94a3b8'
+        };
+        const color = colores[sector.status] || '#94a3b8';
+
+        const poligono = L.polygon(puntos, {
+          color,
+          weight: 3,
+          dashArray: '6,6',
+          fillColor: color,
+          fillOpacity: 0.12
+        }).addTo(map);
+
+        const panel = document.createElement('div');
+        panel.style.cssText =
+          'min-width:190px;color:#0f172a;font-size:12px';
+
+        const titulo = document.createElement('strong');
+        titulo.textContent = sector.sectorName || 'Sector de Mikel';
+        panel.appendChild(titulo);
+
+        const detalles = [
+          ['Pueblo', sector.town],
+          ['Responsable', sector.comercial],
+          ['Estado', sector.status],
+          ['Interesados', sector.stats?.si || 0],
+          ['Rechazos', sector.stats?.no || 0],
+          ['Ausentes', sector.stats?.ausente || 0],
+          ['Papelitos', sector.stats?.papelito || 0]
+        ];
+
+        for (const [etiqueta, valor] of detalles) {
+          const fila = document.createElement('div');
+          fila.textContent = etiqueta + ': ' + (valor ?? '');
+          panel.appendChild(fila);
+        }
+
+        const nota = document.createElement('small');
+        nota.textContent = 'Supervisión · Solo lectura';
+        panel.appendChild(nota);
+
+        poligono.bindPopup(panel);
+        poligono.bringToBack();
+        loadedMapLayers.push(poligono);
+      }
+    }
+
+
     let savedShifts = [];
     let completedTowns = [];
     let hotLeadMissions = [];
@@ -3062,6 +3151,9 @@ function openUserProfileModal() {
       setupRoleInterface();
       updateShiftUI();
       initMap();
+      if (currentUserName === 'Andrei (Jefe)') {
+        void cargarSectoresMikelSupervision();
+      }
       if (currentUserName === 'Andrei (Jefe)') {
         completarPostalesExistentes().catch(e =>
           console.error('Autocompletado postal:', e)
@@ -11611,6 +11703,7 @@ const labelStreet = clientObj.street ||
 
         loadedMapLayers.push(polygon);
       });
+      dibujarSectoresMikelSupervision();
     }
 
     function formatDate(dateStr) {
@@ -17507,6 +17600,9 @@ function openCommercialStatsModalLegacy() {
  const functionsEu = getFunctions(app, 'europe-west1');
  window.watchWorkV2 = (team, changed, error) => onSnapshot(doc(db,'estado_trabajo',team), snap => {if (!snap.metadata.fromCache) changed();}, error);
  window.readWorkV2 = httpsCallable(functionsEu, 'leerTrabajoV2');
+ window.consultarSectoresMikel =
+   httpsCallable(functionsEu, 'consultarSectoresMikel');
+
  window.teamSummaryV2 = httpsCallable(functionsEu, 'resumenTrabajoV2');
  window.writeWorkV2 = httpsCallable(functionsEu, 'guardarTrabajoV2');
  window.verificarHistoricoKonsor = httpsCallable(functionsEu, 'verificarHistoricoKonsor');
