@@ -1,0 +1,111 @@
+/* Comercial Navarra — superficies iOS / Liquid Glass compartidas.
+   No altera geometría Leaflet ni la lógica de validación de formularios. */
+:root{--cn-white:#fff;--cn-bg:#f5f5f7;--cn-ink:#202b3b;--cn-muted:#66758a;--cn-stroke:#e4eaf1;--cn-glass:rgba(255,255,255,.86)}
+body .modal-overlay:not(.cn-territorio):not(.cn-oficina):not(.cnx-modal) .modal-card{
+ background:#f5f5f7!important;color:#25344a!important;
+ border:1px solid rgba(255,255,255,.93)!important;border-radius:24px!important;
+ box-shadow:0 24px 65px rgba(20,34,50,.17)!important;
+}
+body .modal-overlay:not(.cn-territorio):not(.cn-oficina):not(.cnx-modal) .modal-header{
+ background:transparent!important;border-bottom:1px solid #e1e7ee!important;
+ padding-bottom:14px!important;margin-bottom:12px!important;
+ color:#223149!important;line-height:1.25!important;letter-spacing:-.2px!important;
+}
+body .modal-overlay:not(.cn-territorio):not(.cn-oficina):not(.cnx-modal) .modal-header>span,
+body .modal-overlay:not(.cn-territorio):not(.cn-oficina):not(.cnx-modal) .modal-header strong{
+ color:#263449!important;font-size:17px!important;font-weight:730!important;
+}
+body .modal-overlay .modal-scrollable-content{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
+body .modal-overlay .modal-scrollable-content::-webkit-scrollbar{width:4px}
+body .modal-overlay .modal-scrollable-content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+body .modal-overlay .input-group,body .modal-overlay .settings-section,
+body .modal-overlay .audit-card,body .modal-overlay .client-box,
+body .modal-overlay .comunidad-box,body .modal-overlay .today-town-card{
+ background:rgba(255,255,255,.93)!important;border:1px solid #e4eaf1!important;
+ border-radius:16px!important;color:#2e4055!important;
+ box-shadow:0 2px 9px rgba(15,23,42,.025)!important;
+}
+body .modal-overlay .input-label,body .modal-overlay label:not(.cn-house-field):not(.cng-field){
+ color:#53657c!important;font-weight:630;
+}
+body .modal-overlay .input-field,body .modal-overlay .select-field,
+body .modal-overlay input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]),
+body .modal-overlay select,body .modal-overlay textarea{
+ border:1px solid #dce4ed!important;border-radius:12px!important;
+ background:#fff!important;color:#26354a!important;box-shadow:none!important;
+}
+body .modal-overlay input::placeholder,body .modal-overlay textarea::placeholder{
+ color:#9aa5b3!important;opacity:1;
+}
+body .modal-overlay .modal-section-title{color:#667991!important;font-size:12px!important;letter-spacing:.02em!important}
+body .modal-overlay .subtab-bar{display:flex;gap:5px;background:#e9edf3!important;border-radius:14px!important;padding:4px!important;border:0!important;overflow-x:auto;scrollbar-width:none}
+body .modal-overlay .subtab-bar .subtab-btn{
+ background:transparent!important;color:#6c7c90!important;border:0!important;border-radius:11px!important;
+ font-size:11px!important;font-weight:660!important;min-height:38px!important;padding:8px 12px!important;
+ box-shadow:none!important;white-space:nowrap;
+}
+body .modal-overlay .subtab-bar .subtab-btn.active{
+ background:#fff!important;color:#25374f!important;box-shadow:0 2px 9px rgba(15,23,42,.09)!important;
+}
+body .modal-overlay :is(.btn-modal-save,.btn-modal-delete,.btn-modal-crop,.btn-modal-ocr){
+ border-radius:13px!important;min-height:43px!important;box-shadow:none!important;
+ font-size:12px!important;font-weight:680!important;letter-spacing:normal!important;
+}
+body .modal-overlay .btn-modal-save{background:#29394f!important;color:#fff!important;border:1px solid #29394f!important}
+body .modal-overlay .btn-modal-delete{background:#fff4f2!important;border:1px solid #f1d4ce!important;color:#b45d4d!important}
+body .modal-overlay :is(.btn-modal-crop,.btn-modal-ocr){
+ background:#f1f5f9!important;color:#354a67!important;border:1px solid #dfe7f1!important;
+}
+body .modal-overlay button:focus-visible,body .modal-overlay input:focus-visible,
+body .modal-overlay select:focus-visible,body .modal-overlay textarea:focus-visible{
+ outline:2px solid #769bd1!important;outline-offset:2px!important;
+}
+body .modal-overlay details>summary{color:#40556f!important;font-weight:650}
+body .modal-overlay :is(.year-warning-alert,.no-apto-pill){
+ border-radius:11px!important;
+}
+body .modal-overlay .modal-card [style*="color:#fff"]:not(button):not(input):not(option):not(a):not(.hierarchy-pill):not(.no-apto-pill),
+body .modal-overlay .modal-card [style*="color: #fff"]:not(button):not(input):not(option):not(a):not(.hierarchy-pill):not(.no-apto-pill),
+body .modal-overlay .modal-card [style*="color:#f8fafc"]:not(button):not(input):not(option):not(a),
+body .modal-overlay .modal-card [style*="color:#e2e8f0"]:not(button):not(input):not(option):not(a),
+body .modal-overlay .modal-card [style*="color:#cbd5e1"]:not(button):not(input):not(option):not(a){
+ color:#35485e!important;
+}
+body .modal-overlay .modal-card :is(div,section,article)[style*="background:#1e293b"],
+body .modal-overlay .modal-card :is(div,section,article)[style*="background: #1e293b"],
+body .modal-overlay .modal-card :is(div,section,article)[style*="background:#0f172a"],
+body .modal-overlay .modal-card :is(div,section,article)[style*="background:#334155"],
+body .modal-overlay .modal-card :is(div,section,article)[style*="background:rgba(30,41,59"],
+body .modal-overlay .modal-card :is(div,section,article)[style*="background:rgba(15,23,42"]{
+ background:#fff!important;border-color:#e4eaf1!important;color:#35465c!important;box-shadow:none!important;
+}
+body .modal-overlay .modal-card button[style*="background:#1e293b"],
+body .modal-overlay .modal-card button[style*="background:#334155"],
+body .modal-overlay .modal-card button[style*="background:#0f172a"]{
+ background:#f3f6fa!important;color:#334860!important;border:1px solid #e1e7ee!important;
+}
+body .modal-overlay .modal-card table{border-collapse:collapse;width:100%;font-size:12px;color:#364c66!important}
+body .modal-overlay .modal-card table :is(th,td){border-bottom:1px solid #e6ebf2;padding:9px 7px;color:#4c6179!important}
+body .modal-overlay .modal-card table th{font-weight:700;color:#273b53!important}
+#userProfileModal .settings-section,#accessAdminModal .modal-card,
+#leagueRankingModal .modal-card,#auditModal .modal-card,
+#globalSearchModal .modal-card,#followUpsModal .modal-card,
+#commercialStatsModal .modal-card,#mikelRadarModal .modal-card,
+#bossPlanModal .modal-card,#assignModal .modal-card,
+#workNavigationModal .modal-card{
+ background:#f5f5f7!important;color:#27374b!important;
+}
+#userProfileModal .settings-section>summary{font-size:14px!important;padding:9px 2px!important}
+#userProfileModal .settings-section :is(label,p,span,small){color:#53657a!important}
+#leagueRankingModal .modal-scrollable-content,#auditModal .modal-scrollable-content,
+#followUpsModal .modal-scrollable-content,#globalSearchModal .modal-scrollable-content,
+#commercialStatsModal .modal-scrollable-content{
+ color:#27394f!important;line-height:1.5;
+}
+#idenaViewerModal iframe{border-radius:14px!important;background:#fff!important}
+#singleHouseModal .cn-house-advanced[open] .cn-house-original,
+#dumpModal .cng-advanced[open] .cng-original{display:block}
+@media(max-width:450px){
+ body .modal-overlay:not(.cn-territorio):not(.cn-oficina):not(.cnx-modal) .modal-card{padding:15px!important}
+ body .modal-overlay .modal-header>span{font-size:16px!important}
+}
