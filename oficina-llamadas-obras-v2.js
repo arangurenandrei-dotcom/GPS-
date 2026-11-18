@@ -13,7 +13,8 @@ const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phon
 function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
-const pending=i=>!done(i);
+const pending=i=>!done(i)&&i.c.obraStatus!=="no_apto";
+const callable=i=>pending(i)&&(!Number(i.c.nextContactAt)||Number(i.c.nextContactAt)<=Date.now());
 function resolve(){if(!current)return null;return all().find(x=>x.key===current.key)||null;}
 function root(){
  let r=document.getElementById(ID);if(r)return r;
@@ -31,7 +32,7 @@ function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
 function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
 function open(item){current={key:item.key};view="client";draw();}
-function next(){const row=all().find(i=>pending(i)&&i.key!==current?.key);if(row)open(row);else{view="list";draw();}}
+function next(){const row=all().find(i=>callable(i)&&i.key!==current?.key);if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
  e("small","",(item.z.town||"Sin municipio")+" · "+(item.c.street||"Sin calle"),txt);
@@ -40,16 +41,17 @@ function row(body,item){const b=button("",()=>open(item),"koc-row");
  body.append(b);}
 function draw(){
  const r=root();r.classList.add("active");const body=r.querySelector(".koc-body");body.replaceChildren();
- const items=all(),todo=items.filter(pending),scheduled=items.filter(booked);
+ const items=all(),todo=items.filter(callable),scheduled=items.filter(booked),deferred=items.filter(i=>pending(i)&&!callable(i));
  if(view==="list"){
   title(body,"La siguiente llamada","Resuelve cada ficha antes de pasar a la siguiente. El volcado mantiene su fecha original.");
   const counts=e("div","koc-counts",undefined,body);
-  [["Clientes",items.length],["Por gestionar",todo.length],["Obras agendadas",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
+  [["Clientes",items.length],["Por llamar",todo.length],["Obras agendadas",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
   if(currentUserRole==="jefe"){const s=e("select","koc-input",undefined,body);[["mine","Mis clientes"],["team","Todo mi equipo"]].forEach(([value,label])=>{const o=e("option","",label,s);o.value=value;});s.value=scope;s.onchange=()=>{scope=s.value;draw();};}
   if(todo.length)body.append(button("Empezar con "+(todo[0].c.name||"la primera ficha"),()=>open(todo[0]),"koc-primary"));
   const list=card(body);title(list,"Clientes pendientes",todo.length+" fichas para gestionar");
   todo.forEach(i=>row(list,i));
-  if(!todo.length)e("p","koc-muted","No quedan clientes pendientes en esta selección.",list);
+  if(!todo.length)e("p","koc-muted","No hay llamadas vencidas. Los recordatorios futuros permanecen guardados.",list);
+  if(deferred.length){const waits=e("details","koc-closed",undefined,body);e("summary","","Seguimientos futuros ("+deferred.length+")",waits);deferred.forEach(i=>row(waits,i));}
   const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+(items.length-todo.length)+")",details);items.filter(i=>!pending(i)).forEach(i=>row(details,i));
   return;
  }
