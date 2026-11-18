@@ -78,12 +78,12 @@ function showHome(){
  let state="Sin iniciar";
  if(data.shift)state=data.shift.status==="working"?"En curso":data.shift.status==="lunch"?"En pausa":"Finalizada";
  el("span","cnv-state",state,upper);
- el("h2","",data.todayCount?"Tienes "+data.todayCount+" sectores para hoy":"Organiza tu jornada",hero);
+ el("h2","",data.old?"Primero, "+data.old+" sectores pendientes":data.todayCount?"Tienes "+data.todayCount+" sectores para hoy":"Organiza tu jornada",hero);
  el("p","",data.old?data.old+" sectores anteriores pendientes · "+data.next+" próximos":"Consulta tu planificación y sigue el siguiente paso.",hero);
- const nextAction=!data.shift?"Iniciar jornada":data.shift.status==="lunch"?"Reanudar trabajo":data.shift.status==="finished"?"Revisar fichas y llamadas":data.todayCount?"Ir al mapa de trabajo":"Abrir Oficina";
- const nextStep=!data.shift?"Empieza registrando tu entrada.":data.shift.status==="lunch"?"Al volver de comer, reanuda el fichaje.":data.shift.status==="finished"?"Comprueba que las fichas estén completas y organiza las llamadas.":data.todayCount?"Continúa con los sectores de hoy.":"Revisa las hojas pendientes y las llamadas del día.";
+ const nextAction=!data.shift?"Iniciar jornada":data.shift.status==="lunch"?"Reanudar trabajo":data.shift.status==="finished"?"Revisar fichas y llamadas":data.old?"Resolver sector anterior":data.todayCount?"Ver sector de hoy":"Abrir Oficina";
+ const nextStep=!data.shift?"Empieza registrando tu entrada.":data.shift.status==="lunch"?"Al volver de comer, reanuda el fichaje.":data.shift.status==="finished"?"Comprueba que las fichas estén completas y organiza las llamadas.":data.old?"Acaba primero el trabajo anterior. Si ya lo hiciste, pasa al volcado.":data.todayCount?"Continúa con los sectores de hoy.":"Revisa las hojas pendientes y las llamadas del día.";
  el("p","cnv-next-step","Siguiente paso · "+nextStep,hero);
- hero.append(btn(nextAction,()=>{if(!data.shift||data.shift.status==="lunch")window.openCnDay?.();else if(data.shift.status==="working"&&data.todayCount)showMap();else window.openCnOffice?.();},"cnv-dark"));
+ hero.append(btn(nextAction,()=>{if(!data.shift||data.shift.status==="lunch"||data.old||data.todayCount&&data.shift.status==="working")window.openCnDay?.();else window.openCnOffice?.();},"cnv-dark"));
  const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
  tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>window.openCnDay?.());
