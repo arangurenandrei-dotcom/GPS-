@@ -1151,6 +1151,24 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
  #loginScreen>.login-card {margin:auto!important}
 }
 </style>
+<style id="iosMinimalV3">
+#loginScreen[style*="display: none"],html[data-login-team="mikel"] #loginScreen[style*="display: none"]{display:none!important}
+:root{--bg-dark:#f5f5f7;--bg-panel:rgba(255,255,255,.9);--border-panel:rgba(25,35,55,.10);--primary:#1d2530}
+html,body{background:#f5f5f7;color:#17202c}
+#appContainer .hud-header{background:rgba(255,255,255,.87)!important;border:1px solid rgba(255,255,255,.88)!important;box-shadow:0 10px 35px rgba(15,23,42,.12)!important;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border-radius:22px!important;color:#192331!important}
+#appContainer .hud-header .btn-hud,#appContainer .bottom-action-panel .btn-hud,#appContainer .bottom-action-panel .btn-main-action{background:rgba(246,247,250,.92)!important;color:#202936!important;border:1px solid rgba(31,41,55,.11)!important;border-radius:13px!important;box-shadow:none!important;font-weight:600!important;text-shadow:none!important}
+#appContainer .hud-header .btn-hud:active,#appContainer .bottom-action-panel button:active{transform:scale(.98)}
+#appContainer .shift-bar,#appContainer .hud-top-row{color:#202936!important}
+#appContainer .search-input,#appContainer .search-row input{background:#f3f4f7!important;color:#1f2937!important;border:1px solid #e5e7eb!important;border-radius:13px!important}
+#appContainer .search-input::placeholder{color:#8a919b!important}
+#appContainer .bottom-action-panel{background:rgba(255,255,255,.84)!important;border:1px solid rgba(255,255,255,.8)!important;border-radius:20px!important;box-shadow:0 8px 30px rgba(15,23,42,.12)!important;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+#appContainer .role-badge{background:#e9edf2!important;color:#394454!important;border:1px solid #dce2e9!important}
+#appContainer .modal-card{background:#f7f8fa!important;color:#17202c!important;border:1px solid rgba(0,0,0,.08)!important;border-radius:24px!important;box-shadow:0 18px 55px rgba(15,23,42,.17)!important}
+#appContainer .modal-header-sticky{background:rgba(247,248,250,.95)!important;backdrop-filter:blur(18px)}
+#appContainer .modal-card .form-input,#appContainer .modal-card .form-select{background:white!important;color:#17202c!important;border-color:#dfe3e9!important;border-radius:12px!important}
+#loginScreen #authMsg{color:#334155!important;background:#f1f5f9!important;border-color:#cbd5e1!important}
+@media (prefers-reduced-motion:reduce){#appContainer button{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
 
@@ -1225,7 +1243,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
       </div>
       <div class="banner-drawing-actions" id="drawingBannerActionsRow">
         <button id="btnToggleSingleHouseMode" class="btn-single-house-opt" onclick="toggleSingleHouseDrawingMode()">
-          🏠 Vivienda única
+          Vivienda única
         </button>
         <button id="btnConfirmSectorPoly" style="padding:6px 12px; border:none; border-radius:8px; background:#fff; color:#0f172a; font-weight:900; font-size:11px; cursor:pointer;" onclick="finishSectorDrawing()">
           CONFIRMAR ZONA
@@ -1238,36 +1256,36 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
       <!-- Fila 1: Identidad + Capas Catastro Navarra / Satélite / GPS / Salir -->
       <div class="hud-top-row">
         <div class="user-pill">
-          <span id="displayRoleBadge" class="role-badge jefe">👑 JEFE</span>
+          <span id="displayRoleBadge" class="role-badge jefe">ADMINISTRADOR</span>
           <span id="displayUserName" class="user-name-text">Andrei</span>
-          <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">💰 0 €</span>
+          <span id="hudLiveSalaryPill" class="live-salary-pill" style="display:none;" onclick="openCommercialStatsModal()" title="Tu acumulado del mes en curso">0 €</span>
         </div>
         <div class="hud-utility-group" style="gap:5px;">
-          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">⚙️</button>
-          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">🎯 GPS</button>
-          <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">🔒</button>
+          <button id="btnUserProfileConfig" class="btn-hud" style="padding:6px 8px; background:rgba(124,58,237,0.28); border-color:#a78bfa;" onclick="openUserProfileModal()" title="Ajustes de la App">Ajustes</button>
+          <button class="btn-hud gps" style="padding:6px 9px;" onclick="centerOnUser()">GPS</button>
+          <button class="btn-hud logout" style="padding:6px 9px;" onclick="executeLogout()">Salir</button>
         </div>
       </div>
 
       <!-- Fila 2: Botones Principales en Rejilla Simétrica -->
       <div id="hudNavGrid" class="hud-nav-grid cols-4">
-        <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">📊 Agenda</button>
-        <button id="btnCommercialPlan" class="btn-hud jefe-action" style="display:none;" onclick="showCommercialBriefing()">📋 Mi Plan</button>
-        <button id="btnFollowUps" class="btn-hud followup-action" onclick="openFollowUpsModal()">📞 Llamar</button>
-        <button id="btnLeagueRanking" class="btn-hud ranking-action" onclick="openLeagueRankingModal()">🏆 Ranking</button>
-        <button id="btnCommercialStats" class="btn-hud stats-action" onclick="openCommercialStatsModal()">📈 Mis Stats</button>
-        <button id="btnMikelRadarHud" class="btn-hud" style="display:none; background:linear-gradient(135deg, #0d9488 0%, #115e59 100%); border-color:#2dd4bf;" onclick="openMikelRadarModal()">⚔️ Equipos</button>
+        <button id="btnBossAudit" class="btn-hud jefe-action" onclick="openAuditModal()">Agenda</button>
+        <button id="btnCommercialPlan" class="btn-hud jefe-action" style="display:none;" onclick="showCommercialBriefing()">Mi plan</button>
+        <button id="btnFollowUps" class="btn-hud followup-action" onclick="openFollowUpsModal()">Llamadas</button>
+        <button id="btnLeagueRanking" class="btn-hud ranking-action" onclick="openLeagueRankingModal()">Ranking</button>
+        <button id="btnCommercialStats" class="btn-hud stats-action" onclick="openCommercialStatsModal()">Estadísticas</button>
+        <button id="btnMikelRadarHud" class="btn-hud" style="display:none; background:linear-gradient(135deg, #0d9488 0%, #115e59 100%); border-color:#2dd4bf;" onclick="openMikelRadarModal()">Equipos</button>
       </div>
       <!-- Fila 3: Control de Jornada -->
       <div class="shift-bar">
         <div class="shift-status-pill" id="shiftStatusText">
-          🔴 Fuera de Jornada
+          Fuera de jornada
         </div>
         <div style="display:flex; gap:4px;">
-          <button id="btnStartShift" class="btn-hud" style="background:#059669;" onclick="handleShiftAction('start')">▶️ Empezar</button>
-          <button id="btnLunchShift" class="btn-hud" style="background:#d97706; display:none;" onclick="handleShiftAction('lunch')">⏸️ Comida</button>
-          <button id="btnEndShift" class="btn-hud" style="background:#dc2626; display:none;" onclick="handleShiftAction('end')">⏹️ Terminar</button>
-          <button id="btnReopenShift" class="btn-hud" style="background:#475569; display:none;" onclick="reopenTodayShift()" title="Reabrir jornada cerrada por error">↩️ Reabrir</button>
+          <button id="btnStartShift" class="btn-hud" style="background:#059669;" onclick="handleShiftAction('start')">Iniciar</button>
+          <button id="btnLunchShift" class="btn-hud" style="background:#d97706; display:none;" onclick="handleShiftAction('lunch')">Comida</button>
+          <button id="btnEndShift" class="btn-hud" style="background:#dc2626; display:none;" onclick="handleShiftAction('end')">Finalizar</button>
+          <button id="btnReopenShift" class="btn-hud" style="background:#475569; display:none;" onclick="reopenTodayShift()" title="Reabrir jornada cerrada por error">Reabrir</button>
         </div>
       </div>
 
@@ -1275,7 +1293,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
       <div class="search-row" style="position:relative;">
         <input type="text" id="searchInput" class="search-input" placeholder="🔍 Calle, nº y pueblo (ej. Carretera Lodosa 23 Mendavia)..." onkeypress="if(event.key==='Enter') searchLocation()">
         <button class="btn-search" onclick="searchLocation()">Ir</button>
-        <button class="btn-global-crm" onclick="openGlobalClientSearchModal()" title="Buscar cliente por nombre, teléfono o calle">🔎 Fichas</button>
+        <button class="btn-global-crm" onclick="openGlobalClientSearchModal()" title="Buscar cliente por nombre, teléfono o calle">Fichas</button>
       </div>
       <div id="searchCandidatesDropdown" style="display:none; flex-direction:column; gap:4px; background:#0f172a; border:1px solid #38bdf8; border-radius:12px; padding:6px; max-height:185px; overflow-y:auto; box-shadow:0 12px 28px rgba(0,0,0,0.85);"></div>
     </div>
@@ -1289,22 +1307,22 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
     <div class="bottom-action-panel" style="flex-direction:column; gap:7px;">
       <!-- Fila superior: Herramientas rápidas de mapa -->
       <div id="mapToolsRow" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; width:100%;">
-        <button id="btnToggleCatastro" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">🏘️ Catastro</button>
-        <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">📐 Medir</button>
+        <button id="btnToggleCatastro" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:rgba(15, 23, 42, 0.92); border-color:rgba(255,255,255,0.28); box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="toggleCatastroLayer()">Catastro</button>
+        <button id="btnMeasureRoof" class="btn-hud layer-btn" style="justify-content:center; padding:8px 6px; font-size:11px; border-radius:10px; background:#b45309; border-color:#fbbf24; box-shadow:0 4px 12px rgba(0,0,0,0.4);" onclick="startRoofMeasureMode()">Medir</button>
       </div>
 
       <!-- Fila inferior: Acciones principales -->
       <div style="display:flex; gap:6px; width:100%;">
         <button id="btnBossAssignMode" class="btn-main-action btn-assign" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="startSectorDrawing()">
-          ➕ SECTOR
+          Nuevo sector
         </button>
 
         <button id="btnMarkNoAptoZone" class="btn-main-action" style="flex:1; font-size:11.5px; padding:13px 6px; background:linear-gradient(135deg, #dc2626 0%, #991b1b 100%); border:1px solid #f87171;" onclick="startNoAptoZoneDrawing()">
-          🚫 NO APTA
+          No apta
         </button>
 
         <button id="btnCommercialDumpMode" class="btn-main-action btn-dump" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="openSelectZoneToDumpModal()">
-          📝 VOLCAR
+          Volcar
         </button>
       </div>
     </div>
@@ -3301,17 +3319,25 @@ function openUserProfileModal() {
       }
     }
 
+    function authWithDeadline(promise, label, ms = 18000) {
+      let timeoutId;
+      const deadline = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(label + ': la respuesta está tardando demasiado. Revisa tu conexión y vuelve a intentarlo.')), ms);
+      });
+      return Promise.race([promise, deadline]).finally(() => clearTimeout(timeoutId));
+    }
+
     async function authDoLogin() {
       if (!window.authApi) { authSetMsg('⏳ La app aún está cargando. Espera unos segundos.', 'warn'); return; }
       const email = (document.getElementById('authEmail').value || '').trim();
       const pass = document.getElementById('authPass').value || '';
       if (!email || !pass) { authSetMsg('⚠️ Escribe tu correo y tu contraseña.', 'err'); return; }
-      authSetMsg('⏳ Entrando...', 'info');
+      authSetMsg('Comprobando acceso…', 'info');
       authBusy = true;
       try {
-        const user = await window.authApi.login(email, pass);
+        const user = await authWithDeadline(window.authApi.login(email, pass), 'Inicio de sesión');
+        await authWithDeadline(authFinishLogin(user), 'Carga de cuenta', 25000);
         authBusy = false;
-        await authFinishLogin(user);
       } catch (e) {
         authBusy = false;
         authSetMsg(authFriendlyError(e), 'err');
@@ -3333,7 +3359,7 @@ function openUserProfileModal() {
     async function authFinishLogin(user) {
       let prof = null;
       try {
-        prof = await window.authApi.getProfile(user.uid);
+        prof = await authWithDeadline(window.authApi.getProfile(user.uid), 'Lectura del perfil');
       } catch (e) {
         authSetMsg('⚠️ No se pudo leer tu ficha. Revisa la conexión.', 'err');
         return;
@@ -3349,7 +3375,7 @@ function openUserProfileModal() {
             userKey: isBossEmail ? 'jefe' : '',
             createdAt: Date.now()
           });
-          prof = await window.authApi.getProfile(user.uid);
+          prof = await authWithDeadline(window.authApi.getProfile(user.uid), 'Lectura del perfil');
         } catch (e) {
           authSetMsg('⚠️ No se pudo crear tu ficha: ' + ((e && e.message) || e), 'err');
           try { await window.authApi.logout(); } catch (e2) {}
@@ -3382,14 +3408,17 @@ function openUserProfileModal() {
         return;
       }
       try {
-        await window.KonsorBridge.open(user.uid, prof.userKey);
+        await authWithDeadline(window.KonsorBridge.open(user.uid, prof.userKey), 'Carga de datos', 25000);
         if (!currentUserName && window.auth.currentUser?.uid === user.uid) startSessionForUserKey(prof.userKey);
       } catch (e) { authSetMsg('No se pudo cargar tu trabajo. ' + e.message, 'err'); }
     }
 
     window.onAuthUserReady = function(user) {
       if (authBusy || currentUserName) return;
-      authFinishLogin(user);
+      authBusy = true;
+      authWithDeadline(authFinishLogin(user), 'Recuperación de sesión', 25000)
+        .catch(e => authSetMsg(authFriendlyError(e), 'err'))
+        .finally(() => { authBusy = false; });
     };
 
     async function completarPostalesExistentes() {
