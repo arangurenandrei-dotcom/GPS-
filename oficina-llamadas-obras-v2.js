@@ -4,7 +4,7 @@
 const ID="konsorOfficeCallV2";
 const SLOTS=[["09:00","11:00"],["11:00","13:00"],["15:00","17:00"],["17:00","19:00"]];
 let current=null, view="list", scope="mine", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
-let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false;
+let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null;
 const e=(t,c,txt,p)=>{let x=document.createElement(t);if(c)x.className=c;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
 const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.type="button";b.onclick=fn;return b;};
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
@@ -91,8 +91,8 @@ function clusterStatus(item){
  return "ready";
 }
 function preferGroupDate(item,date,time,team){
- current={key:item.key};chosenDate=date;selectedSlot="";selectedTeam=0;clusterReturn=true;
- view="calendar";draw({preferred:{time,team}});
+ plannedChoice={key:item.key,date,time,team};clusterReturn=true;
+ current={key:item.key};view="client";draw();
 }
 function groupDateLabel(date){
  try{return new Date(date+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}catch{return date;}
@@ -246,7 +246,7 @@ function title(p,heading,detail){e("h3","",heading,p);if(detail)e("p","koc-muted
 function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
 function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
-function open(item){current={key:item.key};view="client";draw();}
+function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};view="client";draw();}
 function next(){const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||remaining.find(i=>i.key===firstRecommended()?.key)||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
@@ -284,13 +284,14 @@ function draw(opts={}){
   facts.forEach(([k,v])=>{const line=e("div","koc-fact",undefined,sheet);e("span","",k,line);e("strong","",v,line);});
   const group=all().filter(x=>callable(x)&&sameStreet(item,x));
   if(group.length>1){const hint=card(body);e("strong","","Oportunidad · Misma calle",hint);e("p","koc-muted",group.length+" viviendas por llamar en esta calle. Conviene proponer franjas del mismo día y equipo antes de abrir otra ruta.",hint);hint.append(button("Ver jornada con estos clientes",()=>startGroup(item),"koc-quiet"));}
+  if(plannedChoice?.key===item.key){const suggestion=card(body);e("strong","","Franja que intentamos completar",suggestion);e("p","koc-muted",plannedChoice.date+" · "+plannedChoice.time+" · Equipo "+plannedChoice.team+" (sin reservar). Propón este horario durante la llamada.",suggestion);}
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
   if(!callable(item)&&pending(item)){const nextAt=new Date(Number(c.nextContactAt)).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});e("p","koc-muted","Seguimiento programado para "+nextAt+". Puedes consultar la ficha sin adelantar la llamada.",body);}
   if(booked(item)){
    body.append(button("Ver confirmación y WhatsApp",()=>{view="whatsapp";draw();},"koc-primary"));
    body.append(button("Cambiar fecha",()=>{chosenDate=c.obraDate||tomorrow();view="calendar";draw();},"koc-quiet"));
   }else{
-   body.append(button("Acepta · Agendar obra",()=>{chosenDate=clusterFocus?clusterDate:tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw();},"koc-primary"));
+   body.append(button("Acepta · Agendar obra",()=>{chosenDate=plannedChoice?.key===item.key?plannedChoice.date:clusterFocus?clusterDate:tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw({preferred:plannedChoice?.key===item.key?plannedChoice:null});},"koc-primary"));
    body.append(button("No contesta · Volver a llamar",()=>saveCall("ya_llamado"),""));
    body.append(button("Necesita pensarlo",()=>{view="waiting";draw();},""));
    body.append(button("No está interesado",()=>saveCall("no_interesado"),"koc-quiet"));
@@ -356,7 +357,7 @@ function draw(opts={}){
   if(phone)body.append(button("Abrir WhatsApp",()=>{const a=document.createElement("a");a.href="https://wa.me/"+phone+"?text="+encodeURIComponent(msg);a.target="_blank";a.rel="noopener noreferrer";document.body.append(a);a.click();a.remove();},"koc-green"));
   else body.append(show("El número no es válido. Corrige el teléfono antes de abrir WhatsApp."));
   body.append(button(c.whatsappObraEnviadoAt?"Enviado · "+new Date(c.whatsappObraEnviadoAt).toLocaleString("es-ES"):"Marcar WhatsApp como enviado",()=>markWhatsApp(),""));
-  if(clusterFocus){body.append(button("Ver jornada y vecinos pendientes",()=>{view="group";draw();},"koc-primary"));}
+  if(clusterFocus){body.append(button("Ver jornada y vecinos pendientes",()=>{plannedChoice=null;view="group";draw();},"koc-primary"));}
   else body.append(button("Siguiente cliente",next,"koc-primary"));
  }
 }
@@ -467,6 +468,6 @@ async function markWhatsApp(){
  const old=row.c.whatsappObraEnviadoAt;row.c.whatsappObraEnviadoAt=Date.now();row.z._updatedAt=Date.now();
  if(!await saveAndSync("comercial_custom_zones",savedZones)){row.c.whatsappObraEnviadoAt=old;alert("No se pudo guardar el envío.");}draw();busy=false;
 }
-window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;view="list";draw();};
+window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;view="list";draw();};
 window.openKonsorOfficeClients=window.openCnCallQueue;
 })();
