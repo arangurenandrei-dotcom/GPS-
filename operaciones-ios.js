@@ -130,7 +130,8 @@ function openCalls(){
  metric(k,"Pueblos",new Set(pending.map(x=>x.z.town).filter(Boolean)).size);
  const first=pending[0];
  const c=card(body,first?"Empezar por "+(first.z.town||"el primer pueblo"):"Organización de llamadas",first?"El sector más antiguo con llamadas pendientes es "+(first.z.sectorName||"Sin nombre")+".":"No hay fichas con estado pendiente de llamada en tu ámbito actual.");
- actions(c,b("Organizar llamadas por jornadas",()=>{close();openGroupedAppointments();},"primary"),
+ actions(c,b("Empezar llamadas guiadas",()=>{close();window.openCnCallQueue?.();},"primary"),
+         b("Organizar llamadas por jornadas",()=>{close();openGroupedAppointments();},"outline"),
          b("Ver seguimiento",()=>{close();openFollowUpsModal();},"outline"));
  const info=card(body,"Sin perder pendientes","Los estados de espera, citas y recordatorios siguen gestionándose en el sistema actual. Aquí no se marca ninguna llamada como realizada automáticamente.");
  actions(info,b("Buscar un cliente",()=>{close();openClients();},"outline"));
