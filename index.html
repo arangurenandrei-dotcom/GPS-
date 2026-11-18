@@ -884,6 +884,112 @@ html[data-login-team="mikel"] #loginTeamBadge {
       animation: gpsPulseRing 1.2s infinite;
     }
   </style>
+
+<style id="iosAccessRedesign">
+/* Interfaz de acceso: blanco, sereno, y sin elementos promocionales. */
+#loginScreen,
+html[data-login-team="mikel"] #loginScreen {
+  background: radial-gradient(ellipse at 50% -25%, #ffffff 14%, #f3f6fa 68%, #ebf0f7 100%) !important;
+  color: #111827 !important;
+  padding: max(env(safe-area-inset-top), 18px) 16px max(env(safe-area-inset-bottom), 18px);
+}
+#loginScreen .login-card,
+html[data-login-team="mikel"] #loginScreen .login-card {
+  width: min(100%, 420px) !important;
+  max-width: 420px !important;
+  background: rgba(255,255,255,.76) !important;
+  border: 1px solid rgba(255,255,255,.98) !important;
+  border-radius: 26px !important;
+  padding: 28px 22px 23px !important;
+  gap: 19px !important;
+  box-shadow: 0 18px 58px rgba(31,47,77,.10), inset 0 1px 0 #fff !important;
+  backdrop-filter: blur(24px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+}
+#loginScreen #andreiWelcomeBanner { display:none !important; }
+#loginScreen #loginTeamBadge,
+html[data-login-team="mikel"] #loginTeamBadge {
+  background: #eff4fb !important;
+  border: 1px solid #e2e9f5 !important;
+  color: #54708e !important;
+  border-radius: 999px !important;
+  padding: 6px 11px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.1px !important;
+}
+#loginScreen .login-title {
+  color: #111827 !important;
+  font-size: 27px !important;
+  letter-spacing: -.8px;
+  line-height: 1.15 !important;
+  font-weight: 760 !important;
+  margin: 14px 0 9px !important;
+}
+#loginScreen .login-subtitle {
+  color: #66758a !important;
+  font-size: 12px !important;
+  font-weight: 450 !important;
+  line-height: 1.55 !important;
+}
+#loginScreen .form-input,
+#loginScreen .form-select {
+  background: rgba(246,248,252,.95) !important;
+  color: #172033 !important;
+  border: 1px solid #e0e7f0 !important;
+  border-radius: 13px !important;
+  min-height: 49px;
+  padding: 12px 14px !important;
+  font-size: 15px !important;
+  box-shadow: inset 0 1px 1px rgba(13,32,64,.025) !important;
+}
+#loginScreen .form-input::placeholder { color:#8391a3 !important; opacity:1; }
+#loginScreen .form-input:focus,
+#loginScreen .form-select:focus {
+  outline: 2px solid rgba(43,111,236,.2) !important;
+  border-color:#6b9df1 !important;
+}
+#loginScreen .btn-login,
+html[data-login-team="mikel"] #loginScreen .btn-login {
+  background: linear-gradient(180deg,#3481fb,#2265db) !important;
+  color: #fff !important;
+  border: 1px solid rgba(40,89,186,.22) !important;
+  border-radius: 13px !important;
+  min-height: 47px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 16px rgba(32,103,221,.15) !important;
+}
+#loginScreen #btnAuthRegister {
+  background: rgba(247,249,253,.94) !important;
+  color: #1b5cc2 !important;
+  border: 1px solid #d7e2f2 !important;
+  box-shadow: none !important;
+}
+#loginScreen #authMsg {
+  font-size: 12px !important;
+  font-weight: 550 !important;
+  line-height: 1.5 !important;
+  border-radius: 11px !important;
+  color:#334155;
+}
+#loginScreen .portal-foot {
+  border-top:1px solid #e8edf4 !important;
+  padding-top:15px !important;
+  margin-top:2px;
+}
+#loginScreen .portal-link { color:#2466cc !important;font-size:12px !important; }
+#loginScreen .portal-author {color:#8692a4 !important;font-size:10px !important;}
+#loginScreen .form-label {color:#536277 !important;}
+#loginScreen #loginError { color:#b42318 !important;background:#fff1f0 !important;border-color:#fdd4d0 !important; }
+@media(max-width:420px) {
+  #loginScreen .login-card,
+  html[data-login-team="mikel"] #loginScreen .login-card {
+    padding:23px 18px 20px !important;
+    border-radius:21px !important;
+  }
+}
+</style>
 </head>
 <body>
 
@@ -892,21 +998,15 @@ html[data-login-team="mikel"] #loginTeamBadge {
     <div class="login-card" style="max-width:385px; gap:14px; max-height:calc(100dvh - 40px); overflow-y:auto;">
       <div style="text-align:center;">
         <div id="loginTeamBadge" style="display:inline-block; background:rgba(124,58,237,0.25); border:1px solid #a78bfa; color:#ddd6fe; font-size:9.5px; font-weight:900; padding:3px 10px; border-radius:99px; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px;">
-          <span class="portal-andrei">👑 Plataforma Oficial · Equipo Andrei</span>
+          <span class="portal-andrei">EQUIPO ANDREI</span>
           <span class="portal-mikel">Equipo Mikel · Acceso comercial</span>
         </div>
-        <div class="login-title" style="line-height:1.2; margin-bottom:6px; font-size:21px;"><span class="portal-andrei">Control Comercial Navarra</span><span class="portal-mikel">Portal del equipo Mikel</span></div>
-        <div class="login-subtitle" style="line-height:1.35; margin-top:2px; margin-bottom:4px;"><span class="portal-andrei">Gestión de Zonas, Catastro IDENA y Obras CAE</span><span class="portal-mikel">Zonas, fichas y registro de jornada</span></div>
+        <div class="login-title" style="line-height:1.2; margin-bottom:6px; font-size:21px;"><span class="portal-andrei">Comercial Navarra</span><span class="portal-mikel">Comercial Navarra · Equipo Mikel</span></div>
+        <div class="login-subtitle" style="line-height:1.35; margin-top:2px; margin-bottom:4px;"><span class="portal-andrei">Organización territorial y trabajo comercial</span><span class="portal-mikel">Zonas, fichas y registro de jornada</span></div>
       </div>
 
       <!-- BANNER DE BIENVENIDA Y MENTALIDAD (EXCLUSIVO EQUIPO ANDREI) -->
-      <div id="andreiWelcomeBanner" class="portal-andrei" style="background:linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(37,99,235,0.18) 100%); border:1px solid rgba(167,139,250,0.45); border-radius:14px; padding:11px 12px; text-align:left;">
-        <div style="font-size:11.5px; font-weight:900; color:#fde047; margin-bottom:4px;">
-          🔥 ¡Bienvenido al Equipo de Andrei, compañero!
-        </div>
-        <div style="font-size:11px; color:#e2e8f0; line-height:1.45;">
-          Aquí venimos a <strong>trabajar con ganas</strong>, tener <strong>foco en cada puerta</strong>, <strong>ganar mucha pasta</strong>, aprender cada día y, sobre todo, <strong>¡DISFRUTAR DE ESTE EQUIPO!</strong> 🚀
-        </div>
+      <div id="andreiWelcomeBanner" class="portal-andrei" hidden aria-hidden="true"></div>
       </div>
 
       <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
@@ -938,7 +1038,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
       </div>
 
       <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:10px; display:flex; flex-direction:column; gap:7px;">
-        <div style="font-size:10.5px; font-weight:900; color:#93c5fd; text-transform:uppercase; text-align:center;">📧 Acceso con correo y contraseña</div>
+        <div style="font-size:10.5px; font-weight:900; color:#93c5fd; text-transform:uppercase; text-align:center;">ACCESO SEGURO</div>
         <input type="text" id="authName" class="form-input" placeholder="Tu nombre y apellido" style="display:none;">
         <input type="email" id="authEmail" class="form-input" placeholder="Correo electrónico" autocomplete="email">
         <input type="password" id="authPass" class="form-input" placeholder="Contraseña (mínimo 6 caracteres)" autocomplete="current-password" onkeypress="if(event.key==='Enter') authDoLogin()">
