@@ -71,6 +71,10 @@ function firstRecommended(){
  const candidates=all().filter(candidateOf),groups=clusters(candidates);
  return groups.length?groups[0][0]:candidates[0]||null;
 }
+function nextStreetGroup(){
+ const options=clusters(all().filter(candidateOf));
+ return options.find(g=>g.some(x=>town(x)!==clusterFocus?.town||street(x)!==clusterFocus?.street))||null;
+}
 function groupRows(){
  if(!clusterFocus)return [];
  return all().filter(i=>town(i)===clusterFocus.town&&street(i)===clusterFocus.street).sort((a,b)=>{
@@ -396,6 +400,8 @@ function renderGroup(body){
  const stats=e("div","koc-group-metrics",undefined,heading);
  const bookedHere=group.filter(x=>booked(x)),ready=group.filter(x=>clusterStatus(x)==="ready");
  [["Viviendas",group.length],["Confirmadas",bookedHere.length],["Por llamar",ready.length]].forEach(([label,v])=>{const box=e("div","koc-group-metric",undefined,stats);e("strong","",v,box);e("small","",label,box);});
+ const nextGroup=nextStreetGroup();
+ if(nextGroup){const nextBox=card(body);e("strong","","Siguiente calle prioritaria",nextBox);e("p","koc-muted",nextGroup.length+" viviendas pendientes · "+nextGroup[0].c.street.replace(/\\d+.*$/,"").trim()+" · "+nextGroup[0].z.town,nextBox);nextBox.append(button("Preparar siguiente grupo",()=>startGroup(nextGroup[0]),"koc-quiet"));}
  renderGroupAgenda(body);
  const clients=e("details","koc-card koc-neighbors-details",undefined,body);e("summary","","Ver las "+group.length+" fichas de la calle",clients);
  group.forEach(item=>{
@@ -436,11 +442,11 @@ function opportunityCards(parent,candidates){
  const groups=clusters(candidates),leads=proximityLeads(candidates);
  if(!groups.length&&!leads.length)return;
  const block=card(parent);title(block,"Oportunidades detectadas","Prioridades logísticas, no citas reservadas. El servidor verificará cada hueco antes de confirmarlo.");
- groups.slice(0,4).forEach(group=>{
+ groups.slice(0,6).forEach((group,index)=>{
   const first=group[0],line=e("div","koc-opportunity",undefined,block);
   const wrap=e("div","koc-opportunity-text",undefined,line);
-  e("strong","",first.c.street.replace(/\d+.*$/,"").trim()+" · "+(first.z.town||"Localidad"),wrap);
-  e("small","",group.length+" viviendas de la misma calle por llamar · Concentrar hasta cuatro franjas seguidas por equipo",wrap);
+  e("strong","",(index===0?"PRIMERA PRIORIDAD · ":index===1?"DESPUÉS · ":"AGRUPACIÓN · ")+first.c.street.replace(/\d+.*$/,"").trim()+" · "+(first.z.town||"Localidad"),wrap);
+  e("small","",group.length+" vecinos pendientes · Intentar primero "+Math.min(group.length,4)+" de esta calle en la jornada más próxima compatible",wrap);
   line.append(button("Ver jornada",()=>startGroup(group[0]),"koc-quiet"));
  });
  const covered=new Set(groups.flat().map(x=>x.key));
@@ -482,12 +488,12 @@ function draw(opts={}){
  const items=all(),todo=items.filter(callable),scheduled=items.filter(booked),deferred=items.filter(i=>pending(i)&&!callable(i));
  if(view==="group"){renderGroup(body);return;}
  if(view==="list"){
-  title(body,"La siguiente llamada","Resuelve cada ficha antes de pasar a la siguiente. El volcado mantiene su fecha original.");
+  title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
   const counts=e("div","koc-counts",undefined,body);
   [["Clientes",items.length],["Por llamar",todo.length],["Obras agendadas",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
   if(currentUserRole==="jefe"){const s=e("select","koc-input",undefined,body);[["mine","Mis clientes"],["team","Todo mi equipo"]].forEach(([value,label])=>{const o=e("option","",label,s);o.value=value;});s.value=scope;s.onchange=()=>{scope=s.value;draw();};}
   const suggested=firstRecommended();
-  if(suggested)body.append(button("Llamar a "+(suggested.c.name||"primer cliente recomendado"),()=>open(suggested),"koc-primary"));
+  if(suggested)body.append(button("Planificar primera calle · "+(suggested.z.town||""),()=>startGroup(suggested),"koc-primary"));
   opportunityCards(body,todo);
   const list=card(body);title(list,"Clientes pendientes",todo.length+" fichas para gestionar · Prioriza las agrupaciones");
   todo.forEach(i=>row(list,i));
