@@ -68,6 +68,7 @@ function showHome(){
  el("span","cnv-eyebrow","COMERCIAL NAVARRA",title);
  el("h1","", "Mi espacio de trabajo",title);
  el("p","", "¿Qué quieres hacer hoy?",title);
+ top.append(btn("Avisos",()=>window.openNotificationsCenterV2?.(),"cnv-glass"));
  top.append(btn("Ajustes",()=>openUserProfileModal(),"cnv-glass"));
  const section=el("section","cnv-home-content",undefined,home);
  const data=info();
@@ -92,10 +93,10 @@ function showHome(){
   const t=el("div","",undefined,bossCard);
   el("span","cnv-eyebrow","DIRECCIÓN",t);el("h2","", andrei()?"Gestión del equipo":"Mi equipo",t);
   el("p","", "Pueblos, sectores, comerciales y planificación territorial.",t);
-  bossCard.append(btn("Abrir Dirección",()=>andrei()?window.openCnTerritory?.():openAuditModal(),"cnv-dark"));
+  bossCard.append(btn("Abrir Dirección",()=>andrei()?window.openKonsorDirection?.():openAuditModal(),"cnv-dark"));
   if(andrei()){
    const management=el("div","cnv-shortcuts",undefined,section);
-   management.append(btn("Avisos del día",()=>checkAndShowBossTodayObras(true),"cnv-glass"));
+   management.append(btn("Ver tareas del equipo",()=>window.openNotificationsCenterV2?.("tasks"),"cnv-glass"));
   }
  }
  el("p","cnv-footer-note","Los cambios se guardan con las funciones actuales de Comercial Navarra.",section);
