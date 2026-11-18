@@ -1999,6 +1999,52 @@ function openHistoricalImportModal() {
     if(window.KonsorBridge?.busy || typeof window.KonsorBridge?.save!=='function'){
       alert('Hay un guardado en curso o pendiente. Actualiza la página antes de importar.');return;
     }
+    // Resolver direcciones históricas antes de guardar.
+    const postalByRow = new Map();
+    if (typeof queryCartoCiudadNavarra === 'function') {
+      status.textContent = 'Comprobando direcciones en CartoCiudad…';
+      const cache = new Map();
+
+      async function resolveAddress(r) {
+        const address = r.direccion.trim();
+        const town = r.municipio.trim();
+        if (!ComercialCore.postalAddress(address)) return null;
+
+        const key = JSON.stringify([address, town]);
+        if (!cache.has(key)) {
+          cache.set(key, (async () => {
+            try {
+              const candidates = await queryCartoCiudadNavarra(
+                [address, town, 'Navarra'].filter(Boolean).join(', '),
+                true
+              );
+              const matches = ComercialCore.postalMatches(
+                candidates, address, town
+              );
+              const unique = [...new Map(
+                matches.map(m => [
+                  JSON.stringify([m.cp, m.localities]),
+                  m
+                ])
+              ).values()];
+
+              return unique.length === 1 ? unique[0] : null;
+            } catch (_) {
+              return null;
+            }
+          })());
+        }
+        return cache.get(key);
+      }
+
+      // Cinco consultas simultáneas como máximo.
+      for (let i = 0; i < rows.length; i += 5) {
+        const group = rows.slice(i, i + 5);
+        const results = await Promise.all(group.map(resolveAddress));
+        group.forEach((r, j) => postalByRow.set(r, results[j]));
+      }
+    }
+
     const checked=assess();
     if(!checked.length || checked.some(r=>r.revision!=='Preparado')){
       alert('Corrige duplicados, estados y datos incompletos antes de guardar.');return;
@@ -2042,6 +2088,15 @@ function openHistoricalImportModal() {
           obraDate:state==='agendada'||state==='realizada'?r.fecha||'':'',
           obraTime:state==='agendada'||state==='realizada'?(r.hora||'').slice(0,5):'',
           callStatus:state==='por_llamar'?'pendiente':'ya_llamado',
+          // CP y localidad solo cuando coincide un portal inequívoco.
+          locality: postalByRow.get(r.sourceRow)?.localities?.[0] || r.municipio.trim(),
+          postalCode: postalByRow.get(r.sourceRow)?.cp || '',
+          cteZone: postalByRow.get(r.sourceRow)
+            ? detectCteZoneFromCpAndTown(postalByRow.get(r.sourceRow).cp).cteZone
+            : '',
+          postalVerification: postalByRow.get(r.sourceRow)
+            ? 'portal_verificado'
+            : 'pendiente_verificacion',
           crmOrigenEstado:r.estado.trim(),
           ...(r.id ? {crmOrigenId:r.id} : {}),
           importadoHistorico:true,createdAt:r.fecha?Date.parse(r.fecha+'T12:00:00'):now,statusChangedAt:now
@@ -12078,32 +12133,25 @@ const labelStreet = clientObj.street ||
     };
 
     function detectCteZoneFromCpAndTown(cpStr, townStr = '') {
-      const cleanCp = String(cpStr || '').replace(/\D/g, '').slice(0, 5);
-      const normTown = String(townStr || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const cp = String(cpStr || '').replace(/\D/g, '').slice(0, 5);
 
-      let resolvedCp = cleanCp;
-      if (resolvedCp.length !== 5 && normTown) {
-        resolvedCp = NAVARRA_TOWN_TO_CP[normTown] || '';
+      // No deducir el CP por localidad: un municipio puede tener varios.
+      if (cp.length !== 5) {
+        return { cp: '', cteZone: '', isApto: false };
       }
 
-      if (resolvedCp.length === 5) {
-        if (NAVARRA_CTE_BY_CP[resolvedCp]) {
-          const z = NAVARRA_CTE_BY_CP[resolvedCp];
-          return { cp: resolvedCp, cteZone: z, isApto: /^[DE][123]$/.test(z) };
-        }
-        const prefix2 = resolvedCp.slice(0, 2);
-        // Provincias con zonas A, B o C (costa / sur / islas -> NO APTAS para D/E)
-        const nonEligiblePrefixes = ['03','04','07','08','11','12','15','17','20','21','27','29','30','33','35','36','38','39','41','43','46','48','51','52'];
-        if (nonEligiblePrefixes.includes(prefix2)) {
-          return { cp: resolvedCp, cteZone: 'C / B / A (Fuera D-E)', isApto: false };
-        }
-        if (prefix2 === '31') {
-          return { cp: resolvedCp, cteZone: 'D2', isApto: true };
-        }
-        return { cp: resolvedCp, cteZone: 'D2 / D3', isApto: true };
+      // Únicamente correspondencias explícitas configuradas.
+      const zone = NAVARRA_CTE_BY_CP[cp] || '';
+
+      if (!zone) {
+        return { cp, cteZone: '', isApto: false };
       }
 
-      return { cp: resolvedCp, cteZone: '', isApto: true };
+      return {
+        cp,
+        cteZone: zone,
+        isApto: /^[DE][123]$/.test(zone)
+      };
     }
 
     const pendingPostalLookups=new WeakMap();
