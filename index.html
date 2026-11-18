@@ -3201,6 +3201,19 @@ function setupRoleInterface() {
   const isMikel = isMikelTeamMember(currentUserName);
   const isBoss = currentUserRole === 'jefe';
   const isAndrei = currentUserName === 'Andrei (Jefe)';
+  // Cada jefe asigna sectores exclusivamente a su equipo.
+  const asignacion = document.getElementById('assignComercial');
+  if (asignacion && isBoss) {
+    asignacion.replaceChildren();
+
+    for (const nombre of getActiveTeamUsers(isMikel)) {
+      const opcion = document.createElement('option');
+      opcion.value = nombre;
+      opcion.textContent = getDisplayAlias(nombre);
+      asignacion.appendChild(opcion);
+    }
+  }
+
   const authKey = sessionStorage.getItem('auth_user_key');
 
   const roleBadge = document.getElementById('displayRoleBadge');
@@ -11443,6 +11456,13 @@ const labelStreet = clientObj.street ||
       }
 
       const comercial = document.getElementById('assignComercial').value;
+      if (!getActiveTeamUsers(
+        isMikelTeamMember(currentUserName)
+      ).includes(comercial)) {
+        alert('Solo puedes asignar sectores a tu propio equipo.');
+        return;
+      }
+
 
       const button = document.querySelector('#assignModal .btn-modal-save');
       if (button.disabled) return;
