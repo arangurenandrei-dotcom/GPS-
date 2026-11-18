@@ -68,10 +68,33 @@ function draw(){
   }else{
    body.append(button("Acepta · Agendar obra",()=>{chosenDate=tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw();},"koc-primary"));
    body.append(button("No contesta · Volver a llamar",()=>saveCall("ya_llamado"),""));
-   body.append(button("Necesita pensarlo",()=>saveCall("esperando_confirmacion"),""));
+   body.append(button("Necesita pensarlo",()=>{view="waiting";draw();},""));
    body.append(button("No está interesado",()=>saveCall("no_interesado"),"koc-quiet"));
   }
   body.append(button("Saltar sin modificar",next,"koc-quiet"));return;
+ }
+ if(view==="waiting"){
+  nav(body,"Volver a la llamada",()=>{view="client";draw();});
+  title(body,"Programar seguimiento","¿Qué necesita decidir el cliente?");
+  const form=card(body);
+  e("label","","Motivo o comentario",form);
+  const note=e("textarea","koc-input",undefined,form);note.rows=3;note.placeholder="Ej.: consultarlo con su pareja";note.value=c.waitReason||"";
+  e("label","","Próxima acción en 48 horas",form);
+  const type=e("select","koc-input",undefined,form);
+  [["llamar","Volver a llamar"],["whatsapp","Enviar WhatsApp"]].forEach(([v,t])=>{const op=e("option","",t,type);op.value=v;});
+  type.value=c.waitType||"llamar";
+  form.append(button("Guardar seguimiento",async()=>{
+   if(note.value.trim().length<3){alert("Indica brevemente qué queda pendiente.");return;}
+   if(busy)return;busy=true;
+   const row=resolve();if(!row){busy=false;return;}
+   const old={...row.c},up=row.z._updatedAt;
+   Object.assign(row.c,{callStatus:"esperando_confirmacion",waitReason:note.value.trim(),waitType:type.value,statusChangedAt:Date.now(),nextContactAt:Date.now()+48*3600*1000});
+   row.c.callLog=[...(row.c.callLog||[]),{t:Date.now(),s:"esperando_confirmacion",r:row.c.waitReason}].slice(-20);
+   row.z._updatedAt=Date.now();
+   if(!await saveAndSync("comercial_custom_zones",savedZones)){Object.keys(row.c).forEach(k=>{if(!(k in old))delete row.c[k];});Object.assign(row.c,old);row.z._updatedAt=up;alert("No se ha guardado el seguimiento.");}
+   else next();busy=false;
+  },"koc-primary"));
+  return;
  }
  if(view==="calendar"){
   nav(body,"Volver a la ficha",()=>{view="client";draw();});
@@ -153,7 +176,7 @@ async function saveBooking(){
   if(typeof elegirEquipoInstaladorKonsor!=="function")throw Error("Falta la comprobación de instalaciones.");
   const team=await elegirEquipoInstaladorKonsor(chosenDate,selectedSlot,selectedTeam,c);
   if(team!==selectedTeam)throw Error("El equipo seleccionado ya no está libre.");
-  const draft={...c,obraStatus:"agendada",obraDate:chosenDate,obraTime:selectedSlot,obraEquipoInstalacion:team,callStatus:"citas",statusChangedAt:Date.now(),nextContactAt:null};
+  const draft={...c,obraStatus:"agendada",obraDate:chosenDate,obraTime:selectedSlot,obraEquipoInstalacion:team,whatsappObraEnviadoAt:null,callStatus:"citas",statusChangedAt:Date.now(),nextContactAt:null};
   if(draft.dni&&typeof isValidDni==="function"&&!isValidDni(draft.dni))throw Error("Revisa el DNI/NIE.");
   if(typeof ensureCrmUpload==="function"&&!ensureCrmUpload(draft,{date:z.dumpDate||z.date,town:z.town,comercial:z.comercial})){busy=false;draw();return;}
   const oldC={...c},oldZ=z._updatedAt;Object.assign(c,draft);z._updatedAt=Date.now();
