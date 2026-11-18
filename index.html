@@ -14792,9 +14792,8 @@ async function confirmSectorAssignment() {
       };
 
       const newStatus = document.getElementById('dumpProgressState').value;
-      if (newStatus === 'en_proceso' && z.status !== 'en_proceso') {
-        z.date = getTomorrowISO();
-      }
+      // La fecha planificada original no se altera al dejar un sector a medias.
+      // Mi jornada prioriza el sector atrasado al siguiente día, conservando el historial.
       z.status = newStatus;
       z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
       z._updatedAt = Date.now();
