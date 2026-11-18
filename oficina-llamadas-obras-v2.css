@@ -67,3 +67,31 @@
 .koc-remain-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid #edf1f6;padding-bottom:8px}
 .koc-remain-row span{flex:1;font-size:12px;color:#55677f;min-width:0}
 .koc-remain-row .koc-btn{width:auto;min-height:34px;font-size:11px;padding:7px 10px}
+
+
+/* Tablero único de jornada: dos equipos × cuatro franjas. */
+.koc-dual-board{display:flex;flex-direction:column;gap:7px;width:100%}
+.koc-dual-head,.koc-dual-row{display:grid;grid-template-columns:74px minmax(0,1fr) minmax(0,1fr);gap:7px;align-items:stretch}
+.koc-dual-head{align-items:center;padding:0 1px}
+.koc-dual-head span{font-size:10px;color:#8490a1;font-weight:680}
+.koc-dual-head strong{text-align:center;font-size:13px;color:#324259;font-weight:760}
+.koc-dual-time{align-self:center;font-size:11px;line-height:1.55;color:#677990;font-weight:740;white-space:normal}
+.koc-dual-cell{display:flex;flex-direction:column;min-width:0;gap:6px;border:1px solid #e2e8f2;background:#f7f9fc;border-radius:13px;padding:11px 8px;min-height:116px}
+.koc-dual-cell.confirmed{background:#e4f8eb;border-color:#92ddaa}
+.koc-dual-cell.suggested{background:#eaf2ff;border-color:#b9d1ff}
+.koc-dual-cell.occupied,.koc-dual-cell.unverified{background:#f0f2f5;border-color:#e0e5eb}
+.koc-dual-cell strong{color:#263449;font-weight:730;font-size:12px;line-height:1.25;overflow-wrap:anywhere}
+.koc-dual-cell small{color:#77879c;font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.koc-dual-state{font-size:9px;letter-spacing:.015em;font-weight:780;color:#2563eb}
+.koc-dual-cell.confirmed .koc-dual-state{color:#117c43}
+.koc-dual-cell .koc-btn{min-height:34px;margin-top:auto;border-radius:10px;padding:7px 5px;font-size:11px;font-weight:700}
+.koc-group-date-only{display:flex;flex-direction:column;gap:9px}
+.koc-group-date-only .koc-input{width:100%}
+.koc-day-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.koc-day-actions .koc-btn{min-height:37px;font-size:12px}
+.koc-neighbors-details>summary{cursor:pointer;font-size:14px;font-weight:720;color:#263449}
+.koc-neighbors-details[open]{gap:12px}
+.koc-other-days{margin-top:6px;border-top:1px solid #e8edf3;padding-top:11px}
+.koc-other-days summary{font-size:12px;cursor:pointer;font-weight:730;color:#64748b}
+.koc-other-days p{margin-top:9px}
+@media(max-width:380px){.koc-dual-head,.koc-dual-row{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr);gap:5px}.koc-dual-cell{padding:8px 5px}.koc-dual-time{font-size:10px}.koc-dual-cell strong{font-size:11px}.koc-dual-cell .koc-btn{font-size:10px}}
