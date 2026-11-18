@@ -113,7 +113,7 @@ function render(){
  if(m.antiguasSinFecha)caption(extras,m.antiguasSinFecha+" obras históricas no tienen fecha de ejecución y no se incluyen en periodos.");
  main.append(btn("Ver Liga comercial",()=>{tab="league";render();},"kr-primary"));
 }
-window.openCnResults=()=>open("mine");
+window.openCnResults=()=>{if(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName)){if(typeof openCommercialStatsModalLegacy==="function")openCommercialStatsModalLegacy();return;}open("mine");};
 window.openKonsorResults=window.openCnResults;
 window.openKonsorLeague=()=>open("league");
 window.openCommercialStatsModal=window.openCnResults;
