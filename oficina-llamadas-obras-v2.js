@@ -400,9 +400,9 @@ function renderGroup(body){
  const stats=e("div","koc-group-metrics",undefined,heading);
  const bookedHere=group.filter(x=>booked(x)),ready=group.filter(x=>clusterStatus(x)==="ready");
  [["Viviendas",group.length],["Confirmadas",bookedHere.length],["Por llamar",ready.length]].forEach(([label,v])=>{const box=e("div","koc-group-metric",undefined,stats);e("strong","",v,box);e("small","",label,box);});
- const nextGroup=nextStreetGroup();
- if(nextGroup){const nextBox=card(body);e("strong","","Siguiente calle prioritaria",nextBox);e("p","koc-muted",nextGroup.length+" viviendas pendientes · "+nextGroup[0].c.street.replace(/\\d+.*$/,"").trim()+" · "+nextGroup[0].z.town,nextBox);nextBox.append(button("Preparar siguiente grupo",()=>startGroup(nextGroup[0]),"koc-quiet"));}
  renderGroupAgenda(body);
+ const nextGroup=nextStreetGroup();
+ if(nextGroup){const nextBox=card(body);e("strong","","Siguiente calle prioritaria",nextBox);e("p","koc-muted",nextGroup.length+" viviendas pendientes · "+nextGroup[0].c.street.replace(/\d+.*$/,"").trim()+" · "+nextGroup[0].z.town,nextBox);nextBox.append(button("Preparar siguiente grupo",()=>startGroup(nextGroup[0]),"koc-quiet"));}
  const clients=e("details","koc-card koc-neighbors-details",undefined,body);e("summary","","Ver las "+group.length+" fichas de la calle",clients);
  group.forEach(item=>{
   const status=clusterStatus(item),line=e("div","koc-group-client "+status,undefined,clients);
@@ -426,13 +426,13 @@ function proximityLeads(candidates){
    const bookings=records.filter(x=>Number(x.c?.obraEquipoInstalacion)===team&&x.slot>=0);
    if(!bookings.length||bookings.length>=4)continue;
    candidates.forEach(item=>{
-    const adj=bookings.filter(x=>sameStreet(item,x)||sameTown(item,x)||((()=>{const dist=km(item,x);return dist!==null&&dist<=2;})()));
+    const adj=bookings.filter(x=>sameStreet(item,x)||sameTown(item,x));
     if(!adj.length)return;
     const same=adj.some(x=>sameStreet(item,x));
     const adjacentSlots=adj.flatMap(x=>[x.slot-1,x.slot+1]).filter(n=>n>=0&&n<4);
     const empty=adjacentSlots.filter(n=>!records.some(x=>x.slot===n&&(![2,3].includes(Number(x.c?.obraEquipoInstalacion))||Number(x.c.obraEquipoInstalacion)===team)));
     if(!empty.length)return;
-    options.push({item,date,team,slot:empty[0],rank:same?0:adj.some(x=>sameTown(item,x))?1:2});
+    options.push({item,date,team,slot:empty[0],rank:same?0:1});
    });
   }
  });
