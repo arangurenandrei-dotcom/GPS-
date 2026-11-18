@@ -115,6 +115,28 @@ function render(){
  const data=pueblos();
  const p=puebloAbierto?data.find(p=>p.key===puebloAbierto):null;
  if(p){renderDetail(body,p);return;}
+ const active=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&currentTeam(z)&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&z.status!=="completada");
+ const teamNames=["Comercial 1","Comercial 2","Comercial 3","Comercial 4","Comercial 5"].filter(name=>active.some(z=>z.comercial===name));
+ const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
+ const planning=el("section","cn-summary",undefined,body);
+ el("h3","cn-section-title","Continuidad del equipo",planning);
+ notice(planning,"Sectores asignados todavía abiertos. El porcentaje de pueblo indica sectores terminados, no cobertura de superficie.");
+ const day=x=>String(x||"").slice(0,10);
+ teamNames.forEach(name=>{
+  const assigned=active.filter(z=>z.comercial===name);
+  const overdue=assigned.filter(z=>day(z.date)&&day(z.date)<today).length;
+  const future=assigned.filter(z=>day(z.date)>=today).length;
+  const line=el("div","cn-sector",undefined,planning);
+  el("strong","cn-sector-name",name,line);
+  el("p","cn-detail",assigned.length+" sectores abiertos · "+overdue+" atrasados · "+future+" planificados desde hoy",line);
+ });
+ if(teamNames.length&&teamNames.some(name=>!active.some(z=>z.comercial===name&&day(z.date)>=today))){
+  notice(planning,"Hay comerciales sin próximos sectores programados. Asigna nuevas zonas o pueblos antes de agotar el trabajo disponible.");
+ }
+ planning.append(btn("Crear sector y asignar fecha",()=>{
+   root.classList.remove("active");
+   if(typeof startSectorDrawing==="function")startSectorDrawing();
+ },"primary"));
  const counts={pendientes:0,haciendo:0,terminados:0};
  data.forEach(p=>counts[p.estado]++);
  const totals=el("div","cn-kpis",undefined,body);
