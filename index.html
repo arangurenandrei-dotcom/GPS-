@@ -1042,7 +1042,10 @@ html[data-login-team="mikel"] #loginTeamBadge {
 
       <!-- Fila inferior: Acciones principales -->
       <div style="display:flex; gap:6px; width:100%;">
-        <button id="btnBossAssignMode" class="btn-main-action btn-assign" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="startSectorDrawing()">
+        <button id="btnDibujarPueblo" class="btn-main-action"
+ style="background:#15803d;flex:1;display:none"
+ onclick="iniciarDibujoPueblo()">🏘️ PUEBLO</button>
+ <button id="btnBossAssignMode" class="btn-main-action btn-assign" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="startSectorDrawing()">
           ➕ SECTOR
         </button>
 
@@ -2691,6 +2694,58 @@ function openUserProfileModal() {
 
 
     let savedShifts = [];
+    let perimetrosPueblos = [];
+    let isPuebloDrawingMode = false;
+
+    async function cargarPerimetrosPueblos() {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+      try {
+        const r = await window.leerPerimetrosPueblo({});
+        perimetrosPueblos = r.data.perimetros || [];
+        if (map) actualizarAgrupacionTerritorial();
+      } catch(e) { console.error('Pueblos:', e); }
+    }
+
+    function iniciarDibujoPueblo() {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+      cancelDrawing();
+      isDrawingMode = true;
+      isPuebloDrawingMode = true;
+      document.getElementById('drawingBanner').classList.add('active');
+      document.getElementById('drawingBannerActionsRow').style.display='flex';
+      document.getElementById('drawingBannerText').textContent =
+        'Marca las esquinas del pueblo y confirma';
+      const b=document.getElementById('btnConfirmSectorPoly');
+      b.style.display='inline-block';
+      b.textContent='GUARDAR PUEBLO';
+    }
+
+    async function guardarPuebloDibujado() {
+      const nombre=prompt('Nombre del pueblo:')?.trim();
+      if (!nombre) return;
+      const anterior=perimetrosPueblos.find(p =>
+        ComercialCore.norm(p.nombre)===ComercialCore.norm(nombre));
+      if (anterior && !confirm('¿Sustituir el perímetro existente?')) return;
+      try {
+        await window.guardarPerimetroPueblo({
+          nombre,points:tempPoints.map(p=>[...p]),
+          rev:anterior?.rev || 0
+        });
+        cancelDrawing();
+        await cargarPerimetrosPueblos();
+        if (!completedTowns.some(t =>
+          ComercialCore.norm(t) === ComercialCore.norm(nombre)
+        ) && confirm('¿Marcar también este pueblo como TERMINADO?')) {
+          const propuesta=[...completedTowns,nombre];
+          if (await saveAndSync('comercial_completed_towns',propuesta))
+            completedTowns=propuesta;
+        }
+        if (map) actualizarAgrupacionTerritorial();
+
+        alert('Pueblo guardado en Firebase');
+      } catch(e) { alert('Sin guardar: '+e.message); }
+    }
+
     let completedTowns = [];
     let hotLeadMissions = [];
 
@@ -3309,6 +3364,8 @@ function setupRoleInterface() {
     }
   }
 
+  document.getElementById('btnDibujarPueblo').style.display =
+    isAndrei ? 'flex' : 'none';
   const authKey = sessionStorage.getItem('auth_user_key');
 
   const roleBadge = document.getElementById('displayRoleBadge');
@@ -7294,6 +7351,7 @@ function renderBossPlan() {
 
       renderAllSavedZones();
 
+      void cargarPerimetrosPueblos();
       map.on('zoomend', actualizarAgrupacionTerritorial);
       map.on('click', handleMapClick);
 
@@ -11417,6 +11475,15 @@ const labelStreet = clientObj.street ||
     }
 
     async function finishSectorDrawing() {
+      if (isPuebloDrawingMode) {
+        if (tempPoints.length < 3) {
+          alert('Marca tres puntos como mínimo');
+          return;
+        }
+        await guardarPuebloDibujado();
+        return;
+      }
+
       if (tempPoints.length < 3) {
         alert("Toca al menos 3 puntos para delimitar.");
         return;
@@ -11485,6 +11552,7 @@ const labelStreet = clientObj.street ||
 
     let pendingSectorId = null;
     function cancelDrawing() {
+      isPuebloDrawingMode = false;
       pendingSectorId = null;
       isDrawingMode = false;
       isCropMode = false;
@@ -11818,97 +11886,165 @@ async function confirmSectorAssignment() {
       }
     }
 
+
+    let capasPueblosManuales = [];
+
+    function sectoresDePuebloManual(nombre) {
+      const clave = ComercialCore.norm(nombre);
+      return [
+        ...savedZones.map((z,idx)=>({z,idx,externo:false})),
+        ...(currentUserName === 'Andrei (Jefe)'
+          ? sectoresMikelSupervision.map(z=>({
+              z,idx:-1,externo:true
+            })) : [])
+      ].filter(x =>
+        !x.z.isNoAptoZone &&
+        ComercialCore.norm(x.z.town) === clave
+      );
+    }
+
+    function abrirPanelPuebloManual(nombre) {
+      const sectores = sectoresDePuebloManual(nombre);
+      const grupos = new Map();
+
+      for (const item of sectores) {
+        const comercial = item.z.comercial || 'Sin asignar';
+        if (!grupos.has(comercial)) grupos.set(comercial,[]);
+        grupos.get(comercial).push(item);
+      }
+
+      openWorkMenu(
+        '🏘️ ' + nombre,
+        sectores.length + ' sectores · ' +
+        grupos.size + ' comerciales',
+        [...grupos].map(([comercial,lista])=>[
+          '👤 ' + comercial,
+          lista.filter(x=>x.z.status==='completada').length +
+          '/' + lista.length + ' sectores terminados',
+          ()=>abrirSectoresPuebloManual(nombre,comercial,lista)
+        ])
+      );
+    }
+
+    function abrirSectoresPuebloManual(nombre,comercial,lista) {
+      openWorkMenu(
+        comercial + ' · ' + nombre,
+        'Selecciona un sector para consultar sus datos.',
+        lista.map(item=>[
+          (item.z.status==='completada'?'✅ ':'🟡 ') +
+          (item.z.sectorName || 'Sector'),
+          'Interesados: ' + (item.z.stats?.si || 0) +
+          ' · ' + (item.externo?'Supervisión Mikel':'Fichas'),
+          ()=>{
+            if (item.externo) {
+              const z=item.z;
+              openWorkMenu(
+                z.sectorName || 'Sector de Mikel',
+                'Consulta territorial de solo lectura',
+                [
+                  ['👤 Responsable',z.comercial||'Sin asignar',()=>{}],
+                  ['📊 Resultados',
+                   'Sí: '+(z.stats?.si||0)+
+                   ' · No: '+(z.stats?.no||0)+
+                   ' · Ausentes: '+(z.stats?.ausente||0),
+                   ()=>{}]
+                ]
+              );
+            } else {
+              openDumpModal(item.idx);
+            }
+          }
+        ])
+      );
+    }
+
     function actualizarAgrupacionTerritorial() {
       if (!map) return;
 
-      for (const capa of capasMacrosector)
+      for (const capa of [...capasMacrosector,...capasPueblosManuales])
         map.removeLayer(capa);
       capasMacrosector = [];
+      capasPueblosManuales = [];
 
       for (const entrada of capasSectoresAgrupables) {
         if (!map.hasLayer(entrada.capa))
           entrada.capa.addTo(map);
       }
 
-      if (map.getZoom() >= 13) {
-        dibujarMunicipiosOficiales();
-        return;
+      if (map.getZoom() >= 13) return;
+
+      const pueblosDibujados = new Set();
+
+      if (currentUserName === 'Andrei (Jefe)') {
+        for (const pueblo of perimetrosPueblos) {
+          if (!Array.isArray(pueblo.points) ||
+              pueblo.points.length < 3) continue;
+
+          const clave=ComercialCore.norm(pueblo.nombre);
+          pueblosDibujados.add(clave);
+
+          const terminado=completedTowns.some(t=>
+            ComercialCore.norm(t)===clave
+          );
+
+          const color=terminado?'#22c55e':'#eab308';
+          const capa=L.polygon(pueblo.points,{
+            color,weight:4,fillColor:color,fillOpacity:0.19
+          }).addTo(map);
+
+          capa.bindTooltip(pueblo.nombre,{
+            sticky:true,direction:'center'
+          });
+
+          capa.on('click',e=>{
+            L.DomEvent.stopPropagation(e);
+            abrirPanelPuebloManual(pueblo.nombre);
+          });
+
+          capasPueblosManuales.push(capa);
+        }
       }
+
+      const grupos=new Map();
 
       for (const entrada of capasSectoresAgrupables) {
-        if (municipiosOficiales.has(
-          claveMunicipio(entrada.zona.town)
-        )) map.removeLayer(entrada.capa);
+        const z=entrada.zona;
+        const clave=ComercialCore.norm(z.town);
+
+        if (pueblosDibujados.has(clave)) {
+          map.removeLayer(entrada.capa);
+          continue;
+        }
+
+        const grupo=clave+'|'+ComercialCore.norm(z.comercial);
+        if (!grupos.has(grupo)) grupos.set(grupo,[]);
+        grupos.get(grupo).push(entrada);
       }
 
-      const agrupados = new Map();
-
-      for (const entrada of capasSectoresAgrupables) {
-        const z = entrada.zona;
-        const clave = ComercialCore.norm(z.town) + '|' +
-          ComercialCore.norm(z.comercial);
-
-        if (!agrupados.has(clave))
-          agrupados.set(clave, []);
-
-        agrupados.get(clave).push(entrada);
-      }
-
-      for (const entradas of agrupados.values()) {
-        if (municipiosOficiales.has(
-          claveMunicipio(entradas[0].zona.town)
-        )) continue;
+      // Alternativa visual para pueblos aún no dibujados.
+      for (const entradas of grupos.values()) {
         if (entradas.length < 2) continue;
 
-        const puntos = entradas.flatMap(x => x.zona.points);
-        const contorno = envolventeTerritorial(puntos);
+        const contorno=envolventeTerritorial(
+          entradas.flatMap(x=>x.zona.points)
+        );
         if (contorno.length < 3) continue;
 
-        const pueblo = entradas[0].zona.town || 'Sin pueblo';
-        const comercial = entradas[0].zona.comercial || 'Sin responsable';
-        const terminados = entradas.filter(x =>
-          x.zona.status === 'completada'
-        ).length;
-        const total = entradas.length;
-        const cerrado = completedTowns.some(t =>
-          ComercialCore.norm(t) === ComercialCore.norm(pueblo)
-        );
-
-        const color = cerrado ? '#22c55e' :
-          getComercialColor(comercial);
-
-        const macro = L.polygon(contorno, {
-          color,
-          weight: cerrado ? 5 : 3,
-          fillColor: color,
-          fillOpacity: 0.17,
-          dashArray: cerrado ? null : '9,5'
+        const z=entradas[0].zona;
+        const capa=L.polygon(contorno,{
+          color:getComercialColor(z.comercial),
+          weight:3,fillOpacity:0.12
         }).addTo(map);
 
-        const panel = document.createElement('div');
-        const titulo = document.createElement('strong');
-        titulo.textContent = pueblo + ' · ' + comercial;
-        panel.appendChild(titulo);
-
-        const resumen = document.createElement('div');
-        resumen.textContent =
-          terminados + '/' + total + ' sectores terminados';
-        panel.appendChild(resumen);
-
-        const nota = document.createElement('small');
-        nota.textContent = cerrado
-          ? 'Pueblo marcado como finalizado. Contorno del trabajo registrado.'
-          : 'Macrosector visual. Acerca el mapa para ver los sectores.';
-        panel.appendChild(nota);
-
-        macro.bindPopup(panel);
+        capa.bindTooltip(
+          (z.town||'Pueblo')+' · '+z.comercial
+        );
 
         for (const entrada of entradas)
           map.removeLayer(entrada.capa);
 
-        capasMacrosector.push(macro);
+        capasMacrosector.push(capa);
       }
-      dibujarMunicipiosOficiales();
     }
 
     function renderAllSavedZones() {
@@ -17637,6 +17773,7 @@ function openCommercialStatsModalLegacy() {
 
       completedTowns=propuesta;
       renderPueblosAudit();
+      actualizarAgrupacionTerritorial();
       if (map) renderAllSavedZones();
     }
 
@@ -18026,6 +18163,8 @@ function openCommercialStatsModalLegacy() {
  const functionsEu = getFunctions(app, 'europe-west1');
  window.watchWorkV2 = (team, changed, error) => onSnapshot(doc(db,'estado_trabajo',team), snap => {if (!snap.metadata.fromCache) changed();}, error);
  window.readWorkV2 = httpsCallable(functionsEu, 'leerTrabajoV2');
+ window.leerPerimetrosPueblo = httpsCallable(functionsEu, 'leerPerimetrosPueblo');
+ window.guardarPerimetroPueblo = httpsCallable(functionsEu, 'guardarPerimetroPueblo');
  window.consultarSectoresMikel =
    httpsCallable(functionsEu, 'consultarSectoresMikel');
 
