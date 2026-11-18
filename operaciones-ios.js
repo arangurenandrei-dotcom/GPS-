@@ -53,6 +53,17 @@ function zoneCard(root,entry){
  const line=$("div","cnx-meta",undefined,c);
  chip(line,zoneStatus(z));chip(line,z.date||"Sin fecha");chip(line,z.comercial||"Sin asignar");
  actions(c,b("Abrir ficha",()=>openZone(entry),"primary"),b("Ver mapa",()=>openZone(entry,"map"),"outline"));
+ if(z.comercial===currentUserName&&z.status!=="completada"&&!z.assignmentReceivedAt){
+  const receipt=b("He recibido esta zona",async()=>{
+   receipt.disabled=true;try{
+    await window.konsorZoneAssignment.acknowledge(z.id);
+    openDay();
+   }catch(error){alert("No se ha guardado la recepción: "+(error.message||error));receipt.disabled=false;}
+  },"outline");
+  actions(c,receipt);
+ }else if(z.assignmentReceivedAt&&z.assignmentReceivedBy===z.comercial){
+  $("p","cnx-meta","Asignación recibida por "+z.assignmentReceivedBy,c);
+ }
 }
 function currentShift(){
  try{return typeof getTodayShift==="function"?getTodayShift(currentUserName):null;}
