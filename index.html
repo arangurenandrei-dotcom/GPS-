@@ -12099,9 +12099,9 @@ const labelStreet = clientObj.street ||
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Ficha #${i+1}</strong>
             <select class="select-field client-type" style="font-size:10px; padding:3px 6px; width:auto;" onchange="switchClientTypeView(this, ${i})">
-              <option value="vivienda" ${!isComunidad && existingClient.type!=='urbanizacion'?'selected':''}>🏠 Vivienda Individual</option>
+              <option value="vivienda" ${!isComunidad && existing.type!=='urbanizacion'?'selected':''}>🏠 Vivienda Individual</option>
               <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
-                ${!isMikelTeamMember(currentUserName) ? `<option value="urbanizacion" ${existingClient.type==='urbanizacion'?'selected':''}>🏘️ Urbanización conjunta</option>` : ''}
+                ${!isMikelTeamMember(currentUserName) ? `<option value="urbanizacion" ${existing.type==='urbanizacion'?'selected':''}>🏘️ Urbanización conjunta</option>` : ''}
             </select>
           </div>
 
