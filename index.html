@@ -7293,6 +7293,7 @@ function renderBossPlan() {
       });
 
       renderAllSavedZones();
+      void cargarMunicipiosOficiales();
       map.on('zoomend', actualizarAgrupacionTerritorial);
       map.on('click', handleMapClick);
 
@@ -11691,6 +11692,132 @@ async function confirmSectorAssignment() {
       return [...lower,...upper].map(v => [v[1],v[0]]);
     }
 
+
+    let municipiosOficiales = new Map();
+    let capasMunicipiosOficiales = [];
+
+    function claveMunicipio(nombre) {
+      return ComercialCore.norm(nombre).split('/')[0].trim();
+    }
+
+    async function cargarMunicipiosOficiales() {
+      try {
+        const r = await fetch(
+          './municipios-navarra.geojson',
+          {cache:'no-cache'}
+        );
+        if (!r.ok) throw Error('Cartografía no disponible');
+        const datos = await r.json();
+
+        const mapa = new Map();
+        for (const f of datos.features || []) {
+          const nombre = f.properties?.nombre;
+          if (!nombre || !f.geometry) continue;
+
+          const variantes = nombre.split('/');
+          for (const variante of variantes) {
+            const clave = claveMunicipio(variante);
+            if (clave && !mapa.has(clave))
+              mapa.set(clave, f);
+          }
+        }
+
+        municipiosOficiales = mapa;
+        if (map) actualizarAgrupacionTerritorial();
+      } catch(e) {
+        console.warn('Límites municipales:', e);
+      }
+    }
+
+    function dibujarMunicipiosOficiales() {
+      for (const capa of capasMunicipiosOficiales)
+        map.removeLayer(capa);
+      capasMunicipiosOficiales = [];
+
+      if (map.getZoom() >= 13) return;
+
+      const zonas = [
+        ...savedZones.filter(z =>
+          !z.isNoAptoZone &&
+          (currentUserRole === 'jefe' ||
+           z.comercial === currentUserName)
+        ),
+        ...(currentUserName === 'Andrei (Jefe)'
+          ? sectoresMikelSupervision : [])
+      ];
+
+      const porPueblo = new Map();
+      for (const z of zonas) {
+        const clave = claveMunicipio(z.town);
+        if (!municipiosOficiales.has(clave)) continue;
+        if (!porPueblo.has(clave)) porPueblo.set(clave, []);
+        porPueblo.get(clave).push(z);
+      }
+
+      if (currentUserName === 'Andrei (Jefe)') {
+        for (const nombre of completedTowns) {
+          const clave = claveMunicipio(nombre);
+          if (municipiosOficiales.has(clave) &&
+              !porPueblo.has(clave))
+            porPueblo.set(clave, []);
+        }
+      }
+
+      for (const [clave, sectores] of porPueblo) {
+        const f = municipiosOficiales.get(clave);
+        const nombre = f.properties.nombre;
+        const terminado = completedTowns.some(t =>
+          claveMunicipio(t) === clave
+        );
+
+        const completos = sectores.filter(z =>
+          z.status === 'completada'
+        ).length;
+
+        const si = sectores.reduce(
+          (n,z) => n + (Number(z.stats?.si) || 0), 0
+        );
+
+        const color = terminado ? '#22c55e' : '#eab308';
+
+        const capa = L.geoJSON(f, {
+          style: {
+            color,
+            weight: terminado ? 5 : 3,
+            fillColor: color,
+            fillOpacity: 0.13
+          }
+        }).addTo(map);
+
+        const panel = document.createElement('div');
+        const titulo = document.createElement('strong');
+        titulo.textContent =
+          (terminado ? '✅ ' : '🟡 ') + nombre;
+        panel.appendChild(titulo);
+
+        for (const linea of [
+          'Sectores terminados: ' +
+            completos + '/' + sectores.length,
+          'Interesados registrados: ' + si,
+          terminado
+            ? 'Pueblo marcado como finalizado'
+            : 'Pueblo pendiente de finalizar',
+          'Límite oficial del término municipal'
+        ]) {
+          const div = document.createElement('div');
+          div.textContent = linea;
+          panel.appendChild(div);
+        }
+
+        capa.bindPopup(panel);
+        capa.on('click', () => {
+          map.fitBounds(capa.getBounds(), {maxZoom:13});
+        });
+
+        capasMunicipiosOficiales.push(capa);
+      }
+    }
+
     function actualizarAgrupacionTerritorial() {
       if (!map) return;
 
@@ -11703,7 +11830,16 @@ async function confirmSectorAssignment() {
           entrada.capa.addTo(map);
       }
 
-      if (map.getZoom() >= 13) return;
+      if (map.getZoom() >= 13) {
+        dibujarMunicipiosOficiales();
+        return;
+      }
+
+      for (const entrada of capasSectoresAgrupables) {
+        if (municipiosOficiales.has(
+          claveMunicipio(entrada.zona.town)
+        )) map.removeLayer(entrada.capa);
+      }
 
       const agrupados = new Map();
 
@@ -11719,6 +11855,9 @@ async function confirmSectorAssignment() {
       }
 
       for (const entradas of agrupados.values()) {
+        if (municipiosOficiales.has(
+          claveMunicipio(entradas[0].zona.town)
+        )) continue;
         if (entradas.length < 2) continue;
 
         const puntos = entradas.flatMap(x => x.zona.points);
@@ -11769,6 +11908,7 @@ async function confirmSectorAssignment() {
 
         capasMacrosector.push(macro);
       }
+      dibujarMunicipiosOficiales();
     }
 
     function renderAllSavedZones() {
