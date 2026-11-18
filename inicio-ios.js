@@ -88,6 +88,10 @@ function showHome(){
  tile(grid,"Clientes","Búsqueda inmediata","clients",()=>window.openCnClients?.());
  tile(grid,"Resultados","Progreso y rendimiento","results",()=>window.openCnResults?.());
  tile(grid,"Llamadas","Seguimientos y citas","calls",()=>window.openCnCalls?.());
+ if(typeof isMikelTeamMember==="function"&&!isMikelTeamMember(me())){
+  const extra=el("div","cnv-shortcuts",undefined,section);
+  extra.append(btn("Liga comercial",()=>typeof openLeagueRankingModal==="function"&&openLeagueRankingModal(),"cnv-glass"));
+ }
  if(boss()){
   const bossCard=el("section","cnv-director",undefined,section);
   const t=el("div","",undefined,bossCard);
@@ -97,6 +101,7 @@ function showHome(){
   const management=el("div","cnv-shortcuts",undefined,section);
   management.append(btn("Comerciales",()=>typeof openPeopleManagement==="function"?openPeopleManagement():openAuditModal(),"cnv-glass"));
   management.append(btn("Plan de dirección",()=>typeof openBossWorkMenu==="function"?openBossWorkMenu():openAuditModal(),"cnv-glass"));
+  if(andrei())management.append(btn("Avisos del día",()=>typeof checkAndShowBossTodayObras==="function"&&checkAndShowBossTodayObras(true),"cnv-glass"));
  }
  el("p","cnv-footer-note","Los cambios se guardan con las funciones actuales de Comercial Navarra.",section);
 }
@@ -155,6 +160,7 @@ function start(){
  if(!hasSession())return;
  showHome();
 }
+window.cnvRefreshHome=function(){if(document.body.classList.contains("cnv-home-active"))showHome();};
 window.cnvShowHome=showHome;
 window.cnvShowMap=showMap;
 window.cnvStart=start;
