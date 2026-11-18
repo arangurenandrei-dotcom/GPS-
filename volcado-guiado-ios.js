@@ -39,20 +39,22 @@ function render(){
  if(step===0){
   el("p","cng-info","Introduce el recuento de la hoja. Los valores actualizan los mismos campos que ya utiliza Comercial Navarra.",ui);
   const grid=el("div","cng-grid",undefined,ui);
-  field(grid,"dumpNo","No");
+  field(grid,"dumpNo","No interesados");
   field(grid,"dumpAusente","Ausentes");
-  field(grid,"dumpPapelito","Papelitos");
-  field(grid,"dumpSi","Sí / interesados");
-  field(ui,"dumpYaAislado","Ya aislado");
-  field(ui,"dumpDate","Fecha de volcado","date");
+  field(grid,"dumpPapelito","Información / papelitos");
+  field(ui,"dumpYaAislado","Ya tenían aislamiento");
+  field(ui,"dumpSi","Sí · quieren información u obra");
+  field(ui,"dumpDate","Fecha real del trabajo de calle","date");
+  el("p","cng-info","Si vuelcas la hoja un día después, conserva la fecha en que llamaste a las puertas. El sistema registra por separado cuándo guardas.",ui);
   const foot=el("div","cng-actions",undefined,ui);
   foot.append(button("Continuar a fichas",()=>{step=1;render();},"primary"));
  }else if(step===1){
   el("p","cng-info","Registra cada interesado con el asistente de cuatro pasos. El resto de campos se completan y comprueban dentro de su ficha.",ui);
   const summary=el("div","cng-summary",undefined,ui);
   const total=Number(original("dumpSi")?.value)||0;
-  el("strong","",count()+" fichas con datos",summary);
-  el("p","",total+" respuestas sí anotadas. Revisa las fichas antes de confirmar el volcado.",summary);
+  el("strong","",count()+" de "+total+" fichas registradas",summary);
+  const remaining=Math.max(0,total-count());
+  el("p","",remaining?remaining+" interesados quedan por introducir. Agrupa por calle y tipo de vivienda para evitar repetir direcciones.":"El número de fichas coincide con los síes. Revisa los datos antes de guardar.",summary);
   const actions=el("div","cng-actions",undefined,ui);
   actions.append(button("Abrir captación guiada",()=>{if(typeof abrirAsistenteCaptacion==="function")abrirAsistenteCaptacion();},"primary"));
   actions.append(button("Revisar volcado",()=>{step=2;render();},"outline"));
@@ -64,7 +66,11 @@ function render(){
   const total=["dumpNo","dumpAusente","dumpPapelito","dumpSi"].reduce((v,id)=>v+(Number(original(id)?.value)||0),0);
   const rec=el("div","cng-summary",undefined,ui);
   el("strong","",total+" puertas registradas",rec);
-  el("p","",count()+" fichas con datos · "+(original("dumpProgressState")?.selectedOptions?.[0]?.textContent?.trim()||"Sin estado"),rec);
+  const si=Number(original("dumpSi")?.value)||0,actual=count();
+  el("p","",si+" síes · "+actual+" fichas introducidas · "+(original("dumpProgressState")?.selectedOptions?.[0]?.textContent?.trim()||"Sin estado"),rec);
+  if(si!==actual){
+   el("p","cn-house-warning","Comprueba la diferencia entre los "+si+" síes y las "+actual+" fichas. El motor original puede recalcular los síes a partir de las fichas guardadas.",ui);
+  }
   const actions=el("div","cng-actions",undefined,ui);
   actions.append(button("Guardar volcado",async()=>{if(typeof saveDumpData==="function")await saveDumpData();},"primary"));
   actions.append(button("Volver a fichas",()=>{step=1;render();},"outline"));
