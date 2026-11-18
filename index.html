@@ -8153,6 +8153,31 @@ function renderBossPlan() {
        ===================================================================== */
     let isManualGpsRequest = false;
     let lastGpsAccuracy = null;
+    let liveGpsWatchId = null;
+
+    window.cnvStartLiveGps = function() {
+      if (!map || !navigator.geolocation || liveGpsWatchId !== null) return;
+      liveGpsWatchId = navigator.geolocation.watchPosition(position => {
+        const {latitude, longitude, accuracy} = position.coords || {};
+        if (![latitude, longitude, accuracy].every(Number.isFinite)) return;
+        lastGpsAccuracy = accuracy;
+        const info = document.getElementById('cnvMapInstruction');
+        if (info) info.textContent = accuracy <= 100
+          ? 'GPS actualizado · precisión ±' + Math.round(accuracy) + ' m'
+          : 'GPS poco preciso · ±' + Math.round(accuracy) + ' m';
+        // Una posición imprecisa no sustituye la última posición fiable.
+        if (accuracy <= 100) {
+          map.fire('locationfound', {latlng:L.latLng(latitude,longitude), accuracy});
+        }
+      }, error => {
+        const info = document.getElementById('cnvMapInstruction');
+        if(info)info.textContent = 'GPS no disponible. Comprueba los permisos.';
+      }, {enableHighAccuracy:true, maximumAge:3000, timeout:20000});
+    };
+    window.cnvStopLiveGps = function() {
+      if(liveGpsWatchId!==null && navigator.geolocation)navigator.geolocation.clearWatch(liveGpsWatchId);
+      liveGpsWatchId=null;
+    };
 
     function requestReliableGps(manual = false) {
       if (!map || !navigator.geolocation) {
@@ -8166,9 +8191,8 @@ function renderBossPlan() {
           if (![latitude,longitude,accuracy].every(Number.isFinite)) return;
           const ll=L.latLng(latitude,longitude);
           lastGpsAccuracy=accuracy;
-          map.fire('locationfound',{latlng:ll,accuracy});
           const reliable=accuracy<=100;
-          if(reliable)map.setView(ll,Math.max(map.getZoom(),16));
+          if(reliable){map.fire('locationfound',{latlng:ll,accuracy});map.setView(ll,Math.max(map.getZoom(),16));}
           const gpsBtn=document.querySelector('.hud-header .btn-hud.gps');
           if(gpsBtn)gpsBtn.title='Precisión GPS estimada: ±'+Math.round(accuracy)+' m';
           if(manual&&!reliable)alert('La precisión recibida es de ±'+Math.round(accuracy)+' m. No se ha centrado el mapa para evitar una posición engañosa. Prueba al aire libre y vuelve a pulsar GPS.');
