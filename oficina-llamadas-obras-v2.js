@@ -97,6 +97,24 @@ function preferGroupDate(item,date,time,team){
 function groupDateLabel(date){
  try{return new Date(date+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}catch{return date;}
 }
+/* Texto de ubicación a partir de datos existentes, sin inventar pueblos. */
+function occupiedLocationText(value){
+ if(typeof value==="string")return value.trim().slice(0,110);
+ if(!value||typeof value!=="object")return "";
+ const area=[value.municipio,value.localidad,value.pueblo,value.town,value.city,value.nombreMunicipio,value.nombreLocalidad].find(v=>typeof v==="string"&&v.trim());
+ const street=[value.direccion,value.dirección,value.calle,value.street,value.address,value.via,value.ubicacion].find(v=>typeof v==="string"&&v.trim());
+ if(street&&area&&norm(street).includes(norm(area)))return String(street).trim().slice(0,110);
+ return [street,area].filter(Boolean).map(v=>String(v).trim()).join(" · ").slice(0,110);
+}
+function remoteSlotLocations(slot){
+ if(!slot||typeof slot!=="object")return [];
+ const candidates=[slot.ubicaciones,slot.obras,slot.reservas,slot.trabajos,slot.citas,slot.localidades];
+ const items=candidates.flatMap(v=>Array.isArray(v)?v:[]);
+ const own=occupiedLocationText(slot);
+ if(!items.length&&own)items.push(slot);
+ return [...new Set(items.map(occupiedLocationText).filter(Boolean))].slice(0,3);
+}
+
 async function renderGroupAgenda(body,insertBefore=null){
  const ticket=++clusterSeq,group=groupRows();
  const host=e("section","koc-card koc-group-schedule",undefined,body);
@@ -130,7 +148,7 @@ async function renderGroupAgenda(body,insertBefore=null){
  for(const team of [2,3])for(let idx=0;idx<SLOTS.length;idx++){
   const [from,to]=SLOTS[idx],server=remote?.[String(team)]?.find(x=>x.horario===from+"-"+to);
   const confirmed=occupiedBy(idx,team);
-  calendar.set(team+"|"+idx,{team,idx,from,to,confirmed,available:!confirmed&&server?.libre===true&&!!remote});
+  calendar.set(team+"|"+idx,{team,idx,from,to,confirmed,server,available:!confirmed&&server?.libre===true&&!!remote});
  }
  const freeCandidates=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x));
  // Rellenamos primero la misma secuencia del Equipo 2 y después la del 3.
@@ -156,14 +174,21 @@ async function renderGroupAgenda(body,insertBefore=null){
     confirmedCount++;
     cell.classList.add("confirmed");
     e("strong","",client?.name||"Obra confirmada",cell);
-    e("small","",client?.street||pos.confirmed.z?.town||"Sin dirección",cell);
+    e("small","",[client?.street,pos.confirmed.z?.town].filter(Boolean).join(" · ")||"Dirección no registrada",cell);
     e("span","koc-dual-state","CONFIRMADA",cell);
     if(own)cell.append(button("Ver ficha",()=>open(own),"koc-quiet"));
    }else if(!remote){
     cell.classList.add("unverified");e("strong","","Sin verificar",cell);
    }else if(!pos.available){
-    cell.classList.add("occupied");e("strong","","Ocupado",cell);
-    e("small","","No disponible",cell);
+    cell.classList.add("occupied");
+    const locations=remoteSlotLocations(pos.server);
+    e("strong","",locations.length?"Ocupado · Otra obra":"No disponible",cell);
+    if(locations.length){
+     locations.forEach(loc=>e("small","koc-occupied-location",loc,cell));
+    }else{
+     e("small","","KONSOR no indica la localidad de esta franja.",cell);
+    }
+    e("span","koc-dual-state","FRANJA BLOQUEADA",cell);
    }else{
     const item=proposed.get(team+"|"+idx);
     if(item){
