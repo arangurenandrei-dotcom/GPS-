@@ -107,12 +107,29 @@ function makeMapBar(){
  const head=el("div","cnv-map-head",undefined,mapBar);
  head.append(btn("Inicio",()=>showHome(),"cnv-glass"));
  const t=el("div","",undefined,head);el("strong","","Mapa de trabajo",t);el("small","","Catastro · Satélite · Sectores",t);
+ const searchRow=el("form","cnv-map-search",undefined,mapBar);
+ const townInput=el("input","",undefined,searchRow);townInput.type="search";townInput.placeholder="Buscar pueblo o dirección";
+ townInput.setAttribute("aria-label","Buscar lugar en el mapa");
+ searchRow.append(btn("Buscar",()=>{
+  const term=townInput.value.trim();if(!term)return;
+  const original=document.getElementById("searchInput");
+  if(original)original.value=term;
+  if(typeof searchLocation==="function")searchLocation();
+ },"cnv-glass"));
+ searchRow.addEventListener("submit",e=>{
+  e.preventDefault();
+  const term=townInput.value.trim();if(!term)return;
+  const original=document.getElementById("searchInput");if(original)original.value=term;
+  if(typeof searchLocation==="function")searchLocation();
+ });
  const controls=el("div","cnv-map-controls",undefined,mapBar);
  const items=[
   ["gps","Mi GPS",()=>typeof centerOnUser==="function"&&centerOnUser()],
-  ["layers","Catastro",()=>document.getElementById("btnToggleCatastro")?.click()],
+  ["layers","Catastro",()=>typeof setMapDisplay==="function"&&setMapDisplay("both")],
+  ["map","Satélite",()=>typeof setMapDisplay==="function"&&setMapDisplay("satellite")],
   ["ruler","Medir m²",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
-  ["pin","Parcela",()=>{if(typeof cancelDrawing==="function")cancelDrawing();const p=document.getElementById("cnvMapInstruction");if(p)p.textContent="Toca un tejado o parcela del mapa para consultar el catastro."; }]
+  ["pin","Parcela",()=>{if(typeof cancelDrawing==="function")cancelDrawing();const p=document.getElementById("cnvMapInstruction");if(p)p.textContent="Toca un tejado o parcela del mapa para consultar el catastro."; }],
+  ["gps","Norte",()=>typeof resetMapNorth==="function"&&resetMapNorth()]
  ];
  items.filter(([key])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["layers","ruler","pin"].includes(key))).forEach(([key,label,fn])=>{
   const b=btn("",fn,"cnv-map-tool");b.append(icon(key));el("span","",label,b);controls.append(b);
