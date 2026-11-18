@@ -114,27 +114,11 @@ function openClients(){
   }
  }
  input.addEventListener("input",render);render();
- const foot=card(body,"Gestión completa","Para filtros avanzados, correcciones y estados individuales, utiliza las herramientas actuales hasta terminar su migración.");
- actions(foot,b("Gestión avanzada",()=>{close();openGlobalClientSearchModal();},"outline"));
+
 }
 function openCalls(){
- const {body,close}=page("llamadas","Llamadas y citas","Elige cómo organizar la siguiente tanda de contactos.");
- const zones=listZones().sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999"));
- const pending=[];
- zones.forEach(({z,idx})=>(z.clients||[]).forEach(c=>{
-  if(c&&(c.name||c.phone||c.street)&&c.callStatus==="pendiente")pending.push({z,idx,c});
- }));
- const k=$("div","cnx-metrics",undefined,body);
- metric(k,"Pendientes",pending.length);
- metric(k,"Sectores",new Set(pending.map(x=>x.idx)).size);
- metric(k,"Pueblos",new Set(pending.map(x=>x.z.town).filter(Boolean)).size);
- const first=pending[0];
- const c=card(body,first?"Empezar por "+(first.z.town||"el primer pueblo"):"Organización de llamadas",first?"El sector más antiguo con llamadas pendientes es "+(first.z.sectorName||"Sin nombre")+".":"No hay fichas con estado pendiente de llamada en tu ámbito actual.");
- actions(c,b("Empezar llamadas guiadas",()=>{close();window.openCnCallQueue?.();},"primary"),
-         b("Organizar llamadas por jornadas",()=>{close();openGroupedAppointments();},"outline"),
-         b("Ver seguimiento",()=>{close();openFollowUpsModal();},"outline"));
- const info=card(body,"Sin perder pendientes","Los estados de espera, citas y recordatorios siguen gestionándose en el sistema actual. Aquí no se marca ninguna llamada como realizada automáticamente.");
- actions(info,b("Buscar un cliente",()=>{close();openClients();},"outline"));
+ if(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName)){if(typeof openFollowUpsModal==="function")openFollowUpsModal();return;}
+ if(typeof window.openCnOffice==="function")window.openCnOffice();
 }
 window.openCnDay=openDay;
 window.openCnClients=()=>{query="";scope="mine";openClients();};
