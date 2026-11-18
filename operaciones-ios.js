@@ -47,13 +47,28 @@ function openZone(entry,mode){
  if(mode==="map"&&typeof focusMapOnTownOrZone==="function")focusMapOnTownOrZone(z.town,idx);
  else if(typeof openDumpModal==="function")openDumpModal(idx);
 }
+function nextWork(items){return items.slice().sort((a,b)=>{
+ const now=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
+ const rank=z=>z.date&&z.date<now?0:z.date===now?1:2;
+ return rank(a.z)-rank(b.z)||(a.z.date||"9999").localeCompare(b.z.date||"9999");
+ });}
+function driveTo(entry){
+ const {z,idx}=entry;
+ const pts=Array.isArray(z.points)?z.points.filter(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)):[];
+ if(!pts.length){openZone(entry,"map");return;}
+ const lat=pts.reduce((n,p)=>n+p[0],0)/pts.length,lon=pts.reduce((n,p)=>n+p[1],0)/pts.length;
+ const coord=lat.toFixed(6)+","+lon.toFixed(6);
+ const apple=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+ const url=apple?"https://maps.apple.com/?daddr="+encodeURIComponent(coord)+"&dirflg=d":"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(coord)+"&travelmode=driving";
+ window.open(url,"_blank","noopener,noreferrer");
+}
 function zoneCard(root,entry){
  const {z}=entry;
  const c=card(root,z.town||"Pueblo sin indicar",z.sectorName||"Sector");
  if(z.isHotMission){$("p","cnx-intro","Prioridad especial · obras en curso en la zona",c);if(z.bossNote)$("p","cnx-intro",z.bossNote,c);}
  const line=$("div","cnx-meta",undefined,c);
  chip(line,zoneStatus(z));chip(line,z.date||"Sin fecha");chip(line,z.comercial||"Sin asignar");
- actions(c,b("Abrir ficha",()=>openZone(entry),"primary"),b("Ver mapa",()=>openZone(entry,"map"),"outline"));
+ actions(c,b("Ir · Navegación",()=>driveTo(entry),"primary"),b("Ver zona y catastro",()=>openZone(entry,"map"),"outline"),b("Volcar / revisar",()=>openZone(entry),"outline"));
  if(z.comercial===currentUserName&&z.status!=="completada"&&!z.assignmentReceivedAt){
   const receipt=b("He recibido esta zona",async()=>{
    receipt.disabled=true;try{
@@ -84,8 +99,14 @@ function openDay(){
  const future=all.filter(({z})=>!z.date||z.date>today);
  const k=$("div","cnx-metrics",undefined,body);
  metric(k,"Atrasados",overdue.length);metric(k,"Hoy",scheduled.length);metric(k,"Próximos",future.length);
- const display=(title,items)=>{$("h3","cnx-section",title,body);if(!items.length)$("p","cnx-empty","No hay sectores en este grupo.",body);else items.sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999")).slice(0,15).forEach(x=>zoneCard(body,x));};
- display("Planificados para hoy",scheduled);display("Pendientes anteriores",overdue);display("Próximos",future);
+ const display=(title,items)=>{$("h3","cnx-section",title,body);if(!items.length)$("p","cnx-empty","No hay sectores en este grupo.",body);else items.slice().sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999")).slice(0,15).forEach(x=>zoneCard(body,x));};
+ const priority=nextWork([...overdue,...scheduled,...future])[0];
+ if(priority){
+  const current=card(body,"Tu siguiente sector",[priority.z.town||"Localidad",priority.z.sectorName||"Sector",priority.z.date||"Sin fecha"].join(" · "));
+  if(priority.z.date&&priority.z.date<today) $("p","cnx-intro","Este sector estaba pendiente de un día anterior. Priorízalo antes de comenzar uno nuevo.",current);
+  actions(current,b("Ir al sector",()=>driveTo(priority),"primary"),b("Abrir mapa de calle",()=>openZone(priority,"map"),"outline"),b("Volcar datos",()=>openZone(priority),"outline"));
+ }
+ display("Pendientes anteriores",overdue);display("Planificados para hoy",scheduled);display("Próximos",future);
  const foot=card(body,"Al regresar","Cuando termines el trabajo de calle, entra en Oficina para revisar fichas y organizar llamadas.");
  actions(foot,b("Abrir Oficina",()=>{close();window.openCnOffice?.();},"primary"));
 }
