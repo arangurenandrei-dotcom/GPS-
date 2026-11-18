@@ -82,16 +82,11 @@ function showHome(){
  hero.append(btn("Ver mi jornada",()=>window.openCnDay?.(),"cnv-dark"));
  const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
- tile(grid,"Mapa","GPS, catastro y medición","map",()=>showMap());
- tile(grid,"Mi jornada","Sectores y horarios","calendar",()=>window.openCnDay?.());
- tile(grid,"Oficina","Fichas, llamadas y citas","office",()=>window.openCnOffice?.());
- tile(grid,"Clientes","Búsqueda inmediata","clients",()=>window.openCnClients?.());
- tile(grid,"Resultados","Progreso y rendimiento","results",()=>window.openCnResults?.());
- tile(grid,"Llamadas","Seguimientos y citas","calls",()=>window.openCnCalls?.());
- if(typeof isMikelTeamMember==="function"&&!isMikelTeamMember(me())){
-  const extra=el("div","cnv-shortcuts",undefined,section);
-  extra.append(btn("Liga comercial",()=>typeof openLeagueRankingModal==="function"&&openLeagueRankingModal(),"cnv-glass"));
- }
+ tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>window.openCnDay?.());
+ tile(grid,"Mapa","GPS, catastro y captación","map",()=>showMap());
+ tile(grid,"Oficina","Volcados, clientes y obras","office",()=>window.openCnOffice?.());
+ tile(grid,"Resultados","Cifras y Liga comercial","results",()=>window.openCnResults?.());
+
  if(boss()){
   const bossCard=el("section","cnv-director",undefined,section);
   const t=el("div","",undefined,bossCard);
@@ -100,8 +95,6 @@ function showHome(){
   bossCard.append(btn("Abrir Dirección",()=>andrei()?window.openCnTerritory?.():openAuditModal(),"cnv-dark"));
   if(andrei()){
    const management=el("div","cnv-shortcuts",undefined,section);
-   management.append(btn("Comerciales",()=>openPeopleManagement(),"cnv-glass"));
-   management.append(btn("Plan de dirección",()=>openBossWorkMenu(),"cnv-glass"));
    management.append(btn("Avisos del día",()=>checkAndShowBossTodayObras(true),"cnv-glass"));
   }
  }
