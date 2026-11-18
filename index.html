@@ -4412,37 +4412,7 @@ function openWorkMenu(title, description, actions) {
 }
 
 function openCaptureWorkMenu() {
-  openWorkMenu(
-    '📝 Fichas y llamadas',
-    'Registra captaciones y organiza jornadas completas para llamar y cerrar citas.',
-    [
-      [
-        '🧩 Organizar fichas por jornadas',
-        'Pueblos, grupos de cuatro franjas y huecos compartidos.',
-        openGroupedAppointments
-      ],
-      [
-        '📋 Volcar una zona',
-        'Resultados y fichas de un sector.',
-        openSelectZoneToDumpModal
-      ],
-      [
-        '🏠 Crear una captación individual',
-        'Sitúa la vivienda y registra su ficha.',
-        startSingleHouseDirect
-      ],
-      [
-        '📞 Seguimiento de llamadas',
-        'Estados, notas y citas individuales.',
-        openFollowUpsModal
-      ],
-      [
-        '📂 Consultar fichas',
-        'Busca clientes y zonas.',
-        openGlobalClientSearchModal
-      ]
-    ]
-  );
+  if(typeof window.openCnOffice==='function') window.openCnOffice();
 }
 
 let groupedScope = 'mine';
