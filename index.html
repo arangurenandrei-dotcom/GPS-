@@ -1049,6 +1049,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
 .captacion-ios-note{font-size:12px;color:#64748b;line-height:1.55}
 .captacion-ios-field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:650;color:#334155}
 .captacion-ios-field input{width:100%;padding:13px 12px;font-size:15px;color:#0f172a;background:white;border:1px solid #dbe3ee;border-radius:12px;outline:none}
+.captacion-ios-select{width:100%;padding:13px 12px;font-size:14px;color:#0f172a;background:#fff;border:1px solid #dbe3ee;border-radius:12px}
 .captacion-ios-field input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.13)}
 .captacion-ios-summary{font-size:12px;color:#334155;line-height:1.9;padding:13px;border-radius:13px;border:1px solid #e1e7f0;background:#fff}
 .captacion-ios-warning{font-size:12px;line-height:1.5;border:1px solid #f9d6a1;color:#92400e;background:#fff7e9;border-radius:12px;padding:11px}
@@ -13038,7 +13039,7 @@ async function confirmSectorAssignment() {
       } else if(paso===2){
         aviso('Consulta el catastro y revisa los datos. Los metros netos se calculan con el motor actual, incluyendo plantas y deducciones.');
         const cat=box.querySelector('button[onclick*="openCadastreFromClientBox"]');
-        if(cat)boton(cuerpo,'Consultar catastro de la vivienda',()=>cat.click(),true);
+        if(cat)boton(cuerpo,'Consultar catastro de la vivienda',()=>{fondo.classList.remove('active');cat.click();},true);
         fila('Año de construcción','.client-build-year',{tipo:'number',placeholder:'Ej. 1998'});
         if(inputOriginal('.client-total-m2')){
           fila('Superficie catastral (m²)','.client-total-m2',{tipo:'number',placeholder:'m²'});
@@ -13058,6 +13059,23 @@ async function confirmSectorAssignment() {
         if(cte&&cte!=='Sin detectar'&&cte!=='Auto por CP'&&!/^[DE][123]$/.test(cte))motivos.push('zona CTE fuera de D/E');
         if(motivos.length)nodo(cuerpo,'p','Revisar posible no aptitud: '+motivos.join(' y ')+'. No se cambiará el estado sin confirmación.','captacion-ios-warning');
         else aviso('La aptitud definitiva requiere comprobar todos los datos; no se decide únicamente con la fecha o los m².');
+        const estado=inputOriginal('.client-obra-status');
+        const razones=inputOriginal('.client-no-apto-reason');
+        if(estado&&razones){
+          const grupo=nodo(cuerpo,'label',null,'captacion-ios-field');
+          nodo(grupo,'span','Motivo de no aptitud (si procede)');
+          const opciones=nodo(grupo,'select',null,'captacion-ios-select');
+          for(const o of razones.options)opciones.add(new Option(o.textContent,o.value));
+          opciones.value=razones.value;
+          boton(cuerpo,'Confirmar como no apta',()=>{
+            if(!confirm('Confirma que has revisado los datos y que la vivienda es NO APTA. ¿Continuar?'))return;
+            razones.value=opciones.value;
+            estado.value='no_apto';
+            estado.dispatchEvent(new Event('change',{bubbles:true}));
+            alert('Ficha marcada como no apta. Revisa la información y guarda la hoja cuando corresponda.');
+            mostrarPasoCaptacion();
+          },true);
+        }
       } else {
         const summary=nodo(cuerpo,'div',null,'captacion-ios-summary');
         const row=(etiqueta,valor)=>nodo(summary,'div',etiqueta+': '+(valor||'Sin completar'));
