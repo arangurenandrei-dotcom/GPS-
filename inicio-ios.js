@@ -129,6 +129,8 @@ function makeMapBar(){
   const original=document.getElementById("searchInput");if(original)original.value=term;
   if(typeof searchLocation==="function")searchLocation();
  });
+ const oldDropdown=document.getElementById("searchCandidatesDropdown");
+ if(oldDropdown)mapBar.appendChild(oldDropdown);
  const controls=el("div","cnv-map-controls",undefined,mapBar);
  const items=[
   ["gps","Mi GPS",()=>typeof centerOnUser==="function"&&centerOnUser()],
