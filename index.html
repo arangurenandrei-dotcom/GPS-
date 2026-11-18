@@ -18,6 +18,10 @@
   if (team === 'mikel') document.title = 'Equipo Mikel · Control Comercial Navarra';
 })();
 </script>
+
+<style id="cnMinimalSettings">
+#userProfileModal .modal-card{background:#f7f8fb!important;color:#263449!important;border:1px solid #e8edf3!important;border-radius:27px!important;box-shadow:0 24px 70px rgba(15,23,42,.19)!important}#userProfileModal .modal-header{color:#263449!important}#userProfileModal .modal-header span{font-size:22px!important;font-weight:750!important}#userProfileModalBody.cn-settings-clean{display:flex;flex-direction:column;gap:12px;padding:4px 0 15px}#userProfileModalBody .cn-settings-card{padding:16px;border:1px solid #e2e8f0;border-radius:19px;background:#fff;color:#263449}#userProfileModalBody .cn-settings-card h3{font-size:16px!important;color:#263449!important;margin:0 0 8px;font-weight:730}#userProfileModalBody .cn-settings-card p{color:#77859a!important;font-size:13px;line-height:1.5;margin:4px 0 10px}#userProfileModalBody .cn-settings-card input,#userProfileModalBody .cn-settings-card select{width:100%;padding:12px 14px;min-height:47px;margin:7px 0 10px;color:#263449!important;background:#f8fafc!important;border:1px solid #dbe3ee!important;border-radius:13px;font-size:16px!important}#userProfileModalBody .cn-settings-button{min-height:44px;width:100%;border:1px solid #e0e6ee;border-radius:13px;background:#f2f5f9;color:#263449;font-weight:650;font-size:14px}#userProfileModalBody .cn-settings-label{display:block;font-size:13px;color:#52627a;font-weight:650}#userProfileModalBody summary{font-weight:700;color:#263449;cursor:pointer}
+</style>
 <style id="teamPortalStyle">
 #legacyLoginControls { display:none !important; }
 .portal-mikel { display:none; }
@@ -2927,197 +2931,48 @@ function openMapToolsMenu() {
 }
 
 function openUserProfileModal() {
-  const key = sessionStorage.getItem('auth_user_key');
-
-  if (!key || isMikelTeamMember(currentUserName)) return;
-
-  installUnifiedStyle();
-
-  if (appPrefs.motion === 'cinema') {
-    updateAppPref('motion', 'spring');
-  }
-
-  const root = document.getElementById('userProfileModalBody');
+  const key=sessionStorage.getItem('auth_user_key');
+  if(!key || isMikelTeamMember(currentUserName))return;
+  const root=document.getElementById('userProfileModalBody');
+  if(!root)return;
   root.replaceChildren();
-
-  document.querySelector(
-    '#userProfileModal .modal-header span'
-  ).textContent = '⚙️ Ajustes';
-
-  function node(tag, text, parent) {
-    const el = document.createElement(tag);
-    if (text !== null) el.textContent = text;
-    parent.appendChild(el);
-    return el;
+  const wrap=(tag,cl,txt,p)=>{const e=document.createElement(tag);if(cl)e.className=cl;if(txt!==undefined)e.textContent=txt;if(p)p.append(e);return e;};
+  const btn=(p,label,fn)=>{const b=wrap('button','cn-settings-button',label,p);b.type='button';b.onclick=fn;return b;};
+  const title=document.querySelector('#userProfileModal .modal-header span');
+  if(title)title.textContent='Ajustes';
+  root.classList.add('cn-settings-clean');
+  const profile=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Mi cuenta',profile);
+  wrap('p','', 'Perfil: '+(CANONICAL_USER_NAMES[key]||currentUserName),profile);
+  const label=wrap('label','', 'Nombre visible',profile);
+  const alias=wrap('input','',undefined,profile);alias.id='profileAliasInput';alias.maxLength=22;alias.value=getDisplayAlias(key);alias.setAttribute('aria-label','Nombre visible');
+  btn(profile,'Guardar nombre',saveUserProfileSettings);
+  if(key==='jefe'){
+    const team=wrap('div','cn-settings-card',undefined,root);
+    wrap('h3','', 'Equipo y accesos',team);
+    wrap('p','', 'Gestiona comerciales, credenciales y permisos.',team);
+    btn(team,'Administrar cuentas',()=>{closeModal('userProfileModal');openAccessAdminModal();});
   }
-
-  function section(label, open = false) {
-    const details = node('details', null, root);
-    details.className = 'settings-section';
-    details.open = open;
-    node('summary', label, details);
-    return details;
-  }
-
-  function select(parent, label, pref, options) {
-    node('label', label, parent);
-
-    const input = node('select', null, parent);
-
-    options.forEach(([value, text]) => {
-      const o = node('option', text, input);
-      o.value = value;
-      o.selected = appPrefs[pref] === value;
-    });
-
-    input.setAttribute('aria-label', label);
-
-    input.onchange = () => {
-      updateAppPref(pref, input.value);
-    };
-  }
-
-  function toggle(parent, label, pref) {
-    const row = node('label', null, parent);
-    row.className = 'settings-toggle-row';
-    row.style.display = 'flex';
-
-    node('span', label, row);
-
-    const input = node('input', null, row);
-    input.type = 'checkbox';
-    input.checked = !!appPrefs[pref];
-
-    input.onchange = () => {
-      updateAppPref(pref, input.checked);
-    };
-  }
-
-  function button(parent, label, action) {
-    const b = node('button', label, parent);
-    b.type = 'button';
-    b.className = 'btn-modal-save';
-    b.onclick = action;
-  }
-
-  const account = section('👤 Mi cuenta', true);
-
-  node('p', 'Perfil: ' + CANONICAL_USER_NAMES[key], account);
-  node('label', 'Nombre visible', account);
-
-  const alias = node('input', null, account);
-  alias.id = 'profileAliasInput';
-  alias.maxLength = 22;
-  alias.value = getDisplayAlias(key);
-
-  button(account, 'Guardar nombre', saveUserProfileSettings);
-
-  if (key === 'jefe') {
-    button(account, '👥 Accesos y cuentas', () => {
-      closeModal('userProfileModal');
-      openAccessAdminModal();
-    });
-  }
-
-  const screen = section('🎨 Pantalla');
-
-  node(
-    'p',
-    'Las preferencias se aplican y guardan al cambiarlas.',
-    screen
-  );
-
-  select(screen, 'Tema', 'theme', [
-    ['zafiro', 'Noche'],
-    ['esmeralda', 'Esmeralda'],
-    ['oro', 'Oro'],
-    ['racing', 'Carmesí'],
-    ['sol', 'Contraste']
-  ]);
-
-  select(screen, 'Animaciones', 'motion', [
-    ['spring', 'Normales'],
-    ['turbo', 'Reducidas']
-  ]);
-
-  select(screen, 'Texto y controles', 'uiSize', [
-    ['normal', 'Estándar'],
-    ['large', 'Grandes']
-  ]);
-
-  toggle(
-    screen,
-    'Reducir efectos visuales',
-    'batterySaver'
-  );
-
-  const navigation = section('🗺 Mapa y navegación');
-
-  select(navigation, 'Aplicación para abrir rutas', 'navApp', [
-    ['auto', 'Automática'],
-    ['apple', 'Apple Maps'],
-    ['google', 'Google Maps']
-  ]);
-
-  button(navigation, 'Abrir herramientas del mapa', () => {
-    closeModal('userProfileModal');
-    openMapToolsMenu();
-  });
-
-  const sound = section('🔊 Sonidos y respuesta táctil');
-
-  toggle(sound, 'Sonidos de la aplicación', 'sound');
-
-  toggle(
-    sound,
-    'Vibración cuando el dispositivo lo permita',
-    'vibrate'
-  );
-
-  button(sound, 'Probar sonido y vibración', () => {
-    triggerHapticAndSound('success');
-  });
-
-  const notifications = section('🔔 Notificaciones');
-
-  const permission = 'Notification' in window
-    ? Notification.permission
-    : 'unsupported';
-
-  node(
-    'p',
-    permission === 'granted'
-      ? 'Permiso concedido en este dispositivo.'
-      : (
-          permission === 'denied'
-            ? 'Permiso bloqueado en este dispositivo.'
-            : 'Permiso todavía no concedido o no disponible.'
-        ),
-    notifications
-  );
-
-  node(
-    'p',
-    'El permiso no confirma que el envío automático esté ' +
-    'configurado. Terminaremos ese sistema al final.',
-    notifications
-  );
-
-  button(
-    notifications,
-    'Configurar permiso',
-    requestMobileNotifications
-  );
-
-  const help = section('📚 Ayuda y contacto');
-  const slot = node('div', null, help);
-  slot.innerHTML = helpSectionHtml();
-
-  const oldTitle = slot.querySelector('.modal-section-title');
-  if (oldTitle) oldTitle.remove();
-
-  document.getElementById('userProfileModal')
-    .classList.add('active');
+  const work=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Trabajo y navegación',work);
+  wrap('p','', 'Tu mapa y tu agenda permanecen sincronizados.',work);
+  const row=wrap('label','cn-settings-label','Aplicación de rutas',work);
+  const nav=wrap('select','',undefined,work);nav.setAttribute('aria-label','Aplicación de rutas');
+  [['auto','Automática'],['apple','Apple Maps'],['google','Google Maps']].forEach(([v,t])=>{const op=wrap('option','',t,nav);op.value=v;});
+  nav.value=appPrefs.navApp||'auto';nav.onchange=()=>updateAppPref('navApp',nav.value);
+  const access=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Accesibilidad',access);
+  const size=wrap('label','cn-settings-label','Tamaño de los controles',access);
+  const sel=wrap('select','',undefined,access);[['normal','Normal'],['large','Grande']].forEach(([v,t])=>{const op=wrap('option','',t,sel);op.value=v;});
+  sel.value=appPrefs.uiSize||'normal';sel.onchange=()=>updateAppPref('uiSize',sel.value);
+  const notif=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Notificaciones',notif);
+  wrap('p','', 'Permiso del dispositivo: '+('Notification' in window?Notification.permission:'No disponible'),notif);
+  btn(notif,'Configurar avisos',requestMobileNotifications);
+  const help=wrap('details','cn-settings-card',undefined,root);
+  wrap('summary','', 'Ayuda y soporte',help);
+  const box=wrap('div','',undefined,help);box.innerHTML=helpSectionHtml();
+  const modal=document.getElementById('userProfileModal');if(modal)modal.classList.add('active');
 }
 
     const BOSS_WHATSAPP = '34648231318';
