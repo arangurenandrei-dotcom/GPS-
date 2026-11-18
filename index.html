@@ -7293,7 +7293,7 @@ function renderBossPlan() {
       });
 
       renderAllSavedZones();
-      void cargarMunicipiosOficiales();
+
       map.on('zoomend', actualizarAgrupacionTerritorial);
       map.on('click', handleMapClick);
 
@@ -10850,7 +10850,7 @@ function renderCommercialWorkDay() {
     }
 
     async function inspectNavarraCadastreAtPoint(latlng) {
-      if (isMikelTeamMember(currentUserName)) return;
+
       if (!map) return;
 
       const popup = L.popup({ maxWidth: 220 })
@@ -12005,7 +12005,7 @@ async function confirmSectorAssignment() {
         if (z.status === 'en_proceso') statusBadgeText = '🟡 Incompleto';
         if (z.status === 'completada') statusBadgeText = '✅ Terminado';
 
-        const isSupervisor = (currentUserRole === 'jefe' && z.comercial !== 'Andrei (Jefe)');
+        const isSupervisor = (currentUserRole === 'jefe' && z.comercial !== currentUserName);
         const btnActionLabel = isSupervisor ? '🔍 Ver Datos & Supervisar' : '📝 Volcar Hoja / Editar';
 
         polygon.on('click', (e) => {
@@ -12121,7 +12121,7 @@ async function confirmSectorAssignment() {
       selectedZoneIndexToDump = idx;
       const displayName = z.sectorName || z.town || 'Sector Comercial';
 
-      const isSupervisorView = (currentUserRole === 'jefe' && z.comercial !== 'Andrei (Jefe)');
+      const isSupervisorView = (currentUserRole === 'jefe' && z.comercial !== currentUserName);
       const bodyContainer = document.getElementById('dumpModalBodyContent');
       bodyContainer.innerHTML = '';
 
