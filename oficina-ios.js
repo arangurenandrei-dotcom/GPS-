@@ -76,7 +76,7 @@ function render(){
   nav(body);
   const c=card(body,"AGENDA DE OBRAS","Obras registradas","Solo se muestran fechas guardadas. Una sugerencia de hueco no es una reserva confirmada.");
   let last="";
-  s.booked.filter(x=>x.c.obraDate).sort((a,b)=>String(a.c.obraDate).localeCompare(String(b.c.obraDate))||String(a.c.obraTime||"").localeCompare(String(b.c.obraTime||"")).forEach(({c:client,z})=>{
+  s.booked.filter(x=>x.c.obraDate).sort((a,b)=>(String(a.c.obraDate).localeCompare(String(b.c.obraDate)) || String(a.c.obraTime||"").localeCompare(String(b.c.obraTime||"")))).forEach(({c:client,z})=>{
    if(client.obraDate!==last){last=client.obraDate;el("h3","",last,c);}
    line(c,(client.obraTime||"Sin hora")+" · "+(client.name||"Sin nombre"),[z.town,client.obraStatus==="realizada"?"Realizada":"Programada","Equipo "+(client.obraEquipoInstalacion||"sin asignar")].filter(Boolean).join(" · "));
   });
