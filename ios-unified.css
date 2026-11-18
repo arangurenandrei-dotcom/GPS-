@@ -109,3 +109,49 @@ body .modal-overlay .modal-card table th{font-weight:700;color:#273b53!important
  body .modal-overlay:not(.cn-territorio):not(.cn-oficina):not(.cnx-modal) .modal-card{padding:15px!important}
  body .modal-overlay .modal-header>span{font-size:16px!important}
 }
+/* KONSOR · superficies de trabajo translúcidas, accesibles y uniformes. */
+:root{
+ --cn-ink:#182437;
+ --cn-muted:#65748a;
+ --cn-stroke:rgba(157,173,193,.28);
+ --cn-glass:rgba(255,255,255,.82);
+}
+@supports ((backdrop-filter:blur(14px)) or (-webkit-backdrop-filter:blur(14px))){
+ .cn-oficina .cn-office-page,.cn-territorio .cn-page,.cnx-modal .cnx-page{
+  background:rgba(248,250,253,.90)!important;
+  -webkit-backdrop-filter:blur(22px) saturate(1.35);
+  backdrop-filter:blur(22px) saturate(1.35);
+ }
+ #userProfileModal .modal-card,#assignModal .modal-card{
+  background:rgba(250,251,253,.94)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+  backdrop-filter:blur(18px) saturate(1.3);
+ }
+}
+.cn-oficina .cn-office-card,.cn-territorio .cn-sector,.cnx-modal .cnx-card,
+#userProfileModal .cn-settings-card{
+ border:1px solid rgba(184,194,208,.28)!important;
+ background:rgba(255,255,255,.91)!important;
+ box-shadow:0 5px 24px rgba(28,43,64,.035)!important;
+ border-radius:20px!important;
+}
+.cn-oficina :is(button,.cn-office-btn),.cn-territorio .cn-btn,.cnx-modal .cnx-btn,
+#userProfileModal .cn-settings-button{
+ font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif!important;
+ letter-spacing:-.012em!important;
+ border-radius:14px!important;
+ min-height:44px;
+ transition:background-color .18s ease,transform .18s ease;
+}
+.cn-oficina button:active,.cn-territorio button:active,.cnx-modal button:active{transform:scale(.985)}
+.cn-oficina .cn-office-header,.cn-territorio .cn-page-head,.cnx-modal .cnx-head{
+ border-bottom:1px solid rgba(172,186,202,.18)!important;
+}
+@media(max-width:680px){
+ .cn-oficina .cn-office-body,.cn-territorio .cn-page-body,.cnx-modal .cnx-body{
+  padding-bottom:calc(18px + env(safe-area-inset-bottom))!important;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .cn-oficina button,.cn-territorio button,.cnx-modal button{transition:none!important}
+}
