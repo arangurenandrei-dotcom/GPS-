@@ -40,6 +40,34 @@ function extraEvents({zones=[],shifts=[],now=Date.now()}){
    if(delta>=0&&delta<=15*60000&&(!c.obraStatus||c.obraStatus==='a_poner'))emit(user,'contact:'+z.id+':'+(c.clientUid||c.id||c.phone)+':'+c.nextContactAt,'followups','Tienes un seguimiento acordado','El contacto está previsto en '+Math.ceil(delta/60000)+' minutos. Abre la ficha para revisar las notas.',{zoneId:z.id});
    if(user!==BOSS&&minutes>=9*60&&c.obraStatus==='agendada'&&!c.crmUploaded&&[today,day(today,1)].includes(c.obraDate))emit(BOSS,'crm-urgente:'+z.id+':'+(c.clientUid||c.id||c.phone)+':'+c.obraDate,'management','Cita pendiente de CRM · '+user,'La obra del '+c.obraDate+' sigue pendiente de confirmación. Revisa la reserva con el comercial.',{zoneId:z.id,person:user});
   }
+  // Avisos informativos basados en datos registrados, una vez por día/umbral.
+  const shiftToday=work.find(x=>(x.localDate||String(x.date||'').slice(0,10))===today);
+  const scheduledToday=mine.filter(z=>z.date===today&&!z.isSingleHouse&&!z.isHotMission);
+  if(minutes>=10*60&&!shiftToday?.startTime&&scheduledToday.length){
+   emit(user,'routine:late-start:'+today+':'+user,'daily','Todavía no has iniciado la jornada',
+     'Son las 10:00 y no consta un fichaje de entrada. Si ya estás trabajando, abre Mi jornada y comprueba el registro.',
+     {person:user,action:'shift'});
+  }
+  if(shiftToday?.status==='lunch'&&shiftToday.lunchStart){
+   const since=minutes-minute(shiftToday.lunchStart);
+   if(Number.isFinite(since)&&since>=60&&since<90){
+    emit(user,'routine:lunch-60:'+today+':'+user,'daily','Llevas una hora en comida',
+      '¿Has terminado de comer? Si has vuelto al trabajo, pulsa Reanudar en Mi jornada.',
+      {person:user,action:'resume'});
+   }else if(Number.isFinite(since)&&since>=90){
+    emit(user,'routine:lunch-90:'+today+':'+user,'daily','Comprueba tu pausa de comida',
+      'Llevas más de 90 minutos en pausa. Si olvidaste reanudar el fichaje, revisa Mi jornada.',
+      {person:user,action:'resume'});
+   }
+  }
+  if(shiftToday&&(shiftToday.status==='finished'||shiftToday.endTime)&&scheduledToday.length&&scheduledToday.every(z=>z.status==='completada')){
+   const missing=scheduledToday.flatMap(z=>z.clients||[]).filter(c=>(c.name||c.street||c.phone)&&!(c.name&&c.street&&c.phone));
+   if(!missing.length){
+    emit(user,'routine:done:'+today+':'+user,'daily','Jornada completada',
+      'Has cerrado la jornada y los sectores planificados de hoy constan como completados, sin fichas incompletas detectadas. Buen trabajo.',
+      {person:user,action:'summary'});
+   }
+  }
   if(minutes<9*60)continue;
   for(const [period,start,end,priorStart,priorEnd] of periods(today)){
    const m=metrics(mine,work,start,end),p=metrics(mine,work,priorStart,priorEnd);
