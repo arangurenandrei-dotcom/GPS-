@@ -221,6 +221,7 @@ async function findClusterDay(body,host,indicator,automatic=false){
  if(!options.length){indicator.textContent="No se pudieron verificar fechas. Mantengo el día actual; no se ofrecen huecos sin confirmar disponibilidad.";return;}
  options.sort((a,b)=>b.safe-a.safe||b.maxRun-a.maxRun||b.count-a.count||a.dayIndex-b.dayIndex||a.team-b.team);
  const best=options[0],target=Math.min(4,rows.length);
+ if(best.safe===0){clusterPlanNotice="No se han encontrado franjas con proximidad verificable en los "+checked+" días consultados. No recomendaré desplazamientos sin conocer las ubicaciones de las otras obras.";indicator.textContent=clusterPlanNotice;return;}
  const msg=best.safe>=target?"Jornada agrupable por cercanía":"Mejor alternativa compatible encontrada";
  clusterPlanNotice=msg+": "+best.date+" · Equipo "+best.team+" · "+best.safe+" propuestas cercanas de "+best.count+" huecos libres · "+checked+" días consultados. Son propuestas, no reservas.";
  indicator.textContent=clusterPlanNotice;
@@ -232,7 +233,7 @@ async function renderGroupAgenda(body,insertBefore=null){
  const host=e("section","koc-card koc-group-schedule",undefined,body);
  if(insertBefore&&insertBefore.parentNode===body)body.insertBefore(host,insertBefore);
  e("h3","","Plan del día · Dos equipos",host);
- e("p","koc-muted","Solo se proponen huecos compatibles con las obras contiguas del mismo equipo. Si faltan ubicaciones, no se supone que el desplazamiento sea corto.",host);
+ e("p","koc-muted","Azul: franja libre y cercanía preliminar. Gris: bloqueado o ruta no verificable. No se usan huecos que obliguen a desplazamientos desconocidos entre pueblos; se debe comprobar además la conducción real.",host);
  const controls=e("div","koc-group-controls koc-group-date-only",undefined,host);
  const dateInput=e("input","koc-input",undefined,controls);
  dateInput.type="date";dateInput.min=tomorrow();dateInput.value=clusterDate;dateInput.setAttribute("aria-label","Día de las obras");
@@ -312,7 +313,12 @@ async function renderGroupAgenda(body,insertBefore=null){
      e("span","koc-dual-state","POR LLAMAR",cell);
      cell.append(button("Llamar",()=>preferGroupDate(item,clusterDate,from,team),"koc-primary"));
     }else{
-     cell.classList.add("free");e("strong","","Libre",cell);e("small","","Sin propuesta",cell);
+     const unplaced=freeCandidates.filter(x=>!used.has(x.key));
+     if(unplaced.length){
+      const reason=slotRouteFit(unplaced[0],clusterDate,team,idx,remote,allBooked,plans).reason;
+      cell.classList.add("unverified");e("strong","","Libre, sin propuesta",cell);
+      e("small","",reason||"No hay ruta cercana comprobada",cell);
+     }else{cell.classList.add("free");e("strong","","Libre",cell);e("small","","Sin vecinos pendientes",cell);}
     }
    }
   }
