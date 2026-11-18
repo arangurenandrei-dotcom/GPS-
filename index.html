@@ -12351,6 +12351,17 @@ const labelStreet = clientObj.street ||
         const centerLon = sumLon / tempPoints.length;
 
         document.getElementById('assignModal').classList.add('active');
+        const agenda = document.getElementById('assignDate');
+        const responsible = document.getElementById('assignComercial');
+        if (agenda && responsible) {
+          agenda.value = suggestSectorDateFor(responsible.value);
+          if (!responsible.dataset.konsorSuggestedDate) {
+            responsible.addEventListener('change', () => {
+              if (agenda) agenda.value = suggestSectorDateFor(responsible.value);
+            });
+            responsible.dataset.konsorSuggestedDate = '1';
+          }
+        }
         detectTownFromCoordinates(centerLat, centerLon);
       }
     }
@@ -12457,7 +12468,22 @@ const labelStreet = clientObj.street ||
       );
     }
 
-async function confirmSectorAssignment() {
+function suggestSectorDateFor(comercial) {
+      const today = getTodayISO();
+      const queued = savedZones.filter(z => z && z.comercial === comercial &&
+        !z.isSingleHouse && !z.isNoAptoZone && !z.isHotMission &&
+        z.status !== 'completada' && /^\\d{4}-\\d{2}-\\d{2}$/.test(z.date || '') &&
+        z.date >= today).map(z => z.date).sort();
+      const latest = queued.length ? queued[queued.length - 1] : null;
+      // Si la persona ya tiene sectores futuros, el nuevo va después.
+      // Sin carga futura se propone hoy, excepto domingo.
+      const cursor = new Date((latest || today) + 'T12:00:00Z');
+      if (latest) cursor.setUTCDate(cursor.getUTCDate() + 1);
+      while (cursor.getUTCDay() === 0) cursor.setUTCDate(cursor.getUTCDate() + 1);
+      return cursor.toISOString().slice(0, 10);
+    }
+
+    async function confirmSectorAssignment() {
       const dateVal = document.getElementById('assignDate').value || getTodayISO();
       let town = document.getElementById('assignTown').value.trim();
       if (!town || town === 'Detectando localidad...') {
