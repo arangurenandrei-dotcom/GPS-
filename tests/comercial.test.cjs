@@ -234,3 +234,102 @@ test('compact calculator recalculates and clears a stale result after invalid in
  fields['.client-floors'].value='';calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,'');
 });
 
+
+test('criterios de aptitud por superficie y CTE', () => {
+  const f = core.evaluarAptitud;
+  assert.equal(f({m2:70,cteZone:'D2'}).estado,'apto');
+  assert.equal(f({m2:55,cteZone:'D2'}).estado,'no_apto');
+  assert.equal(f({m2:45,cteZone:'D2'}).estado,'no_apto');
+  assert.equal(f({m2:70,cteZone:'C2'}).estado,'no_apto');
+  assert.equal(f({m2:70,cteZone:''}).estado,'pendiente');
+  assert.equal(f({m2:70,cteZone:'E1',buildYear:2010}).estado,'no_apto');
+});
+
+test('urbanización conjunta: 8 viviendas y bloques 4+4', () => {
+  const casa = {m2:55,cteZone:'D2',urbanizacionId:'urb-1'};
+  assert.equal(core.evaluarAptitud({
+    ...casa,viviendasAptasUrbanizacion:7
+  }).estado,'revisar');
+  assert.equal(core.evaluarAptitud({
+    ...casa,viviendasAptasUrbanizacion:8
+  }).estado,'apto');
+
+  const grupo = core.planUrbanizacion(
+    Array.from({length:8}, (_,i) => ({...casa,id:i+1}))
+  );
+  assert.equal(grupo.lista,true);
+  assert.equal(grupo.bloques[0].length,4);
+  assert.equal(grupo.bloques[1].length,4);
+});
+
+test('urbanización: tres modalidades de agenda 4+4', () => {
+  const casas = Array.from({length:8}, (_,i) => ({
+    id:i+1,m2:55,cteZone:'D2',urbanizacionId:'urb-1'
+  }));
+  const opciones = core.opcionesAgendaUrbanizacion(casas);
+  assert.equal(opciones.length,3);
+  for(const op of opciones) {
+    assert.equal(op.bloques.length,2);
+    assert.equal(op.bloques[0].viviendas.length,4);
+    assert.equal(op.bloques[1].viviendas.length,4);
+  }
+  assert.equal(opciones[0].bloques[0].dia,opciones[0].bloques[1].dia);
+  assert.equal(opciones[1].bloques[0].equipo,opciones[1].bloques[1].equipo);
+  assert.notEqual(opciones[2].bloques[0].equipo,opciones[2].bloques[1].equipo);
+});
+
+test('urbanización: una vivienda repetida 8 veces no permite planificar', () => {
+  const casa = {
+    id: 1, m2: 55, cteZone: 'D2',
+    urbanizacionId: 'urb-1'
+  };
+  const viviendas = Array.from({length: 8}, () => ({...casa}));
+  assert.equal(core.planUrbanizacion(viviendas).lista, false);
+  assert.equal(core.opcionesAgendaUrbanizacion(viviendas).length, 0);
+});
+
+test('urbanización: no se mezclan viviendas de grupos distintos', () => {
+  const viviendas = Array.from({length: 8}, (_, i) => ({
+    id: i + 1,
+    m2: 55,
+    cteZone: 'D2',
+    urbanizacionId: i < 4 ? 'urb-1' : 'urb-2'
+  }));
+  assert.equal(core.planUrbanizacion(viviendas).lista, false);
+  assert.equal(core.opcionesAgendaUrbanizacion(viviendas).length, 0);
+});
+
+test('agenda 4+4: rechaza una vivienda duplicada', async () => {
+  const casas = Array.from({length:8}, (_,i) => ({
+    id:i+1, m2:55, cteZone:'D2',
+    urbanizacionId:'urb-1'
+  }));
+  const opcion = core.opcionesAgendaUrbanizacion(casas)[0];
+
+  opcion.bloques[1].viviendas[0] = opcion.bloques[0].viviendas[0];
+
+  await assert.rejects(
+    core.validarAgendaUrbanizacion(opcion,'2026-11-23',
+      async () => {throw Error('No debe consultar KONSOR');}),
+    /8 viviendas|duplicad/
+  );
+});
+
+test('agenda 4+4: rechaza mezclar urbanizaciones', async () => {
+  const casas = Array.from({length:8}, (_,i) => ({
+    id:i+1, m2:55, cteZone:'D2',
+    urbanizacionId:'urb-1'
+  }));
+  const opcion = core.opcionesAgendaUrbanizacion(casas)[0];
+
+  opcion.bloques[1].viviendas[0] = {
+    ...opcion.bloques[1].viviendas[0],
+    urbanizacionId:'urb-2'
+  };
+
+  await assert.rejects(
+    core.validarAgendaUrbanizacion(opcion,'2026-11-23',
+      async () => {throw Error('No debe consultar KONSOR');}),
+    /8 viviendas|urbanizaci/
+  );
+});

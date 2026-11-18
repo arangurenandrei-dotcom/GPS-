@@ -10910,8 +10910,9 @@ function renderCommercialWorkDay() {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Tipo de Inmueble Captado</strong>
               <select class="select-field client-type" style="font-size:11px; padding:4px 8px; width:auto;" onchange="switchClientTypeView(this, 0)">
-                <option value="vivienda" ${!isComunidad?'selected':''}>🏠 Vivienda Individual</option>
+                <option value="vivienda" ${!isComunidad && existingClient.type!=='urbanizacion'?'selected':''}>🏠 Vivienda Individual</option>
                 <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
+                ${!isMikelTeamMember(currentUserName) ? `<option value="urbanizacion" ${existingClient.type==='urbanizacion'?'selected':''}>🏘️ Urbanización conjunta</option>` : ''}
               </select>
             </div>
 
@@ -10991,7 +10992,7 @@ function renderCommercialWorkDay() {
         municipio: ctx.town || '',
         provincia: 'Navarra',
         codigo_postal: c.postalCode || cteInfo.cp || '',
-        zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'D2',
+        zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'PENDIENTE_VERIFICAR',
         anio_construccion: parseInt(c.buildYear) || null,
         superficie_m2: m2Val,
         tipo_acceso: formatAccessDisplay(c),
@@ -11173,7 +11174,14 @@ if (!routeValidateAppointment(c, ctx)) return false;
         };
       } else {
         return {
-          type: 'vivienda',
+          type: typeVal === 'urbanizacion' ? 'urbanizacion' : 'vivienda',
+          urbanizacionNombre: typeVal === 'urbanizacion'
+            ? box.querySelector('.client-urbanizacion-name')?.value.trim() || ''
+            : '',
+          urbanizacionId: typeVal === 'urbanizacion'
+            ? ComercialCore.norm(box.querySelector('.client-urbanizacion-name')?.value || '')
+            : '',
+
           name: box.querySelector('.client-name').value.trim(),
           street: box.querySelector('.client-street').value.trim(),
           postalCode: postalCodeVal,
@@ -11213,6 +11221,11 @@ if (!routeValidateAppointment(c, ctx)) return false;
       const clientObj = extractClientFromBox(box, prevCallStatus, prevClientMeta);
       if (!isClientValidFilled(clientObj)) {
         alert("⚠️ Rellena al menos el nombre, la calle o el teléfono antes de guardar esta vivienda.");
+        return;
+      }
+
+      if (clientObj.type === 'urbanizacion' && !clientObj.urbanizacionId) {
+        alert('Indica el nombre de la urbanización.');
         return;
       }
 
@@ -12086,8 +12099,9 @@ const labelStreet = clientObj.street ||
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Ficha #${i+1}</strong>
             <select class="select-field client-type" style="font-size:10px; padding:3px 6px; width:auto;" onchange="switchClientTypeView(this, ${i})">
-              <option value="vivienda" ${!isComunidad?'selected':''}>🏠 Vivienda Individual</option>
+              <option value="vivienda" ${!isComunidad && existingClient.type!=='urbanizacion'?'selected':''}>🏠 Vivienda Individual</option>
               <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
+                ${!isMikelTeamMember(currentUserName) ? `<option value="urbanizacion" ${existingClient.type==='urbanizacion'?'selected':''}>🏘️ Urbanización conjunta</option>` : ''}
             </select>
           </div>
 
@@ -12135,6 +12149,8 @@ const labelStreet = clientObj.street ||
 
       const preserved = {
         street: parentBox.querySelector('.client-street')?.value || '',
+        urbanizacionNombre: parentBox.querySelector('.client-urbanizacion-name')?.value || '',
+
         postalCode: parentBox.querySelector('.client-cp')?.value || '',
         cteZone: parentBox.querySelector('.client-cte-zone')?.value || '',
         name: parentBox.querySelector('.client-name')?.value || '',
@@ -12151,7 +12167,7 @@ const labelStreet = clientObj.street ||
       };
 
       parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
-      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML(preserved, idx) : getViviendaFormHTML(preserved);
+      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML(preserved, idx) : getViviendaFormHTML({...preserved, type:selectEl.value});
 
       if (isComunidad) {
         renderAtticsBreakdownList(parentBox, null, 2);
@@ -12334,6 +12350,310 @@ const labelStreet = clientObj.street ||
       `;
     }
 
+    function avisoAptitudHTML(c, zona = '') {
+      const conjunta = c.type === 'urbanizacion';
+      const resultado = ComercialCore.evaluarAptitud({
+        ...c,
+        cteZone: zona || c.cteZone,
+        urbanizacionId: conjunta ? c.urbanizacionId || ComercialCore.norm(c.urbanizacionNombre) : '',
+        viviendasAptasUrbanizacion: conjunta
+          ? contarViviendasUrbanizacion(c.urbanizacionNombre || '')
+          : 0
+      });
+      const colores = {
+        apto: '#34d399',
+        revisar: '#fbbf24',
+        pendiente: '#93c5fd',
+        no_apto: '#fca5a5'
+      };
+      const nombres = {
+        apto: 'APTO',
+        revisar: 'REVISAR',
+        pendiente: 'PENDIENTE',
+        no_apto: 'NO APTO'
+      };
+      return `<div class="client-aptitud-summary"
+        style="padding:8px;margin:7px 0;border:1px solid ${colores[resultado.estado]};border-radius:8px;color:${colores[resultado.estado]};font-size:11px">
+        <strong>${nombres[resultado.estado]}</strong> · ${resultado.motivo}
+      </div>`;
+    }
+
+    function actualizarAvisoAptitud(el) {
+      const area = el.closest('.client-fields-dynamic-area');
+      if (!area || !area.querySelector('.client-aptitud-summary')) return;
+      const c = {
+        type: area.closest('.client-box, .comunidad-box')
+          ?.querySelector('.client-type')?.value || 'vivienda',
+        urbanizacionNombre: area.querySelector('.client-urbanizacion-name')?.value || '',
+        m2: area.querySelector('.client-m2')?.value || '',
+        buildYear: area.querySelector('.client-build-year')?.value || '',
+        cteZone: area.querySelector('.client-cte-zone')?.value || ''
+      };
+      area.querySelector('.client-aptitud-summary').outerHTML =
+        avisoAptitudHTML(c);
+    }
+
+    document.addEventListener('input', e => {
+      if (e.target.matches('.client-m2,.client-total-m2,.client-build-year,.client-cp')) {
+        queueMicrotask(() => actualizarAvisoAptitud(e.target));
+      }
+    });
+
+    function contarViviendasUrbanizacion(nombre) {
+      const id = ComercialCore.norm(nombre);
+      if (!id) return 0;
+
+      const viviendas = savedZones.flatMap(z =>
+        isMikelTeamMember(z.comercial) ? [] :
+        (z.clients || []).filter(c =>
+          c.type === 'urbanizacion' &&
+          c.urbanizacionId === id &&
+          c.obraStatus !== 'no_apto'
+        )
+      );
+
+      return ComercialCore.planUrbanizacion(viviendas).aptas;
+    }
+
+    function actualizarContadorUrbanizacion(input) {
+      const slot = input.closest('.client-fields-dynamic-area')
+        ?.querySelector('.urbanizacion-progress');
+      if (!slot) return;
+
+      const n = contarViviendasUrbanizacion(input.value);
+      slot.textContent = n >= 8
+        ? `✅ ${n} viviendas aptas · Lista para planificar 4 + 4`
+        : `🏘️ ${n}/8 viviendas aptas · Faltan ${8-n}`;
+    }
+
+    async function abrirPlanUrbanizacion(btn) {
+      if(currentUserName!=='Andrei (Jefe)')return;
+
+      const area=btn.closest('.client-fields-dynamic-area');
+      const nombre=area?.querySelector('.client-urbanizacion-name')?.value.trim();
+      const id=ComercialCore.norm(nombre);
+      if(!id){alert('Indica el nombre de la urbanización.');return;}
+
+      const viviendas=savedZones.flatMap(z=>
+        isMikelTeamMember(z.comercial)?[]:
+        (z.clients||[]).filter(c=>
+          c.type==='urbanizacion' &&
+          ComercialCore.norm(c.urbanizacionId||c.urbanizacionNombre)===id &&
+          c.obraStatus!=='no_apto'
+        )
+      );
+
+      const opciones=ComercialCore.opcionesAgendaUrbanizacion(viviendas);
+      if(!opciones.length){
+        alert('Se necesitan 8 viviendas que cumplan los requisitos.');
+        return;
+      }
+
+      const modal=document.createElement('dialog');
+      modal.style.cssText='border:1px solid #64748b;border-radius:12px;background:#0f172a;color:white;padding:18px;width:min(92vw,420px)';
+      const titulo=document.createElement('h3');
+      titulo.textContent='🏘️ Planificar '+nombre;
+      modal.append(titulo);
+
+      const selector=document.createElement('select');
+      selector.className='select-field';
+      selector.style.width='100%';
+      opciones.forEach((o,i)=>selector.add(new Option(o.nombre,String(i))));
+      modal.append(selector);
+
+      const fecha=document.createElement('input');
+      fecha.type='date';
+      fecha.className='input-field';
+      fecha.style.cssText='display:block;width:100%;margin:12px 0';
+      fecha.min=getTomorrowISO();
+      fecha.value=getTomorrowISO();
+      modal.append(fecha);
+
+      const resultado=document.createElement('p');
+      resultado.style.fontSize='12px';
+      resultado.textContent='Comprueba los 8 huecos antes de programar.';
+      modal.append(resultado);
+
+      const comprobar=document.createElement('button');
+      comprobar.textContent='🔎 Comprobar KONSOR';
+      comprobar.className='btn-modal-save';
+      comprobar.onclick=async()=>{
+        comprobar.disabled=true;
+        resultado.textContent='Consultando disponibilidad...';
+        try{
+          if(!ComercialCore.date(fecha.value) ||
+             fecha.value<getTomorrowISO())
+            throw Error('Selecciona una fecha futura válida.');
+
+          const r=await ComercialCore.validarAgendaUrbanizacion(
+            opciones[Number(selector.value)],
+            fecha.value,
+            consultarKonsorFecha
+          );
+
+          resultado.textContent=r.disponible
+            ? '✅ 8 huecos libres en KONSOR. Propuesta lista para revisión; aún no se ha reservado nada.'
+            : '🚫 Ocupado: equipo '+r.equipo+
+              ' · '+r.fecha+' · '+r.hora;
+        }catch(e){
+          resultado.textContent='⚠️ '+e.message;
+        }finally{
+          comprobar.disabled=false;
+        }
+      };
+      modal.append(comprobar);
+      const confirmar=document.createElement('button');
+      confirmar.textContent='✅ Confirmar 8 reservas';
+      confirmar.className='btn-modal-save';
+      confirmar.style.cssText='display:block;width:100%;margin-top:10px';
+
+      confirmar.onclick=async()=>{
+        if(window.KonsorBridge?.busy){
+          alert('Hay un guardado pendiente. Termínalo antes de agendar.');
+          return;
+        }
+
+        const fechaElegida=fecha.value;
+        const modalidad=Number(selector.value);
+
+        if(fechaElegida<getTomorrowISO()){
+          alert('Selecciona una fecha futura.');
+          return;
+        }
+
+        confirmar.disabled=true;
+        comprobar.disabled=true;
+        resultado.textContent='Verificando las 8 reservas...';
+
+        try{
+          // Reconstruir el grupo con los datos actuales.
+          const actuales=savedZones.flatMap(z=>
+            isMikelTeamMember(z.comercial) ? [] :
+            (z.clients||[]).filter(c=>
+              c.type==='urbanizacion' &&
+              ComercialCore.norm(
+                c.urbanizacionId||c.urbanizacionNombre
+              )===id &&
+              c.obraStatus!=='no_apto'
+            )
+          );
+
+          const opcionesActuales=
+            ComercialCore.opcionesAgendaUrbanizacion(actuales);
+
+          const opcion=opcionesActuales[modalidad];
+
+          if(!opcion)
+            throw Error('El grupo ya no reúne 8 viviendas aptas.');
+
+          // Impedir reservar fichas sin identificador o ya agendadas.
+          const viviendas=opcion.bloques.flatMap(b=>b.viviendas);
+
+          if(viviendas.some(c=>
+            !c.clientUid ||
+            c.obraStatus==='agendada' ||
+            !String(c.name||'').trim() ||
+            !String(c.street||'').trim() ||
+            !String(c.phone||'').trim()
+          )){
+            throw Error(
+              'Las 8 viviendas deben estar guardadas, sin cita, '+
+              'y tener nombre, dirección y teléfono.'
+            );
+          }
+
+          // KONSOR se consulta de nuevo justo antes de confirmar.
+          const plan=await ComercialCore.validarAgendaUrbanizacion(
+            opcion,fechaElegida,consultarKonsorFecha
+          );
+
+          if(!plan.disponible){
+            throw Error(
+              'Franja ocupada: equipo '+plan.equipo+
+              ', '+plan.fecha+', '+plan.hora
+            );
+          }
+
+          if(plan.reservas.length!==8)
+            throw Error('La planificación no contiene 8 reservas.');
+
+          const dias=[...new Set(plan.reservas.map(r=>r.fecha))];
+
+          if(dias.some(d=>new Date(d+'T12:00:00').getDay()===0))
+            throw Error('No se pueden programar obras en domingo.');
+
+          if(!confirm(
+            '¿Confirmas las 8 instalaciones de '+nombre+
+            '?\n\nModalidad: '+opcion.nombre+
+            '\nInicio: '+fechaElegida+
+            '\n\nLas 8 citas se guardarán juntas.'
+          ))return;
+
+          // Copia: no modificar fichas visibles antes de guardar.
+          const candidato=JSON.parse(JSON.stringify(savedZones));
+          const cambios=new Map();
+
+          for(const reserva of plan.reservas){
+            cambios.set(reserva.vivienda.clientUid,reserva);
+          }
+
+          let modificadas=0;
+
+          for(const zona of candidato){
+            for(const cliente of zona.clients||[]){
+              const r=cambios.get(cliente.clientUid);
+              if(!r)continue;
+
+              if(isMikelTeamMember(zona.comercial) ||
+                 cliente.obraStatus==='agendada')
+                throw Error('Una ficha ha cambiado. Recarga y revisa.');
+
+              cliente.obraStatus='agendada';
+              cliente.obraDate=r.fecha;
+              cliente.obraTime=r.hora;
+              cliente.obraEquipoInstalacion=r.equipo;
+              cliente.statusChangedAt=Date.now();
+              modificadas++;
+            }
+          }
+
+          if(modificadas!==8)
+            throw Error('No se localizaron exactamente 8 fichas.');
+
+          // UNA llamada: Firebase confirma las 8 o ninguna.
+          await window.KonsorBridge.save(
+            'comercial_custom_zones',candidato
+          );
+
+          savedZones=candidato;
+          resultado.textContent='✅ Las 8 reservas están confirmadas.';
+          alert('✅ 8 instalaciones guardadas correctamente.');
+          modal.close();
+          renderAllSavedZones();
+
+        }catch(error){
+          resultado.textContent='⚠️ '+(
+            error.message||'No se pudieron guardar las reservas.'
+          );
+        }finally{
+          confirmar.disabled=false;
+          comprobar.disabled=false;
+        }
+      };
+
+      modal.append(confirmar);
+
+
+      const cerrar=document.createElement('button');
+      cerrar.textContent='Cerrar';
+      cerrar.style.cssText='display:block;margin-top:12px;padding:8px';
+      cerrar.onclick=()=>modal.close();
+      modal.append(cerrar);
+      modal.addEventListener('close',()=>modal.remove());
+      document.body.append(modal);
+      modal.showModal();
+    }
+
     function getViviendaFormHTML(existing) {
       const defaultObraDate = existing.obraDate || getTodayISO();
       const defaultObraTime = existing.obraTime || '09:30';
@@ -12350,6 +12670,26 @@ const labelStreet = clientObj.street ||
       const isCteInvalid = cteDisplay && !/^[DE][123]$/.test(cteDisplay);
 
       return `
+        ${existing.type === 'urbanizacion' ? `
+          <label style="display:block;margin:6px 0;color:#a7f3d0;font-size:11px;font-weight:800">
+            🏘️ Nombre de la urbanización
+            <input class="input-field client-urbanizacion-name" oninput="actualizarContadorUrbanizacion(this)"
+              placeholder="Ej. Urbanización Los Olivos"
+              value="${String(existing.urbanizacionNombre || '').replace(/"/g,'&quot;')}"
+              style="margin-top:5px;width:100%">
+          </label>
+          <div class="urbanizacion-progress"
+            style="color:#a7f3d0;font-size:11px;margin:5px 0">
+            🏘️ ${contarViviendasUrbanizacion(existing.urbanizacionNombre)} viviendas aptas registradas
+          </div>
+          <button type="button" class="btn-modal-save"
+            onclick="abrirPlanUrbanizacion(this)"
+            style="margin:6px 0;width:100%">
+            📅 Planificar 4 + 4
+          </button>
+        ` : ''}
+
+        ${!isMikelTeamMember(currentUserName) ? avisoAptitudHTML(existing, existing.cteZone || detectCteZoneFromCpAndTown(existing.postalCode || "").cteZone) : ""}
         <div class="grid-row-2">
           <div style="display:flex; gap:4px; flex:1.15;">
             <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
@@ -12507,6 +12847,7 @@ const labelStreet = clientObj.street ||
       });
 
       return `
+        ${!isMikelTeamMember(currentUserName) ? avisoAptitudHTML(existing, existing.cteZone || detectCteZoneFromCpAndTown(existing.postalCode || "").cteZone) : ""}
         <div style="background:rgba(0,0,0,0.25); padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:4px; margin-bottom:6px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:11px; font-weight:800; color:#a78bfa;">👑 ¿Es el Presidente Oficial?</span>
@@ -14954,7 +15295,7 @@ function openCommercialStatsModalLegacy() {
             municipio: z.town || '',
             provincia: 'Navarra',
             codigo_postal: c.postalCode || cteInfo.cp || '',
-            zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'D2',
+            zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'PENDIENTE_VERIFICAR',
             anio_construccion: parseInt(c.buildYear) || null,
             superficie_m2: m2Val,
             tipo_acceso: formatAccessDisplay(c),

@@ -93,7 +93,165 @@
     if (row.id && c.crmOrigenId && norm(c.crmOrigenId)!==norm(row.id)) return null;
     return c.obraDate===row.fecha && c.obraTime===String(row.hora||'').slice(0,5) && Number(c.obraEquipoInstalacion)===Number(row.equipo) ? found[0] : null;
   }
-  const api={area,attic,date,norm,phone,postalAddress,postalMatches,exactPostalCode,matches,linkable};
+  function evaluarAptitud(cliente = {}) {
+    const m2 = area(cliente.m2);
+    const zona = String(cliente.cteZone || '').trim().toUpperCase();
+    const anio = Number(cliente.buildYear);
+    const conjunta = Boolean(cliente.urbanizacionId);
+    const cantidad = Number(cliente.viviendasAptasUrbanizacion || 0);
+
+    if (m2 > 0 && m2 < (conjunta ? 50 : 60))
+      return {estado:'no_apto',motivo:'Superficie insuficiente'};
+
+    if (cliente.buildYear && anio > 2006)
+      return {estado:'no_apto',motivo:'Construcción posterior a 2006'};
+
+    if (zona && !/^[DE][123]$/.test(zona))
+      return {estado:'no_apto',motivo:'Zona CTE no admitida'};
+
+    if (!m2 || !zona)
+      return {estado:'pendiente',motivo:'Falta superficie o zona CTE'};
+
+    if (conjunta && cantidad < 8)
+      return {estado:'revisar',motivo:'Urbanización: faltan viviendas para llegar a 8'};
+
+    return {estado:'apto',motivo:'Cumple los criterios registrados'};
+  }
+
+  function planUrbanizacion(viviendas = []) {
+  const grupos = new Map();
+  const vistos = new Set();
+
+  for (const c of viviendas) {
+    if (!c || typeof c !== 'object') continue;
+
+    const grupo = norm(c.urbanizacionId || c.urbanizacionNombre || '');
+    if (!grupo) continue;
+
+    const identidad = String(c.id || c.clientUid || c.clientId ||
+      [c.street, c.postalCode, c.name].join('|')).trim();
+
+    if (!identidad || identidad === '||') continue;
+
+    const clave = grupo + '|' + norm(identidad);
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+
+    const resultado = evaluarAptitud({
+      ...c,
+      urbanizacionId: grupo,
+      viviendasAptasUrbanizacion: 8
+    });
+
+    if (resultado.estado !== 'apto') continue;
+
+    if (!grupos.has(grupo)) grupos.set(grupo, []);
+    grupos.get(grupo).push(c);
+  }
+
+  const viviendasGrupo = [...grupos.values()]
+    .sort((a, b) => b.length - a.length)[0] || [];
+
+  const aptas = viviendasGrupo.length;
+
+  return {
+    aptas,
+    minimo: 8,
+    lista: aptas >= 8,
+    bloques: aptas >= 8
+      ? [viviendasGrupo.slice(0, 4), viviendasGrupo.slice(4, 8)]
+      : []
+  };
+}
+
+function opcionesAgendaUrbanizacion(viviendas = []) {
+    const plan = planUrbanizacion(viviendas);
+    if (!plan.lista) return [];
+
+    return [
+      {
+        id: 'mismo_dia',
+        nombre: 'Mismo día · equipos 2 y 3',
+        bloques: [
+          {equipo:2, dia:1, viviendas:plan.bloques[0]},
+          {equipo:3, dia:1, viviendas:plan.bloques[1]}
+        ]
+      },
+      {
+        id: 'mismo_equipo',
+        nombre: 'Dos días consecutivos · mismo equipo',
+        bloques: [
+          {equipo:2, dia:1, viviendas:plan.bloques[0]},
+          {equipo:2, dia:2, viviendas:plan.bloques[1]}
+        ]
+      },
+      {
+        id: 'equipos_distintos',
+        nombre: 'Dos días consecutivos · equipos distintos',
+        bloques: [
+          {equipo:2, dia:1, viviendas:plan.bloques[0]},
+          {equipo:3, dia:2, viviendas:plan.bloques[1]}
+        ]
+      }
+    ];
+  }
+
+  async function validarAgendaUrbanizacion(opcion, fechaInicio, consultar) {
+    const horas=['09:00','11:00','15:00','17:00'];
+    if(!opcion || !Array.isArray(opcion.bloques) ||
+       opcion.bloques.length!==2 ||
+       opcion.bloques.some(b=>b.viviendas.length!==4 || ![2,3].includes(b.equipo) || ![1,2].includes(b.dia)))
+      throw Error('Plan de urbanización inválido');
+
+    const viviendas=opcion.bloques.flatMap(b=>b.viviendas);
+    const plan=planUrbanizacion(viviendas);
+
+    if(!plan.lista || plan.aptas!==8)
+      throw Error('El plan requiere 8 viviendas distintas de una misma urbanización');
+
+    const identidad=c=>String(
+      c.id ?? c.clientUid ?? c.clientId ??
+      [c.street,c.postalCode,c.name].join('|')
+    ).trim();
+
+    const claves=viviendas.map(c=>
+      norm(c.urbanizacionId || c.urbanizacionNombre || '')+'|'+norm(identidad(c))
+    );
+
+    if(new Set(claves).size!==8)
+      throw Error('Hay viviendas duplicadas en el plan');
+
+    const ocupaciones=opcion.bloques.map(b=>b.dia+'|'+b.equipo);
+    if(new Set(ocupaciones).size!==2)
+      throw Error('Dos bloques intentan ocupar el mismo equipo y día');
+
+    const inicio=new Date(fechaInicio+'T12:00:00Z');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(fechaInicio) ||
+       isNaN(inicio) || inicio.toISOString().slice(0,10)!==fechaInicio)
+      throw Error('Fecha inválida');
+
+    const fechas=[fechaInicio,new Date(inicio.getTime()+86400000).toISOString().slice(0,10)];
+    const consultas=new Map();
+    const reservas=[];
+
+    for(const bloque of opcion.bloques){
+      const fecha=fechas[bloque.dia-1];
+      if(!consultas.has(fecha))consultas.set(fecha,consultar(fecha));
+      const disponibilidad=await consultas.get(fecha);
+      const lista=disponibilidad[String(bloque.equipo)];
+      if(!Array.isArray(lista))throw Error('Disponibilidad incompleta');
+      for(let i=0;i<4;i++){
+        const hora=horas[i];
+        const fin=['11:00','13:00','17:00','19:00'][i];
+        if(!lista.some(x=>x.horario===hora+'-'+fin && x.libre===true))
+          return {disponible:false,fecha,equipo:bloque.equipo,hora};
+        reservas.push({fecha,equipo:bloque.equipo,hora,vivienda:bloque.viviendas[i]});
+      }
+    }
+    return {disponible:true,reservas};
+  }
+
+  const api={area,attic,date,evaluarAptitud,planUrbanizacion,opcionesAgendaUrbanizacion,validarAgendaUrbanizacion,norm,phone,postalAddress,postalMatches,exactPostalCode,matches,linkable};
   if (typeof module!=='undefined') module.exports=api;
   root.ComercialCore=api;
 })(typeof window!=='undefined'?window:globalThis);
