@@ -26,7 +26,7 @@ function redraw(){
  const modal=root(),body=modal.querySelector(".cn-office-body");body.replaceChildren();
  const zones=ownZones(),incomplete=zones.filter(x=>x.z.status!=="completada");
  const steps=node("div","cn-office-stepper",undefined,body);
- ["Revisar sectores","Llamadas y citas","Finalizar"].forEach((name,i)=>{
+ ["Revisar fichas","Gestionar clientes","Cerrar oficina"].forEach((name,i)=>{
   const b=action((i+1)+". "+name,()=>{paso=i;redraw();},i===paso?"selected":"");
   steps.append(b);
  });
@@ -50,10 +50,8 @@ function redraw(){
  }else if(paso===1){
   node("span","cn-office-kicker","PASO 2 · SEGUIMIENTO",card);
   node("h3","",pendingCalls()+" contactos pendientes de llamada",card);
-  node("p","", "Abre la organización de llamadas y revisa los registros pendientes. Las citas y casos que necesiten seguimiento se conservan en sus estados actuales.",card);
-  card.append(action("Empezar llamadas guiadas",()=>{modal.classList.remove("active");window.openCnCallQueue?.();},"primary"));
-  card.append(action("Organizar citas por jornadas",()=>{modal.classList.remove("active");openGroupedAppointments();},"subtle"));
-  card.append(action("Ver todos los seguimientos",()=>{modal.classList.remove("active");openFollowUpsModal();},"subtle"));
+  node("p","", "Llama a un cliente, acuerda la fecha de obra, confirma la reserva en KONSOR y prepara su WhatsApp antes de pasar al siguiente.",card);
+  card.append(action("Llamar y agendar obras",()=>{modal.classList.remove("active");window.openCnCallQueue?.();},"primary"));
   card.append(action("Ir a revisión final",()=>{paso=2;redraw();},"outline"));
  }else{
   node("span","cn-office-kicker","PASO 3 · REVISIÓN FINAL",card);
