@@ -70,16 +70,46 @@ function firstRecommended(){
  const candidates=all().filter(candidateOf),groups=clusters(candidates);
  return groups.length?groups[0][0]:candidates[0]||null;
 }
+function proximityLeads(candidates){
+ if(typeof routeRecords!=="function")return [];
+ const dates=[];let d=new Date(tomorrow()+"T12:00:00");
+ while(dates.length<7){const iso=[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");if(d.getDay()!==0)dates.push(iso);d.setDate(d.getDate()+1);}
+ const options=[];
+ dates.forEach(date=>{
+  const records=routeRecords(date);
+  for(const team of [2,3]){
+   const bookings=records.filter(x=>Number(x.c?.obraEquipoInstalacion)===team&&x.slot>=0);
+   if(!bookings.length||bookings.length>=4)continue;
+   candidates.forEach(item=>{
+    const adj=bookings.filter(x=>sameStreet(item,x)||sameTown(item,x)||((()=>{const dist=km(item,x);return dist!==null&&dist<=2;})()));
+    if(!adj.length)return;
+    const same=adj.some(x=>sameStreet(item,x));
+    const adjacentSlots=adj.flatMap(x=>[x.slot-1,x.slot+1]).filter(n=>n>=0&&n<4);
+    const empty=adjacentSlots.filter(n=>!records.some(x=>x.slot===n&&(![2,3].includes(Number(x.c?.obraEquipoInstalacion))||Number(x.c.obraEquipoInstalacion)===team)));
+    if(!empty.length)return;
+    options.push({item,date,team,slot:empty[0],rank:same?0:adj.some(x=>sameTown(item,x))?1:2});
+   });
+  }
+ });
+ return options.sort((a,b)=>a.rank-b.rank||a.date.localeCompare(b.date)).filter((o,i,arr)=>arr.findIndex(x=>x.item.key===o.item.key)===i).slice(0,3);
+}
 function opportunityCards(parent,candidates){
- const groups=clusters(candidates);
- if(!groups.length)return;
- const block=card(parent);title(block,"Oportunidades detectadas","Agrupaciones potenciales por calle. No son reservas confirmadas.");
+ const groups=clusters(candidates),leads=proximityLeads(candidates);
+ if(!groups.length&&!leads.length)return;
+ const block=card(parent);title(block,"Oportunidades detectadas","Prioridades logísticas, no citas reservadas. El servidor verificará cada hueco antes de confirmarlo.");
  groups.slice(0,4).forEach(group=>{
   const first=group[0],line=e("div","koc-opportunity",undefined,block);
   const wrap=e("div","koc-opportunity-text",undefined,line);
   e("strong","",first.c.street.replace(/\d+.*$/,"").trim()+" · "+(first.z.town||"Localidad"),wrap);
-  e("small","",group.length+" captaciones por llamar · Priorizar hasta cuatro franjas consecutivas por equipo",wrap);
+  e("small","",group.length+" viviendas de la misma calle por llamar · Concentrar hasta cuatro franjas seguidas por equipo",wrap);
   line.append(button("Llamar primero",()=>open(group[0]),"koc-quiet"));
+ });
+ const covered=new Set(groups.flat().map(x=>x.key));
+ leads.filter(x=>!covered.has(x.item.key)).forEach(x=>{
+  const line=e("div","koc-opportunity",undefined,block),wrap=e("div","koc-opportunity-text",undefined,line);
+  e("strong","","Completar ruta · "+(x.item.z.town||"Municipio"),wrap);
+  e("small","",x.item.c.street+" · "+x.date+" · Equipo "+x.team+" · posible "+SLOTS[x.slot][0]+" (sin verificar)",wrap);
+  line.append(button("Ver cliente",()=>open(x.item),"koc-quiet"));
  });
 }
 
