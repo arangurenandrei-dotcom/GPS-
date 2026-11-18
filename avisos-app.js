@@ -314,7 +314,7 @@
     if(me?.key===profile.userKey)return;stop();me={uid:user.uid,key:profile.userKey,name:names[keys.indexOf(profile.userKey)]};mount();flush();
     unsub.push(fs.onSnapshot(fs.query(fs.collection(db,'notification_messages'),fs.where('to','==',me.name),fs.orderBy('createdAt','desc'),fs.limit(100)),snap=>{notices=snap.docs.map(d=>({...d.data(),id:d.id}));badge();if(modal.classList.contains('active')&&['inbox','tasks'].includes(tab)&&!body.querySelector('form'))render();},report));
     const rem=me.key==='jefe'?fs.query(fs.collection(db,'app_reminders'),fs.orderBy('updatedAt','desc'),fs.limit(100)):fs.query(fs.collection(db,'app_reminders'),fs.where('to','==',me.name),fs.orderBy('updatedAt','desc'),fs.limit(100));
-    unsub.push(fs.onSnapshot(rem,snap=>{reminders=snap.docs.map(d=>({...d.data(),id:d.id}));if(modal.classList.contains('active')&&tab==='tasks'&&!body.querySelector('form'))render();},report));
+    unsub.push(fs.onSnapshot(rem,snap=>{reminders=snap.docs.map(d=>({...d.data(),id:d.id}));badge();if(modal.classList.contains('active')&&tab==='tasks'&&!body.querySelector('form'))render();},report));
     unsub.push(fs.onSnapshot(fs.doc(db,'notification_preferences',me.key),snap=>{preferences=snap.data()||{};},report));
     if(new URLSearchParams(location.search).has('aviso'))open();
    },report);
