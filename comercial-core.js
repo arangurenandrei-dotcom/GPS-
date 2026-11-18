@@ -42,14 +42,30 @@
   function postalMatches(candidates, address, town = '') {
     const target = postalAddress(address);
     if (!target || !target.street) return [];
-    return candidates.filter(item =>
-      item.isPortal && Array.isArray(item.localities) &&
-      (!norm(town) || item.localities.some(name => norm(name) === norm(town) || String(name).split('/').some(part => norm(part) === norm(town)))) &&
-      (addressKey(item.street) === target.street ||
-       addressKey([item.streetType,item.street].filter(Boolean).join(' ')) === target.street) &&
-      /^31\d{3}$/.test(String(item.cp || '')) &&
-      norm(item.portalNumber).replace(/\s+/g, '') === target.number
-    );
+
+    const cleanStreet = v => addressKey(v)
+      .replace(/^(?:kalea|calle|cl|avenida|etorbidea|plaza|plaz[a]?|paseo)\s+/, '')
+      .replace(/\s+\d+\s*(?:bis|ter)?$/, '')
+      .trim();
+
+    return candidates.filter(item => {
+      if (!item.isPortal || !/^31\d{3}$/.test(String(item.cp || ''))) return false;
+
+      const number = norm(item.portalNumber).replace(/\s+/g, '');
+      if (number !== target.number) return false;
+
+      if (norm(town) && !Array.isArray(item.localities)) return false;
+      if (norm(town) && !item.localities.some(name =>
+        String(name).split('/').some(part => norm(part) === norm(town))
+      )) return false;
+
+      const raw = String(item.street || '').split(',')[0];
+      const variants = raw.split('/').map(cleanStreet);
+      variants.push(cleanStreet(raw));
+      variants.push(cleanStreet([item.streetType, raw].filter(Boolean).join(' ')));
+
+      return variants.includes(cleanStreet(target.street));
+    });
   }
   function exactPostalCode(candidates, address, town) {
     if (!norm(town)) return '';

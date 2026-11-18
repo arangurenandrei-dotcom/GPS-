@@ -2981,6 +2981,61 @@ function openUserProfileModal() {
       authFinishLogin(user);
     };
 
+    async function completarPostalesExistentes() {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+
+      const pendientes = savedZones.flatMap((z, zi) =>
+        isMikelTeamMember(z.comercial) ? [] :
+        (z.clients || []).map((c, ci) => ({z, zi, c, ci}))
+          .filter(x => x.c.street && !x.c.postalCode &&
+            ComercialCore.postalAddress(x.c.street))
+      );
+
+      let completadas = 0;
+      for (let i = 0; i < pendientes.length; i += 5) {
+        if (currentUserName !== 'Andrei (Jefe)' ||
+            window.KonsorBridge?.busy) break;
+
+        const grupo = pendientes.slice(i, i + 5);
+        const cambios = await Promise.all(grupo.map(async ({z, c}) => {
+          try {
+            const town = (c.locality || z.town || '').trim();
+            if (!town) return null;
+            const results = await queryCartoCiudadNavarra(
+              c.street.trim() + ', ' + town, true
+            );
+            const matches = ComercialCore.postalMatches(
+              results, c.street, town
+            );
+            const cps = [...new Set(matches.map(m => m.cp))];
+            if (cps.length !== 1) return null;
+            return {cp: cps[0], locality: town};
+          } catch (_) {
+            return null;
+          }
+        }));
+
+        if (!cambios.some(Boolean)) continue;
+
+        const propuesta = structuredClone(savedZones);
+        grupo.forEach(({zi, ci}, j) => {
+          const r = cambios[j];
+          const c = propuesta[zi]?.clients?.[ci];
+          if (!r || !c || c.postalCode) return;
+          c.postalCode = r.cp;
+          if (!c.locality) c.locality = r.locality;
+          const zona = detectCteZoneFromCpAndTown(r.cp);
+          if (!c.cteZone && zona.cteZone) c.cteZone = zona.cteZone;
+          completadas++;
+        });
+
+        await window.KonsorBridge.save('comercial_custom_zones', propuesta);
+        savedZones = propuesta;
+      }
+
+      console.log('Fichas completadas:', completadas);
+    }
+
     function startSessionForUserKey(userVal) {
 
       sessionStorage.setItem('auth_user_key', userVal);
@@ -3007,6 +3062,11 @@ function openUserProfileModal() {
       setupRoleInterface();
       updateShiftUI();
       initMap();
+      if (currentUserName === 'Andrei (Jefe)') {
+        completarPostalesExistentes().catch(e =>
+          console.error('Autocompletado postal:', e)
+        );
+      }
 
       if (currentUserRole === 'comercial' && !isMikelTeamMember(currentUserName)) {
         showCommercialBriefing();
@@ -12193,12 +12253,16 @@ const labelStreet = clientObj.street ||
       const lookup=(async()=>{
         try{
           const context=town && town!=='Detectando...' ? town : '';
-          let candidates=await queryCartoCiudadNavarra([address,context,'Navarra'].filter(Boolean).join(', '),true);
+          let candidates=await queryCartoCiudadNavarra([address,context].filter(Boolean).join(', '),true);
           let matches=ComercialCore.postalMatches(candidates,address,context);
           // A house without a resolved municipality can choose among Navarra portals.
           if(!matches.length && house && context){
             candidates=await queryCartoCiudadNavarra(address+', Navarra',true);
             matches=ComercialCore.postalMatches(candidates,address);
+          }
+          if(!matches.length && context){
+            candidates=await queryCartoCiudadNavarra(address+', Navarra',true);
+            matches=ComercialCore.postalMatches(candidates,address,context);
           }
           if(!current())return;
           const unique=[...new Map(matches.map(m=>[JSON.stringify([m.localities,m.cp]),m])).values()];
@@ -12304,7 +12368,7 @@ const labelStreet = clientObj.street ||
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
         </div>
 
-        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" readonly value="${String(existing.locality || townCtx || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
+        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" onblur="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))" value="${String(existing.locality || townCtx || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
         <select class="select-field address-choices" aria-label="Elegir localidad y código postal" hidden></select>
         <div class="grid-row-2">
           <div>
@@ -12462,7 +12526,7 @@ const labelStreet = clientObj.street ||
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección">🎙️</button>` : ''}
         </div>
 
-        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" readonly value="${String(existing.locality || townCtxCom || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
+        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" onblur="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))" value="${String(existing.locality || townCtxCom || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
         <select class="select-field address-choices" aria-label="Elegir localidad y código postal" hidden></select>
         <div class="grid-row-2">
           <div>
