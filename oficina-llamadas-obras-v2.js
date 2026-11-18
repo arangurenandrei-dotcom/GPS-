@@ -115,44 +115,82 @@ function remoteSlotLocations(slot){
  return [...new Set(items.map(occupiedLocationText).filter(Boolean))].slice(0,3);
 }
 
-/* Comprobación conservadora de cercanía a las obras contiguas del mismo equipo.
-   Mismo municipio o coordenadas conocidas a <=5 km en línea recta. No calcula
-   tiempos reales en carretera; una ubicación desconocida no se presume cercana. */
+/* Motor de localidades secuenciales: una localidad puede ocupar varios turnos
+   seguidos, pero nunca se vuelve a ella tras visitar otra. Solo equipos 2 y 3.
+   El horario es una franja de llegada, NO una duración exacta de obra. */
+function remoteTown(slot){
+ if(!slot||typeof slot!=="object")return "";
+ const primary=[slot.municipio,slot.localidad,slot.pueblo,slot.town,slot.city,slot.nombreMunicipio,slot.nombreLocalidad].find(v=>typeof v==="string"&&v.trim());
+ if(primary)return norm(primary);
+ const found=[slot.ubicaciones,slot.obras,slot.reservas,slot.trabajos,slot.citas,slot.localidades].flatMap(v=>Array.isArray(v)?v:[]);
+ const known=new Set();
+ found.forEach(value=>{
+  if(value&&typeof value==="object"){
+   const v=[value.municipio,value.localidad,value.pueblo,value.town,value.city,value.nombreMunicipio,value.nombreLocalidad].find(x=>typeof x==="string"&&x.trim());
+   if(v)known.add(norm(v));
+  }else if(typeof value==="string"){
+   const raw=value.trim();
+   if(raw.length<=45&&!/\d/.test(raw)&&!/\b(calle|avenida|avda|paseo|plaza|carretera|callejon|camino|cl\b)\b/i.test(raw))known.add(norm(raw));
+   else{
+    // Direcciones del tipo "Calle Mayor 7, 31592, Cintruénigo, Navarra".
+    const segments=raw.split(",").map(x=>x.trim()).filter(Boolean);
+    const tail=segments.filter(x=>!/\d/.test(x)&&!/\b(navarra|españa|spain|zaragoza|huesca)\b/i.test(x));
+    if(tail.length&&segments.length>=3)known.add(norm(tail[tail.length-1]));
+   }
+  }
+ });
+ return known.size===1?[...known][0]:"";
+}
+function crewSequence(date,team,remote,localRows,extraSuggested=[],replace=null){
+ const cells=[];
+ for(let idx=0;idx<SLOTS.length;idx++){
+  const here=replace&&replace.idx===idx?replace.item:null;
+  const found=localRows.filter(r=>r.slot===idx&&(![2,3].includes(Number(r.c?.obraEquipoInstalacion))||Number(r.c.obraEquipoInstalacion)===team));
+  const placed=extraSuggested.find(p=>p.team===team&&p.idx===idx);
+  const [start,end]=SLOTS[idx];
+  const server=remote?.[String(team)]?.find(x=>x.horario===start+"-"+end);
+  let place="";
+  if(here)place=town(here);
+  else if(placed)place=town(placed.item);
+  else if(found.length)place=found.length===1?town({z:found[0].z}):"";
+  else if(server?.libre===false)place=remoteTown(server);
+  const occupied=!!(here||placed||found.length||server?.libre===false);
+  cells.push({idx,town:place,occupied,unknown:occupied&&!place,confirmed:found.length>0||server?.libre===false});
+ }
+ return cells;
+}
+function noTownReturn(cells){
+ const seen=new Set();let last="";
+ for(const row of cells){
+  if(!row.town)continue;
+  if(row.town!==last&&seen.has(row.town))return false;
+  seen.add(row.town);last=row.town;
+ }
+ return true;
+}
 function slotRouteFit(item,date,team,slotIdx,remote,localRows,extraSuggested=[]){
- const local=localRows||[];
+ if(!item||!town(item)||!Number.isInteger(slotIdx)||slotIdx<0||slotIdx>=SLOTS.length)return{ok:false,reason:"Faltan datos de la franja o el municipio"};
  const source=remote?.[String(team)];
  if(!Array.isArray(source))return{ok:false,reason:"Sin disponibilidad del equipo"};
- const neighbors=[];
- for(const offset of [-1,1]){
-  const pos=slotIdx+offset;
-  if(pos<0||pos>=SLOTS.length)continue;
-  const placed=extraSuggested.find(x=>x.team===team&&x.idx===pos);
-  if(placed){neighbors.push({kind:"internal",item:placed.item});continue;}
-  const rows=local.filter(r=>r.slot===pos&&(![2,3].includes(Number(r.c?.obraEquipoInstalacion))||Number(r.c.obraEquipoInstalacion)===team));
-  if(rows.length){rows.forEach(r=>neighbors.push({kind:"local",item:{z:r.z,c:r.c}}));continue;}
-  const [from,to]=SLOTS[pos],slot=source.find(x=>x.horario===from+"-"+to);
-  if(!slot){return{ok:false,reason:"No consta la franja contigua del equipo"};}
-  if(slot.libre!==true)neighbors.push({kind:"server",places:remoteSlotLocations(slot)});
- }
- if(!neighbors.length)return{ok:true,reason:"Ruta libre, sin obra contigua"};
- for(const neighbor of neighbors){
-  if(neighbor.kind==="server"){
-   if(!neighbor.places?.length)return{ok:false,reason:"Obra contigua sin localidad verificable"};
-   // No se aceptan topónimos parciales, como "Pamplona" dentro de "Cuenca de Pamplona".
-   const target=town(item);
-   if(!neighbor.places.every(p=>{
-    const normalized=norm(p).replace(/[·,]/g," ").replace(/\s+/g," ").trim();
-    return normalized===target||normalized.endsWith(" "+target)||normalized.startsWith(target+" ");
-   }))return{ok:false,reason:"La obra contigua es de otra localidad o no tiene una ubicación inequívoca"};
-  }else{
-   const other=neighbor.item;
-   if(sameTown(item,other))continue;
-   const distance=km(item,other);
-   if(distance===null)return{ok:false,reason:"Faltan coordenadas para comprobar el cambio de municipio"};
-   if(distance>5)return{ok:false,reason:"La obra contigua queda a "+distance.toFixed(1)+" km en línea recta"};
-  }
- }
- return{ok:true,reason:"Cercanía preliminar compatible; comprobar tiempo de conducción"};
+ const id=SLOTS[slotIdx].join("-");
+ if(source.find(x=>x.horario===id)?.libre!==true)return{ok:false,reason:"Franja no disponible en KONSOR"};
+ const previous=crewSequence(date,team,remote,localRows||[],extraSuggested,{idx:slotIdx,item});
+ const before=previous.slice(0,slotIdx).filter(x=>x.occupied).at(-1)||null;
+ const after=previous.slice(slotIdx+1).find(x=>x.occupied)||null;
+ const name=town(item);
+ // No inferir rutas a través de trabajos cuya localidad no conste.
+ if((before?.unknown)||(after?.unknown))return{ok:false,reason:"La ubicación de otra obra del equipo no está verificada"};
+ if(!noTownReturn(previous))return{ok:false,reason:"La secuencia volvería a un pueblo ya abandonado"};
+ if(before&&after&&before.town!==after.town&&name!==before.town&&name!==after.town)
+  return{ok:false,reason:"La propuesta introduciría una tercera localidad entre dos obras"};
+ // Un municipio completamente diferente necesita un cálculo de ruta vial.
+ // Sin servicio de carreteras verificado, no se recomienda automáticamente.
+ const adjacent=before||after;
+ if(adjacent&&name!==before?.town&&name!==after?.town)
+  return{ok:false,reason:"La nueva localidad requiere comprobar el trayecto por carretera"};
+ // No existe un margen artificial de 5 km ni se impone que la obra dure dos horas.
+ const category=!adjacent?3:after?.town===name&&before?.town!==name?0:before?.town===name&&after?.town===name?0:before?.town===name?1:2;
+ return{ok:true,category,reason:category===0?"Continúa con la localidad de la siguiente obra":category===1?"Completa el bloque de la localidad actual":"Abre una jornada sin desplazamientos verificados pendientes"};
 }
 function buildSafeClusterAssignments(group,date,remote,local){
  const free=group.filter(x=>clusterStatus(x)==="ready"&&candidateOf(x));
@@ -165,13 +203,11 @@ function buildSafeClusterAssignments(group,date,remote,local){
    if(status?.libre===true&&!occupied)available.push({team,idx});
   }
  }
- // Agrupa primero dentro de un mismo equipo; los slots vetados por distancia no
- // se presentan como propuestas aunque técnicamente estén libres.
+ // Escoge por equipo y en orden de franjas para llenar bloques de pueblo.
  for(const spot of available){
-  const candidate=free.find(x=>!used.has(x.key)&&slotRouteFit(x,date,spot.team,spot.idx,remote,local,suggestions).ok);
-  if(!candidate)continue;
-  used.add(candidate.key);
-  suggestions.push({...spot,item:candidate});
+  const choices=free.filter(x=>!used.has(x.key)).map(item=>({item,fit:slotRouteFit(item,date,spot.team,spot.idx,remote,local,suggestions)})).filter(x=>x.fit.ok).sort((a,b)=>a.fit.category-b.fit.category||String(a.item.c.street).localeCompare(String(b.item.c.street),"es"));
+  const choice=choices[0];if(!choice)continue;
+  used.add(choice.item.key);suggestions.push({...spot,item:choice.item});
  }
  return suggestions;
 }
