@@ -100,46 +100,139 @@
   const host=document.querySelector('.hud-utility-group');if(host&&!bell.isConnected)host.prepend(bell);
   if(modal)return;
   modal=node('div');modal.id='avisosCenterV2';modal.className='modal-overlay';
-  const card=node('div',undefined,'modal-card'),head=node('div',undefined,'modal-header');head.append(node('span','🔔 Avisos y recordatorios'),button('✕',()=>modal.classList.remove('active')));
+  const card=node('div',undefined,'modal-card'),head=node('div',undefined,'modal-header');head.append(node('span','Centro de actividad'),button('✕',()=>modal.classList.remove('active')));
   const tabs=node('div',undefined,'av-tabs');
-  [['inbox','Avisos'],['reminders','Recordatorios'],['preferences','Preferencias']].forEach(([id,label])=>{const b=button(label,()=>{tab=id;render();});b.dataset.tab=id;tabs.append(b);});
+  [['inbox','Avisos'],['tasks','Tareas'],['preferences','Ajustes']].forEach(([id,label])=>{const b=button(label,()=>{tab=id;render();});b.dataset.tab=id;tabs.append(b);});
   status=node('div','', 'av-status');body=node('div',undefined,'modal-scrollable-content');card.append(head,tabs,status,body);modal.append(card);document.body.append(modal);
  }
- function badge(){if(bell){const n=notices.filter(n=>!n.readAt&&!n.resolvedAt).length;bell.textContent='🔔'+(n?' '+n:'');bell.setAttribute('aria-label',`${n} avisos sin leer`);}}
+ function badge(){if(bell){const n=notices.filter(n=>!n.resolvedAt&&((isTask(n))||!n.readAt)).length+reminders.filter(r=>r.assignment&&r.to===me?.name&&r.enabled&&!r.completedAt&&!r.confirmedAt).length;bell.textContent='🔔'+(n?' '+n:'');bell.setAttribute('aria-label',`${n} avisos o tareas pendientes`);}}
  function open(){if(!me)return;mount();modal.classList.add('active');render();}
  window.openNotificationsCenterV2=open;
  function render(){if(!body||!me)return;status.textContent='';body.replaceChildren();modal.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.tab===tab));
-  if(tab==='preferences')renderPreferences();else if(tab==='reminders')renderReminders();else renderInbox();
+  if(tab==='preferences')renderPreferences();else if(tab==='tasks')renderTasks();else renderInbox();
+ }
+
+ const isTask=n=>!!(n&&(n.context?.reminderId||n.context?.zoneId&&['zones','followups','quality'].includes(n.category)||['followups','quality'].includes(n.category)||n.category==='zones'&&/asignad|encargo|instruccion|visita|sector/i.test(n.title||'')));
+ const human=n=>{
+  const title=String(n.title||"").replace(/^\s*[🏠📋📅✅⚠️🔔]+\s*/u,"").trim();
+  const body=String(n.body||"").replace(/^\s*[🏠📋📅✅⚠️🔔]+\s*/u,"").trim();
+  if(n.category==='motivation'&&/liga/i.test(title))return{title:"Tu posición en la Liga",body,icon:"🏆"};
+  if(n.category==='quality')return{title:"Hay fichas por completar",body:body||"Abre las fichas incompletas y revisa los datos.",icon:"📋"};
+  if(n.category==='zones')return{title:/asignad/i.test(title)?"Nueva zona de trabajo":title||"Zona de trabajo",body,icon:"📍"};
+  if(n.category==='daily')return{title:title||"Tu jornada",body,icon:"🕘"};
+  if(n.category==='activity')return{title:title||"Actividad registrada",body,icon:"✓"};
+  if(n.category==='appointments')return{title:title||"Obra o cita",body,icon:"📅"};
+  if(n.category==='followups')return{title:title||"Llamada pendiente",body,icon:"📞"};
+  return{title:title||"Actualización de KONSOR",body,icon:isTask(n)?"📌":"•"};
+ };
+ const resolveNotice=async n=>{await api.call('gestionarAviso',{id:n.id,action:'resolve'});};
+ function taskAction(card,n){
+  const context=n.context||{};
+  const actions=node('div',undefined,'av-actions');
+  if(context.zoneId){
+   const idx=typeof savedZones!=='undefined'?savedZones.findIndex(z=>String(z.id)===String(context.zoneId)):-1;
+   if(idx>=0){
+    const b=button('Abrir zona',()=>{modal.classList.remove('active');openDumpModal(idx);});
+    b.className='av-primary';actions.append(b);
+   }else actions.append(node('p','La zona ya no está disponible en las fichas actuales.'));
+  }
+  if(context.reminderId){
+   const b=button('Ver encargo y responder',()=>{tab='tasks';render();const el=body.querySelector('[data-reminder-id="'+String(context.reminderId).replace(/"/g,'')+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});});
+   b.className='av-primary';actions.append(b);
+  }
+  if(n.category==='followups'&&!context.zoneId){
+   const b=button('Abrir llamadas',()=>{modal.classList.remove('active');if(typeof window.openCnOffice==='function')window.openCnOffice();});b.className='av-primary';actions.append(b);
+  }
+  if(n.category==='quality'&&!context.zoneId){
+   const b=button('Ver fichas',()=>{modal.classList.remove('active');window.openCnClients?.();});b.className='av-primary';actions.append(b);
+  }
+  if(context.taskId&&me.key==='jefe'){
+   const b=button('Abrir planificación',()=>{modal.classList.remove('active');window.openBossWorkMenu?.();});b.className='av-primary';actions.append(b);
+  }
+  actions.append(button('Marcar como leído',()=>api.call('gestionarAviso',{id:n.id,action:'read'})));
+  card.append(actions);
+ }
+ function noticeCard(n,task=false){
+  const card=node('article',undefined,'av-card'+(!n.readAt?' av-unread':'')+(task?' av-task':''));
+  const h=node('div',undefined,'av-card-header'),symbol=node('div',undefined,'av-card-icon'),content=node('div',undefined,'av-card-text');
+  const display=human(n);symbol.textContent=display.icon;
+  content.append(node('h3',display.title),node('small',(categories[n.category]||'KONSOR')+' · '+date(n.createdAt)));
+  h.append(symbol,content);card.append(h,node('p',display.body,'av-copy'));
+  if(task){taskAction(card,n);}
+  else{
+   const actions=node('div',undefined,'av-actions');
+   const done=button('Entendido · Descartar',()=>resolveNotice(n));done.className='av-subtle';actions.append(done);
+   if(n.category==='motivation'){const view=button('Ver resultados',()=>{modal.classList.remove('active');window.openCnResults?.();});actions.prepend(view);}
+   card.append(actions);
+   card.append(node('small','Desliza hacia la izquierda para descartarlo.','av-hint'));
+   let startX=null,startY=null;
+   card.addEventListener('touchstart',e=>{if(e.touches.length===1){startX=e.touches[0].clientX;startY=e.touches[0].clientY;}},{passive:true});
+   card.addEventListener('touchend',e=>{
+    if(startX===null||!e.changedTouches.length)return;
+    const dx=e.changedTouches[0].clientX-startX,dy=e.changedTouches[0].clientY-startY;
+    startX=null;startY=null;
+    if(dx< -75&&Math.abs(dx)>Math.abs(dy)*1.3){card.classList.add('av-swiped');resolveNotice(n).catch(report);}
+   },{passive:true});
+  }
+  return card;
  }
  function renderInbox(){
+  const info=notices.filter(n=>!n.resolvedAt&&!isTask(n));
+  const head=node('div',undefined,'av-card');
+  head.append(node('h3','Avisos para ti'),node('p','Información y recordatorios. No necesitas responder: descártalos cuando los hayas visto.'));
+  body.append(head);
   const toolbar=node('div',undefined,'av-actions');
-  const filter=node('select');filter.setAttribute('aria-label','Filtrar categoría');filter.innerHTML='<option value="all">Todas las categorías</option>'+Object.entries(categories).map(([id,label])=>`<option value="${id}">${label}</option>`).join('');
-  const only=node('input');only.type='checkbox';const lab=node('label');lab.append(only,document.createTextNode('Solo pendientes'));
-  toolbar.append(filter,lab);body.append(toolbar);
-  const list=node('div');body.append(list);
-  const draw=()=>{list.replaceChildren();const items=notices.filter(n=>(filter.value==='all'||n.category===filter.value)&&(!only.checked||!n.resolvedAt));
-   if(!items.length)list.append(node('p','No hay avisos para este filtro. Los nuevos irán apareciendo aquí.'));
-   items.forEach(n=>{
-    const card=node('article',undefined,'av-card'+(!n.readAt?' av-unread':''));card.append(node('h3',n.title),node('small',`${categories[n.category]||'Aviso'} · ${date(n.createdAt)}${n.resolvedAt?' · Atendido':''}`),node('p',n.body));
-    const actions=node('div',undefined,'av-actions');
-    actions.append(button('Leído',()=>api.call('gestionarAviso',{id:n.id,action:'read'})),button('Atendido',()=>api.call('gestionarAviso',{id:n.id,action:'resolve'})));
-    const delay=node('select');delay.setAttribute('aria-label','Tiempo de aplazamiento');delay.innerHTML='<option value="60">En 1 hora</option><option value="120">En 2 horas</option><option value="1440">En 24 horas</option>';
-    actions.append(delay,button('Recordármelo',()=>api.call('gestionarAviso',{id:n.id,action:'snooze',minutes:Number(delay.value)})));
-    const context=n.context||{};
-    if(context.reminderId)actions.append(button('Abrir recordatorios y encargos',()=>{tab='reminders';render();}));
-    if(context.zoneId)actions.append(button('Abrir zona/ficha',()=>{
-     const idx=typeof savedZones!=='undefined'?savedZones.findIndex(z=>String(z.id)===String(context.zoneId)):-1;
-     if(idx<0){status.textContent='La zona ya no está disponible.';return;}modal.classList.remove('active');openDumpModal(idx);
-    }));
-    else if(context.taskId&&typeof window.openBossWorkMenu==='function')actions.append(button('Abrir plan de jefe',()=>{modal.classList.remove('active');window.openBossWorkMenu();}));
-    else if(n.category==='followups'&&typeof window.openFollowUpsModal==='function')actions.append(button('Abrir llamadas',()=>{modal.classList.remove('active');window.openFollowUpsModal();}));
-    const draft=me.key==='jefe'&&context.person&&context.person!==me.name?`Hola ${alias(context.person)}, revisamos esto: ${n.body}\n\nCuéntame cómo va y qué necesitas para dejarlo al día.`:`Recordatorio: ${n.title}\n\n${n.body}`;
-    const details=node('details'),summary=node('summary','Mensaje de WhatsApp');details.append(summary);
-    const text=node('textarea');text.value=draft;text.rows=4;text.setAttribute('aria-label','Mensaje preparado para WhatsApp');
-    const wa=node('a','Abrir WhatsApp','av-wa');wa.target='_blank';wa.rel='noopener noreferrer';const update=()=>wa.href='https://wa.me/?text='+encodeURIComponent(text.value);text.oninput=update;update();
-    details.append(text,wa,node('p','WhatsApp te deja elegir el destinatario. Revisa el texto antes de enviarlo.'));card.append(actions,details);list.append(card);
-   });
-  };filter.onchange=draw;only.onchange=draw;draw();
+  toolbar.append(node('small',info.length+' avisos activos'));
+  if(info.length){
+   const clear=button('Descartar los leídos',async()=>{
+    const rows=info.filter(n=>n.readAt);
+    if(!rows.length){status.textContent='Todavía no hay avisos marcados como leídos.';return;}
+    for(const n of rows)await resolveNotice(n);
+    status.textContent=rows.length+' avisos leídos descartados.';
+   });clear.className='av-subtle';toolbar.append(clear);
+  }
+  body.append(toolbar);
+  if(!info.length)body.append(node('div','No tienes avisos informativos pendientes.','av-empty'));
+  info.forEach(n=>body.append(noticeCard(n,false)));
+ }
+ function renderTasks(){
+  const attention=notices.filter(n=>!n.resolvedAt&&isTask(n));
+  const active=reminders.filter(r=>r.enabled&&!r.completedAt&&r.assignment);
+  const head=node('div',undefined,'av-card');
+  head.append(node('h3','Pendiente de hacer'),node('p','Zonas, encargos y gestiones que necesitan una acción. Se mantienen aquí hasta que estén resueltas.'));
+  body.append(head);
+  const assigned=active.filter(r=>r.to===me.name),supervised=me.key==='jefe'?active.filter(r=>r.to!==me.name):[];
+  if(assigned.length)body.append(node('div','Encargos asignados ('+assigned.length+')','av-section'));
+  assigned.forEach(r=>body.append(reminderTask(r)));
+  if(supervised.length){body.append(node('div','Encargos del equipo ('+supervised.length+')','av-section'));supervised.forEach(r=>body.append(reminderTask(r)));}
+  if(attention.length){body.append(node('div','Otras tareas y zonas ('+attention.length+')','av-section'));attention.forEach(n=>body.append(noticeCard(n,true)));}
+  if(!active.length&&!attention.length)body.append(node('div','No tienes tareas pendientes.','av-empty'));
+  const add=node('div',undefined,'av-actions');
+  if(me.key==='jefe'){
+   const assign=button('Asignar tarea al comercial',()=>editReminder({assignment:true}));assign.className='av-primary';add.append(assign);
+  }
+  add.append(button('Crear recordatorio',()=>editReminder()));
+  body.append(add);
+  const extra=node('details'),summary=node('summary','Ver todos los recordatorios');extra.append(summary);
+  const region=node('div');extra.append(region);body.append(extra);
+  reminders.filter(r=>!r.assignment||!r.enabled||r.completedAt).forEach(r=>region.append(reminderTask(r)));
+ }
+ function reminderTask(r){
+  const card=node('article',undefined,'av-card av-task');card.dataset.reminderId=r.id;
+  const title=node('h3',r.title),meta=node('small',(r.to===me.name?'Para ti':'Para '+alias(r.to))+' · '+date(r.dueAt));
+  card.append(title,meta,node('p',r.body||'Sin instrucciones adicionales.','av-copy'));
+  const state=r.completedAt?'Completado':r.confirmedAt?'Recibido, pendiente de realizar':r.assignment?'Por confirmar':'Recordatorio';
+  card.append(node('div',state,'av-task-state'));
+  const actions=node('div',undefined,'av-actions');
+  if(r.assignment&&r.to===me.name&&r.enabled){
+   if(!r.confirmedAt){const accept=button('He recibido la tarea',()=>api.call('actualizarEncargo',{id:r.id,action:'confirm'}));accept.className='av-primary';actions.append(accept);}
+   const finish=button('Trabajo realizado',()=>api.call('actualizarEncargo',{id:r.id,action:'complete'}));if(r.confirmedAt)finish.className='av-primary';actions.append(finish);
+  }
+  if(me.key==='jefe'||r.creatorUid===me.uid){
+   actions.append(button('Editar',()=>editReminder(r)));
+   actions.append(button('Desactivar',()=>api.call('guardarRecordatorio',{...r,to:keys[names.indexOf(r.to)],enabled:false})));
+  }
+  card.append(actions);return card;
  }
  function renderReminders(){
   body.append(node('p',me.key==='jefe'?'Crea recordatorios para ti o para cualquier miembro de tu equipo.':'Crea recordatorios personales. Aquí también verás los que te asigne Andrei.'));
