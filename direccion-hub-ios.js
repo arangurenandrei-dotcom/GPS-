@@ -31,7 +31,7 @@ function open(){
  tile(body,"1. Territorio y sectores","Revisar pueblos, sectores pendientes y asignar nueva zona.",()=>launch(r,()=>window.openCnTerritory?.()));
  tile(body,"2. Plan del equipo","Prioridades, encargos y organización de comerciales.",()=>launch(r,()=>window.openBossWorkMenu?.()));
  tile(body,"3. Tareas y respuestas","Asignar un trabajo y consultar cuándo lo recibe o completa el comercial.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
- tile(body,"4. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openCnResults?.()));
+ tile(body,"4. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
  const other=el("details","kd-more",undefined,body);el("summary","","Herramientas adicionales",other);
  other.append(button("Comerciales y permisos",()=>launch(r,()=>typeof openPeopleManagement==="function"&&openPeopleManagement())));
  other.append(button("Análisis operativo",()=>launch(r,()=>typeof openManagementAudit==="function"&&openManagementAudit("comerciales"))));
