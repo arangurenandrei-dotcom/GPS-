@@ -989,6 +989,51 @@ html[data-login-team="mikel"] #loginScreen .btn-login {
     border-radius:21px !important;
   }
 }
+
+/* Corrección iPhone vertical: formulario en una tarjeta única. */
+#loginScreen {
+  width:100% !important;
+  min-height:100dvh !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+  -webkit-overflow-scrolling:touch;
+}
+#loginScreen > .login-card,
+html[data-login-team="mikel"] #loginScreen > .login-card {
+  flex:0 1 auto !important;
+  align-self:center !important;
+  display:flex !important;
+  flex-direction:column !important;
+  width:100% !important;
+  max-width:420px !important;
+  min-width:0 !important;
+  max-height:calc(100dvh - 36px) !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+}
+#loginScreen .login-card > div:not([hidden]) {
+  flex:none !important;
+  min-width:0;
+  width:100%;
+}
+#loginScreen input,
+#loginScreen button,
+#loginScreen .form-input {
+  min-width:0;
+  max-width:100%;
+}
+#loginScreen #authEmail,
+#loginScreen #authPass,
+#loginScreen #authName { width:100% !important; }
+#loginScreen .portal-foot {width:100%; }
+@media (max-width:480px) {
+  #loginScreen {padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px) !important;}
+  #loginScreen .login-title {font-size:25px !important;}
+}
 </style>
 </head>
 <body>
@@ -1007,7 +1052,6 @@ html[data-login-team="mikel"] #loginScreen .btn-login {
 
       <!-- BANNER DE BIENVENIDA Y MENTALIDAD (EXCLUSIVO EQUIPO ANDREI) -->
       <div id="andreiWelcomeBanner" class="portal-andrei" hidden aria-hidden="true"></div>
-      </div>
 
       <div id="loginError" style="display:none; background:rgba(220,38,38,0.2); border:1px solid #ef4444; color:#fca5a5; font-size:12px; font-weight:700; padding:8px; border-radius:10px; text-align:center;">
         Contraseña incorrecta
