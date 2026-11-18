@@ -1035,6 +1035,32 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
   #loginScreen .login-title {font-size:25px !important;}
 }
 </style>
+
+<style id="captacionIOSStyles">
+#captacionGuiadaModal{padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+#captacionGuiadaModal .captacion-ios-card{width:min(100%,520px);max-height:92dvh;overflow-y:auto;background:#f7f9fc;color:#111827;border:1px solid rgba(255,255,255,.95);border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(10,25,50,.22);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.captacion-ios-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.captacion-ios-head small{font-size:11px;color:#64748b}
+.captacion-ios-head h2{font-size:21px;font-weight:750;letter-spacing:-.5px;margin-top:5px;color:#111827}
+#captacionCerrar{border:0;background:#edf2f7;border-radius:50%;width:34px;height:34px;color:#334155;font-size:18px}
+.captacion-ios-progress{display:flex;gap:6px;margin:18px 0}
+.captacion-ios-progress span{height:6px;border-radius:8px;flex:1}
+.captacion-ios-body{display:flex;flex-direction:column;gap:11px}
+.captacion-ios-note{font-size:12px;color:#64748b;line-height:1.55}
+.captacion-ios-field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:650;color:#334155}
+.captacion-ios-field input{width:100%;padding:13px 12px;font-size:15px;color:#0f172a;background:white;border:1px solid #dbe3ee;border-radius:12px;outline:none}
+.captacion-ios-field input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.13)}
+.captacion-ios-summary{font-size:12px;color:#334155;line-height:1.9;padding:13px;border-radius:13px;border:1px solid #e1e7f0;background:#fff}
+.captacion-ios-warning{font-size:12px;line-height:1.5;border:1px solid #f9d6a1;color:#92400e;background:#fff7e9;border-radius:12px;padding:11px}
+.captacion-ios-btn{border:1px solid #2563eb;border-radius:13px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;padding:13px;min-height:44px;cursor:pointer}
+.captacion-ios-btn.secundario{color:#1d4ed8;border-color:#dbe6f7;background:#fff}
+.captacion-ios-choice{width:100%;text-align:left;border-color:#e2e8f0;background:#fff;color:#334155}
+.captacion-ios-choice.seleccionado{border-color:#6da5fa;background:#eaf2ff;color:#1d4ed8}
+.captacion-ios-footer{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
+.captacion-ios-footer .captacion-ios-btn:first-child{grid-column:1/-1}
+.captacion-ios-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+@media(max-width:420px){#captacionGuiadaModal .captacion-ios-card{padding:17px;border-radius:20px;max-height:94dvh}}
+</style>
 </head>
 <body>
 
@@ -12725,6 +12751,7 @@ async function confirmSectorAssignment() {
             ` : ''}
           </div>
 
+          <button type="button" class="btn-modal-save" style="width:100%;margin:11px 0;background:#2563eb" onclick="abrirAsistenteCaptacion()">Asistente de captación · 4 pasos</button>
           <div id="clientsContainer"></div>
 
           <div style="display:flex; gap:8px;">
@@ -12866,6 +12893,207 @@ async function confirmSectorAssignment() {
         if (document.getElementById('auditModal').classList.contains('active')) {
           renderCurrentAuditView();
         }
+      }
+    }
+
+
+    /* Captación guiada: escribe en los campos originales y conserva su motor de guardado. */
+    let capturaGuiada = {paso:0, ficha:0};
+
+    function abrirAsistenteCaptacion(indice=0) {
+      if (selectedZoneIndexToDump === null) return;
+      const z=savedZones[selectedZoneIndexToDump];
+      if (!z || (currentUserRole==='jefe' && z.comercial!==currentUserName)) return;
+      let boxes=document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      if (!boxes.length) {
+        const cantidad=document.getElementById('dumpSi');
+        if (!cantidad) return;
+        cantidad.value='1';
+        renderClientFormFields();
+        boxes=document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      }
+      if (!boxes.length) return;
+      capturaGuiada={paso:0,ficha:Math.max(0,Math.min(indice,boxes.length-1))};
+      mostrarPasoCaptacion();
+    }
+
+    function mostrarPasoCaptacion() {
+      const cajas=[...document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box')];
+      const box=cajas[capturaGuiada.ficha];
+      if (!box) return;
+      let fondo=document.getElementById('captacionGuiadaModal');
+      if (!fondo) {
+        fondo=document.createElement('div');
+        fondo.id='captacionGuiadaModal';
+        fondo.className='modal-overlay';
+        fondo.style.zIndex='11050';
+        fondo.innerHTML='<div class="captacion-ios-card">'+
+          '<div class="captacion-ios-head"><div><small id="captacionSubtitulo"></small>'+
+          '<h2 id="captacionTitulo"></h2></div>'+
+          '<button type="button" id="captacionCerrar" aria-label="Cerrar asistente">✕</button></div>'+
+          '<div class="captacion-ios-progress" id="captacionBarra"></div>'+
+          '<div class="captacion-ios-body" id="captacionCuerpo"></div>'+
+          '<div class="captacion-ios-footer" id="captacionPie"></div></div>';
+        document.body.appendChild(fondo);
+        fondo.querySelector('#captacionCerrar').onclick=()=>fondo.classList.remove('active');
+      }
+      fondo.classList.add('active');
+      const paso=capturaGuiada.paso;
+      const z=savedZones[selectedZoneIndexToDump];
+      fondo.querySelector('#captacionTitulo').textContent=
+        ['Tipo de vivienda','Contacto y dirección','Datos técnicos','Revisar y guardar'][paso];
+      fondo.querySelector('#captacionSubtitulo').textContent=
+        (z.town||'Pueblo sin indicar')+' · '+(z.sectorName||'Sector')+
+        ' · Ficha '+(capturaGuiada.ficha+1)+' de '+cajas.length;
+      const barra=fondo.querySelector('#captacionBarra');barra.replaceChildren();
+      for(let n=0;n<4;n++){
+        const tramo=document.createElement('span');
+        tramo.style.background=n<=paso?'#3478f6':'#e6ebf3';
+        barra.appendChild(tramo);
+      }
+      const cuerpo=fondo.querySelector('#captacionCuerpo');cuerpo.replaceChildren();
+      const pie=fondo.querySelector('#captacionPie');pie.replaceChildren();
+      const nodo=(padre,tag,texto,clase)=>{
+        const el=document.createElement(tag);
+        if(texto!==null)el.textContent=texto;
+        if(clase)el.className=clase;
+        padre.appendChild(el);
+        return el;
+      };
+      const inputOriginal=selector=>box.querySelector(selector);
+      const aviso=texto=>nodo(cuerpo,'p',texto,'captacion-ios-note');
+      const fila=(titulo,selector,{tipo='text',placeholder='',readonly=false}={})=>{
+        const original=inputOriginal(selector);
+        if(!original)return null;
+        const grupo=nodo(cuerpo,'label',null,'captacion-ios-field');
+        nodo(grupo,'span',titulo);
+        const input=nodo(grupo,'input',null);
+        input.type=tipo;
+        input.placeholder=placeholder;
+        input.value=original.value||'';
+        input.readOnly=readonly;
+        input.autocomplete='off';
+        input.oninput=()=>{
+          if(readonly)return;
+          original.value=input.value;
+          original.dispatchEvent(new Event('input',{bubbles:true}));
+          if(selector==='.client-street')original.dataset.autoFilled='false';
+          if(selector==='.client-total-m2'||selector==='.client-floors'){
+            const salida=inputOriginal('.client-m2');
+            const leyenda=cuerpo.querySelector('#captacionM2Neto');
+            if(salida&&leyenda)leyenda.textContent=salida.value?salida.value+' m²':'Pendiente';
+          }
+        };
+        input.onblur=()=>{
+          if(readonly)return;
+          original.dispatchEvent(new Event('change',{bubbles:true}));
+          original.dispatchEvent(new Event('blur',{bubbles:false}));
+        };
+        return input;
+      };
+      const boton=(padre,texto,funcion,secundario=false)=>{
+        const b=nodo(padre,'button',texto,secundario?'captacion-ios-btn secundario':'captacion-ios-btn');
+        b.type='button';b.onclick=funcion;return b;
+      };
+      const cambio=incremento=>{
+        capturaGuiada.paso=Math.max(0,Math.min(3,capturaGuiada.paso+incremento));
+        mostrarPasoCaptacion();
+      };
+      if(paso===0){
+        aviso('Selecciona una opción. La ficha mostrará únicamente los datos necesarios para ese tipo de captación.');
+        const tipo=inputOriginal('.client-type');
+        for(const option of tipo.options){
+          const card=boton(cuerpo,option.textContent,()=>{
+            tipo.value=option.value;
+            switchClientTypeView(tipo,capturaGuiada.ficha);
+            mostrarPasoCaptacion();
+          },tipo.value!==option.value);
+          card.classList.add('captacion-ios-choice');
+          if(tipo.value===option.value)card.classList.add('seleccionado');
+        }
+        aviso('Conservamos la ficha de viviendas, comunidades y urbanizaciones del sistema actual.');
+      } else if(paso===1){
+        aviso('Introduce lo imprescindible. El pueblo procede del sector; el código postal y la zona CTE se comprueban con la dirección.');
+        fila('Calle y número','.client-street',{placeholder:'Ej. Calle Mayor 12'});
+        fila('Nombre del contacto','.client-name',{placeholder:'Nombre y apellidos'});
+        fila('Teléfono','.client-phone',{tipo:'tel',placeholder:'Número de teléfono'});
+        fila('Localidad','.client-locality',{placeholder:z.town||'Pueblo'});
+        fila('Código postal (comprobar)','.client-cp',{tipo:'tel',placeholder:'Ej. 31152'});
+        const postal=inputOriginal('.client-cp');
+        const cte=inputOriginal('.client-cte-zone');
+        const zona=nodo(cuerpo,'div','Zona CTE: '+(cte?.value||'Pendiente de verificar'),'captacion-ios-summary');
+        boton(cuerpo,'Comprobar dirección y CTE',async()=>{
+          const calle=inputOriginal('.client-street');
+          if(calle){
+            const pending=fillPostalCodeFromStreet(calle);
+            if(pending&&typeof pending.then==='function')await pending;
+          }
+          updateClientCteFromCp(postal);
+          zona.textContent='Zona CTE: '+(cte?.value||'Pendiente de verificar');
+          const choices=box.querySelector('.address-choices');
+          if(choices&&!choices.hidden)alert('Hay varias localidades posibles. Selecciónala en Edición avanzada.');
+          const cpInput=[...cuerpo.querySelectorAll('input')].find(i=>i.placeholder==='Ej. 31152');
+          if(cpInput)cpInput.value=postal.value;
+        },true);
+      } else if(paso===2){
+        aviso('Consulta el catastro y revisa los datos. Los metros netos se calculan con el motor actual, incluyendo plantas y deducciones.');
+        const cat=box.querySelector('button[onclick*="openCadastreFromClientBox"]');
+        if(cat)boton(cuerpo,'Consultar catastro de la vivienda',()=>cat.click(),true);
+        fila('Año de construcción','.client-build-year',{tipo:'number',placeholder:'Ej. 1998'});
+        if(inputOriginal('.client-total-m2')){
+          fila('Superficie catastral (m²)','.client-total-m2',{tipo:'number',placeholder:'m²'});
+          fila('Número de plantas','.client-floors',{tipo:'number',placeholder:'Plantas'});
+          const salida=nodo(cuerpo,'div',null,'captacion-ios-summary');
+          nodo(salida,'span','Superficie neta estimada: ');
+          const net=nodo(salida,'strong',inputOriginal('.client-m2')?.value?inputOriginal('.client-m2').value+' m²':'Pendiente');
+          net.id='captacionM2Neto';
+        } else if(inputOriginal('.client-num-attics')){
+          fila('Número de viviendas en última planta','.client-num-attics',{tipo:'number'});
+          aviso('La comunidad conserva el desglose por áticos y la documentación obligatoria en Edición avanzada.');
+        }
+        const anio=Number(inputOriginal('.client-build-year')?.value||0);
+        const cte=inputOriginal('.client-cte-zone')?.value||'';
+        const motivos=[];
+        if(anio>2006)motivos.push('año posterior a 2006');
+        if(cte&&cte!=='Sin detectar'&&cte!=='Auto por CP'&&!/^[DE][123]$/.test(cte))motivos.push('zona CTE fuera de D/E');
+        if(motivos.length)nodo(cuerpo,'p','Revisar posible no aptitud: '+motivos.join(' y ')+'. No se cambiará el estado sin confirmación.','captacion-ios-warning');
+        else aviso('La aptitud definitiva requiere comprobar todos los datos; no se decide únicamente con la fecha o los m².');
+      } else {
+        const summary=nodo(cuerpo,'div',null,'captacion-ios-summary');
+        const row=(etiqueta,valor)=>nodo(summary,'div',etiqueta+': '+(valor||'Sin completar'));
+        row('Tipo',inputOriginal('.client-type')?.selectedOptions[0]?.textContent);
+        row('Contacto',inputOriginal('.client-name')?.value);
+        row('Teléfono',inputOriginal('.client-phone')?.value);
+        row('Dirección',inputOriginal('.client-street')?.value);
+        row('Código postal',inputOriginal('.client-cp')?.value);
+        row('CTE',inputOriginal('.client-cte-zone')?.value);
+        row('Año',inputOriginal('.client-build-year')?.value);
+        row('m² netos',inputOriginal('.client-m2')?.value);
+        const detalles=box.querySelector('.client-obra-status');
+        if(detalles&&detalles.value==='no_apto')
+          nodo(cuerpo,'p','Esta ficha está marcada como no apta. Revisa que conste el motivo.','captacion-ios-warning');
+        aviso('Antes de guardar puedes revisar los campos avanzados, documentación de comunidades y estado de la cita. El guardado será el mismo que utilizabas antes.');
+        boton(cuerpo,'Abrir edición avanzada',()=>{
+          fondo.classList.remove('active');
+          box.scrollIntoView({behavior:'smooth',block:'start'});
+        },true);
+        boton(cuerpo,'Guardar hoja con el sistema actual',async()=>{
+          fondo.classList.remove('active');
+          await saveDumpData();
+        });
+      }
+      if(paso<3)boton(pie,'Continuar',()=>cambio(1));
+      if(paso>0)boton(pie,'Atrás',()=>cambio(-1),true);
+      boton(pie,'Salir sin guardar',()=>fondo.classList.remove('active'),true);
+      if(paso===3&&cajas.length>1){
+        const nav=nodo(cuerpo,'div',null,'captacion-ios-nav');
+        boton(nav,'Ficha anterior',()=>{
+          capturaGuiada.ficha=Math.max(0,capturaGuiada.ficha-1);capturaGuiada.paso=0;mostrarPasoCaptacion();
+        },true);
+        boton(nav,'Ficha siguiente',()=>{
+          capturaGuiada.ficha=Math.min(cajas.length-1,capturaGuiada.ficha+1);
+          capturaGuiada.paso=0;mostrarPasoCaptacion();
+        },true);
       }
     }
 
