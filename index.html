@@ -3441,6 +3441,128 @@ function setupRoleInterface() {
   updateHudLiveSalaryPill();
 }
 
+
+/* Centro operativo: usa los sectores y formularios existentes sin alterar datos. */
+function abrirCentroJornadaCN(vista='jornada') {
+  const hoy=getTodayISO();
+  const mios=savedZones.map((z,idx)=>({z,idx})).filter(x=>
+    x.z.comercial===currentUserName && !x.z.isSingleHouse &&
+    !x.z.isNoAptoZone && !x.z.isHotMission);
+  const abiertos=mios.filter(x=>x.z.status!=='completada');
+  const antiguos=abiertos.filter(x=>x.z.date && x.z.date<hoy);
+  const deHoy=abiertos.filter(x=>x.z.date===hoy);
+  const proximos=abiertos.filter(x=>!x.z.date || x.z.date>hoy);
+  let modal=document.getElementById('centroJornadaCN');
+  if (!modal) {
+    modal=document.createElement('div');
+    modal.id='centroJornadaCN';
+    modal.className='modal-overlay';
+    modal.style.zIndex='10065';
+    const carta=document.createElement('div');
+    carta.className='modal-card';
+    carta.style.cssText='max-width:630px;max-height:90dvh;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:20px';
+    const cab=document.createElement('div');
+    cab.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:6px 0 13px';
+    const titulo=document.createElement('strong');
+    titulo.id='centroJornadaTitulo';
+    titulo.style.cssText='font-size:19px;color:#f8fafc';
+    const cerrar=document.createElement('button');
+    cerrar.type='button';cerrar.textContent='✕';
+    cerrar.style.cssText='color:#cbd5e1;background:transparent;border:0;font-size:22px;padding:5px';
+    cerrar.onclick=()=>modal.classList.remove('active');
+    cab.append(titulo,cerrar);
+    const cuerpo=document.createElement('div');cuerpo.id='centroJornadaContenido';
+    carta.append(cab,cuerpo);modal.append(carta);document.body.appendChild(modal);
+  }
+  modal.querySelector('#centroJornadaTitulo').textContent=
+    vista==='oficina'?'🏠 Oficina · pendientes':'☀️ Mi jornada';
+  const cuerpo=modal.querySelector('#centroJornadaContenido');
+  cuerpo.replaceChildren();
+  const nodo=(padre,tag,texto,estilo='')=>{
+    const n=document.createElement(tag);
+    if(texto!==null)n.textContent=texto;
+    if(estilo)n.style.cssText=estilo;
+    padre.appendChild(n);return n;
+  };
+  const card=()=>nodo(cuerpo,'div',null,
+    'padding:14px;margin:9px 0;border-radius:15px;background:#1e293b;border:1px solid #334155');
+  const boton=(padre,texto,accion,principal=false)=>{
+    const b=nodo(padre,'button',texto,'width:100%;text-align:left;padding:11px;margin-top:8px;border-radius:10px;color:#fff;font-size:12px;font-weight:700;border:1px solid '+
+      (principal?'#60a5fa':'#475569')+';background:'+(principal?'#1d4ed8':'#334155'));
+    b.type='button';b.onclick=()=>{modal.classList.remove('active');accion();};
+    return b;
+  };
+  const cabecera=texto=>nodo(cuerpo,'h3',texto,
+    'font-size:13px;color:#f8fafc;margin:17px 0 8px');
+  const resumen=nodo(cuerpo,'div',null,'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px');
+  const indicador=(titulo,numero)=>{
+    const c=nodo(resumen,'div',null,'background:#1e293b;border:1px solid #334155;padding:10px;border-radius:13px');
+    nodo(c,'div',titulo,'font-size:10px;color:#94a3b8');
+    nodo(c,'strong',String(numero),'display:block;font-size:23px;color:#fff;margin-top:4px');
+  };
+  indicador('Atrasados',antiguos.length);
+  indicador('Hoy',deHoy.length);
+  indicador('Próximos',proximos.length);
+  const accesoSector=({z,idx},oficina=false)=>{
+    const c=card();
+    nodo(c,'strong',z.sectorName||'Sector','display:block;color:#fff;font-size:14px');
+    nodo(c,'div',(z.town||'Pueblo sin asignar')+' · '+(z.date||'Sin fecha')+
+      ' · '+(z.status==='en_proceso'?'En curso':'Por hacer'),
+      'font-size:11px;color:#cbd5e1;margin-top:5px');
+    const contactos=(z.clients||[]).filter(c=>c && (c.name||c.phone||c.street)).length;
+    if(contactos)nodo(c,'div',contactos+' fichas registradas','font-size:11px;color:#94a3b8;margin-top:5px');
+    boton(c,oficina?'📝 Abrir hoja del sector':'🗺️ Ver sector',()=>{
+      if(oficina)openDumpModal(idx);else focusMapOnTownOrZone(z.town,idx);
+    },true);
+    if(!oficina)boton(c,'📝 Registrar resultados',()=>openDumpModal(idx));
+  };
+  if(vista==='oficina'){
+    const aviso=card();
+    nodo(aviso,'strong','1. Volcar resultados y fichas','display:block;color:#f8fafc;font-size:14px');
+    nodo(aviso,'p','Abre el sector más antiguo. Comprueba su hoja y registra las viviendas, comunidades o urbanizaciones. La app no presume que una hoja esté sin volcar solo por tener cero fichas.',
+      'font-size:11px;color:#cbd5e1;line-height:1.5');
+    boton(aviso,'📋 Elegir sector para volcar',openSelectZoneToDumpModal,true);
+    cabecera('Sectores abiertos · orden de antigüedad');
+    const lista=[...abiertos].sort((a,b)=>String(a.z.date||'9999').localeCompare(String(b.z.date||'9999')));
+    lista.slice(0,12).forEach(x=>accesoSector(x,true));
+    if(lista.length>12)nodo(cuerpo,'p','Hay más sectores. Consulta Gestión de clientes y zonas.','font-size:11px;color:#94a3b8');
+    cabecera('2. Llamadas y citas');
+    const calls=card();
+    nodo(calls,'p','Cuando acabes de volcar, continúa con llamadas pendientes, seguimientos y disponibilidad real para citas.',
+      'font-size:11px;color:#cbd5e1;line-height:1.5');
+    boton(calls,'📞 Abrir llamadas pendientes',openFollowUpsModal,true);
+    boton(calls,'📅 Organizar citas por jornadas',openGroupedAppointments);
+    boton(calls,'🔎 Buscar una ficha',openGlobalClientSearchModal);
+    const cierre=card();
+    nodo(cierre,'strong','3. Revisión final','display:block;color:#fff');
+    nodo(cierre,'p','Revisa que no falten hojas ni llamadas. Los pendientes permanecen registrados; cerrar esta pantalla no marca tareas como terminadas.',
+      'font-size:11px;color:#cbd5e1;line-height:1.5');
+    boton(cierre,'✅ Finalizar revisión de oficina',()=>alert('Revisión finalizada. Los sectores y llamadas pendientes se conservan.'));
+  } else {
+    const finalizados=mios.filter(x=>x.z.status==='completada').length;
+    const pct=mios.length?Math.round(100*finalizados/mios.length):0;
+    const progreso=card();
+    nodo(progreso,'strong','Progreso de mis sectores · '+pct+'%','font-size:13px;color:#fff');
+    const track=nodo(progreso,'div',null,'height:8px;background:#334155;border-radius:20px;overflow:hidden;margin-top:10px');
+    nodo(track,'div',null,'height:100%;background:#22c55e;width:'+pct+'%');
+    nodo(progreso,'small',finalizados+' de '+mios.length+' sectores terminados',
+      'display:block;margin-top:7px;color:#94a3b8');
+    for(const [titulo,lista] of [
+      ['⚠️ Pendientes de días anteriores',antiguos],
+      ['📍 Programados para hoy',deHoy],
+      ['🗓️ Próximos o sin fecha',proximos]
+    ]){
+      cabecera(titulo);
+      if(!lista.length)nodo(cuerpo,'p','Sin sectores en este grupo.','font-size:11px;color:#94a3b8');
+      lista.slice(0,12).forEach(x=>accesoSector(x));
+    }
+    const acciones=card();
+    boton(acciones,'🏠 Volver a casa · abrir Oficina',()=>abrirCentroJornadaCN('oficina'),true);
+    boton(acciones,'📅 Ver mi planificación completa',showCommercialBriefing);
+  }
+  modal.classList.add('active');
+}
+
 function renderWorkNavigation(area) {
   setTimeout(() => refreshMapDock(area), 0);
   const nav = document.getElementById('hudNavGrid');
@@ -3529,40 +3651,11 @@ function renderWorkNavigation(area) {
     return;
   }
 
-  add(
-    'btnCommercialPlan',
-    '📋 Trabajo del día',
-    showCommercialBriefing,
-    '#1d4ed8'
-  );
-
-  add(
-    'btnClientManagement',
-    '📂 Gestión',
-    openGlobalClientSearchModal,
-    '#334155'
-  );
-
-  add(
-    'btnCaptureWorkspace',
-    '📝 Fichas y llamadas',
-    openCaptureWorkMenu,
-    '#0e7490'
-  );
-
-  add(
-    'btnCommercialStats',
-    '📈 Estadísticas',
-    openCommercialStatsModal,
-    '#1d4ed8'
-  );
-
-  add(
-    'btnLeagueRanking',
-    '🏆 Liga',
-    openLeagueRankingModal,
-    '#b45309'
-  );
+  add('btnCommercialPlan','☀️ Mi jornada',()=>abrirCentroJornadaCN('jornada'),'#1d4ed8');
+  add('btnOfficeCN','🏠 Oficina',()=>abrirCentroJornadaCN('oficina'),'#0f766e');
+  add('btnClientManagement','🔎 Clientes',openGlobalClientSearchModal,'#334155');
+  add('btnCommercialStats','📈 Mis resultados',openCommercialStatsModal,'#1d4ed8');
+  add('btnLeagueRanking','🏆 Liga',openLeagueRankingModal,'#b45309');
 
   try {
     updateMiPlanBadge();
