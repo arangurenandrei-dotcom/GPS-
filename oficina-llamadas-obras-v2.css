@@ -95,3 +95,7 @@
 .koc-other-days summary{font-size:12px;cursor:pointer;font-weight:730;color:#64748b}
 .koc-other-days p{margin-top:9px}
 @media(max-width:380px){.koc-dual-head,.koc-dual-row{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr);gap:5px}.koc-dual-cell{padding:8px 5px}.koc-dual-time{font-size:10px}.koc-dual-cell strong{font-size:11px}.koc-dual-cell .koc-btn{font-size:10px}}
+
+/* Localidad real de una obra ocupada, cuando KONSOR la facilita. */
+.koc-dual-cell.occupied .koc-occupied-location{display:block;color:#475569;font-weight:650;font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.koc-dual-cell.occupied .koc-dual-state{margin-top:auto;color:#64748b;font-size:9px}
