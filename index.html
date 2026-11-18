@@ -1042,10 +1042,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
 
       <!-- Fila inferior: Acciones principales -->
       <div style="display:flex; gap:6px; width:100%;">
-        <button id="btnDibujarPueblo" class="btn-main-action"
- style="background:#15803d;flex:1;display:none"
- onclick="iniciarDibujoPueblo()">🏘️ PUEBLO</button>
- <button id="btnBossAssignMode" class="btn-main-action btn-assign" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="startSectorDrawing()">
+        <button id="btnBossAssignMode" class="btn-main-action btn-assign" style="flex:1.1; font-size:11.5px; padding:13px 6px;" onclick="startSectorDrawing()">
           ➕ SECTOR
         </button>
 
@@ -2167,6 +2164,12 @@ function openMapToolsMenu() {
     '🛠 Herramientas del mapa',
     'Elige la vista o una herramienta.',
     [
+      ...(currentUserName === 'Andrei (Jefe)' ? [[
+        '🏘️ Dibujar pueblo',
+        'Delimitar manualmente un pueblo y guardarlo en Firebase.',
+        iniciarDibujoPueblo
+      ]] : []),
+
       [
         '🛰 Satélite',
         'Fotografía aérea.',
@@ -3364,8 +3367,7 @@ function setupRoleInterface() {
     }
   }
 
-  document.getElementById('btnDibujarPueblo').style.display =
-    isAndrei ? 'flex' : 'none';
+
   const authKey = sessionStorage.getItem('auth_user_key');
 
   const roleBadge = document.getElementById('displayRoleBadge');
@@ -3508,6 +3510,13 @@ function renderWorkNavigation(area) {
       '⚔️ Comparar equipos',
       openMikelRadarModal,
       '#0f766e'
+    );
+
+    add(
+      'btnManagementTools',
+      '🛠 Herramientas',
+      openMapToolsMenu,
+      '#475569'
     );
 
     add(
