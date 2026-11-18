@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>Sistema de Gestión Comercial y Logística de Obras - Navarra</title>
-  
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <script>
@@ -38,7 +38,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
 #loginScreen .portal-foot {border-top:1px solid #334155;padding-top:12px;text-align:center;}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-  
+
   <style>
     :root {
       --bg-dark: #0f172a;
@@ -144,7 +144,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
 
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #cbd5e1; }
-    
+
     .form-select, .form-input, .input-field, .select-field {
       width: 100%; background: #0f172a; border: 1px solid rgba(255,255,255,0.2);
       border-radius: 10px; padding: 10px 12px; color: #fff; font-size: 12px; font-weight: 700; outline: none;
@@ -367,7 +367,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
     }
 
     .modal-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #60a5fa; margin: 12px 0 6px 0; }
-    
+
     .input-group {
       display: flex; justify-content: space-between; align-items: center;
       background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
@@ -11531,7 +11531,55 @@ const labelStreet = clientObj.street ||
       renderAllSavedZones();
     }
 
-   async function confirmSectorAssignment() {
+
+    function detectarSolapamientosSectores(nuevo) {
+      const dentro = (p, poly) => {
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const a = poly[i], b = poly[j];
+          if ((a[0] > p[0]) !== (b[0] > p[0]) &&
+              p[1] < (b[1]-a[1])*(p[0]-a[0])/(b[0]-a[0])+a[1])
+            inside = !inside;
+        }
+        return inside;
+      };
+
+      const cruzan = (a,b,c,d) => {
+        const o = (p,q,r) =>
+          (q[1]-p[1])*(r[0]-p[0]) -
+          (q[0]-p[0])*(r[1]-p[1]);
+        return o(a,b,c)*o(a,b,d)<0 &&
+               o(c,d,a)*o(c,d,b)<0;
+      };
+
+      const solapan = (a,b) => {
+        if (a.some(p=>dentro(p,b)) || b.some(p=>dentro(p,a)))
+          return true;
+        for(let i=0;i<a.length;i++)
+          for(let j=0;j<b.length;j++)
+            if(cruzan(a[i],a[(i+1)%a.length],
+                      b[j],b[(j+1)%b.length]))
+              return true;
+        return false;
+      };
+
+      return [
+        ...savedZones,
+        ...(currentUserName === 'Andrei (Jefe)'
+          ? sectoresMikelSupervision : [])
+      ].filter(z =>
+        !z.isSingleHouse &&
+        Array.isArray(z.points) &&
+        z.points.length >= 3 &&
+        z.points.every(p =>
+          Array.isArray(p) && p.length === 2 &&
+          Number.isFinite(p[0]) && Number.isFinite(p[1])
+        ) &&
+        solapan(nuevo,z.points)
+      );
+    }
+
+async function confirmSectorAssignment() {
       const dateVal = document.getElementById('assignDate').value || getTodayISO();
       let town = document.getElementById('assignTown').value.trim();
       if (!town || town === 'Detectando localidad...') {
@@ -11541,7 +11589,7 @@ const labelStreet = clientObj.street ||
 
       let sectorName = document.getElementById('assignSectorName').value.trim();
       const bossNote = document.getElementById('assignBossNote').value.trim();
-      
+
       if (!sectorName) {
         const sectorCount = savedZones.filter(z => z.town === town && !z.isSingleHouse).length + 1;
         sectorName = `Sector ${town} #${sectorCount}`;
@@ -11555,6 +11603,26 @@ const labelStreet = clientObj.street ||
         return;
       }
 
+
+
+      const coincidencias = detectarSolapamientosSectores(tempPoints);
+
+      if (coincidencias.length) {
+        const lista = coincidencias.slice(0,6).map(z => {
+          const estado = z.status === 'completada'
+            ? 'Terminado'
+            : z.status === 'en_proceso' ? 'En proceso' : 'Pendiente';
+          return '• ' + (z.sectorName || 'Sector') +
+            ' — ' + (z.comercial || 'Sin responsable') +
+            ' — ' + estado;
+        }).join('\n');
+
+        if (!confirm(
+          '⚠️ POSIBLE SOLAPAMIENTO CON ' +
+          coincidencias.length + ' SECTOR(ES):\n\n' +
+          lista + '\n\n¿Crear igualmente?'
+        )) return;
+      }
 
       const button = document.querySelector('#assignModal .btn-modal-save');
       if (button.disabled) return;
@@ -12004,7 +12072,7 @@ const labelStreet = clientObj.street ||
           <div id="pendingNoteGroup" class="input-group" style="display:${z.status==='en_proceso'?'flex':'none'}; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
             <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
             <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." value="${z.pendingNote || ''}" style="width:100%;">
-            
+
             ${!isMikelUser ? `
               <button class="btn-modal-crop" onclick="startCropSubZone()">
                 ✂️ Redibujar zona pendiente en el mapa
@@ -12848,7 +12916,7 @@ const labelStreet = clientObj.street ||
           <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico (Opcional)" value="${existing.email || ''}">
           ${!isMikelTeamMember(currentUserName) ? `<input type="text" class="input-field client-dni" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${String(existing.dni || '').replace(/"/g, '&quot;')}" style="margin-top:5px; text-transform:uppercase;" oninput="validateDniField(this)">` : ''}
         </div>
-        
+
         <div style="display:flex; gap:4px; margin-bottom:6px;">
           <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" onchange="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
           ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
@@ -12953,7 +13021,7 @@ const labelStreet = clientObj.street ||
             <select class="select-field client-obra-time" style="padding:6px 8px;">${obraSlotOptions(defaultObraTime)}</select>
           </div>
         </div>
-        
+
         <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
           <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
           <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
@@ -13002,7 +13070,7 @@ const labelStreet = clientObj.street ||
               <option value="no" ${existing.isPresi===false?'selected':''}>NO (Vecino Enlace)</option>
             </select>
           </div>
-          
+
           <div class="presi-hierarchy-hint" style="font-size:9.5px; color:#cbd5e1; border-left:2px solid #a78bfa; padding-left:6px; margin-top:2px;">
             ${existing.isPresi===false ? '⚠️ Se deberá mandar nuestro acta de nombramiento si no es presidente oficial.' : '👑 Hablando directamente con la Presidencia del Edificio.'}
           </div>
@@ -13228,7 +13296,7 @@ const labelStreet = clientObj.street ||
     function togglePresiHierarchyInfo(selectEl) {
       const hintEl = selectEl.closest('div.client-fields-dynamic-area').querySelector('.presi-hierarchy-hint');
       if (hintEl) {
-        hintEl.innerHTML = selectEl.value === 'no' 
+        hintEl.innerHTML = selectEl.value === 'no'
           ? '⚠️ Se deberá mandar nuestro acta de nombramiento si no es presidente oficial.'
           : '👑 Hablando directamente con la Presidencia del Edificio.';
       }
@@ -16144,7 +16212,7 @@ function openCommercialStatsModalLegacy() {
 
       const selectedDate = document.getElementById('auditDateSelect').value;
       const usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
-      
+
       const stats = {};
       usersList.forEach(u => {
         stats[u] = {
@@ -16196,7 +16264,7 @@ function openCommercialStatsModalLegacy() {
       usersList.forEach((u, uIdx) => {
         const s = stats[u];
         const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
-        
+
         const userShift = savedShifts.find(sh => {
           const shDate = sh.localDate || getLocalDateISO(new Date(sh.date));
           return sh.user === u && shDate === selectedDate;
@@ -16627,7 +16695,7 @@ function openCommercialStatsModalLegacy() {
         const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
         const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
 
-        
+
       }
     }
 
@@ -17113,6 +17181,72 @@ function openCommercialStatsModalLegacy() {
       `;
       container.appendChild(summaryCard);
 
+      // Resumen territorial conjunto sin duplicar ni modificar sectores.
+      if (currentUserName === 'Andrei (Jefe)') {
+        const territorios = new Map();
+        const propios = savedZones.filter(z=>!z.isNoAptoZone);
+        const externos = sectoresMikelSupervision.filter(z=>
+          Array.isArray(z.points) && z.points.length>=3
+        );
+
+        for (const z of [...propios,...externos]) {
+          const pueblo=String(z.town||'Sin municipio').trim();
+          const clave=ComercialCore.norm(pueblo);
+          if (!territorios.has(clave)) territorios.set(clave,{
+            pueblo,sectores:[],si:0,no:0,ausente:0,papelito:0
+          });
+          const t=territorios.get(clave);
+          t.sectores.push(z);
+          for (const k of ['si','no','ausente','papelito'])
+            t[k]+=Number(z.stats?.[k])||0;
+        }
+
+        const panel=document.createElement('div');
+        panel.className='audit-card';
+        const encabezado=document.createElement('h3');
+        encabezado.textContent='🗺️ Municipios · ambos equipos';
+        panel.appendChild(encabezado);
+
+        for(const t of [...territorios.values()].sort(
+          (x,y)=>x.pueblo.localeCompare(y.pueblo,'es')
+        )){
+          const terminado=t.sectores.filter(z=>
+            z.status==='completada'
+          ).length;
+          const detalle=document.createElement('details');
+          detalle.style.cssText=
+            'padding:9px;border-bottom:1px solid #475569';
+
+          const titulo=document.createElement('summary');
+          titulo.style.cursor='pointer';
+          titulo.textContent=
+            t.pueblo+' · '+terminado+'/'+t.sectores.length+
+            ' sectores terminados';
+          detalle.appendChild(titulo);
+
+          const resumen=document.createElement('p');
+          resumen.style.fontSize='12px';
+          resumen.textContent=
+            'Interesados: '+t.si+' · No: '+t.no+
+            ' · Ausentes: '+t.ausente+
+            ' · Información: '+t.papelito;
+          detalle.appendChild(resumen);
+
+          for(const z of t.sectores){
+            const linea=document.createElement('div');
+            linea.style.cssText='font-size:11px;padding:5px 0';
+            linea.textContent=
+              (z.status==='completada'?'✅ ':'🟡 ')+
+              (z.sectorName||'Sector')+' · '+
+              (z.comercial||'Responsable pendiente');
+            detalle.appendChild(linea);
+          }
+          panel.appendChild(detalle);
+        }
+        container.insertBefore(panel,summaryCard.nextSibling);
+      }
+
+
       townKeys.forEach((tName) => {
         const tm = townsMap[tName];
         const isCompleted = completedTowns.includes(tName);
@@ -17196,21 +17330,49 @@ function openCommercialStatsModalLegacy() {
         const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
         const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
 
-        
+
       }
     }
 
     async function toggleTownCompletion(townName) {
-      if (currentUserRole !== 'jefe') return;
-
-      const idx = completedTowns.indexOf(townName);
-      if (idx === -1) {
-        completedTowns.push(townName);
-      } else {
-        completedTowns.splice(idx, 1);
+      if (currentUserName !== 'Andrei (Jefe)') return;
+      if (window.KonsorBridge?.busy) {
+        alert('Hay un guardado pendiente.');
+        return;
       }
 
-      if (!await saveAndSync('comercial_completed_towns', completedTowns)) return;
+      const actual=completedTowns.includes(townName);
+      const sectores=[
+        ...savedZones.filter(z=>
+          !z.isNoAptoZone &&
+          ComercialCore.norm(z.town)===ComercialCore.norm(townName)
+        ),
+        ...sectoresMikelSupervision.filter(z=>
+          ComercialCore.norm(z.town)===ComercialCore.norm(townName)
+        )
+      ];
+      const pendientes=sectores.filter(z=>
+        z.status!=='completada'
+      ).length;
+
+      const mensaje=actual
+        ? '¿Reabrir el pueblo '+townName+'?'
+        : '¿Confirmas que TODO el pueblo '+townName+
+          ' está revisado?\nSectores registrados: '+sectores.length+
+          '\nSectores pendientes: '+pendientes+
+          '\nEsto no modifica los sectores individuales.';
+
+      if(!confirm(mensaje))return;
+
+      const propuesta=actual
+        ? completedTowns.filter(t=>t!==townName)
+        : [...completedTowns,townName];
+
+      if(!await saveAndSync(
+        'comercial_completed_towns',propuesta
+      ))return;
+
+      completedTowns=propuesta;
       renderPueblosAudit();
     }
 
@@ -17574,9 +17736,9 @@ function openCommercialStatsModalLegacy() {
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-analytics.js";
     import { arrayUnion, getDoc, collection } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-    import { 
+    import {
    initializeFirestore, memoryLocalCache,
-   doc, setDoc, onSnapshot 
+   doc, setDoc, onSnapshot
  } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-functions.js";
 
