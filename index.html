@@ -1345,6 +1345,7 @@ html,body{background:#f5f5f7;color:#17202c}
 #appContainer .ios-nav-card:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 @media(max-width:370px){#appContainer .ios-main-grid{gap:6px}#appContainer .ios-nav-card{padding:10px 8px;min-height:72px}#appContainer .ios-nav-card>span:last-child{font-size:10px}}
 </style>
+<style id="iosCaptureGuidanceV2">#captacionGuiadaModal .captacion-ios-correccion{background:#fff;border:1px solid #e1e7f0;border-radius:14px;padding:12px;color:#334155}#captacionGuiadaModal .captacion-ios-correccion summary{font-size:13px;font-weight:600;cursor:pointer;color:#536277}#captacionGuiadaModal .captacion-ios-correction-fields{display:grid;gap:10px;padding-top:14px}#captacionGuiadaModal .captacion-ios-summary strong{display:block;margin-bottom:6px;color:#1e293b}#captacionGuiadaModal .captacion-ios-choice{text-align:left;padding:16px;font-size:15px;font-weight:600;border-radius:16px}</style>
 </head>
 <body>
 
@@ -13388,6 +13389,7 @@ async function confirmSectorAssignment() {
           const card=boton(cuerpo,option.textContent,()=>{
             tipo.value=option.value;
             switchClientTypeView(tipo,capturaGuiada.ficha);
+            capturaGuiada.paso=1;
             mostrarPasoCaptacion();
           },tipo.value!==option.value);
           card.classList.add('captacion-ios-choice');
@@ -13395,12 +13397,24 @@ async function confirmSectorAssignment() {
         }
         aviso('Conservamos la ficha de viviendas, comunidades y urbanizaciones del sistema actual.');
       } else if(paso===1){
-        aviso('Introduce lo imprescindible. El pueblo procede del sector; el código postal y la zona CTE se comprueban con la dirección.');
+        aviso('Introduce la dirección y el contacto. Comprobaremos la localidad, el código postal y la zona CTE.');
         fila('Calle y número','.client-street',{placeholder:'Ej. Calle Mayor 12'});
         fila('Nombre del contacto','.client-name',{placeholder:'Nombre y apellidos'});
         fila('Teléfono','.client-phone',{tipo:'tel',placeholder:'Número de teléfono'});
+        const datosAuto=nodo(cuerpo,'div',null,'captacion-ios-summary');
+        nodo(datosAuto,'strong','Comprobación automática de dirección');
+        const localidadReal=inputOriginal('.client-locality');
+        const cteReal=inputOriginal('.client-cte-zone');
+        const resultadoAuto=nodo(datosAuto,'div','Localidad: '+(localidadReal?.value||z.town||'Pendiente')+
+          ' · CP: '+(inputOriginal('.client-cp')?.value||'Pendiente')+
+          ' · CTE: '+(cteReal?.value||'Pendiente'));
+        const detallesAuto=nodo(cuerpo,'details',null,'captacion-ios-correccion');
+        nodo(detallesAuto,'summary','Corregir localidad o código postal');
+        const correccion=nodo(detallesAuto,'div',null,'captacion-ios-correction-fields');
         fila('Localidad','.client-locality',{placeholder:z.town||'Pueblo'});
-        fila('Código postal (comprobar)','.client-cp',{tipo:'tel',placeholder:'Ej. 31152'});
+        fila('Código postal','.client-cp',{tipo:'tel',placeholder:'Ej. 31152'});
+        [...cuerpo.querySelectorAll('.captacion-ios-field')].slice(-2)
+          .forEach(el=>correccion.appendChild(el));
         const postal=inputOriginal('.client-cp');
         const cte=inputOriginal('.client-cte-zone');
         const zona=nodo(cuerpo,'div','Zona CTE: '+(cte?.value||'Pendiente de verificar'),'captacion-ios-summary');
@@ -13412,6 +13426,8 @@ async function confirmSectorAssignment() {
           }
           updateClientCteFromCp(postal);
           zona.textContent='Zona CTE: '+(cte?.value||'Pendiente de verificar');
+          resultadoAuto.textContent='Localidad: '+(localidadReal?.value||z.town||'Pendiente')+
+            ' · CP: '+(postal?.value||'Pendiente')+' · CTE: '+(cte?.value||'Pendiente');
           const choices=box.querySelector('.address-choices');
           if(choices&&!choices.hidden)alert('Hay varias localidades posibles. Selecciónala en Edición avanzada.');
           const cpInput=[...cuerpo.querySelectorAll('input')].find(i=>i.placeholder==='Ej. 31152');
