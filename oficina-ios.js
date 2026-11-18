@@ -51,7 +51,8 @@ function redraw(){
   node("span","cn-office-kicker","PASO 2 · SEGUIMIENTO",card);
   node("h3","",pendingCalls()+" contactos pendientes de llamada",card);
   node("p","", "Abre la organización de llamadas y revisa los registros pendientes. Las citas y casos que necesiten seguimiento se conservan en sus estados actuales.",card);
-  card.append(action("Organizar llamadas",()=>{modal.classList.remove("active");openGroupedAppointments();},"primary"));
+  card.append(action("Empezar llamadas guiadas",()=>{modal.classList.remove("active");window.openCnCallQueue?.();},"primary"));
+  card.append(action("Organizar citas por jornadas",()=>{modal.classList.remove("active");openGroupedAppointments();},"subtle"));
   card.append(action("Ver todos los seguimientos",()=>{modal.classList.remove("active");openFollowUpsModal();},"subtle"));
   card.append(action("Ir a revisión final",()=>{paso=2;redraw();},"outline"));
  }else{
