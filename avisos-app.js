@@ -52,21 +52,48 @@
  }
  wrapShift('handleShiftAction',false);wrapShift('reopenTodayShift',true);
  window.addEventListener('online',flush);setInterval(flush,60000);
- const style=node('style');style.textContent=`
- #avisosCenterV2{z-index:10080} #avisosCenterV2 .modal-card{max-width:560px}
- #avisosCenterV2 .av-tabs,#avisosCenterV2 .av-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
- #avisosCenterV2 button,#avisosCenterV2 .av-wa{border:1px solid rgba(148,163,184,.35);border-radius:10px;padding:9px 11px;background:#1e293b;color:#f8fafc;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none}
- #avisosCenterV2 button:disabled{opacity:.5} #avisosCenterV2 .av-tabs button{flex:1}
- #avisosCenterV2 .av-tabs .selected{background:var(--primary,#2563eb)}
- #avisosCenterV2 .av-card{background:rgba(148,163,184,.09);border:1px solid rgba(148,163,184,.25);border-radius:13px;padding:12px;margin:9px 0}
- #avisosCenterV2 .av-unread{border-left:4px solid #38bdf8} #avisosCenterV2 p{font-size:12px;line-height:1.5;margin:7px 0;white-space:pre-wrap;overflow-wrap:anywhere}
- #avisosCenterV2 small{color:#94a3b8;font-size:11px} #avisosCenterV2 h3{font-size:14px;margin:0}
- #avisosCenterV2 label{display:block;font-size:12px;margin:10px 0;line-height:1.5}
- #avisosCenterV2 input:not([type=checkbox]),#avisosCenterV2 select,#avisosCenterV2 textarea{display:block;width:100%;background:#0f172a;color:white;border:1px solid #475569;border-radius:9px;padding:10px;margin-top:5px;font-size:16px}
- #avisosCenterV2 input[type=checkbox]{margin-right:8px;width:17px;height:17px;vertical-align:middle}
- #avisosCenterV2 .av-status{font-size:12px;color:#fde047;white-space:pre-wrap}
- #avisosCenterV2 .av-wa{display:inline-block;background:#047857}
- `;document.head.appendChild(style);
+ const style=node('style');style.textContent=\`
+ #avisosCenterV2{z-index:10250!important;position:fixed;inset:0;background:rgba(27,37,54,.30)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);align-items:center;justify-content:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+ #avisosCenterV2.active{display:flex!important}
+ #avisosCenterV2 .modal-card{max-width:600px!important;width:min(100%,600px);height:min(100%,900px);max-height:100%;display:flex;flex-direction:column;border:1px solid #e3eaf3!important;border-radius:26px!important;background:#f7f9fc!important;color:#263449!important;box-shadow:0 30px 80px rgba(15,23,42,.22)!important;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif!important}
+ #avisosCenterV2 .modal-header{padding:20px!important;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6eaf1!important;background:rgba(255,255,255,.85)!important;color:#263449!important}
+ #avisosCenterV2 .modal-header span{font-size:21px!important;font-weight:760!important;color:#263449!important}
+ #avisosCenterV2 .modal-scrollable-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:15px!important;color:#263449!important}
+ #avisosCenterV2 .av-tabs{display:flex;gap:5px;margin:12px 16px 4px;padding:4px;background:#e9eef5;border-radius:15px}
+ #avisosCenterV2 .av-tabs button{flex:1;border:0!important;background:transparent!important;color:#65748a!important;min-height:41px}
+ #avisosCenterV2 .av-tabs button.selected{background:#fff!important;color:#263449!important;box-shadow:0 2px 8px rgba(20,30,60,.1)!important}
+ #avisosCenterV2 button,#avisosCenterV2 .av-wa{appearance:none;border:1px solid #dce4ee!important;border-radius:13px!important;padding:10px 13px!important;background:#fff!important;color:#28394f!important;font-size:13px!important;font-weight:680!important;line-height:1.3;min-height:41px;cursor:pointer;text-decoration:none;box-shadow:none!important}
+ #avisosCenterV2 button.av-primary,#avisosCenterV2 .av-primary{background:#2864e9!important;border-color:#2864e9!important;color:#fff!important}
+ #avisosCenterV2 button.av-subtle{background:#eef2f7!important;border-color:transparent!important}
+ #avisosCenterV2 button.av-danger{color:#b42318!important;background:#fff1f1!important;border-color:#ffd7d7!important}
+ #avisosCenterV2 button:disabled{opacity:.5}
+ #avisosCenterV2 .av-card{background:#fff!important;border:1px solid #e4eaf2!important;border-radius:20px!important;padding:16px!important;margin:10px 0!important;display:flex;flex-direction:column;gap:8px;touch-action:pan-y;transition:transform .16s,opacity .16s;min-width:0;box-shadow:none!important}
+ #avisosCenterV2 .av-unread{border-left:4px solid #6e9af5!important}
+ #avisosCenterV2 .av-card.av-task{border-left:4px solid #5c7fae!important}
+ #avisosCenterV2 .av-card.av-swiped{transform:translateX(-65px);opacity:.35}
+ #avisosCenterV2 .av-card-header{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+ #avisosCenterV2 .av-card-icon{width:35px;height:35px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#eef3fb;color:#49668b;font-size:17px}
+ #avisosCenterV2 .av-card-text{flex:1;min-width:0}
+ #avisosCenterV2 p{font-size:13px!important;line-height:1.55!important;margin:2px 0!important;white-space:pre-wrap;overflow-wrap:anywhere;color:#697b90!important}
+ #avisosCenterV2 .av-card .av-copy{font-size:14px!important;color:#314158!important;line-height:1.48}
+ #avisosCenterV2 small{color:#8996a8!important;font-size:11px!important}
+ #avisosCenterV2 h3{font-size:16px!important;line-height:1.3!important;font-weight:740!important;margin:0!important;color:#263449!important}
+ #avisosCenterV2 .av-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0}
+ #avisosCenterV2 .av-actions button{flex:1;min-width:110px}
+ #avisosCenterV2 .av-status{font-size:12px;color:#9b4c18;white-space:pre-wrap;margin:3px 16px}
+ #avisosCenterV2 label{display:block;font-size:13px;color:#4e5f76;margin:10px 0}
+ #avisosCenterV2 input:not([type=checkbox]),#avisosCenterV2 select,#avisosCenterV2 textarea{display:block;width:100%;background:#fff!important;color:#263449!important;border:1px solid #dce4ef!important;border-radius:13px!important;padding:11px!important;margin-top:6px;font-size:16px!important;min-height:43px;box-sizing:border-box}
+ #avisosCenterV2 input[type=checkbox]{margin-right:8px;width:18px;height:18px;vertical-align:middle}
+ #avisosCenterV2 .av-hint{font-size:12px!important;color:#8b97a9!important}
+ #avisosCenterV2 .av-section{font-size:12px;font-weight:740;letter-spacing:.02em;color:#7c8ca1;margin:18px 2px 8px}
+ #avisosCenterV2 .av-counter{font-size:11px;font-weight:700;color:#2864e9;border-radius:99px;background:#e8f0ff;padding:5px 9px;white-space:nowrap}
+ #avisosCenterV2 .av-empty{padding:30px 16px;text-align:center;color:#7e8b9f}
+ #avisosCenterV2 .av-wa{display:inline-block;background:#edf9f2!important;border-color:#c5ecd6!important;color:#107546!important}
+ #avisosCenterV2 .av-task-state{font-size:11px;font-weight:700;color:#55718e}
+ #avisosCenterV2 details summary{font-size:12px;color:#50647d;cursor:pointer;padding:6px 0}
+ #btnKonsorAvisos{font-size:17px!important;border-radius:12px!important}
+ @media(max-width:680px){#avisosCenterV2 .modal-card{height:100%;max-height:100%;width:100%;border-radius:0!important}#avisosCenterV2 .modal-scrollable-content{padding:15px!important}#avisosCenterV2 .modal-header{padding:18px!important}}
+ \`;document.head.appendChild(style);
  function report(e){console.error(e);if(status)status.textContent='No se pudo completar: '+(e.message||e);}
  function mount(){
   if(!bell){bell=button('🔔',()=>open());bell.className='btn-hud';bell.id='btnKonsorAvisos';bell.title='Avisos y recordatorios';bell.style.cssText='padding:6px 8px;flex-shrink:0';}
