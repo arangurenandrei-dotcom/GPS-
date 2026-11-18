@@ -1606,6 +1606,13 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 #leagueRankingContainer>div[style*="display:flex;gap:5px"] button[aria-pressed="true"]{background:#fff!important;color:#293d56!important;box-shadow:0 2px 8px rgba(15,23,42,.08)!important}
 #leagueRankingContainer [style*="background:#422006"]{background:#fff!important;color:#29384b!important;border:1px solid #e6ebf1!important;box-shadow:none!important}
 </style>
+<style id="cnMapAddressResults">
+/* Resultados del callejero original, trasladados al mapa dedicado. */
+#cnvMapToolbar #searchCandidatesDropdown{position:absolute!important;top:calc(env(safe-area-inset-top) + 148px)!important;left:max(12px,env(safe-area-inset-left))!important;right:max(12px,env(safe-area-inset-right))!important;max-height:min(36dvh,310px)!important;overflow-y:auto!important;z-index:50!important;pointer-events:auto!important;border-radius:16px!important;padding:9px!important;background:rgba(255,255,255,.97)!important;color:#26374d!important;border:1px solid #dfe7f0!important;box-shadow:0 14px 38px rgba(15,23,42,.17)!important;backdrop-filter:blur(20px)}
+#cnvMapToolbar #searchCandidatesDropdown button{background:#f7f9fc!important;border:1px solid #e4eaf1!important;color:#293e58!important;border-radius:12px!important;padding:11px!important;min-height:40px!important}
+#cnvMapToolbar #searchCandidatesDropdown :is(div,span,strong)[style*="color:#fff"],
+#cnvMapToolbar #searchCandidatesDropdown :is(div,span,strong)[style*="color:#94a3b8"]{color:#536780!important}
+</style>
 </head>
 <body>
 
