@@ -15,6 +15,74 @@ const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
 const pending=i=>!done(i)&&i.c.obraStatus!=="no_apto";
 const callable=i=>pending(i)&&(!Number(i.c.nextContactAt)||Number(i.c.nextContactAt)<=Date.now());
+
+/* Las oportunidades son recomendaciones, nunca reservas. Solo se usan datos del equipo visible. */
+const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+const town=i=>norm(i?.z?.town);
+function street(i){
+ const original=String(i?.c?.street||"").trim();
+ if(!original)return "";
+ if(typeof normalizeStreetClusterKey==="function")return norm(normalizeStreetClusterKey(original));
+ return norm(original).replace(/^(calle|c\/|avenida|avda\.?|plaza|paseo|travesia)\s+/,"").replace(/\b(nº|num\.?|numero|portal|piso)\b.*$/,"").replace(/\d+.*$/,"").trim();
+}
+const sameStreet=(a,b)=>!!(street(a)&&street(a)===street(b)&&town(a)&&town(a)===town(b));
+const sameTown=(a,b)=>!!(town(a)&&town(a)===town(b));
+function geo(i){
+ try{if(typeof routePoint!=="function")return null;
+ const p=routePoint(i.z,i.c);return p&&Number.isFinite(p.lat)&&Number.isFinite(p.lon)?p:null;
+ }catch{return null;}
+}
+function km(a,b){
+ const p=geo(a),q=geo(b);
+ if(!p||!q)return null;
+ if(typeof routeDistance==="function")return routeDistance(p,q);
+ return null;
+}
+function clusters(rows){
+ const groups=new Map();
+ rows.filter(callable).forEach(item=>{
+  const k=town(item)+"|"+street(item);
+  if(!town(item)||!street(item))return;
+  if(!groups.has(k))groups.set(k,[]);
+  groups.get(k).push(item);
+ });
+ return [...groups.values()].filter(group=>group.length>=2).sort((a,b)=>b.length-a.length||String(a[0].date).localeCompare(String(b[0].date)));
+}
+function existing(date,team){
+ if(typeof routeRecords!=="function")return [];
+ return routeRecords(date).filter(r=>Number(r.c?.obraEquipoInstalacion)===team||![2,3].includes(Number(r.c?.obraEquipoInstalacion))).map(r=>({z:r.z,c:r.c,slot:r.slot}));
+}
+function logistics(item,date,time,team){
+ const index=SLOTS.findIndex(s=>s[0]===time),rows=existing(date,team).filter(r=>r.c!==item.c);
+ const nearby=rows.filter(r=>r.slot===index-1||r.slot===index+1);
+ const same=nearby.find(r=>sameStreet(item,r));
+ if(same)return{rank:0,label:"Misma calle",detail:"Continuidad con una obra contigua · Equipo "+team};
+ const exact=nearby.map(r=>({r,dist:km(item,r)})).filter(v=>v.dist!==null).sort((a,b)=>a.dist-b.dist)[0];
+ if(exact&&exact.dist<=2)return{rank:1,label:"Muy cerca",detail:"A "+exact.dist.toFixed(1).replace(".",",")+" km en línea recta de una obra contigua (no tiempo de viaje)"};
+ const townMatch=nearby.find(r=>sameTown(item,r));
+ if(townMatch)return{rank:2,label:"Mismo municipio",detail:"Otra obra contigua en "+(item.z.town||"el municipio")};
+ if(exact&&exact.dist<=8)return{rank:3,label:"Zona próxima",detail:"A "+exact.dist.toFixed(1).replace(".",",")+" km en línea recta; revisar desplazamiento"};
+ if(rows.length)return{rank:5,label:"Hueco libre",detail:"Existen otras obras del equipo ese día; comprobar desplazamiento"};
+ return{rank:4,label:"Jornada nueva",detail:"Equipo sin obras locales asignadas ese día"};
+}
+const candidateOf=i=>!!(i&&callable(i)&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim()));
+function firstRecommended(){
+ const candidates=all().filter(candidateOf),groups=clusters(candidates);
+ return groups.length?groups[0][0]:candidates[0]||null;
+}
+function opportunityCards(parent,candidates){
+ const groups=clusters(candidates);
+ if(!groups.length)return;
+ const block=card(parent);title(block,"Oportunidades detectadas","Agrupaciones potenciales por calle. No son reservas confirmadas.");
+ groups.slice(0,4).forEach(group=>{
+  const first=group[0],line=e("div","koc-opportunity",undefined,block);
+  const wrap=e("div","koc-opportunity-text",undefined,line);
+  e("strong","",first.c.street.replace(/\d+.*$/,"").trim()+" · "+(first.z.town||"Localidad"),wrap);
+  e("small","",group.length+" captaciones por llamar · Priorizar hasta cuatro franjas consecutivas por equipo",wrap);
+  line.append(button("Llamar primero",()=>open(group[0]),"koc-quiet"));
+ });
+}
+
 function resolve(){if(!current)return null;return all().find(x=>x.key===current.key)||null;}
 function root(){
  let r=document.getElementById(ID);if(r)return r;
@@ -32,7 +100,7 @@ function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
 function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
 function open(item){current={key:item.key};view="client";draw();}
-function next(){const row=all().find(i=>callable(i)&&i.key!==current?.key);if(row)open(row);else{view="list";draw();}}
+function next(){const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||firstRecommended()||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
  e("small","",(item.z.town||"Sin municipio")+" · "+(item.c.street||"Sin calle"),txt);
@@ -47,8 +115,10 @@ function draw(){
   const counts=e("div","koc-counts",undefined,body);
   [["Clientes",items.length],["Por llamar",todo.length],["Obras agendadas",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
   if(currentUserRole==="jefe"){const s=e("select","koc-input",undefined,body);[["mine","Mis clientes"],["team","Todo mi equipo"]].forEach(([value,label])=>{const o=e("option","",label,s);o.value=value;});s.value=scope;s.onchange=()=>{scope=s.value;draw();};}
-  if(todo.length)body.append(button("Empezar con "+(todo[0].c.name||"la primera ficha"),()=>open(todo[0]),"koc-primary"));
-  const list=card(body);title(list,"Clientes pendientes",todo.length+" fichas para gestionar");
+  const suggested=firstRecommended();
+  if(suggested)body.append(button("Llamar a "+(suggested.c.name||"primer cliente recomendado"),()=>open(suggested),"koc-primary"));
+  opportunityCards(body,todo);
+  const list=card(body);title(list,"Clientes pendientes",todo.length+" fichas para gestionar · Prioriza las agrupaciones");
   todo.forEach(i=>row(list,i));
   if(!todo.length)e("p","koc-muted","No hay llamadas vencidas. Los recordatorios futuros permanecen guardados.",list);
   if(deferred.length){const waits=e("details","koc-closed",undefined,body);e("summary","","Seguimientos futuros ("+deferred.length+")",waits);deferred.forEach(i=>row(waits,i));}
@@ -63,6 +133,8 @@ function draw(){
   const sheet=card(body);
   const facts=[["Teléfono",c.phone||"Sin teléfono"],["Captación",item.date||"Sin fecha"],["Superficie",c.m2?String(c.m2)+" m²":"Sin superficie"],["Estado",booked(item)?"Obra agendada":c.callStatus||"Por llamar"]];
   facts.forEach(([k,v])=>{const line=e("div","koc-fact",undefined,sheet);e("span","",k,line);e("strong","",v,line);});
+  const group=all().filter(x=>callable(x)&&sameStreet(item,x));
+  if(group.length>1){const hint=card(body);e("strong","","Oportunidad · Misma calle",hint);e("p","koc-muted",group.length+" viviendas por llamar en esta calle. Conviene proponer franjas del mismo día y equipo antes de abrir otra ruta.",hint);}
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
   if(booked(item)){
    body.append(button("Ver confirmación y WhatsApp",()=>{view="whatsapp";draw();},"koc-primary"));
@@ -104,6 +176,12 @@ function draw(){
   if(![c.name,c.street,c.phone].every(v=>String(v||"").trim())){body.append(show("Completa nombre, calle y teléfono desde la ficha antes de reservar."));return;}
   const dateBox=card(body);e("label","","Día de instalación",dateBox);
   const input=e("input","koc-input",undefined,dateBox);input.type="date";input.min=tomorrow();input.value=chosenDate||tomorrow();
+  const advice=e("section","koc-card",undefined,body);
+  e("strong","","Recomendación logística",advice);
+  e("p","koc-muted","Priorizaremos los huecos junto a obras del mismo equipo y la misma calle. Puedes elegir otra fecha si el cliente no puede.",advice);
+  const recButton=button("Buscar las mejores opciones de los próximos 7 días",()=>recommendDays(item,body),"koc-primary");
+  advice.append(recButton);
+  const proposals=e("div","koc-recommendations",undefined,advice);proposals.id="koc-recommendations";
   const board=e("div","koc-slots",undefined,body);
   const info=e("p","koc-muted","",body);
   input.onchange=()=>{chosenDate=input.value;loadSlots(board,info);};
@@ -131,30 +209,69 @@ function draw(){
   body.append(button("Siguiente cliente",next,"koc-primary"));
  }
 }
-async function loadSlots(board,info){
- const thisSeq=++seq;board.replaceChildren();selectedSlot="";selectedTeam=0;
+async function availableChoices(item,d){
+ const data=await consultarKonsorFecha(d);
+ const old=typeof routeRecords==="function"?routeRecords(d):[];
+ const choices=[];
+ SLOTS.forEach(([from,to],slotIdx)=>[2,3].forEach(team=>{
+  const slot=data[String(team)]?.find(x=>x.horario===from+"-"+to);
+  const localBusy=old.some(x=>x.slot===slotIdx&&(![2,3].includes(Number(x.c?.obraEquipoInstalacion))||Number(x.c?.obraEquipoInstalacion)===team)&&x.c!==item.c);
+  if(slot?.libre!==true||localBusy)return;
+  const plan=logistics(item,d,from,team);
+  choices.push({date:d,time:from,to,team,...plan});
+ }));
+ return choices.sort((a,b)=>a.rank-b.rank||a.time.localeCompare(b.time)||a.team-b.team);
+}
+async function recommendDays(item,body){
+ const panel=body.querySelector("#koc-recommendations");if(!panel)return;
+ const ticket=++seq;panel.replaceChildren();e("p","koc-muted","Consultando agendas de los equipos 2 y 3…",panel);
+ try{
+  const days=[];let day=new Date(tomorrow()+"T12:00:00");
+  while(days.length<7){const d=[day.getFullYear(),String(day.getMonth()+1).padStart(2,"0"),String(day.getDate()).padStart(2,"0")].join("-");if(day.getDay()!==0)days.push(d);day.setDate(day.getDate()+1);}
+  // Peticiones concurrentes controladas; cualquier fallo deja las opciones sin verificar fuera de la lista.
+  const results=await Promise.allSettled(days.map(d=>availableChoices(item,d)));
+  if(ticket!==seq||view!=="calendar"||resolve()?.key!==item.key)return;
+  const options=results.flatMap((r,i)=>r.status==="fulfilled"?r.value.map(v=>({...v,day:i})):[])
+   .sort((a,b)=>a.rank-b.rank||a.day-b.day||a.time.localeCompare(b.time)).slice(0,8);
+  panel.replaceChildren();
+  if(!options.length){e("p","koc-muted","No hay propuestas verificadas para los próximos siete días. Prueba otra fecha manualmente.",panel);return;}
+  options.forEach(o=>{
+   const b=button(o.label+" · "+o.date+" · "+o.time+" · Equipo "+o.team,()=>{
+    chosenDate=o.date;selectedSlot="";selectedTeam=0;
+    const picker=body.querySelector('input[type="date"]');if(picker)picker.value=o.date;
+    const board=body.querySelector(".koc-slots"),info=body.querySelector(".koc-slots + .koc-muted");
+    if(board&&info)loadSlots(board,info,{time:o.time,team:o.team});
+   },"koc-suggestion");
+   e("small","",o.detail,b);panel.append(b);
+  });
+  const failures=results.filter(r=>r.status==="rejected").length;
+  if(failures)e("p","koc-muted",failures+" días no se pudieron verificar y no se han recomendado.",panel);
+ }catch(err){if(ticket===seq){panel.replaceChildren();e("p","koc-error","No se pudo calcular el plan: "+(err.message||"Error"),panel);}}
+}
+async function loadSlots(board,info,preferred=null){
+ const ticket=++seq;board.replaceChildren();selectedSlot="";selectedTeam=0;
  const next=document.getElementById("koc-continue");if(next)next.disabled=true;
  const d=chosenDate;
  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||d<tomorrow()||new Date(d+"T12:00:00").getDay()===0){info.textContent="Selecciona una fecha futura de lunes a sábado.";return;}
  info.textContent="Consultando disponibilidad real de KONSOR…";
  try{
-  if(typeof consultarKonsorFecha!=="function")throw Error("Servicio de disponibilidad no disponible.");
-  const data=await consultarKonsorFecha(d);if(thisSeq!==seq||view!=="calendar")return;
-  const old=typeof routeRecords==="function"?routeRecords(d):[];
-  let available=0;
-  SLOTS.forEach(([from,to])=>[2,3].forEach(team=>{
-   const slot=data[String(team)]?.find(x=>x.horario===from+"-"+to);
-   const localBusy=old.some(x=>x.slot===SLOTS.findIndex(s=>s[0]===from)&&(![2,3].includes(Number(x.c?.obraEquipoInstalacion))||Number(x.c?.obraEquipoInstalacion)===team)&&!(x.c===resolve()?.c));
-   if(slot?.libre!==true||localBusy)return;
-   available++;
-   const b=button(from+"–"+to+" · Equipo "+team,()=>{
-    selectedSlot=from;selectedTeam=team;board.querySelectorAll("button").forEach(x=>x.classList.toggle("selected",x===b));
+  const item=resolve();if(!item)return;
+  const options=await availableChoices(item,d);
+  if(ticket!==seq||view!=="calendar")return;
+  const ordered=preferred?options.sort((a,b)=>(a.time===preferred.time&&a.team===preferred.team?-1:0)-(b.time===preferred.time&&b.team===preferred.team?-1:0)):options;
+  ordered.forEach(o=>{
+   const b=button(o.time+"–"+o.to+" · Equipo "+o.team,()=>{
+    selectedSlot=o.time;selectedTeam=o.team;
+    board.querySelectorAll("button").forEach(x=>x.classList.toggle("selected",x===b));
     const confirm=document.getElementById("koc-continue");if(confirm)confirm.disabled=false;
-   },"koc-slot");board.append(b);
-  }));
-  info.textContent=available?available+" opciones libres para ese día.":"No hay equipos disponibles. Elige otro día.";
- }catch(err){if(thisSeq===seq)info.textContent="No se ha podido comprobar KONSOR: "+(err.message||"Error de conexión")+". No se puede reservar sin verificar.";}
+   },"koc-slot");
+   e("small","",o.label,b);board.append(b);
+   if(preferred&&preferred.time===o.time&&preferred.team===o.team)b.click();
+  });
+  info.textContent=ordered.length?ordered.length+" franjas verificadas y ordenadas por proximidad; revisa el desplazamiento antes de confirmar.":"No hay equipos disponibles. Elige otro día.";
+ }catch(err){if(ticket===seq)info.textContent="No se ha podido comprobar KONSOR: "+(err.message||"Error de conexión")+". No se puede reservar sin verificar.";}
 }
+
 async function saveCall(status){
  const row=resolve();if(!row||busy)return;busy=true;
  try{
