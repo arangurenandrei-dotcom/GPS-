@@ -97,9 +97,10 @@ function preferGroupDate(item,date,time,team){
 function groupDateLabel(date){
  try{return new Date(date+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}catch{return date;}
 }
-async function renderGroupAgenda(body){
+async function renderGroupAgenda(body,insertBefore=null){
  const ticket=++clusterSeq,group=groupRows();
  const host=e("section","koc-card koc-group-schedule",undefined,body);
+ if(insertBefore&&insertBefore.parentNode===body)body.insertBefore(host,insertBefore);
  e("h3","","Agenda del equipo",host);
  e("p","koc-muted","Primero se muestran las reservas confirmadas. Las propuestas azules aún no son citas: confirma cada cliente por teléfono.",host);
  const controls=e("div","koc-group-controls",undefined,host);
@@ -162,8 +163,9 @@ async function renderGroupAgenda(body){
  if(group.some(x=>clusterStatus(x)==="deferred"))e("p","koc-muted","Algunos vecinos tienen un seguimiento programado para más adelante y no se proponen para llamar ahora.",host);
 }
 function renderGroupAgendaReplace(body,previous){
+ const next=previous?.nextSibling||null;
  if(previous)previous.remove();
- renderGroupAgenda(body);
+ renderGroupAgenda(body,next);
 }
 function renderGroup(body){
  const group=groupRows();
