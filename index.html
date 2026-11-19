@@ -3285,6 +3285,7 @@ function openUserProfileModal() {
       isDrawingMode = true;
       isPuebloDrawingMode = true;
       window.cnvShowMap?.();
+      window.cnvMapDrawingState?.({mode:'town',points:0});
       document.getElementById('drawingBanner').classList.add('active');
       document.getElementById('drawingBannerActionsRow').style.display='flex';
       const single=document.getElementById('btnToggleSingleHouseMode');
@@ -8370,6 +8371,7 @@ function renderBossPlan() {
       cancelDrawing();
       isDrawingMode = true;
       isRoofMeasureMode = true;
+      window.cnvMapDrawingState?.({mode:'roof',points:0,m2:0});
 
       // Si estaba en modo solo Catastro, vuelve a Satélite para medir el tejado con precisión
       if (isCatastroActive) toggleCatastroLayer();
@@ -11643,6 +11645,7 @@ function renderCommercialWorkDay() {
       isDrawingMode = true;
       isCropMode = false;
       isSingleHouseMode = false;
+      window.cnvMapDrawingState?.({mode:'sector',points:0});
 
       const banner = document.getElementById('drawingBanner');
       banner.className = 'banner-drawing active';
@@ -11817,6 +11820,8 @@ function renderCommercialWorkDay() {
       }
 
       tempPoints.push(pt);
+      window.cnvMapDrawingState?.({mode:isRoofMeasureMode?'roof':isPuebloDrawingMode?'town':'sector',
+        points:tempPoints.length,m2:isRoofMeasureMode&&tempPoints.length>=3?calculatePolygonAreaM2(tempPoints):0});
       const dotColor = isRoofMeasureMode ? '#3478f6' : '#3478f6';
       const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: dotColor, fillOpacity: 1 }).addTo(map);
       tempMarkers.push(m);
@@ -12354,6 +12359,7 @@ const labelStreet = clientObj.street ||
       }
 
       document.getElementById('drawingBanner').classList.remove('active');
+      window.cnvMapDrawingState?.({mode:null});
 
       if (isCropMode && selectedZoneIndexToDump !== null) {
         const z = savedZones[selectedZoneIndexToDump];
@@ -12404,7 +12410,8 @@ const labelStreet = clientObj.street ||
       isCropMode = false;
       isSingleHouseMode = false;
       isRoofMeasureMode = false;
-      tempPoints = [];
+      window.cnvMapDrawingState?.({mode:null});
+      tempPoints = []
       tempMarkers.forEach(m => map.removeLayer(m));
       tempMarkers = [];
       if (measurePolygonLayer) {
