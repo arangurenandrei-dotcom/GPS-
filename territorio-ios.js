@@ -11,7 +11,7 @@ const btn=(label,fn,kind="")=>{const n=$("button","cn-btn "+kind,label);n.type="
 const norm=t=>String(t||"").trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
 const nval=n=>Math.max(0,Number(n)||0);
 function currentTeam(z){
- try {return typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial);}
+ try {return typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName);}
  catch(e){return false;}
 }
 function pueblos(){
@@ -290,7 +290,8 @@ function render(){
  const p=puebloAbierto?data.find(p=>p.key===puebloAbierto):null;
  if(p){renderDetail(body,p);return;}
  const active=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&currentTeam(z)&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&z.status!=="completada");
- const teamNames=(typeof getActiveTeamUsers==="function"?getActiveTeamUsers(false):["Andrei (Jefe)","Comercial 1","Comercial 2","Comercial 3","Comercial 4","Comercial 5"]).filter(name=>name&&name!=="Andrei (Jefe)"&&!String(name).startsWith("Mikel")&&!String(name).startsWith("Comercial Mikel"));
+ const mikel=typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName);
+ const teamNames=(typeof getActiveTeamUsers==="function"?getActiveTeamUsers(mikel):mikel?["Mikel (Jefe)","Mikel Com. 1","Mikel Com. 2","Mikel Com. 3","Mikel Com. 4","Mikel Com. 5"]:["Andrei (Jefe)","Comercial 1","Comercial 2","Comercial 3","Comercial 4","Comercial 5"]).filter(name=>name&&name!==currentUserName);
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
  const planning=el("details","cn-summary",undefined,body);
  el("summary","cn-section-title","Planificación del equipo · Ver detalles",planning);
@@ -359,6 +360,6 @@ function render(){
  },"outline"));
  notice(body,"Primero dibuja el perímetro de un pueblo. Después ábrelo y dibuja dentro los sectores que asignarás a los comerciales.");
 }
-window.openCnTerritory=function(nombre){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=typeof nombre==="string"?norm(nombre):null;filtro="pendientes";textoBusqueda="";const root=modal();render();root.classList.add("active");};
+window.openCnTerritory=function(nombre){if(!["Andrei (Jefe)","Mikel (Jefe)"].includes(currentUserName))return;puebloAbierto=typeof nombre==="string"?norm(nombre):null;filtro="pendientes";textoBusqueda="";const root=modal();render();root.classList.add("active");};
 window.refreshCnTerritory=function(){if(document.getElementById("cnTerritorio")?.classList.contains("active"))render();};
 })();
