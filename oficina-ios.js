@@ -24,7 +24,8 @@ function state(){
  const ordered=streetFinished.concat(lateUnstarted).sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999"));
  const pending=cc.filter(x=>!booked(x.c)&&!excluded(x.c));
  const incomplete=pending.filter(x=>!complete(x.c));
- return {zz,cc,open,late,unuploaded:ordered,streetFinished,pending,incomplete,booked:cc.filter(x=>booked(x.c)),scheduled:cc.filter(x=>x.c.obraStatus==="agendada")};
+ const invalid=cc.filter(x=>x.c.captacionInvalida);
+ return {zz,cc,open,late,unuploaded:ordered,streetFinished,pending,incomplete,invalid,booked:cc.filter(x=>booked(x.c)),scheduled:cc.filter(x=>x.c.obraStatus==="agendada")};
 }
 function root(){
  let r=document.getElementById("cnOficina");if(r)return r;
@@ -60,7 +61,7 @@ function render(){
   const steps=card(body,"RECORRIDO DE OFICINA","Cuatro momentos, una sola secuencia");
   [
    ["01 · Volcar hojas",s.streetFinished.length+" calles terminadas · "+s.unuploaded.length+" sectores por revisar","volcados"],
-   ["02 · Revisar fichas",s.incomplete.length+" incompletas","clients"],
+   ["02 · Revisar fichas",s.incomplete.length+" incompletas · "+s.invalid.length+" sin teléfono válido","clients"],
    ["03 · Llamar y agendar",s.pending.length+" pendientes · "+s.scheduled.length+" citas programadas","calls"],
    ["04 · Revisar y cerrar",s.booked.length+" registros con obra programada o realizada","review"]
   ].forEach(([a,b,dest])=>line(steps,a,b,"Abrir",()=>{if(dest==="clients")openSearch();else if(dest==="calls")openCalls();else{section=dest;render();}}));
