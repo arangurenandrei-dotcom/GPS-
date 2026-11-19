@@ -60,3 +60,19 @@
 .kd-compare-row span{color:#5f7288}
 .kd-compare-row strong{text-align:right;color:#273a52;font-weight:720;font-variant-numeric:tabular-nums}
 @media(max-width:390px){.kd-compare-team{padding:13px 11px}.kd-compare-team strong{font-size:29px}.kd-compare-row{font-size:11.5px}}
+
+
+/* Dirección compacta: misma gramática visual que el Inicio del comercial. */
+.kd-overlay .kd-nav-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kd-overlay .kd-nav-tile{appearance:none;-webkit-appearance:none;min-width:0;width:100%;min-height:110px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:12px;text-align:left;border-radius:20px;padding:17px 15px;background:rgba(255,255,255,.95)!important;border:1px solid #e1e7ef!important;box-shadow:0 2px 9px rgba(20,34,53,.035);cursor:pointer;color:#263449}
+.kd-overlay .kd-nav-tile .kd-nav-title{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;width:100%;color:#263449}
+.kd-overlay .kd-nav-tile .kd-nav-title strong{font-size:15px;line-height:1.25;letter-spacing:-.015em}
+.kd-overlay .kd-nav-tile .kd-nav-chevron{font-size:22px;font-weight:400;line-height:1;color:#a3adba}
+.kd-overlay .kd-nav-tile .kd-nav-description{font-size:12px;color:#788699;line-height:1.4}
+.kd-overlay .kd-nav-tile:active{background:#edf2f8!important;transform:scale(.985)}
+.kd-overlay .kd-nav-tile:focus-visible{outline:2px solid #41658c;outline-offset:2px}
+.kd-overlay .kd-nav-secondary{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.kd-overlay .kd-nav-secondary .kd-nav-tile{min-height:72px}
+.kd-overlay .kd-more{border-radius:19px;border:1px solid #e1e7ef;background:#fff}
+.kd-overlay .kd-more summary{font-size:13px;color:#344962}
+@media(max-width:370px){.kd-overlay .kd-nav-grid{gap:8px}.kd-overlay .kd-nav-tile{padding:13px 11px;min-height:105px}.kd-overlay .kd-nav-title strong{font-size:13px}}
