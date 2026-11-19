@@ -89,10 +89,10 @@ function render(){
   groups.forEach(g=>{
    const row=el("label","cng-field",undefined,ui);el("span","",g.name,row);
    const input=el("input","",undefined,row);input.type="number";input.min="0";input.max=String(total);input.step="1";input.value=String(plan[g.key]||0);
-   input.addEventListener("input",()=>{plan[g.key]=Math.max(0,Math.min(total,Math.floor(Number(input.value)||0)));const stat=ui.querySelector("#cngTotalTipos");if(stat)stat.textContent=planTotal()+" de "+total+" interesados distribuidos";});
+   input.addEventListener("input",()=>{plan[g.key]=Math.max(0,Math.min(total,Math.floor(Number(input.value)||0)));const stat=ui.querySelector("#cngTotalTipos");if(stat)stat.textContent=planTotal()+" de "+total+" interesados distribuidos";const next=ui.querySelector("#cngNextTypes");if(next)next.disabled=planTotal()!==total;});
   });
   const state=summary(ui,planTotal()+" de "+total+" interesados distribuidos","La suma debe coincidir con los síes.");state.querySelector("strong").id="cngTotalTipos";
-  ui.append(button("Continuar · Direcciones",()=>{try{applyTypes();groupIndex=0;step=2;render();}catch(e){alert(e.message);}},"primary"));
+  const next=button("Continuar · Direcciones",()=>{try{applyTypes();groupIndex=0;step=2;render();}catch(e){alert(e.message);}},"primary");next.id="cngNextTypes";next.disabled=planTotal()!==total;ui.append(next);
  }else if(step===2){
   const active=planGroups();if(!active.length){step=3;render();return;}
   const g=active[Math.min(groupIndex,active.length-1)],set=members(g);
