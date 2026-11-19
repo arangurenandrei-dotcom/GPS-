@@ -294,3 +294,30 @@ body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool{
 body.cnv-map-active #cnvMapToolbar:has(.cnv-drawing-panel.active) .cnv-map-controls{
  bottom:calc(env(safe-area-inset-bottom) + 166px)!important;
 }
+
+/* Barra de herramientas: círculos compactos en columna al lado derecho del buscador. */
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls{
+ top:calc(env(safe-area-inset-top) + 146px)!important;
+ bottom:auto!important;
+ right:max(7px,env(safe-area-inset-right))!important;
+ width:44px!important;
+ max-height:calc(100dvh - env(safe-area-inset-top) - 173px)!important;
+ overflow-y:auto!important;
+ align-items:center!important;
+ gap:8px!important;
+}
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool{
+ width:43px!important;height:43px!important;min-height:43px!important;
+ border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;
+ padding:0!important;flex:0 0 43px!important;box-shadow:0 3px 15px rgba(20,30,45,.11)!important;
+}
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool .cnv-icon{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+}
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool .cnv-icon svg{
+ width:20px!important;height:20px!important;
+}
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool span:not(.cnv-icon){display:none!important}
+body.cnv-map-active #cnvMapToolbar:has(.cnv-drawing-panel.active) .cnv-map-controls{
+ top:calc(env(safe-area-inset-top) + 146px)!important;bottom:auto!important;
+}
