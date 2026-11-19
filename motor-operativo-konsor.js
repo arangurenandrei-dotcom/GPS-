@@ -20,9 +20,10 @@ const clients=team=> (team?territory():own()).flatMap(z=>(z.clients||[]).filter(
 const shift=()=>typeof getTodayShift==="function"?getTodayShift(me()):null;
 const booked=c=>["agendada","realizada"].includes(c.obraStatus);
 const rejected=c=>c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
-const incomplete=c=>!c.name?.trim()||!c.street?.trim()||!c.phone?.trim()||!!c.captacionInvalida;
+const isContact=c=>!c.captacionRespuesta||c.captacionRespuesta==="si";
+const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!c.phone?.trim()||!!c.captacionInvalida);
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
-const dueCall=c=>!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
+const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
 const unfinished=z=>z.status!=="completada"&&!z.streetCompletedAt;
 const pendingDump=z=>z.streetCompletedAt&&!z.dumpDate||(z.date&&z.date<today()&&!z.dumpDate&&!z.streetCompletedAt&&z.status!=="completada");
 const sorted=rows=>rows.slice().sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")||String(a.town).localeCompare(String(b.town)));
@@ -106,10 +107,10 @@ const openClient=()=>window.openCnClients?.();
 const openCalls=()=>window.openKonsorOfficeClients?.();
 function officeState(){
  const list=own(),cc=clients(false),pending=sorted(list.filter(pendingDump));
- const needFix=cc.filter(({c})=>incomplete(c)&&!rejected(c));
- const waits=cc.filter(({c})=>!booked(c)&&!rejected(c)&&!incomplete(c)&&waitDue(c));
+ const needFix=cc.filter(({c})=>isContact(c)&&incomplete(c)&&!rejected(c));
+ const waits=cc.filter(({c})=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&waitDue(c));
  const calls=cc.filter(({c})=>dueCall(c)&&!waitDue(c));
- const deferred=cc.filter(({c})=>!booked(c)&&!rejected(c)&&Number(c.nextContactAt)>Date.now());
+ const deferred=cc.filter(({c})=>isContact(c)&&!booked(c)&&!rejected(c)&&Number(c.nextContactAt)>Date.now());
  const town=new Map();
  for(const z of list){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
  return {pending,needFix,waits,calls,deferred,cc,town:[...town.values()]};
