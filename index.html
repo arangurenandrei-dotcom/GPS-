@@ -4423,8 +4423,12 @@ function openWorkMenu(title, description, actions) {
       </div>
     `;
 
-    document.getElementById('appContainer').appendChild(modal);
+    modal.style.zIndex='11080';
+    document.body.appendChild(modal);
   }
+  // Mantener los menús por encima de Inicio, buscador y herramientas del mapa.
+  if(modal.parentElement!==document.body)document.body.appendChild(modal);
+  modal.style.zIndex='11080';
 
   document.getElementById('workNavigationTitle').textContent = title;
   document.getElementById('workNavigationDescription').textContent =
@@ -12455,7 +12459,10 @@ const labelStreet = clientObj.street ||
         const centerLat = sumLat / tempPoints.length;
         const centerLon = sumLon / tempPoints.length;
 
-        document.getElementById('assignModal').classList.add('active');
+        const assignOverlay=document.getElementById('assignModal');
+        if(assignOverlay.parentElement!==document.body)document.body.appendChild(assignOverlay);
+        assignOverlay.style.zIndex='11090';
+        assignOverlay.classList.add('active');
         const agenda = document.getElementById('assignDate');
         const responsible = document.getElementById('assignComercial');
         if (agenda && responsible) {
@@ -12876,6 +12883,8 @@ function suggestSectorDateFor(comercial) {
     }
 
     function abrirPanelPuebloManual(nombre) {
+      window.openCnTerritory?.(nombre);
+      return;
       const sectores = sectoresDePuebloManual(nombre);
       const grupos = new Map();
 
@@ -19549,12 +19558,12 @@ function openCommercialStatsModalLegacy() {
       }
     };
   </script>
-<script src="./territorio-ios.js?v=8"></script>
+<script src="./territorio-ios.js?v=9"></script>
 <script src="./oficina-ios.js?v=8"></script>
 <script src="./operaciones-ios.js?v=12"></script>
 <link rel="stylesheet" href="./resultados-unificados-ios.css?v=1">
 <script src="./resultados-ios.js?v=5"></script>
-<script src="./inicio-ios.js?v=10"></script>
+<script src="./inicio-ios.js?v=11"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=3">
 <script src="./direccion-hub-ios.js?v=6"></script>
 <script src="./volcado-guiado-ios.js?v=4"></script>
@@ -19563,7 +19572,7 @@ function openCommercialStatsModalLegacy() {
 <script src="./jornadas-seguimiento.js?v=konsor-v5"></script>
 <link rel="stylesheet" href="./oficina-llamadas-obras-v2.css?v=10">
 <link rel="stylesheet" href="./konsor-legacy-light.css?v=1">
-<link rel="stylesheet" href="./ios-unified.css?v=6">
+<link rel="stylesheet" href="./ios-unified.css?v=7">
 <script src="./oficina-llamadas-obras-v2.js?v=16"></script>
 <script src="./asignaciones-zonas-ios.js?v=1"></script>
 <script src="./avisos-app.js?v=9"></script>
