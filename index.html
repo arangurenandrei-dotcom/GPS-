@@ -8175,10 +8175,22 @@ function renderBossPlan() {
           needle.style.transform = `rotate(${-map.getBearing()}deg)`;
         }
       });
-      ignSatelliteLayer = L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', {
+      const sateliteIGN = L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', {
         maxNativeZoom: 19,
         maxZoom: 20
-      }).addTo(map);
+      });
+      const ortofotoNavarra = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
+        layers: 'ortofoto_maxima_actualidad,ortofoto_500_2025',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        detectRetina: true,
+        minZoom: 17,
+        maxZoom: 20,
+        bounds: [[41.90, -2.53], [43.33, -1.03]],
+        attribution: 'Ortofoto: Gobierno de Navarra · IDENA',
+      });
+      ignSatelliteLayer = L.layerGroup([sateliteIGN, ortofotoNavarra]).addTo(map);
 
       // Capa agrupada oficial de Catastro de Navarra (parcelas + edificaciones + subparcelas)
       catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
@@ -8581,7 +8593,7 @@ function renderBossPlan() {
       map.setView([c.lat, c.lon], zoomLvl, { animate: false });
 
       setTimeout(() => {
-        if (ignSatelliteLayer && isSatelliteActive) ignSatelliteLayer.redraw();
+        if (ignSatelliteLayer && isSatelliteActive) ignSatelliteLayer.eachLayer(layer => layer.redraw());
         if (catastroNavarraLayer && isCatastroActive) {
           catastroNavarraLayer.redraw();
           catastroNavarraLayer.bringToFront();
