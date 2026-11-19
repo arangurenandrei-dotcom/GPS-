@@ -155,3 +155,85 @@ body .modal-overlay .modal-card table th{font-weight:700;color:#273b53!important
 @media(prefers-reduced-motion:reduce){
  .cn-oficina button,.cn-territorio button,.cnx-modal button{transition:none!important}
 }
+
+/* KONSOR · renovación de herramientas y pantallas heredadas. */
+#appContainer .banner-drawing{
+ background:rgba(249,251,254,.93)!important;color:#213047!important;
+ border:1px solid rgba(170,185,206,.36)!important;border-radius:20px!important;
+ box-shadow:0 12px 32px rgba(32,49,70,.13)!important;
+ -webkit-backdrop-filter:blur(22px) saturate(1.4);
+ backdrop-filter:blur(22px) saturate(1.4);
+ padding:14px 15px!important;
+ font:600 13px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif!important;
+}
+#appContainer .banner-drawing button{
+ min-height:40px;border-radius:13px!important;font:650 12px/1.3 inherit!important;
+ background:#fff!important;color:#27364b!important;border:1px solid #dce5f0!important;
+ box-shadow:none!important;
+}
+#appContainer #btnConfirmSectorPoly{background:#27394f!important;color:#fff!important;border-color:#27394f!important}
+#appContainer .banner-drawing-top{align-items:center;gap:12px}
+#appContainer #drawingBannerText{font-size:13px;line-height:1.45;letter-spacing:-.01em;color:#27364b}
+#appContainer .leaflet-popup-content-wrapper{
+ background:rgba(252,253,255,.96)!important;color:#26374e!important;
+ border-radius:20px!important;padding:10px!important;border:1px solid rgba(191,205,224,.38)!important;
+ box-shadow:0 14px 40px rgba(26,44,67,.16)!important;
+ -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+}
+#appContainer .leaflet-popup-tip{background:#fbfcff!important}
+#appContainer .leaflet-popup-content{font:500 12px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif!important;color:#35465d!important;margin:8px 10px!important}
+#appContainer .popup-zone-title{color:#1c2939!important;font-size:14px!important;font-weight:700!important}
+#appContainer .popup-zone-sub{color:#66778d!important;font-size:11px!important}
+#appContainer .btn-popup-open,#appContainer .leaflet-popup-content a[href],#appContainer .leaflet-popup-content button{
+ display:block!important;border-radius:13px!important;text-align:center!important;
+ background:#eef4fc!important;color:#244668!important;border:1px solid #d8e5f4!important;
+ padding:10px 12px!important;text-decoration:none!important;font-size:12px!important;font-weight:650!important;
+ box-shadow:none!important;min-height:42px;
+}
+#appContainer .leaflet-popup-content a[href]:focus-visible{outline:2px solid #3478f6;outline-offset:3px}
+.cn-measure-result{width:min(100%,410px)!important;margin:auto!important;padding:23px!important;display:flex;flex-direction:column;gap:12px}
+.cn-measure-value{font-size:40px;font-weight:730;letter-spacing:-.05em;text-align:center;color:#172b45;line-height:1.2;padding:18px;background:#f1f6fc;border-radius:19px}
+.cn-measure-note{font-size:12px;line-height:1.55;color:#5e6e83}
+.cn-measure-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cn-measure-actions button{flex:1 1 40%;background:#fff;color:#24374e;border:1px solid #dce5f0;border-radius:13px;min-height:45px;font-weight:650}
+.cn-measure-actions button:first-child{background:#273a53;color:#fff}
+#bossPlanModal .modal-card,#bossTaskEditor .modal-card,#mikelRadarModal .modal-card,#auditModal .modal-card,
+#peopleManagementModal .modal-card{
+ background:#f7f9fc!important;color:#24354b!important;border:1px solid #e5eaf0!important;
+ border-radius:24px!important;
+ box-shadow:0 18px 50px rgba(25,43,61,.13)!important;
+}
+#bossPlanModal .modal-header,#mikelRadarModal .modal-header,#auditModal .modal-header{
+ color:#1f3149!important;background:transparent!important;
+ border-bottom:1px solid #e2eaf3!important;
+}
+#bossPlanModal .modal-scrollable-content,#mikelRadarModal .modal-scrollable-content,#auditModal .modal-scrollable-content{
+ background:#f7f9fc!important;color:#354963!important;
+}
+#bossPlanModal #bossPlanBody button,
+#bossTaskEditor button,#auditModal .tab-btn,#auditModal .subtab-btn,
+#mikelRadarModal .tab-btn,#mikelRadarModal .subtab-btn{
+ background:#fff!important;color:#29415b!important;border:1px solid #dfe7f0!important;
+ border-radius:13px!important;min-height:42px!important;box-shadow:none!important;
+ font:650 12px/1.4 -apple-system,BlinkMacSystemFont,system-ui,sans-serif!important;
+ padding:10px 12px!important;
+}
+#bossPlanModal #bossPlanBody button:focus-visible,#auditModal .tab-btn:focus-visible,#mikelRadarModal .subtab-btn:focus-visible{
+ outline:2px solid #3478f6!important;outline-offset:2px!important;
+}
+#bossPlanModal #bossPlanBody :is(article,section,details,aside),
+#peopleManagementModal .modal-scrollable-content :is(article,section),
+#auditModal .modal-scrollable-content :is(article,section){
+ border-radius:17px!important;
+}
+#dumpModal .cng-sheet,#singleHouseModal .cn-house-wizard,
+#dumpModal .cng-summary,#singleHouseModal .cn-house-summary{
+ border-radius:18px!important;background:rgba(255,255,255,.95)!important;
+ border:1px solid #e3eaf3!important;box-shadow:none!important;color:#24364c!important;
+}
+#dumpModal .cng-advanced,#singleHouseModal .cn-house-advanced{border-radius:15px!important;background:#fff!important;border-color:#e5eaf1!important}
+#dumpModal .cng-advanced summary,#singleHouseModal .cn-house-advanced summary{font-size:12px!important;color:#64758b!important}
+@media(max-width:600px){
+ #appContainer .leaflet-popup-content-wrapper{max-width:calc(100vw - 46px)}
+ .cn-measure-result{max-width:calc(100vw - 24px)!important}
+}
