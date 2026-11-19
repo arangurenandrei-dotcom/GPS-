@@ -1,0 +1,42 @@
+
+/* KONSOR · Elementos de la secuencia comercial y de Dirección */
+.km-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));background:rgba(24,37,56,.36);-webkit-backdrop-filter:blur(15px);backdrop-filter:blur(15px);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+.km-page{width:min(100%,640px);max-height:95dvh;display:flex;flex-direction:column;overflow:hidden;border-radius:26px;background:#f5f7fa;color:#26364b;box-shadow:0 25px 80px rgba(15,25,42,.22);border:1px solid rgba(255,255,255,.9)}
+.km-head{background:rgba(255,255,255,.94);border-bottom:1px solid #e4e9f0;padding:18px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.km-head small{font-size:10px;color:#7b889a;font-weight:720;letter-spacing:.11em}
+.km-head h2{font-size:22px;font-weight:740;margin:4px 0 0;color:#24364a;letter-spacing:-.035em}
+.km-body{padding:17px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;min-height:0}
+.km-muted{color:#708198;font-size:12.5px;line-height:1.5;margin:0}
+.km-card{background:#fff;border:1px solid #e1e7ef;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:9px}
+.km-card h3{font-size:16px;margin:0;font-weight:730;color:#27384c}
+.km-kicker{color:#7c8b9d;font-size:10px;font-weight:760;letter-spacing:.09em}
+.km-btn{appearance:none;border-radius:13px;border:1px solid #dce5ef;background:#f0f4f8;color:#30465e;padding:11px 13px;font:650 13px/1.35 -apple-system,BlinkMacSystemFont,system-ui;min-height:44px;cursor:pointer}
+.km-btn.primary{background:#263b53;color:#fff;border-color:#263b53}.km-btn:disabled{opacity:.4;cursor:not-allowed}
+.km-btn.close{background:#eef2f7;border-radius:100%;font-size:25px;font-weight:400;width:39px;height:39px;min-height:39px;flex:none;padding:0;display:flex;justify-content:center;align-items:center}
+.km-actions{display:flex;flex-wrap:wrap;gap:8px}.km-actions>.km-btn{flex:1 1 130px}
+.km-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.km-stat{background:#fff;border:1px solid #e3e9f0;border-radius:15px;text-align:center;padding:13px 6px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.km-stat strong{font-size:22px;font-weight:740;color:#24384d;font-variant-numeric:tabular-nums}
+.km-stat small{font-size:10px;color:#7f8fa0}
+.km-progress{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:5px}
+.km-progress span{height:6px;background:#e1e7ed;border-radius:99px;text-indent:-9999px;overflow:hidden}
+.km-progress span.done{background:#90b6a5}.km-progress span.active{background:#344b65}
+.km-zoneform{background:#fafbfd;border:1px solid #e8ecf2;border-radius:15px;padding:11px;display:flex;flex-direction:column;gap:4px}
+.km-zoneform strong{font-size:14px}.km-zoneform small{font-size:12px;color:#8090a0}
+.km-formgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px}
+.km-field{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:630;color:#556a81}
+.km-input{width:100%;min-width:0;min-height:43px;border:1px solid #dce4ee!important;border-radius:12px;background:#fff!important;color:#27394e!important;padding:10px;font:500 13px/1.4 system-ui;box-sizing:border-box}
+.km-checkrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #e9eef4;font-size:13px}
+.km-checkrow input{width:19px;height:19px;flex:none}
+.km-barblock{display:flex;flex-direction:column;gap:5px;margin:3px 0}
+.km-barline{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#5e738a}
+.km-barline strong{font-size:12px;color:#304962}
+.km-bar{height:8px;background:#e7edf2;border-radius:99px;overflow:hidden}
+.km-barfill{height:100%;display:block;background:#6e93aa;border-radius:99px}
+.km-townline{border-bottom:1px solid #edf0f4;padding:8px 0;margin:0;font-size:13px;color:#475e76}
+.km-error,.km-warning,.km-good{font-size:12px;margin:0;line-height:1.4}
+.km-error{color:#a43c3c}.km-warning{color:#9a661e}.km-good{color:#157559}
+.km-planning-note{font-size:13px;color:#526a81}
+.km-lunch{max-width:440px}.km-lunch h2{font-size:23px;color:#253a51}
+.km-return{position:fixed;right:13px;bottom:max(18px,env(safe-area-inset-bottom));z-index:10380;border:1px solid #d7e1ec;border-radius:99px;background:#fff;color:#263b51;box-shadow:0 7px 25px rgba(28,48,77,.14);padding:12px 17px;font-size:13px;font-weight:700}
+@media(max-width:420px){.km-page{max-height:100dvh;border-radius:22px}.km-body{padding:12px}.km-head{padding:15px}.km-card{padding:13px}.km-btn{font-size:12px}}
