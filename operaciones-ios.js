@@ -204,7 +204,11 @@ function openClients(){
   }
   records.sort((a,b)=>Number(!(b.c.name&&b.c.phone&&b.c.street))-Number(!(a.c.name&&a.c.phone&&a.c.street))||(b.z.dumpDate||b.z.date||"").localeCompare(a.z.dumpDate||a.z.date||""));
   summary.textContent=records.length+" fichas encontradas"+(records.length>80?" · mostrando las primeras 80":"");
-  if(!records.length){$("p","cnx-empty","No hay coincidencias. Prueba con otra parte del nombre, teléfono o dirección.",results);return;}
+  if(!records.length){
+   const count=listZones().reduce((n,{z})=>n+(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).length,0);
+   $("p","cnx-empty",count?"No hay coincidencias en el filtro seleccionado. Revisa Mis clientes / Mi equipo o busca otra dirección.":"No aparecen clientes en los sectores cargados en esta sesión. Comprueba la conexión y que existan hojas sincronizadas.",results);
+   return;
+  }
   for(const item of records.slice(0,80)){
     const {c,z,idx}=item;
     const row=card(results,c.name||c.street||"Ficha sin nombre",[c.street,z.town].filter(Boolean).join(" · "));
@@ -225,7 +229,7 @@ function openCalls(){
  if(typeof window.openCnOffice==="function")window.openCnOffice();
 }
 window.openCnDay=openDay;
-window.openCnClients=()=>{query="";scope="mine";openClients();};
+window.openCnClients=()=>{query="";scope=currentUserRole==="jefe"?"team":"mine";openClients();};
 window.openKonsorClientDetail=(zoneIndex,clientIndex)=>{
  const z=Array.isArray(savedZones)?savedZones[zoneIndex]:null;
  const c=z?.clients?.[clientIndex];
