@@ -182,6 +182,7 @@ function openDayGuide(){
  if(!s)shiftBtn("Iniciar jornada","start","primary");
  else if(s.status==="working"){shiftBtn("Pausar para comer","lunch","");shiftBtn("Finalizar jornada","end","");}
  else if(s.status==="lunch")shiftBtn("Continuar después de comer","lunch","primary");
+ B(row,"Olvidé fichar o corregir hora",()=>safeOpen(()=>window.konsorCorregirJornada?.()));
  if(z){
   const last=z.date&&z.date<today();
   const d=card(body,last?"PRIORIDAD · DÍA ANTERIOR":"SIGUIENTE ZONA",z.sectorName||"Sector",z.town+" · "+(z.date||"Sin fecha"));
