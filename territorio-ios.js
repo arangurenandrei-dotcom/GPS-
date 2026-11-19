@@ -91,7 +91,7 @@ function openTownCreator(){
  const input=el("input","cn-search",undefined,content);
  input.type="search";input.placeholder="Nombre del pueblo (ej. Zizur Mayor)";
  input.setAttribute("aria-label","Buscar municipio");
- const state=el("p","cn-hint","Cargando municipios…",content);
+ const state=el("p","cn-hint","Escribe el pueblo y pulsa Buscar.",content);
  const list=el("div","cn-town-list",undefined,content);
  const manual=el("div","cn-actions",undefined,content);
  manual.append(btn("Delimitar manualmente en el mapa",()=>{
@@ -102,13 +102,13 @@ function openTownCreator(){
  function candidates(){
   const token=norm(input.value);
   list.replaceChildren();
-  if(!token){state.textContent=features.length+" municipios disponibles. Escribe un nombre para buscar.";return;}
-  const matches=features.filter(f=>norm(f.properties?.nombre||"").includes(token)).slice(0,16);
+  if(!token){state.textContent="Escribe un nombre y pulsa Buscar.";return;}
+  const matches=features.filter(f=>norm(f.properties?.nombre||"").includes(token)||norm(f.properties?.displayName||"").includes(token)).slice(0,12);
   state.textContent=matches.length?matches.length+" resultado(s). Selecciona el municipio correcto.":"No hay coincidencias. Prueba otra forma del nombre.";
   matches.forEach(f=>{
    const row=el("section","cn-town",undefined,list);
    el("strong","cn-town-name",f.properties.nombre,row);
-   el("p","cn-detail","Navarra · Perímetro municipal oficial",row);
+   el("p","cn-detail",f.properties.displayName||"Navarra · España",row);
    const action=btn("Seleccionar y crear pueblo",async()=>{
     if(action.disabled)return;
     action.disabled=true;
@@ -131,12 +131,30 @@ function openTownCreator(){
    row.append(action);
   });
  }
- input.addEventListener("input",candidates);
+ async function buscar(){
+  const query=input.value.trim();
+  if(query.length<2){state.textContent="Introduce al menos dos letras.";return;}
+  const request=++townSearchToken;
+  state.textContent="Buscando localidades y límites…";list.replaceChildren();
+  try{
+   const url="https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&polygon_geojson=1&limit=12&countrycodes=es&q="+encodeURIComponent(query+", Navarra, España");
+   const response=await fetch(url,{headers:{"Accept":"application/json"}});
+   if(!response.ok)throw Error("Servicio geográfico temporalmente no disponible.");
+   const rows=await response.json();
+   if(request!==townSearchToken)return;
+   features=rows.filter(x=>x.geojson&&["Polygon","MultiPolygon"].includes(x.geojson.type)).map(x=>({
+    properties:{nombre:x.name||x.address?.town||x.address?.village||query,displayName:x.display_name},
+    geometry:x.geojson
+   }));
+   if(!features.length){state.textContent="No se ha encontrado un perímetro para este pueblo. Puedes delimitarlo manualmente.";return;}
+   candidates();
+  }catch(e){state.textContent="No se pudo buscar: "+(e.message||e)+". Puedes utilizar la delimitación manual.";}
+ }
+ const searchAction=btn("Buscar localidades",buscar,"primary");
+ input.insertAdjacentElement("afterend",searchAction);
+ input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();buscar();}});
  overlay.addEventListener("click",e=>{if(e.target===overlay)close();});
- fetch("./municipios-navarra.geojson",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("No se pudo cargar la cartografía.");return r.json();}).then(data=>{
-  features=(data.features||[]).filter(f=>f.properties?.nombre&&f.geometry);
-  candidates();input.focus();
- }).catch(e=>{state.textContent="Sin cartografía automática: "+(e.message||e)+". Puedes delimitar el pueblo manualmente.";});
+ input.focus();
 }
 window.openKonsorTownCreator=openTownCreator;
 
