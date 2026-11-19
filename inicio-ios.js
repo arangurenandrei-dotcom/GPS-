@@ -88,7 +88,7 @@ function showHome(){
  const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
  tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>window.openCnDay?.());
- tile(grid,"Mapa","GPS, catastro y captación","map",()=>showMap());
+ tile(grid,"Mapa","GPS, parcelas y medición","map",()=>showMap());
  tile(grid,"Oficina","Volcados, clientes y obras","office",()=>window.openCnOffice?.());
  tile(grid,"Resultados","Cifras y Liga comercial","results",()=>window.openCnResults?.());
 
@@ -134,18 +134,13 @@ function makeMapBar(){
   ["gps","Mi GPS",()=>typeof centerOnUser==="function"&&centerOnUser()],
   ["layers","Catastro",()=>typeof setMapDisplay==="function"&&setMapDisplay("both")],
   ["map","Satélite",()=>typeof setMapDisplay==="function"&&setMapDisplay("satellite")],
-  ["ruler","Medir m²",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
-  ["pin","Parcela",()=>{if(typeof cancelDrawing==="function")cancelDrawing();const p=document.getElementById("cnvMapInstruction");if(p)p.textContent="Toca un tejado o parcela del mapa para consultar el catastro."; }],
+  ["ruler","Medir superficie",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
   ["gps","Norte",()=>typeof resetMapNorth==="function"&&resetMapNorth()]
  ];
  items.filter(([key])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["layers","ruler","pin"].includes(key))).forEach(([key,label,fn])=>{
   const b=btn("",fn,"cnv-map-tool");b.append(icon(key));el("span","",label,b);controls.append(b);
  });
- const second=el("div","cnv-map-actions",undefined,mapBar);
- second.append(btn("Nueva captación",()=>typeof startSingleHouseDirect==="function"&&startSingleHouseDirect(),"cnv-glass"));
- second.append(btn("Volcar hoja",()=>typeof openSelectZoneToDumpModal==="function"&&openSelectZoneToDumpModal(),"cnv-glass"));
- if(boss())second.append(btn("Nuevo sector",()=>typeof startSectorDrawing==="function"&&startSectorDrawing(),"cnv-dark"));
- el("p","cnv-map-tip","Toca una parcela para consultar su catastro.",mapBar).id="cnvMapInstruction";
+ el("p","cnv-map-tip","Toca una parcela para consultar Catastro. Para medir, marca las esquinas del tejado.",mapBar).id="cnvMapInstruction";
  return mapBar;
 }
 function showMap(){
