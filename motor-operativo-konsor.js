@@ -1,0 +1,184 @@
+/* KONSOR · Motor operativo guiado. Preserva los esquemas y guardados actuales. */
+(function(){
+"use strict";
+if(window.konsorMotor)return;
+const E=(tag,cls,txt,parent)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=String(txt);if(parent)parent.append(n);return n;};
+const B=(p,txt,fn,kind="")=>{const b=E("button","km-btn "+kind,txt,p);b.type="button";b.onclick=fn;return b;};
+const norm=s=>String(s||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ");
+const me=()=>typeof currentUserName==="string"?currentUserName:"";
+const isChief=()=>typeof currentUserRole!=="undefined"&&currentUserRole==="jefe";
+const isMikel=n=>String(n||"").startsWith("Mikel");
+const myTeam=z=>isMikel(z.comercial)===isMikel(me());
+const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
+const localISO=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+const isoOf=ms=>ms?localISO(new Date(Number(ms))):"";
+const zones=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
+const territory=()=>zones().filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&myTeam(z));
+const own=()=>territory().filter(z=>z.comercial===me());
+const validClient=c=>!!c&&(c.name||c.phone||c.street);
+const clients=team=> (team?territory():own()).flatMap(z=>(z.clients||[]).filter(validClient).map(c=>({c,z})));
+const shift=()=>typeof getTodayShift==="function"?getTodayShift(me()):null;
+const booked=c=>["agendada","realizada"].includes(c.obraStatus);
+const rejected=c=>c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
+const incomplete=c=>!c.name?.trim()||!c.street?.trim()||!c.phone?.trim()||!!c.captacionInvalida;
+const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
+const dueCall=c=>!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
+const unfinished=z=>z.status!=="completada"&&!z.streetCompletedAt;
+const pendingDump=z=>z.streetCompletedAt&&!z.dumpDate||(z.date&&z.date<today()&&!z.dumpDate&&!z.streetCompletedAt&&z.status!=="completada");
+const sorted=rows=>rows.slice().sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")||String(a.town).localeCompare(String(b.town)));
+function nextSector(){return sorted(own().filter(unfinished)).sort((a,b)=> {
+ const priority=z=>z.date&&z.date<today()?0:z.date===today()?1:2;
+ return priority(a)-priority(b)||(a.date||"9999").localeCompare(b.date||"9999");
+ })[0]||null;}
+function duration(t){const sec=(Number(t?.seconds)||0)+(Number(t?.activeSince)?Math.max(0,(Date.now()-Number(t.activeSince))/1000):0);return Math.round(sec/60);}
+function sessionAllowed(z){if(!z||z.comercial!==me()||z.isSingleHouse||z.isNoAptoZone)return false;return true;}
+async function saveZones(candidate){
+ if(!window.KonsorBridge?.save||window.KonsorBridge.busy)throw Error("El guardado está ocupado o no disponible. Comprueba la conexión.");
+ await window.KonsorBridge.save("comercial_custom_zones",candidate);
+ savedZones=candidate;
+ window.cnvRefreshHome?.();window.refreshCnTerritory?.();
+}
+function changeTiming(t,kind,now){
+ const timer=t.streetTiming&&typeof t.streetTiming==="object"?{...t.streetTiming}:{seconds:0,activeSince:0,events:[]};
+ timer.seconds=Math.max(0,Number(timer.seconds)||0);
+ timer.events=Array.isArray(timer.events)?timer.events.slice(-24):[];
+ if(kind==="start"&&Number(timer.activeSince)>0)return t;
+ if(kind==="start"){timer.activeSince=now;timer.events.push({event:"start",at:now});}
+ else if(kind==="pause"&&Number(timer.activeSince)>0){timer.seconds+=Math.max(0,(now-Number(timer.activeSince))/1000);timer.activeSince=0;timer.events.push({event:"pause",at:now});}
+ else if(kind==="finish"){if(Number(timer.activeSince)>0)timer.seconds+=Math.max(0,(now-Number(timer.activeSince))/1000);timer.activeSince=0;timer.events.push({event:"finish",at:now});}
+ t.streetTiming=timer;return t;
+}
+async function street(zoneId,action){
+ const z=zones().find(z=>String(z.id)===String(zoneId));
+ if(!sessionAllowed(z))throw Error("Esta zona no está asignada a tu usuario.");
+ const currentShift=shift();
+ if(action==="start"&&currentShift?.status!=="working")throw Error("Primero debes iniciar o reanudar la jornada.");
+ if(z.streetCompletedAt&&action!=="pause")throw Error("El trabajo de calle ya figura terminado. Revisa el volcado en Oficina.");
+ if(action==="finish"&&!confirm("¿Has terminado las visitas de este sector? Quedará pendiente de volcar en Oficina."))return false;
+ const now=Date.now(),candidate=JSON.parse(JSON.stringify(zones()));
+ for(const item of candidate)if(item.comercial===me()&&item.streetTiming?.activeSince&&String(item.id)!==String(zoneId))changeTiming(item,"pause",now);
+ const target=candidate.find(z=>String(z.id)===String(zoneId));
+ if(!target)throw Error("El sector ha cambiado. Recarga la aplicación.");
+ if(action==="start"){changeTiming(target,"start",now);target.status="en_proceso";target.streetStartedAt??=now;}
+ if(action==="pause")changeTiming(target,"pause",now);
+ if(action==="finish"){changeTiming(target,"finish",now);target.streetCompletedAt=now;target.streetCompletedBy=me();target.status="en_proceso";}
+ target._updatedAt=now;
+ await saveZones(candidate);
+ return true;
+}
+async function syncShift(action,confirmedShift){
+ if(!["lunch","end"].includes(action))return;
+ if(action==="lunch"&&confirmedShift?.status!=="lunch")return;
+ const items=zones().filter(z=>z.comercial===me()&&z.streetTiming?.activeSince&&!z.streetCompletedAt);
+ if(!items.length)return;
+ const candidate=JSON.parse(JSON.stringify(zones()));const ids=new Set(items.map(z=>String(z.id)));
+ for(const z of candidate)if(ids.has(String(z.id)))changeTiming(z,"pause",Date.now());
+ await saveZones(candidate);
+}
+function route(z){const pts=(z.points||[]).filter(p=>Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1])));if(!pts.length){alert("Este sector no tiene coordenadas para abrir una ruta.");return;}const lat=pts.reduce((a,p)=>a+Number(p[0]),0)/pts.length,lon=pts.reduce((a,p)=>a+Number(p[1]),0)/pts.length;const co=lat.toFixed(6)+","+lon.toFixed(6);window.open(/iPhone|iPad|iPod/.test(navigator.userAgent)?"https://maps.apple.com/?daddr="+encodeURIComponent(co):"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(co),"_blank","noopener,noreferrer");}
+function dismiss(){document.getElementById("km-flow")?.remove();}
+function shell(section,title,desc){
+ dismiss();
+ let root=E("div","km-overlay",undefined,document.body);root.id="km-flow";root.setAttribute("role","dialog");root.setAttribute("aria-modal","true");root.setAttribute("aria-label",title);
+ const page=E("section","km-page",undefined,root);
+ const head=E("header","km-head",undefined,page),h=E("div","",undefined,head);
+ E("small","",section,h);E("h2","",title,h);
+ B(head,"×",dismiss,"close").setAttribute("aria-label","Cerrar asistente");
+ const body=E("div","km-body",undefined,page);
+ if(desc)E("p","km-muted",desc,body);
+ root.addEventListener("click",e=>{if(e.target===root)dismiss();});
+ return body;
+}
+function card(parent,kicker,title,detail){
+ const section=E("section","km-card",undefined,parent);
+ if(kicker)E("small","km-kicker",kicker,section);
+ if(title)E("h3","",title,section);
+ if(detail)E("p","km-muted",detail,section);
+ return section;
+}
+function stat(parent,label,value){const x=E("div","km-stat",undefined,parent);E("strong","",String(value),x);E("small","",label,x);}
+function actions(parent){return E("div","km-actions",undefined,parent);}
+function count(c){return (c||[]).length;}
+function safeOpen(action){dismiss();if(typeof action==="function")action();}
+const openMap=()=>window.cnvShowMap?.();
+const openOffice=()=>window.openCnOffice?.();
+const openClient=()=>window.openCnClients?.();
+const openCalls=()=>window.openKonsorOfficeClients?.();
+function officeState(){
+ const list=own(),cc=clients(false),pending=sorted(list.filter(pendingDump));
+ const needFix=cc.filter(({c})=>incomplete(c)&&!rejected(c));
+ const waits=cc.filter(({c})=>!booked(c)&&!rejected(c)&&!incomplete(c)&&waitDue(c));
+ const calls=cc.filter(({c})=>dueCall(c)&&!waitDue(c));
+ const deferred=cc.filter(({c})=>!booked(c)&&!rejected(c)&&Number(c.nextContactAt)>Date.now());
+ const town=new Map();
+ for(const z of list){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
+ return {pending,needFix,waits,calls,deferred,cc,town:[...town.values()]};
+}
+function openOfficeGuide(){
+ const s=officeState();const step=s.pending.length?0:s.needFix.length?1:s.waits.length?2:s.calls.length?3:4;
+ const phases=["Volcar hojas","Revisar fichas","Resolver esperas","Llamar y agendar","Balance"];
+ const body=shell("OFICINA · RECORRIDO GUIADO",phases[step],step<4?"Continuamos automáticamente con la primera tarea pendiente. Los datos se comprueban de nuevo cada vez que abres esta guía.":"No quedan tareas vencidas del circuito principal.");
+ const top=E("div","km-progress",undefined,body);phases.forEach((name,i)=>{const b=E("span",i<step?"done":i===step?"active":"",String(i+1),top);b.title=name;});
+ const totals=E("div","km-stats",undefined,body);stat(totals,"Por volcar",s.pending.length);stat(totals,"Fichas incompletas",s.needFix.length);stat(totals,"Llamadas pendientes",s.waits.length+s.calls.length);
+ if(step===0){
+  const z=s.pending[0],position=1,total=s.pending.length;
+  const c=card(body,"SECTOR "+position+" DE "+total,z.sectorName||"Sector",z.town+" · fecha de calle "+(z.date||"sin registrar"));
+  E("p","km-muted","Primero los sectores antiguos. Volcar no cambia la fecha en que se trabajó la zona.",c);
+  const row=actions(c);
+  B(row,"Volcado manual",()=>safeOpen(()=>{const idx=zones().findIndex(x=>String(x.id)===String(z.id));if(idx>=0&&typeof openDumpModal==="function")openDumpModal(idx);}),"primary");
+  B(row,"Fotos → CSV",()=>safeOpen(()=>window.abrirImportadorTerritorialKonsor?.()),"");
+  B(row,"Ver todos los pendientes",()=>safeOpen(openOffice),"");
+ }else if(step===1){
+  const first=s.needFix[0],c=card(body,"REVISIÓN",s.needFix.length+" fichas para revisar","Después de volcar, corrige nombre, calle, teléfono u otros datos señalados antes de gestionar citas.");
+  E("p","km-muted","Primera ficha: "+(first.c.name||"Sin nombre")+" · "+first.z.town+" · "+(first.c.street||"Sin calle"),c);
+  B(actions(c),"Revisar fichas",()=>safeOpen(openClient),"primary");
+ }else if(step===2||step===3){
+  const items=step===2?s.waits:s.calls,first=items[0];
+  const c=card(body,step===2?"SEGUIMIENTO PRIORITARIO":"LLAMADAS POR ANTIGÜEDAD",items.length+" contactos por resolver",
+   step===2?"Hay personas esperando respuesta o una nueva llamada. Revisa primero la que corresponda hoy.":"La gestión de clientes existente agrupa llamadas por calle y conserva las reservas individuales.");
+  E("p","km-muted","Primero: "+(first.c.name||"Sin nombre")+" · "+first.z.town+" · "+first.z.sectorName,c);
+  B(actions(c),"Continuar llamadas y citas",()=>safeOpen(openCalls),"primary");
+ }else{
+  const c=card(body,"AL DÍA","Recorrido principal completado","Los seguimientos futuros se conservan para la fecha fijada; no se consideran atrasados.");
+  if(s.deferred.length)E("p","km-muted",s.deferred.length+" seguimientos están previstos para una fecha posterior.",c);
+  for(const p of s.town){E("p","km-townline",p.name+" · "+p.yes+" respuestas Sí · "+p.booked+" citas/obras · "+p.waiting+" en espera",c);}
+  const row=actions(c);
+  B(row,"Ver Liga",()=>safeOpen(()=>{if(typeof openLeagueRankingModal==="function")openLeagueRankingModal();else window.openCnResults?.();}),"primary");
+  B(row,"Mis resultados",()=>safeOpen(()=>window.openCnResults?.()));
+  if(isChief())B(row,"Cierre de Dirección",()=>openDailyReview());
+ }
+ const foot=card(body,"SECUENCIA","¿Qué hacemos después?","Volcar → Revisar → Esperas → Llamadas y citas → Balance. Puedes cerrar y retomarla desde Oficina.");
+ B(actions(foot),"Actualizar mi progreso",openOfficeGuide);
+}
+function openDayGuide(){
+ const z=nextSector(),s=shift();
+ const body=shell("MI JORNADA · SIGUIENTE ACCIÓN",!s?"Registrar entrada":s.status==="lunch"?"Pausa de comida":s.status==="finished"?"Jornada cerrada":z?"Tu siguiente sector":"Tu trabajo del día",
+  !s?"Puedes consultar KONSOR sin iniciar. El fichaje se guarda con la hora real cuando confirmas.":s.status==="lunch"?"La jornada sigue en comida hasta que pulses reanudar.":s.status==="finished"?"La jornada de hoy está terminada. Oficina puede tener tareas pendientes.":"Primero termina las zonas anteriores y luego continúa con el plan de hoy.");
+ const c=card(body,"FICHAJE",!s?"Fuera de jornada":s.status==="lunch"?"En comida":s.status==="finished"?"Finalizada":"Trabajando",s?"Inicio: "+(s.startTime||"—")+" · Estado: "+s.status:"Sin hora registrada hoy");
+ let row=actions(c);
+ const shiftBtn=(label,action,kind)=>B(row,label,async()=>{const b=event?.currentTarget;try{const ok=typeof handleShiftAction==="function"&&await handleShiftAction(action);if(ok)openDayGuide();}catch(e){alert(e.message||e);}},kind);
+ if(!s)shiftBtn("Iniciar jornada","start","primary");
+ else if(s.status==="working"){shiftBtn("Pausar para comer","lunch","");shiftBtn("Finalizar jornada","end","");}
+ else if(s.status==="lunch")shiftBtn("Continuar después de comer","lunch","primary");
+ if(z){
+  const last=z.date&&z.date<today();
+  const d=card(body,last?"PRIORIDAD · DÍA ANTERIOR":"SIGUIENTE ZONA",z.sectorName||"Sector",z.town+" · "+(z.date||"Sin fecha"));
+  E("p","km-muted",last?"Termina el sector pendiente antes de comenzar los nuevos.":"El tiempo de calle no empieza al abrir la ruta, sino al confirmar que has llegado.",d);
+  const timer=z.streetTiming||{},clock=duration(timer);
+  if(clock)E("p","km-muted","Tiempo registrado de calle: "+clock+" min"+(timer.activeSince?" · CONTANDO":" · EN PAUSA"),d);
+  const buttons=actions(d);
+  B(buttons,"Ir al sector",()=>route(z),"primary");
+  B(buttons,"Mapa y Catastro",()=>safeOpen(openMap));
+  if(s?.status==="working"){
+   if(timer.activeSince)B(buttons,"Pausar tiempo de calle",async()=>{try{await street(z.id,"pause");openDayGuide();}catch(e){alert(e.message||e);}});
+   else B(buttons,clock?"Reanudar tiempo de calle":"He llegado · Empezar calle",async()=>{try{await street(z.id,"start");openDayGuide();}catch(e){alert(e.message||e);}},"primary");
+   B(buttons,"Terminar visitas del sector",async()=>{try{if(await street(z.id,"finish"))openDayGuide();}catch(e){alert(e.message||e);}});
+  }
+ }
+ const list=card(body,"TODOS LOS SECTORES","Tu planificación y pendientes","También puedes consultar los demás sectores o la zona de trabajo sin salir del recorrido.");
+ B(actions(list),"Abrir Mi jornada",()=>safeOpen(()=>window.openCnDay?.()),"");
+ B(actions(list),"Ir a Oficina",()=>openOfficeGuide(),"");
+}
+function refreshIfOpen(){const root=document.getElementById("km-flow");if(!root)return;const tag=root.querySelector(".km-head small")?.textContent||"";if(tag.startsWith("OFICINA"))openOfficeGuide();else if(tag.startsWith("MI JORNADA"))openDayGuide();}
+
+})();
