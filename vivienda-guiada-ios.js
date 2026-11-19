@@ -67,7 +67,19 @@ function render(){
  }else if(step===2){
   $("p","cn-house-description","Consulta el catastro e introduce los datos técnicos. Las deducciones por plantas se calculan utilizando las reglas actuales.",ui);
   const cat=get('button[onclick*="openCadastreFromClientBox"]');
-  if(cat)ui.append(b("Consultar catastro",()=>cat.click(),"outline"));
+  if(cat)ui.append(b("Consultar Catastro",async()=>{
+   const status=$("p","cn-house-description","Buscando la ficha oficial…",ui);
+   try{
+    if(typeof openCadastreFromClientBox==="function")await openCadastreFromClientBox(cat);else cat.click();
+    const slot=cat.parentElement?.querySelector(".inline-catastro-link-slot");
+    const link=slot?.querySelector("a[href]");
+    if(link){
+     const anchor=$("a","cn-house-btn outline","Abrir ficha del Catastro ↗",ui);
+     anchor.href=link.href;anchor.target="_blank";anchor.rel="noopener noreferrer";
+     status.textContent="Abre el enlace para comprobar los m² y el año. Después vuelve a esta ficha.";
+    }else status.textContent=slot?.textContent?.trim()||"No se encontró la parcela. Revisa la dirección y número.";
+   }catch(error){status.textContent="No se ha podido consultar Catastro: "+(error.message||error);}
+  },"outline"));
   field(ui,"Año de construcción",".client-build-year","number");
   field(ui,"Superficie catastral (m²)",".client-total-m2","number");
   field(ui,"Número de plantas",".client-floors","number");
