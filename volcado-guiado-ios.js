@@ -154,4 +154,5 @@ function enhance(){
 window.cnEnhanceDump=enhance;
 window.cnDumpProgress=()=>({declared:number("dumpSi"),valid:completed(),resolved:resolved(),forms:boxes().length});
 window.cnRefreshDumpWizard=()=>{if(original("dumpModal")?.classList.contains("active"))render();};
+window.cnDumpHasGroups=()=>Boolean(plan&&planTotal()===number("dumpSi")&&boxes().length===number("dumpSi"));
 })();
