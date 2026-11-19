@@ -140,6 +140,19 @@ function makeMapBar(){
  items.filter(([key])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["layers","ruler","pin"].includes(key))).forEach(([key,label,fn])=>{
   const b=btn("",fn,"cnv-map-tool");b.append(icon(key));el("span","",label,b);controls.append(b);
  });
+ const draw=el("section","cnv-drawing-panel",undefined,mapBar);
+ draw.id="cnvDrawingPanel";
+ const status=el("div","cnv-drawing-status",undefined,draw);
+ el("strong","cnv-drawing-title","Dibujando",status);
+ el("span","cnv-drawing-details","Marca al menos tres esquinas",status);
+ const row=el("div","cnv-drawing-buttons",undefined,draw);
+ const finish=btn("Confirmar",()=>{
+   const legacy=document.getElementById("btnConfirmSectorPoly");
+   if(legacy&&typeof legacy.onclick==="function")legacy.click();
+   else if(typeof finishSectorDrawing==="function")finishSectorDrawing();
+ },"cnv-dark");
+ finish.id="cnvDrawingFinish";finish.disabled=true;
+ row.append(finish,btn("Cancelar",()=>{if(typeof cancelDrawing==="function")cancelDrawing();},"cnv-glass"));
  el("p","cnv-map-tip","Toca una parcela para consultar Catastro. Para medir, marca las esquinas del tejado.",mapBar).id="cnvMapInstruction";
  return mapBar;
 }
@@ -157,6 +170,22 @@ function start(){
  if(!hasSession())return;
  showHome();
 }
+window.cnvMapDrawingState=function(state){
+ const bar=makeMapBar(),panel=bar.querySelector("#cnvDrawingPanel");
+ if(!panel)return;
+ const active=!!state?.mode;
+ panel.classList.toggle("active",active);
+ if(!active)return;
+ const name=state.mode==="roof"?"Medir tejado":state.mode==="town"?"Delimitar pueblo":state.mode==="sector"?"Crear sector":"Delimitar zona";
+ const title=panel.querySelector(".cnv-drawing-title");
+ const details=panel.querySelector(".cnv-drawing-details");
+ const finish=panel.querySelector("#cnvDrawingFinish");
+ const points=Number(state.points)||0;
+ title.textContent=name;
+ details.textContent=points<3?"Esquinas: "+points+" de 3 necesarias":state.mode==="roof"?"Superficie aproximada: "+(Number(state.m2)||0)+" m² · "+points+" esquinas":points+" esquinas seleccionadas · listo para confirmar";
+ finish.textContent=state.mode==="roof"?"Ver resultado":state.mode==="town"?"Guardar pueblo":state.mode==="sector"?"Continuar · Asignar":"Confirmar zona";
+ finish.disabled=points<3;
+};
 window.cnvRefreshHome=function(){if(document.body.classList.contains("cnv-home-active"))showHome();};
 window.cnvShowHome=showHome;
 window.cnvShowMap=showMap;
