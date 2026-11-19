@@ -61,6 +61,10 @@ function page(title,detail){
  const overlay=E("div","km-overlay",undefined,document.body);overlay.id="km-flow";overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");
  const frame=E("section","km-page",undefined,overlay),head=E("header","km-head",undefined,frame),titles=E("div","",undefined,head);
  E("small","","KONSOR · DIRECCIÓN",titles);E("h2","",title,titles);
+ const back=B(head,"‹",()=>{
+  if(title==="Comenzar planificación"&&draft.step>0){prev();return;}
+  overlay.remove();window.openKonsorDirection?.();
+ },"back km-back");back.setAttribute("aria-label","Volver");head.insertBefore(back,titles);
  B(head,"×",()=>overlay.remove(),"close").setAttribute("aria-label","Cerrar");
  const body=E("div","km-body",undefined,frame);if(detail)E("p","km-muted",detail,body);
  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
