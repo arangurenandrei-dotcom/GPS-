@@ -13707,6 +13707,12 @@ function suggestSectorDateFor(comercial) {
             alert('Esta ficha necesita nombre y calle, además de un teléfono válido o la marca de número ilegible.');
             capturaGuiada.paso=1;mostrarPasoCaptacion();return;
           }
+          const year=Number(inputOriginal('.client-build-year')?.value||0);
+          const result=inputOriginal('.client-obra-status')?.value||'';
+          if(box.dataset.konsorInvalidPhone!=='1'&&year>2006&&result!=='no_apto'){
+            alert('El año supera 2006. Revisa la aptitud y confirma el estado NO APTO antes de continuar.');
+            capturaGuiada.paso=2;mostrarPasoCaptacion();return;
+          }
           if(capturaGuiada.ficha+1<cajas.length){
             capturaGuiada.ficha++;capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
           }else{
