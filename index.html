@@ -19581,41 +19581,7 @@ function openCommercialStatsModalLegacy() {
       modal.classList.add('active');
     }
 
-    // Gesto nativo estilo iPhone: deslizar desde el borde izquierdo hacia la derecha para volver atrás
-    (function enableIosSwipeBackGesture() {
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let isEdgeSwipe = false;
-
-      document.addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1) return;
-        const t = e.touches[0];
-        touchStartX = t.clientX;
-        touchStartY = t.clientY;
-        isEdgeSwipe = touchStartX <= 42;
-      }, { passive: true });
-
-      document.addEventListener('touchend', (e) => {
-        if (!isEdgeSwipe || e.changedTouches.length !== 1) return;
-        isEdgeSwipe = false;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - touchStartX;
-        const dy = Math.abs(t.clientY - touchStartY);
-
-        if (dx > 75 && dy < 60) {
-          const activeModals = Array.from(document.querySelectorAll('.modal-overlay.active'));
-          if (activeModals.length > 0) {
-            const topModal = activeModals[activeModals.length - 1];
-            if (topModal.id === 'idenaViewerModal') closeIdenaModal();
-            else topModal.classList.remove('active');
-            triggerHapticAndSound('tap');
-          } else if (isDrawingMode) {
-            cancelDrawing();
-            triggerHapticAndSound('tap');
-          }
-        }
-      }, { passive: true });
-    })();
+    // La navegación gestual se centraliza exclusivamente en navegacion-ios.js.
 
     function resetMapNorth() {
       if (map && typeof map.setBearing === 'function') {
