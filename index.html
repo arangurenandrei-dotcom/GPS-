@@ -2460,6 +2460,7 @@ function setMapDisplay(mode) {
 
   isSatelliteActive = satellite;
   isCatastroActive = cadastre;
+  window.cnvRefreshMapControls?.();
 
   if (cadastre && map.getZoom() < 13) {
     map.setZoom(16);
@@ -8243,6 +8244,12 @@ function renderBossPlan() {
     let isManualGpsRequest = false;
     let lastGpsAccuracy = null;
     let liveGpsWatchId = null;
+    let cnvGpsFollow = true;
+    let cnvFirstGpsFix = true;
+    window.cnvFollowGps = function(enabled=true) {
+      cnvGpsFollow = Boolean(enabled);
+      if(cnvGpsFollow && userLocationMarker && map) map.setView(userLocationMarker.getLatLng(), Math.max(map.getZoom(),16));
+    };
 
     window.cnvStartLiveGps = function() {
       if (!map || !navigator.geolocation || liveGpsWatchId !== null) return;
@@ -8256,7 +8263,12 @@ function renderBossPlan() {
           : 'GPS poco preciso · ±' + Math.round(accuracy) + ' m';
         // Una posición imprecisa no sustituye la última posición fiable.
         if (accuracy <= 100) {
-          map.fire('locationfound', {latlng:L.latLng(latitude,longitude), accuracy});
+          const ll=L.latLng(latitude,longitude);
+          map.fire('locationfound', {latlng:ll, accuracy});
+          if(cnvGpsFollow) {
+            map.setView(ll, Math.max(map.getZoom(),16), {animate:!cnvFirstGpsFix});
+            cnvFirstGpsFix=false;
+          }
         }
       }, error => {
         const info = document.getElementById('cnvMapInstruction');
@@ -8307,6 +8319,7 @@ function renderBossPlan() {
         rotateControl: false
       }).setView([42.65, -1.65], 10);
 
+      map.on('dragstart', () => { cnvGpsFollow=false; });
       map.on('rotate', () => {
         const needle = document.getElementById('compassNeedleIcon');
         if (needle && typeof map.getBearing === 'function') {
