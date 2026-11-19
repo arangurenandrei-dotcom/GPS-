@@ -138,7 +138,7 @@ function makeMapBar(){
   ["gps","Norte",()=>typeof resetMapNorth==="function"&&resetMapNorth()]
  ];
  items.filter(([key])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["layers","ruler","pin"].includes(key))).forEach(([key,label,fn])=>{
-  const b=btn("",fn,"cnv-map-tool");b.append(icon(key));el("span","",label,b);controls.append(b);
+  const b=btn("",fn,"cnv-map-tool");b.title=label;b.setAttribute("aria-label",label);b.append(icon(key));controls.append(b);
  });
  const draw=el("section","cnv-drawing-panel",undefined,mapBar);
  draw.id="cnvDrawingPanel";
