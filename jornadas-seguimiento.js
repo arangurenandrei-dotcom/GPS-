@@ -14,7 +14,7 @@
  const allowed=z=>!isMikelTeamMember(z.comercial)&&(currentUserRole==='jefe'||z.comercial===currentUserName);
  const journeyDate=c=>c.obraDate||c.obraRealizadaDate||'';
  const date=ms=>new Date(ms).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
- function rows(scope){return savedZones.filter(z=>allowed(z)&&(scope==='team'||z.comercial===currentUserName)).flatMap(z=>(z.clients||[]).filter(isClientValidFilled).map(c=>({z,c,key:groupedKey(z,c),town:routeTown(z.town)})));}
+ function rows(scope){return savedZones.filter(z=>allowed(z)&&(scope==='team'||z.comercial===currentUserName)).flatMap(z=>(z.clients||[]).filter(c=>!c.captacionInvalida&&isClientValidFilled(c)).map(c=>({z,c,key:groupedKey(z,c),town:routeTown(z.town)})));}
  function badge(parent,c){const [text,color]=states[status(c)]||states.pendiente;const e=n('span',text,parent,'js-badge');e.style.color=color;e.style.borderColor=color;}
  function missing(c){
   const fields=[];for(const [key,label]of [['name','nombre'],['street','dirección'],['phone','teléfono'],['buildYear','año'],['m2','m²'],['accessType','acceso']])if(!String(c[key]??'').trim())fields.push(label);
