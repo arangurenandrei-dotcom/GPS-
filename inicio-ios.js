@@ -85,7 +85,7 @@ function showHome(){
   tile(grid,andrei()?"Dirección":"Mi equipo",andrei()?"Pueblos, fichas y equipo":"Gestionar mi equipo","direction",()=>andrei()?window.openKonsorDirection?.():openAuditModal());
   if(!andrei())tile(grid,"Planificar","Asignaciones del equipo","calendar",()=>window.konsorPlanificador?.open?.());
  }
- el("p","cnv-footer-note","Los cambios se guardan con las funciones actuales de Comercial Navarra.",section);
+ el("p","cnv-footer-note","KONSOR · Versión operativa 19.11.2026 · Las modificaciones de trabajo requieren confirmación de guardado.",section);
 }
 
 /* Pregunta de entrada: no inicia la jornada por sí sola ni reaparece tras cerrar
