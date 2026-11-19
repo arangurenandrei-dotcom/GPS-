@@ -32,8 +32,8 @@ function open(){
  tile(body,"2. Plan del equipo","Tarea prioritaria, planificación de zonas, encargos y continuidad del trabajo.",()=>launch(r,openPlan));
  tile(body,"3. Tareas y respuestas","Asignar un trabajo y consultar cuándo lo recibe o completa el comercial.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
  tile(body,"4. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
- tile(body,"5. Análisis operativo","Horas efectivas, puertas, respuestas y seguimiento de productividad.",()=>launch(r,()=>typeof openManagementAudit==="function"&&openManagementAudit("comerciales")));
- tile(body,"6. Comparación de equipos","Comparar periodos y resultados del equipo Andrei con los datos disponibles de otros equipos.",()=>launch(r,()=>typeof openMikelRadarModal==="function"&&openMikelRadarModal()));
+ tile(body,"5. Análisis operativo","Horas efectivas, puertas, respuestas y seguimiento de productividad.",()=>launch(r,()=>showAnalytics("operations")));
+ tile(body,"6. Comparación de equipos","Comparar periodos y resultados del equipo Andrei con los datos disponibles de otros equipos.",()=>launch(r,()=>showAnalytics("compare")));
 }
 /* Plan de Dirección: pantalla nueva, mismos encargos y guardado de Firestore. */
 let planUnsubscribe=null,planRows=[],planFilter="pending",planStatus="Conectando…",planBusy=false;
@@ -117,6 +117,64 @@ function openPlan(){
   if(p.classList.contains("active"))renderPlan();
  },err=>{planStatus="No se pudieron cargar las tareas: "+(err.message||err);if(p.classList.contains("active"))renderPlan();});
  renderPlan();
+}
+/* Vista nueva y legible de métricas. No presenta previsiones como cobros. */
+function analyticsRows(){
+ const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission);
+ const grouped=new Map();
+ for(const z of zones){
+  const owner=String(z.comercial||"Sin asignar");
+  if(!grouped.has(owner))grouped.set(owner,{name:owner,zones:0,done:0,si:0,no:0,ausente:0,papelito:0,yaAislado:0,appointments:0,executed:0,m2Booked:0});
+  const v=grouped.get(owner),stats=z.stats||{};
+  v.zones++;if(z.status==="completada")v.done++;
+  for(const key of ["si","no","ausente","papelito","yaAislado"])v[key]+=Math.max(0,Number(stats[key])||0);
+  for(const c of z.clients||[]){
+   if(c.captacionInvalida||c.obraStatus==="no_apto")continue;
+   if(["agendada","realizada"].includes(c.obraStatus)){v.appointments++;v.m2Booked+=Number.parseFloat(String(c.m2||0).replace(",","."))||0;}
+   if(c.obraStatus==="realizada")v.executed++;
+  }
+ }
+ return [...grouped.values()];
+}
+function showAnalytics(mode){
+ if(!isBoss())return;
+ const r=planSurface(),body=r.querySelector(".kd-body");
+ const title=r.querySelector(".kd-head h2");
+ title.textContent=mode==="compare"?"Comparación de equipos":"Análisis operativo";
+ body.replaceChildren();r.classList.add("active");
+ const data=analyticsRows(),team=data.filter(x=>!x.name.startsWith("Mikel")),other=data.filter(x=>x.name.startsWith("Mikel"));
+ const sum=rows=>rows.reduce((t,r)=>{for(const k of ["zones","done","si","no","ausente","papelito","yaAislado","appointments","executed","m2Booked"])t[k]=(t[k]||0)+(r[k]||0);return t;},{});
+ const mine=sum(team),mikel=sum(other),tot=mine;
+ if(mode==="compare"){
+  el("p","kd-intro","Comparación descriptiva de los registros cargados en esta sesión. No significa que se hayan consultado todos los datos del otro equipo.",body);
+  const stats=el("div","kd-stats",undefined,body);
+  [["Equipo Andrei",mine.si+" sí"],["Equipo Mikel",other.length?mikel.si+" sí":"Sin datos"],["Sectores totales visibles",mine.zones+mikel.zones]].forEach(([label,value])=>{
+   const c=el("div","kd-stat",undefined,stats);el("strong","",value,c);el("small","",label,c);
+  });
+  if(!other.length)el("p","kd-intro","Para una comparación interequipos completa hay que consultar los registros autorizados del otro equipo. No se asigna un cero cuando no hay datos.",body);
+  const otherCard=planSection(body,"Comparador completo","El módulo existente permite comparar periodos y equipos mediante los datos disponibles en el servicio actual.");
+  planAction(otherCard,"Abrir comparación detallada",()=>{r.classList.remove("active");if(typeof openMikelRadarModal==="function")openMikelRadarModal();},true);
+ }else{
+  el("p","kd-intro","Resumen de los sectores visibles del equipo Andrei. Datos registrados hasta ahora, sin interpretar las citas como dinero cobrado.",body);
+  const totalDoors=tot.si+tot.no+tot.ausente+tot.papelito+tot.yaAislado;
+  const conversion=tot.si+tot.no?Math.round(100*tot.si/(tot.si+tot.no))+"%":"Sin datos";
+  const stats=el("div","kd-stats",undefined,body);
+  [["Puertas registradas",totalDoors],["Respuestas sí",tot.si],["Conversión sí / (sí + no)",conversion]].forEach(([label,value])=>{
+   const c=el("div","kd-stat",undefined,stats);el("strong","",value,c);el("small","",label,c);
+  });
+  const metrics=planSection(body,"Fases del trabajo","Las etapas se solapan; no sumes captación, citas y obras ejecutadas.");
+  [["Sectores terminados",tot.done+" / "+tot.zones],["Obras con cita registrada",tot.appointments],["Obras marcadas realizadas",tot.executed],["m² estimados asociados a citas",Math.round(tot.m2Booked)]].forEach(([label,value])=>{
+   const row=el("div","kdp-metric",undefined,metrics);el("span","",label,row);el("strong","",String(value),row);
+  });
+ }
+ const breakdown=planSection(body,"Desglose por comercial",data.length?"Datos de los sectores actualmente cargados.":"Todavía no hay sectores visibles.");
+ for(const x of (mode==="compare"?data:team).sort((a,b)=>b.si-a.si)){
+  const card=el("div","kdp-metric",undefined,breakdown);
+  el("span","",x.name,card);
+  el("strong","",x.si+" sí · "+x.done+"/"+x.zones+" sectores",card);
+ }
+ const actions=el("div","kdp-actions",undefined,body);
+ planAction(actions,"Volver a Dirección",()=>{r.classList.remove("active");open();},true);
 }
 window.openKonsorDirection=open;
 window.openKonsorDirectorPlan=openPlan;
