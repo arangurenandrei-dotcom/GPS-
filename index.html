@@ -8309,7 +8309,6 @@ function renderBossPlan() {
     }
 
     async function openCadastreFromClientBox(btn) {
-      if (isMikelTeamMember(currentUserName)) return;
       const box = btn.closest('.client-box, .comunidad-box');
       const streetVal = box?.querySelector('.client-street')?.value.trim() || '';
       const townVal = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
@@ -8353,16 +8352,16 @@ function renderBossPlan() {
         if (catastroUrl) {
           resultSlot.innerHTML = `
             <a href="${catastroUrl}" target="_blank" rel="noopener noreferrer"
-               style="display:block; text-align:center; background:linear-gradient(135deg,#059669,#047857); color:#fff; font-weight:900; text-decoration:none; padding:9px 10px; border-radius:9px; border:1px solid #34d399; font-size:11.5px;">
-              ↗️ Abrir Catastro (${target.title})
+               class="konsor-cadastre-link">
+              Ver ficha catastral
             </a>
           `;
         } else {
           const idenaFallback = `https://idena.navarra.es/navegar/?lat=${target.lat.toFixed(6)}&lon=${target.lon.toFixed(6)}&zoom=19`;
           resultSlot.innerHTML = `
             <a href="${idenaFallback}" target="_blank" rel="noopener noreferrer"
-               style="display:block; text-align:center; background:#0369a1; color:#fff; font-weight:800; text-decoration:none; padding:8px 10px; border-radius:9px; border:1px solid #38bdf8; font-size:11px;">
-              ↗️ Ver parcela en IDENA (${target.title})
+               class="konsor-cadastre-link">
+              Ver parcela en IDENA
             </a>
           `;
         }
@@ -11817,9 +11816,9 @@ function renderCommercialWorkDay() {
 
       if (!map) return;
 
-      const popup = L.popup({ maxWidth: 220 })
+      const popup = L.popup({ maxWidth: 290, className:'konsor-cadastre-popup' })
         .setLatLng(latlng)
-        .setContent('<div style="font-size:11px; color:#cbd5e1; padding:3px;">⏳ Buscando ficha...</div>')
+        .setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><strong>Buscando parcela…</strong></section>')
         .openOn(map);
 
       try {
@@ -11849,7 +11848,7 @@ function renderCommercialWorkDay() {
         const data = await res.json();
 
         if (!data.features || data.features.length === 0) {
-          popup.setContent('<div style="font-size:11px; color:#94a3b8; padding:2px;">Sin parcela en este punto.</div>');
+          popup.setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><p>Sin parcela identificada en este punto.</p></section>');
           return;
         }
 
@@ -11861,17 +11860,19 @@ function renderCommercialWorkDay() {
         const directCatastroUrl = hrefMatch ? hrefMatch[1] : (rawUrl.startsWith('http') ? rawUrl : '');
 
         if (directCatastroUrl) {
-          popup.setContent(`
-            <a href="${directCatastroUrl}" target="_blank" rel="noopener noreferrer"
-               style="display:block; text-align:center; background:linear-gradient(135deg,#0284c7,#0369a1); color:#fff; font-weight:900; text-decoration:none; padding:8px 12px; border-radius:8px; border:1px solid #38bdf8; font-size:12px;">
-              ↗️ Abrir Catastro
-            </a>
-          `);
+          const shell=document.createElement('section');shell.className='konsor-cadastre-card';
+          const kicker=document.createElement('span');kicker.className='konsor-map-eyebrow';kicker.textContent='CATASTRO · NAVARRA';
+          const title=document.createElement('strong');title.textContent='Ficha de la parcela';
+          const anchor=document.createElement('a');anchor.className='konsor-cadastre-link';
+          anchor.textContent='Ver ficha catastral';anchor.href=directCatastroUrl;
+          anchor.target='_blank';anchor.rel='noopener noreferrer';
+          if(!/^https:\/\//i.test(directCatastroUrl)){popup.setContent('Enlace catastral no disponible.');return;}
+          shell.append(kicker,title,anchor);popup.setContent(shell);
         } else {
-          popup.setContent('<div style="font-size:11px; color:#94a3b8; padding:2px;">Sin ficha catastral en este punto.</div>');
+          popup.setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><p>No hay ficha disponible para este punto.</p></section>');
         }
       } catch (err) {
-        popup.setContent('<div style="font-size:11px; color:#fca5a5; padding:2px;">Error al consultar Catastro.</div>');
+        popup.setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><p>No se pudo consultar el servicio catastral. Inténtalo de nuevo.</p></section>');
       }
     }
 
@@ -13196,7 +13197,7 @@ function suggestSectorDateFor(comercial) {
               <div class="popup-zone-sub">👤 <strong>${displayComercial}</strong> | ${statusBadgeText}</div>
               ${z.pendingNote ? `<div style="font-size:10px; color:#fde047; margin-bottom:6px;">✏️ <strong>Falta:</strong> ${z.pendingNote}</div>` : ''}
               <div style="display:flex; flex-direction:column; gap:5px; margin-top:4px;">
-                <button class="btn-popup-open" onclick="inspectNavarraCadastreAtPoint(L.latLng(${lat}, ${lng}))">Consultar Catastro</button>
+                <button class="konsor-map-cadastre-trigger" onclick="inspectNavarraCadastreAtPoint(L.latLng(${lat}, ${lng}))">Consultar Catastro</button>
                 <button class="btn-popup-open" onclick="${isSupervisor ? 'window.openCnTerritory?.()' : 'window.openCnDay?.()'}">${btnActionLabel}</button>
               </div>
             </div>
@@ -13393,6 +13394,7 @@ function suggestSectorDateFor(comercial) {
                 </div>
               `;
             }
+            clientsHtml += '<button type="button" class="konsor-delete-client-btn" onclick="window.konsorDeleteSectorClient('+idx+','+cIdx+')">Eliminar esta ficha</button>';
           });
         } else {
           clientsHtml = `<div style="font-size:11px; color:#64748b; padding:8px; text-align:center;">El comercial no ha introducido fichas de "SÍ" todavía.</div>`;
