@@ -169,10 +169,15 @@ function openClientDetail(entry){
  });
  if(c.obraDate){const cta=card(body,"Reserva registrada",[c.obraDate,c.obraTime||"",c.obraEquipoInstalacion?"Equipo "+c.obraEquipoInstalacion:""].filter(Boolean).join(" · "));}
  const controls=card(body,"Siguiente acción",c.captacionInvalida?"Corrige el teléfono antes de llamar a este cliente.":"Revisa o completa los datos técnicos de la ficha.");
- actions(controls,b("Editar ficha paso a paso",()=>{
-  close();if(typeof openDumpModal==="function")openDumpModal(idx);
-  if(typeof abrirAsistenteCaptacion==="function")abrirAsistenteCaptacion(cidx);
- },"primary"),b("Volver a clientes",()=>{close();openClients();},"outline"));
+ if(z.comercial===currentUserName){
+  actions(controls,b("Editar ficha paso a paso",()=>{
+   close();if(typeof openDumpModal==="function")openDumpModal(idx);
+   if(typeof abrirAsistenteCaptacion==="function")abrirAsistenteCaptacion(cidx);
+  },"primary"),b("Volver a clientes",()=>{close();openClients();},"outline"));
+ }else{
+  $("p","cnx-intro","Ficha de otro comercial: consulta de supervisión. La edición requiere los permisos y controles de su responsable.",controls);
+  actions(controls,b("Volver a clientes",()=>{close();openClients();},"primary"));
+ }
 }
 let query="",scope="mine";
 function openClients(){
