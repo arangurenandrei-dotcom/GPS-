@@ -200,6 +200,30 @@ function sectorCard(container,entry){
   },"outline"));
  }
 }
+
+function deleteTownSafely(p){
+ if(!p?.perimetro)return;
+ const sectors=p.sectores.length;
+ const message=sectors?
+   "Este pueblo tiene "+sectors+" sectores asociados. Primero elimina o reasigna esos sectores para no dejar fichas y tareas sin pueblo.":
+   "¿Eliminar el perímetro de "+p.nombre+" del territorio? Esta acción requiere confirmación del servidor.";
+ if(sectors){alert(message);return;}
+ if(!confirm(message))return;
+ // No retirar de la interfaz ni del almacenamiento local sin eliminación real confirmada.
+ if(typeof window.eliminarPerimetroPueblo!=="function"){
+  alert("La eliminación todavía no está habilitada en el servicio de Firebase. El pueblo no se ha borrado. Falta publicar la función segura de eliminación en el backend.");
+  return;
+ }
+ const name=p.nombre;
+ Promise.resolve(window.eliminarPerimetroPueblo({nombre:name,rev:p.perimetro.rev||0})).then(async()=>{
+  if(typeof cargarPerimetrosPueblos==="function")await cargarPerimetrosPueblos();
+  const remains=(typeof perimetrosPueblos!=="undefined"?perimetrosPueblos:[]).some(t=>norm(t.nombre)===norm(name));
+  if(remains)throw Error("El servidor sigue devolviendo el pueblo; no se ha confirmado su eliminación.");
+  puebloAbierto=null;render();
+  if(typeof actualizarAgrupacionTerritorial==="function")actualizarAgrupacionTerritorial();
+ }).catch(e=>alert("No se ha confirmado el borrado: "+(e.message||e)));
+}
+
 function renderDetail(target,p){
  const back=btn("Volver a pueblos",()=>{puebloAbierto=null;render();},"subtle");
  target.append(back);
@@ -216,6 +240,10 @@ function renderDetail(target,p){
    window.cnvShowMap?.();
    if(typeof map!=="undefined"&&map&&p.perimetro.points?.length>=3)map.fitBounds(L.latLngBounds(p.perimetro.points),{padding:[25,25]});
   }));
+ }
+ if(p.perimetro&&typeof currentUserRole!=="undefined"&&currentUserRole==="jefe"){
+  const management=el("div","cn-actions",undefined,target);
+  management.append(btn("Eliminar pueblo",()=>deleteTownSafely(p),"outline"));
  }
  const waiting=p.sectores.filter(({z})=>z.comercial&&z.status!=="completada"&&!(z.assignmentReceivedAt&&z.assignmentReceivedBy===z.comercial)).length;
  if(p.total)el("p","cn-hint",waiting?waiting+" sectores todavía sin confirmación de recepción.":"No hay sectores pendientes de confirmar recepción en este pueblo.",target);
@@ -312,6 +340,6 @@ function render(){
  },"outline"));
  notice(body,"Primero dibuja el perímetro de un pueblo. Después ábrelo y dibuja dentro los sectores que asignarás a los comerciales.");
 }
-window.openCnTerritory=function(){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=null;filtro="pendientes";textoBusqueda="";const root=modal();render();root.classList.add("active");};
+window.openCnTerritory=function(nombre){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=typeof nombre==="string"?norm(nombre):null;filtro="pendientes";textoBusqueda="";const root=modal();render();root.classList.add("active");};
 window.refreshCnTerritory=function(){if(document.getElementById("cnTerritorio")?.classList.contains("active"))render();};
 })();
