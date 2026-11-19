@@ -38,12 +38,13 @@ function myZones(){
 }
 function info(){
  const zones=myZones(),today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
- const open=zones.filter(z=>z.status!=="completada");
+ const open=zones.filter(z=>z.status!=="completada"&&!z.streetCompletedAt);
+ const waitingDump=zones.filter(z=>z.status!=="completada"&&z.streetCompletedAt&&!z.dumpDate).length;
  const todayCount=open.filter(z=>z.date===today).length;
  const old=open.filter(z=>z.date&&z.date<today).length;
  const next=open.filter(z=>!z.date||z.date>today).length;
  const shift=typeof getTodayShift==="function"?getTodayShift(me()):null;
- return {todayCount,old,next,shift};
+ return {todayCount,old,next,shift,waitingDump};
 }
 function root(){
  let root=document.getElementById("cnvHome");
@@ -78,10 +79,10 @@ function showHome(){
  let state="Sin iniciar";
  if(data.shift)state=data.shift.status==="working"?"En curso":data.shift.status==="lunch"?"En pausa":"Finalizada";
  el("span","cnv-state",state,upper);
- el("h2","",data.old?"Primero, "+data.old+" sectores pendientes":data.todayCount?"Tienes "+data.todayCount+" sectores para hoy":"Organiza tu jornada",hero);
+ el("h2","",data.old?"Primero, "+data.old+" sectores pendientes":data.todayCount?"Tienes "+data.todayCount+" sectores para hoy":data.waitingDump?"Tienes "+data.waitingDump+" hojas por volcar":"Organiza tu jornada",hero);
  el("p","",data.old?data.old+" sectores anteriores pendientes · "+data.next+" próximos":"Consulta tu planificación y sigue el siguiente paso.",hero);
- const nextAction=!data.shift?"Iniciar jornada":data.shift.status==="lunch"?"Reanudar trabajo":data.shift.status==="finished"?"Revisar fichas y llamadas":data.old?"Resolver sector anterior":data.todayCount?"Ver sector de hoy":"Abrir Oficina";
- const nextStep=!data.shift?"Empieza registrando tu entrada.":data.shift.status==="lunch"?"Al volver de comer, reanuda el fichaje.":data.shift.status==="finished"?"Comprueba que las fichas estén completas y organiza las llamadas.":data.old?"Acaba primero el trabajo anterior. Si ya lo hiciste, pasa al volcado.":data.todayCount?"Continúa con los sectores de hoy.":"Revisa las hojas pendientes y las llamadas del día.";
+ const nextAction=!data.shift?"Iniciar jornada":data.shift.status==="lunch"?"Reanudar trabajo":data.shift.status==="finished"?"Revisar fichas y llamadas":data.old?"Resolver sector anterior":data.todayCount?"Ver sector de hoy":data.waitingDump?"Volcar trabajo de calle":"Abrir Oficina";
+ const nextStep=!data.shift?"Empieza registrando tu entrada.":data.shift.status==="lunch"?"Al volver de comer, reanuda el fichaje.":data.shift.status==="finished"?"Comprueba que las fichas estén completas y organiza las llamadas.":data.old?"Acaba primero el trabajo anterior. Si ya lo hiciste, pasa al volcado.":data.todayCount?"Continúa con los sectores de hoy.":data.waitingDump?"Las visitas están cerradas; registra los datos en Oficina.":"Revisa las hojas pendientes y las llamadas del día.";
  el("p","cnv-next-step","Siguiente paso · "+nextStep,hero);
  hero.append(btn(nextAction,()=>{if(!data.shift||data.shift.status==="lunch"||data.old||data.todayCount&&data.shift.status==="working")window.openCnDay?.();else window.openCnOffice?.();},"cnv-dark"));
  const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
