@@ -8181,6 +8181,7 @@ function renderBossPlan() {
       });
       const ortofotoNavarra = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
         layers: 'ortofoto_maxima_actualidad,ortofoto_500_Estella_2025,ortofoto_500_Pamplona_2025,ortofoto_500_Tafalla_2025,ortofoto_500_Tudela_2025',
+        interpolations: 'bicubic,bicubic,bicubic,bicubic,bicubic',
         format: 'image/png',
         transparent: true,
         version: '1.1.1',
