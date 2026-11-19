@@ -95,12 +95,12 @@ function maybePromptStartShift(){
  const date=typeof getTodayISO==="function"?getTodayISO():new Date().toLocaleDateString("en-CA");
  const userKey=(sessionStorage.getItem("auth_user_key")||me()).replace(/[^a-zA-Z0-9_-]/g,"_");
  const dismissedKey="konsor_start_prompt_dismissed_"+userKey+"_"+date;
- if(sessionStorage.getItem(dismissedKey)==="1")return;
+ if(localStorage.getItem(dismissedKey)==="1")return;
  if(info().shift)return;
  startPromptPending=true;
  window.setTimeout(()=>{
   startPromptPending=false;
-  if(!hasSession()||info().shift||sessionStorage.getItem(dismissedKey)==="1")return;
+  if(!hasSession()||info().shift||localStorage.getItem(dismissedKey)==="1")return;
   const veil=el("div","cnv-start-overlay",undefined,document.body);
   veil.id="cnvStartPrompt";
   veil.setAttribute("role","dialog");veil.setAttribute("aria-modal","true");
@@ -109,7 +109,7 @@ function maybePromptStartShift(){
   const top=el("div","cnv-start-top",undefined,card);
   el("span","cnv-eyebrow","KONSOR · JORNADA",top);
   const done=()=>{
-   sessionStorage.setItem(dismissedKey,"1");
+   localStorage.setItem(dismissedKey,"1");
    veil.remove();
   };
   const x=btn("×",done,"cnv-start-close");x.setAttribute("aria-label","Cerrar aviso");
