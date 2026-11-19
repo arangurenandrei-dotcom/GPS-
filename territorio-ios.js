@@ -172,11 +172,18 @@ function render(){
  }
  fillList();
  const foot=el("div","cn-footer",undefined,body);
- foot.append(btn("Dibujar sector en mapa",()=>{
+ foot.append(btn("Crear pueblo · Dibujar perímetro",()=>{
+  root.classList.remove("active");
+  window.cnvShowMap?.();
+  if(typeof iniciarDibujoPueblo==="function")iniciarDibujoPueblo();
+  else alert("No se ha cargado la herramienta de pueblos. Recarga la aplicación.");
+ },"primary"));
+ foot.append(btn("Crear y asignar sector",()=>{
   root.classList.remove("active");
   if(typeof startSectorDrawing==="function")startSectorDrawing();
- },"primary"));
- notice(body,"Resumen calculado a partir de los sectores sincronizados. No se registran pueblos nuevos desde esta pantalla todavía.");
+  else alert("No se ha cargado la herramienta de sectores. Recarga la aplicación.");
+ },"outline"));
+ notice(body,"Crear pueblo guarda el perímetro territorial. Crear sector dibuja zonas de trabajo y permite asignar comercial y fecha. Son operaciones diferentes.");
 }
 window.openCnTerritory=function(){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=null;filtro="haciendo";textoBusqueda="";const root=modal();render();root.classList.add("active");};
 window.refreshCnTerritory=function(){if(document.getElementById("cnTerritorio")?.classList.contains("active"))render();};
