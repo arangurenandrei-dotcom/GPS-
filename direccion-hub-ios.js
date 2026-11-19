@@ -155,7 +155,7 @@ function renderPlan(){
  else if(unplanned.length)planAction(first,"Abrir territorios",()=>{planClose();window.openCnTerritory?.();},true);
  const organize=planSection(body,"Planificar territorio","Separa dibujar el perímetro de un pueblo de asignar los sectores diarios.");
  const actions=el("div","kdp-actions",undefined,organize);
- planAction(actions,"Crear pueblo",()=>{planClose();window.cnvShowMap?.();if(typeof iniciarDibujoPueblo==="function")iniciarDibujoPueblo();},true);
+ planAction(actions,"Crear pueblo",()=>{planClose();if(typeof window.openKonsorTownCreator==="function")window.openKonsorTownCreator();else if(typeof iniciarDibujoPueblo==="function")iniciarDibujoPueblo();},true);
  planAction(actions,"Asignar sector",()=>{planClose();if(typeof startSectorDrawing==="function")startSectorDrawing();});
  planAction(actions,"Ver todos los pueblos",()=>{planClose();window.openCnTerritory?.();});
  const queue=planSection(body,"Tareas y encargos","Prioridad por fecha. La tarea solo desaparece del listado pendiente después de confirmar el guardado.");
