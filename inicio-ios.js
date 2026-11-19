@@ -142,7 +142,7 @@ function makeMapBar(){
   ["ruler","Medir superficie",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
   ["gps","Norte",()=>typeof resetMapNorth==="function"&&resetMapNorth()]
  ];
- items.filter(([key,label])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["Catastro","Medir superficie"].includes(label)&&me()!=="Mikel (Jefe)")).forEach(([key,label,fn])=>{
+ items.filter(([key,label])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&(label==="Medir superficie"||(label==="Catastro"&&me()!=="Mikel (Jefe)")))).forEach(([key,label,fn])=>{
   const b=btn("",fn,"cnv-map-tool");b.title=label;b.setAttribute("aria-label",label);b.append(icon(key));controls.append(b);
  });
  const draw=el("section","cnv-drawing-panel",undefined,mapBar);
