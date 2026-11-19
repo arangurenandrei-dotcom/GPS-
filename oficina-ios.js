@@ -55,6 +55,8 @@ function render(){
  const body=root().querySelector(".cn-office-body");body.replaceChildren();
  const s=state();
  if(section==="home"){
+  const flow=card(body,"ASISTENTE DE OFICINA","Trabaja sin buscar pestañas","Primero las hojas antiguas, después fichas, seguimientos y llamadas. Se comprueba el progreso después de cada guardado.");
+  flow.append(btn("Continuar recorrido de Oficina",()=>{root().classList.remove("active");window.konsorMotor?.openOffice?.();},"primary"));
   const lead=card(body,"TU SIGUIENTE ACCIÓN",s.unuploaded.length?"Hay "+s.unuploaded.length+" sectores que requieren revisión o volcado":s.incomplete.length?"Revisa "+s.incomplete.length+" fichas incompletas":s.pending.length?"Tienes "+s.pending.length+" clientes por gestionar":"Trabajo de Oficina al día",
    s.unuploaded.length?"Empieza por las calles ya terminadas y pendientes de volcar. Revisa después los sectores antiguos cuyo trabajo no conste como terminado.":s.incomplete.length?"Completa los datos esenciales antes de gestionar citas.":s.pending.length?"Continúa las llamadas hasta resolver la situación de cada cliente.":"Consulta las obras confirmadas o revisa el cierre.");
   lead.append(btn(s.unuploaded.length?"Volcar hojas pendientes":s.pending.length?"Continuar con clientes":"Ver agenda",()=>{if(s.unuploaded.length){section="volcados";render();}else if(s.pending.length)openCalls();else{section="agenda";render();}},"primary"));
@@ -71,6 +73,7 @@ function render(){
   nav(body);
   const list=card(body,"01 · VOLCADO","Hojas pendientes","Abre el sector, comprueba los resultados y guarda con la fecha real del trabajo de calle.");
   const items=s.unuploaded.concat(s.open.filter(x=>!s.unuploaded.some(item=>String(item.z.id)===String(x.z.id))));
+  el("p","",items.length+" sector(es) para revisar · empieza siempre por el más antiguo.",list);
   if(!items.length)el("p","","No quedan sectores abiertos.",list);
   items.forEach(({z,idx})=>{
    const delayed=z.date&&z.date<today()&&!z.dumpDate; const streetCompleted=Number(z.streetCompletedAt)>0&&!z.dumpDate;
