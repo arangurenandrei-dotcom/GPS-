@@ -3278,7 +3278,17 @@ function openUserProfileModal() {
         const nota = document.createElement('small');
         nota.textContent = 'Supervisión · Solo lectura';
         panel.appendChild(nota);
-
+        poligono.on('click',e=>{
+          if(isDrawingMode){handleMapClick(e);return;}
+          L.DomEvent.stopPropagation(e);
+          panel.querySelector('.konsor-map-cadastre-trigger')?.remove();
+          const action=document.createElement('button');
+          action.type='button';action.className='konsor-map-cadastre-trigger';
+          action.textContent='Consultar Catastro de este punto';
+          action.onclick=()=>inspectNavarraCadastreAtPoint(e.latlng);
+          panel.append(action);
+          poligono.bindPopup(panel,{maxWidth:290}).openPopup(e.latlng);
+        });
         poligono.bindPopup(panel);
         poligono.bringToBack();
         loadedMapLayers.push(poligono);
@@ -12370,20 +12380,47 @@ const labelStreet = clientObj.street ||
     }
 
     async function deleteSingleHouse(idx) {
-      const z = savedZones[idx];
-      if (!z) return;
-      if (currentUserRole !== 'jefe' && z.comercial !== currentUserName) {
-        alert("⛔ Solo puedes eliminar tus propias captaciones.");
-        return;
+      const z=savedZones[idx];
+      if(!z?.isSingleHouse)return;
+      if(currentUserRole!=='jefe'&&z.comercial!==currentUserName){
+        alert('Solo puedes eliminar tus propias captaciones.');return;
       }
-      if (confirm('¿Seguro que quieres eliminar esta vivienda/edificio del mapa?')) {
-        const nextZones = savedZones.filter((_,i)=>i!==idx);
-        if (!await saveAndSync('comercial_custom_zones', nextZones)) return;
-        savedZones = nextZones;
-        closeModal('singleHouseModal');
-        renderAllSavedZones();
-      }
+      const client=z.clients?.[0]||{};
+      const address=client.street||z.sectorName||z.town||'vivienda';
+      const activeBooking=['agendada','realizada'].includes(client.obraStatus);
+      if(!confirm('¿Eliminar definitivamente la vivienda de '+address+' y su ficha de Firebase?'
+        +(activeBooking?'\n\nATENCIÓN: esta ficha tiene una obra agendada o realizada. Comprueba la agenda antes de continuar.':'')))return;
+      const nextZones=savedZones.filter((_,i)=>i!==idx);
+      if(!await saveAndSync('comercial_custom_zones',nextZones))return;
+      savedZones=nextZones;
+      closeModal('singleHouseModal');
+      if(map)map.closePopup();
+      renderAllSavedZones();
+      window.cnvRefreshHome?.();
     }
+    window.konsorDeleteSingleHouse=deleteSingleHouse;
+
+    window.konsorDeleteSectorClient=async function(zoneIndex,clientIndex){
+      const zone=savedZones?.[zoneIndex],client=zone?.clients?.[clientIndex];
+      if(!zone||zone.isSingleHouse||!client)return;
+      if(currentUserRole!=='jefe'&&zone.comercial!==currentUserName){
+        alert('No tienes permiso para borrar esta ficha.');return;
+      }
+      const address=client.street||client.name||'sin dirección';
+      if(!confirm('¿Borrar definitivamente la ficha de '+address+'? Se conservará el sector.'
+        +(['agendada','realizada'].includes(client.obraStatus)?'\n\nATENCIÓN: tiene una obra registrada. Revisa la agenda.':'')))return;
+      const nextZones=savedZones.map((z,i)=>{
+        if(i!==zoneIndex)return z;
+        return {...z,clients:(z.clients||[]).filter((_,j)=>j!==clientIndex),
+          stats:{...z.stats,si:Math.max(0,Number(z.stats?.si||0)-(client.obraStatus==='no_apto'?0:1))}};
+      });
+      if(!await saveAndSync('comercial_custom_zones',nextZones))return;
+      savedZones=nextZones;
+      if(map)map.closePopup();
+      renderAllSavedZones();
+      closeModal('dumpModal');
+      window.cnvRefreshHome?.();
+    };
 
     async function finishSectorDrawing() {
       if (isPuebloDrawingMode) {
@@ -13049,29 +13086,43 @@ function suggestSectorDateFor(comercial) {
         const comercialColor = getComercialColor(z.comercial);
 
         if (z.isSingleHouse && z.singlePoint && z.singlePoint.length === 2) {
-          const client = (z.clients && z.clients[0]) ? z.clients[0] : {};
-          const isCom = client.type === 'comunidad';
-          const iconEmoji = isCom ? '🏢' : '🏠';
-          const docsProgressText = isCom ? ` | 📋 Docs: ${countComunidadDocs(client.comunidadDocs)}/5` : '';
-
-          const houseIcon = L.divIcon({
-            className: '',
-            html: `<div class="single-house-pin" style="background:${comercialColor};">${iconEmoji}</div>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
+          const client=z.clients?.[0]||{};
+          const isCom=client.type==='comunidad';
+          const houseSvg=isCom
+            ? '<path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16M3 21h18M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1M10 21v-3h4v3"/>'
+            : '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Zm6 11v-8h6v8"/>';
+          const houseIcon=L.divIcon({
+            className:'konsor-house-marker-shell',
+            html:'<span class="konsor-house-pin" style="--house-accent:'+comercialColor+'"><svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+houseSvg+'</svg></span>',
+            iconSize:[40,44],iconAnchor:[20,40]
           });
-
-          const marker = L.marker(z.singlePoint, { icon: houseIcon }).addTo(map);
-          const m2Val = getM2NumericValue(client.m2);
-          const popupHtml = `
-            <div class="popup-zone-info">
-              <div class="popup-zone-title">${iconEmoji} ${client.street || z.sectorName}</div>
-              <div class="popup-zone-sub">👤 <strong>${client.name || 'Cliente'}</strong> • ${m2Val} m²${docsProgressText}</div>
-              <div class="popup-zone-sub">🏃 ${z.comercial} | 📅 ${formatDate(z.date)}</div>
-              <button class="btn-popup-open" onclick="window.openKonsorClientDetail?.(${idx},0)">Ver ficha</button>
-            </div>
-          `;
-          marker.bindPopup(popupHtml);
+          const marker=L.marker(z.singlePoint,{icon:houseIcon}).addTo(map);
+          marker.on('click',e=>{
+            L.DomEvent.stopPropagation(e);
+            if(isDrawingMode){handleMapClick(e);return;}
+            const panel=document.createElement('section');panel.className='konsor-map-info';
+            const eyebrow=document.createElement('span');eyebrow.className='konsor-map-eyebrow';
+            eyebrow.textContent=isCom?'EDIFICIO':'VIVIENDA';
+            const title=document.createElement('strong');title.className='konsor-map-title';
+            title.textContent=client.street||z.sectorName||'Vivienda individual';
+            const sub=document.createElement('p');sub.className='konsor-map-description';
+            sub.textContent=(client.name||'Sin nombre')+' · '+(z.comercial||'Sin responsable');
+            const actions=document.createElement('div');actions.className='konsor-map-actions';
+            const cad=document.createElement('button');cad.type='button';cad.textContent='Consultar Catastro';
+            cad.className='konsor-map-action-primary';
+            cad.onclick=()=>inspectNavarraCadastreAtPoint(L.latLng(z.singlePoint[0],z.singlePoint[1]));
+            actions.append(cad);
+            if(currentUserRole==='jefe'||z.comercial===currentUserName){
+              const edit=document.createElement('button');edit.type='button';edit.textContent='Editar ficha';
+              edit.onclick=()=>{map.closePopup();openSingleHouseModal(z.singlePoint[0],z.singlePoint[1],idx);};
+              actions.append(edit);
+              const del=document.createElement('button');del.type='button';del.textContent='Eliminar';del.className='konsor-map-action-danger';
+              del.onclick=()=>deleteSingleHouse(idx);
+              actions.append(del);
+            }
+            panel.append(eyebrow,title,sub,actions);
+            marker.bindPopup(panel,{maxWidth:300,closeButton:true}).openPopup();
+          });
           loadedMapLayers.push(marker);
           return;
         }
