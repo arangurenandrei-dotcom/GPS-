@@ -66,7 +66,12 @@ function mount(el){
  const row=document.createElement("div");row.className="cn-global-nav";
  const make=(label,aria,fn,cls)=>{const b=document.createElement("button");b.type="button";b.className=cls;b.textContent=label;b.setAttribute("aria-label",aria);b.onclick=e=>{e.preventDefault();e.stopPropagation();fn();};return b;};
  row.append(make("‹","Volver una pantalla",back,"cn-global-back"),make("×","Cerrar",closeTop,"cn-global-close"));header.append(row);
- const existing=header.querySelector('button[onclick*="closeModal"]');if(existing)existing.classList.add("cn-original-close-hidden");
+ // Una sola X de cierre: ocultar el botón viejo aunque use addEventListener.
+ [...header.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav")).forEach(b=>{
+  const label=(b.getAttribute("aria-label")||b.textContent||"").trim();
+  if(/^(cerrar(?: sección| ventana| dirección)?|x|×|✕)$/i.test(label)||
+     b.matches('button[onclick*="closeModal"]'))b.classList.add("cn-original-close-hidden");
+ });
 }
 function scan(){
  scheduled=false;const all=[...document.querySelectorAll(selector)].filter(visible);
