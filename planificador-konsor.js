@@ -210,6 +210,7 @@ function review(){
  if(noFuture.length)E("p","km-warning","Sin próxima zona registrada: "+noFuture.join(", "),advice);
  if(!late&&!noFuture.length)E("p","km-good","No se detectan sectores terminados sin volcar ni personas con historial sin próximas zonas.",advice);
  const row=actions(advice);B(row,"Planificar",()=>{draft=readDraft();draft.step=0;open();},"primary");
+ B(row,"Asignar tarea a un comercial",()=>{document.getElementById("km-flow")?.remove();window.openNotificationsCenterV2?.("tasks");});
  B(row,"Análisis operativo",()=>{document.getElementById("km-flow")?.remove();window.openKonsorTeamOperations?.();});
  B(row,"Terminar",()=>{document.getElementById("km-flow")?.remove();window.cnvShowHome?.();});
 }
