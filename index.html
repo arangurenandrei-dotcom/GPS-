@@ -13829,21 +13829,30 @@ function suggestSectorDateFor(comercial) {
       } else if(paso===2){
         aviso('Consulta el catastro y revisa los datos. Los metros netos se calculan con el motor actual, incluyendo plantas y deducciones.');
         const cat=box.querySelector('button[onclick*="openCadastreFromClientBox"]');
-        if(cat)boton(cuerpo,'Consultar Catastro de esta vivienda',async()=>{
-          const status=nodo(cuerpo,'p','Buscando localización y ficha catastral…','captacion-ios-note');
-          try{
-            await openCadastreFromClientBox(cat);
-            const slot=cat.parentElement?.querySelector('.inline-catastro-link-slot');
-            const link=slot?.querySelector('a[href]');
-            if(link){
-              const official=nodo(cuerpo,'a','Abrir ficha en Catastro ↗','captacion-ios-btn');
-              official.href=link.href;official.target='_blank';official.rel='noopener noreferrer';
-              status.textContent='Se ha encontrado un enlace de consulta. Ábrelo para comprobar año y m²; después regresa a esta ficha.';
-            }else{
-              status.textContent=slot?.textContent?.trim()||'No se pudo localizar la vivienda. Revisa la dirección y el número.';
-            }
-          }catch(err){status.textContent='No se pudo consultar Catastro: '+(err.message||err);}
-        },true);
+        if(cat){
+          const consult=boton(cuerpo,'Consultar Catastro de esta vivienda',async()=>{
+            const result=cuerpo.querySelector('#captacionCatastroResultado');
+            result.replaceChildren();
+            const status=nodo(result,'p','Buscando localización y ficha catastral…','captacion-ios-note');
+            consult.disabled=true;
+            try{
+              await openCadastreFromClientBox(cat);
+              const slot=cat.parentElement?.querySelector('.inline-catastro-link-slot');
+              const link=slot?.querySelector('a[href]');
+              if(link){
+                const official=nodo(result,'a','Ver ficha catastral','captacion-ios-btn');
+                official.href=link.href;official.target='_blank';official.rel='noopener noreferrer';
+                status.textContent='Consulta los m² y el año en la ficha oficial.';
+              }else{
+                status.textContent=slot?.textContent?.trim()||'No se pudo localizar la vivienda. Revisa la dirección y el número.';
+              }
+            }catch(err){status.textContent='No se pudo consultar Catastro: '+(err.message||err);}
+            finally{consult.disabled=false;}
+          },true);
+          consult.classList.add('cn-inline-catastro-button');
+          const result=nodo(cuerpo,'div',null,'cn-inline-catastro-result');
+          result.id='captacionCatastroResultado';
+        }
         fila('Año de construcción','.client-build-year',{tipo:'number',placeholder:'Ej. 1998'});
         if(inputOriginal('.client-total-m2')){
           fila('Superficie catastral (m²)','.client-total-m2',{tipo:'number',placeholder:'m²'});
