@@ -1513,7 +1513,7 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 #dumpModal .cng-eyebrow{font-size:10px;color:#8292a5;font-weight:750;letter-spacing:1px}
 #dumpModal .cng-sheet h3{font-size:20px;letter-spacing:-.45px;color:#233247;margin:0;font-weight:740}
 #dumpModal .cng-sheet .cng-info{color:#64748b;font-size:12.5px;line-height:1.55;margin:0}
-#dumpModal .cng-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+#dumpModal .cng-progress{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
 #dumpModal .cng-progress span{height:6px;background:#e7ecf3;border-radius:999px}
 #dumpModal .cng-progress span.active{background:#7d9bbd}
 #dumpModal .cng-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -13475,7 +13475,7 @@ function suggestSectorDateFor(comercial) {
         boxes=document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
       }
       if (!boxes.length) return;
-      capturaGuiada={paso:0,ficha:Math.max(0,Math.min(indice,boxes.length-1))};
+      capturaGuiada={paso:window.cnDumpHasGroups?.()?1:0,ficha:Math.max(0,Math.min(indice,boxes.length-1))};
       mostrarPasoCaptacion();
     }
 
@@ -13708,7 +13708,7 @@ function suggestSectorDateFor(comercial) {
             capturaGuiada.paso=1;mostrarPasoCaptacion();return;
           }
           if(capturaGuiada.ficha+1<cajas.length){
-            capturaGuiada.ficha++;capturaGuiada.paso=0;mostrarPasoCaptacion();
+            capturaGuiada.ficha++;capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
           }else{
             fondo.classList.remove('active');
             window.cnRefreshDumpWizard?.();
@@ -13731,11 +13731,11 @@ function suggestSectorDateFor(comercial) {
       if(paso===3&&cajas.length>1){
         const nav=nodo(cuerpo,'div',null,'captacion-ios-nav');
         boton(nav,'Ficha anterior',()=>{
-          capturaGuiada.ficha=Math.max(0,capturaGuiada.ficha-1);capturaGuiada.paso=0;mostrarPasoCaptacion();
+          capturaGuiada.ficha=Math.max(0,capturaGuiada.ficha-1);capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
         },true);
         boton(nav,'Ficha siguiente',()=>{
           capturaGuiada.ficha=Math.min(cajas.length-1,capturaGuiada.ficha+1);
-          capturaGuiada.paso=0;mostrarPasoCaptacion();
+          capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
         },true);
       }
     }
@@ -13762,7 +13762,9 @@ function suggestSectorDateFor(comercial) {
       const z = selectedZoneIndexToDump !== null ? savedZones[selectedZoneIndexToDump] : null;
       const inMemoryClients = Array.from(currentDOMBoxes).map((box, idx) => {
         const prevCall = (z && z.clients && z.clients[idx]?.callStatus) || 'pendiente';
-        return extractClientFromBox(box, prevCall, z?.clients?.[idx] || {});
+        const c=extractClientFromBox(box, prevCall, z?.clients?.[idx] || {});
+        c.captacionInvalida=box.dataset.konsorInvalidPhone==='1';
+        return c;
       });
 
       container.innerHTML = '';
@@ -14847,7 +14849,7 @@ function suggestSectorDateFor(comercial) {
         Boolean(box.querySelector('.client-street')?.value.trim()&&box.querySelector('.client-name')?.value.trim());
       const completeCount=Array.from(clientBoxes).filter(box=>contactComplete(box)||markedInvalid(box)).length;
       const invalidCount=Array.from(clientBoxes).filter(markedInvalid).length;
-      if(completeCount!==siDeclarados || clientBoxes.length!==siDeclarados){
+      if(!isMikelTeamMember(currentUserName)&&(completeCount!==siDeclarados || clientBoxes.length!==siDeclarados)){
         alert('Volcado pendiente: '+completeCount+' de '+siDeclarados+' interesados están revisados. Completa los contactos o marca expresamente los teléfonos ilegibles.');
         return;
       }
@@ -14884,7 +14886,9 @@ function suggestSectorDateFor(comercial) {
         ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
         papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
         yaAislado: parseInt(document.getElementById('dumpYaAislado')?.value) || 0,
-        si: reportedSi
+        si: reportedSi,
+        siContactables: Math.max(0,reportedSi-invalidCount),
+        siNoContactables: invalidCount
       };
 
       const newStatus = document.getElementById('dumpProgressState').value;
