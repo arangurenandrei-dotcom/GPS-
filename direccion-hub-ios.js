@@ -78,11 +78,11 @@ function renderPlan(){
  const late=pending.filter(t=>t.dueDate<=today).sort((a,b)=>(a.dueDate||"").localeCompare(b.dueDate||""));
  const future=pending.filter(t=>t.dueDate>today).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
  const ownZones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&!z.isHotMission&&!z.isNoAptoZone&&!String(z.comercial||"").startsWith("Mikel"));
- const people=typeof getActiveTeamUsers==="function"?getActiveTeamUsers(false).filter(x=>x!=="Andrei (Jefe)"):["Comercial 1","Comercial 2","Comercial 3"];
+ const people=[...new Set(ownZones.map(z=>z.comercial).filter(n=>n&&n!=="Andrei (Jefe)"))];
  const unplanned=people.filter(name=>!ownZones.some(z=>z.comercial===name&&z.status!=="completada"&&z.date>=today));
  el("p","kd-intro",planStatus,body);
  const cards=el("div","kd-stats",undefined,body);
- [["Vencidas / hoy",late.length],["Próximas",future.length],["Sin sector futuro",unplanned.length]].forEach(([name,v])=>{
+ [["Vencidas / hoy",late.length],["Próximas",future.length],["Sin próximo sector · con historial",unplanned.length]].forEach(([name,v])=>{
   const c=el("div","kd-stat",undefined,cards);el("strong","",v,c);el("small","",name,c);
  });
  const first=planSection(body,"Tu siguiente acción",late[0]?late[0].title:unplanned.length?"Planificar trabajo para "+unplanned.length+" comerciales":"Revisar las asignaciones y preparar próximos pueblos");
@@ -108,7 +108,7 @@ function renderPlan(){
 }
 function openPlan(){
  if(!isBoss())return;
- const p=planSurface();p.classList.add("active");planFilter="pending";
+ const p=planSurface();p.querySelector(".kd-head h2").textContent="Plan del equipo";p.classList.add("active");planFilter="pending";
  if(!window.bossTasksApi){planStatus="Firebase todavía no ha cargado. Comprueba la conexión y vuelve a abrir.";renderPlan();return;}
  if(planUnsubscribe){renderPlan();return;}
  planStatus="Cargando tareas sincronizadas…";
@@ -130,7 +130,7 @@ function analyticsRows(){
   for(const key of ["si","no","ausente","papelito","yaAislado"])v[key]+=Math.max(0,Number(stats[key])||0);
   for(const c of z.clients||[]){
    if(c.captacionInvalida||c.obraStatus==="no_apto")continue;
-   if(["agendada","realizada"].includes(c.obraStatus)){v.appointments++;v.m2Booked+=Number.parseFloat(String(c.m2||0).replace(",","."))||0;}
+   if(["agendada","realizada"].includes(c.obraStatus)){v.appointments++;v.m2Booked+=(typeof ComercialCore!=="undefined"&&typeof ComercialCore.area==="function"?ComercialCore.area(c.m2):Number.parseFloat(String(c.m2||0).replace(",",".")))||0;}
    if(c.obraStatus==="realizada")v.executed++;
   }
  }
@@ -138,6 +138,7 @@ function analyticsRows(){
 }
 function showAnalytics(mode){
  if(!isBoss())return;
+ planClose();
  const r=planSurface(),body=r.querySelector(".kd-body");
  const title=r.querySelector(".kd-head h2");
  title.textContent=mode==="compare"?"Comparación de equipos":"Análisis operativo";
