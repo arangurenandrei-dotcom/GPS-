@@ -96,6 +96,47 @@ function render(){
  stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
  stat(grid,"Obras agendadas",fmt(m.citas),fmt(m.m2Citas)+" m² previstos");
  stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
+ const chart=$("section","kr-panel",undefined,main);
+ $("h3","","Respuestas en captación",chart);
+ const responseValues=[["Sí",Math.max(0,Number(m.si)||0),"#638e7a"],["No",Math.max(0,Number(m.no)||0),"#b77b7b"],["Ausentes",Math.max(0,Number(m.ausente)||0),"#a9b2bf"],["Papelitos",Math.max(0,Number(m.papelito)||0),"#7597ad"]];
+ const contacts=responseValues.reduce((n,item)=>n+item[1],0);
+ const visual=$("div","",undefined,chart);
+ visual.style.cssText="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:12px 0";
+ const donut=$("div","",undefined,visual);
+ donut.style.cssText="width:136px;height:136px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative";
+ let pos=0;
+ const stops=responseValues.map(item=>{const first=pos;pos+=contacts?100*item[1]/contacts:0;return item[2]+" "+first+"% "+pos+"%";});
+ donut.style.background=contacts?"conic-gradient("+stops.join(",")+")":"conic-gradient(#e7edf3 0% 100%)";
+ donut.setAttribute("role","img");donut.setAttribute("aria-label","Respuestas: "+responseValues.map(x=>x[0]+" "+x[1]).join(", "));
+ const hole=$("div","",undefined,donut);
+ hole.style.cssText="width:96px;height:96px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center";
+ const big=$("strong","",String(contacts),hole);big.style.cssText="color:#26394d;font-size:23px;font-weight:760";
+ const small=$("small","","visitas",hole);small.style.cssText="font-size:10px;color:#77899c";
+ const legend=$("div","",undefined,visual);legend.style.cssText="display:flex;flex:1 1 145px;flex-direction:column;gap:9px";
+ responseValues.forEach(([label,value,color])=>{
+  const row=$("div","",undefined,legend);row.style.cssText="display:flex;align-items:center;gap:8px;font-size:12px;color:#5b6d84";
+  const dot=$("span","",undefined,row);dot.style.cssText="width:9px;height:9px;border-radius:100%;background:"+color+";flex:none";
+  $("span","",label,row);
+  const v=$("strong","",String(value),row);v.style.cssText="margin-left:auto;color:#26394d;font-variant-numeric:tabular-nums";
+ });
+ caption(chart,"Distribución de respuestas registradas en el período. Los ausentes no cuentan como rechazos.");
+ const trend=$("section","kr-panel",undefined,main);
+ $("h3","","Tendencia semanal",trend);
+ caption(trend,"Compara los m² captados esta semana con los de la semana anterior; son estimaciones de captación, no facturación.");
+ if(typeof personalStatsRange==="function"&&typeof personalStatsMetrics==="function"){
+  const endDate=date||today(),w1=personalStatsRange("week",endDate),w0=personalStatsRange("week",endDate,true);
+  const areaFor=range=>users.reduce((n,u)=>n+Math.max(0,Number(personalStatsMetrics(u,...range).m2Captado)||0),0);
+  const current=areaFor(w1),previous=areaFor(w0),max=Math.max(1,current,previous);
+  [["Semana actual",current,"#6e94ac"],["Semana anterior",previous,"#b4c1cf"]].forEach(([label,value,color])=>{
+   const wrap=$("div","",undefined,trend);wrap.style.cssText="margin:12px 0;display:flex;flex-direction:column;gap:5px";
+   const head=$("div","",undefined,wrap);head.style.cssText="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#52667e";
+   $("span","",label,head);$("strong","",fmt(value)+" m²",head);
+   const rail=$("div","",undefined,wrap);rail.style.cssText="height:11px;border-radius:999px;background:#e8edf3;overflow:hidden";
+   const fill=$("span","",undefined,rail);fill.style.cssText="display:block;height:100%;width:"+(100*value/max)+"%;background:"+color+";border-radius:999px";
+  });
+  if(current===0&&previous===0)caption(trend,"Todavía no hay superficies registradas en estas semanas.");
+ }
+
  const money=$("section","kr-panel",undefined,main);$("h3","","Producción estimada",money);
  const moneyGrid=$("div","kr-grid",undefined,money);
  // Potencial, previsto y generado son fases solapadas, no importes sumables.
