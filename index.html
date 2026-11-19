@@ -2952,6 +2952,7 @@ function openUserProfileModal() {
     wrap('h3','', 'Equipo y accesos',team);
     wrap('p','', 'Gestiona comerciales, credenciales y permisos.',team);
     btn(team,'Administrar cuentas',()=>{closeModal('userProfileModal');openAccessAdminModal();});
+    btn(team,'Comerciales · Supervisión',()=>{closeModal('userProfileModal');if(typeof openPeopleManagement==='function')openPeopleManagement();});
   }
   const work=wrap('div','cn-settings-card',undefined,root);
   wrap('h3','', 'Trabajo y navegación',work);
