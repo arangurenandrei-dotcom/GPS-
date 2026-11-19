@@ -37,7 +37,14 @@ function periodMetrics(start,end){
  const yes=sum("si"),no=sum("no"),abs=sum("ausente"),paper=sum("papelito");
  return {count:rows.length,yes,no,abs,paper,total:yes+no+abs+paper,conv:yes+no?Math.round(100*yes/(yes+no)):null};
 }
-function previousMetrics(){const first=new Date(dateMs(draft.start)),days=draft.period==="month"?30:Number(draft.period);const last=new Date(first);last.setDate(last.getDate()-1);first.setDate(first.getDate()-days);return periodMetrics(iso(first),iso(last));}
+function recentMetrics(){
+ // Períodos realmente trabajados, no la semana FUTURA que se está planificando.
+ const end=new Date();end.setHours(12,0,0,0);end.setDate(end.getDate()-1);
+ const start=new Date(end);start.setDate(start.getDate()-6);
+ const oldEnd=new Date(start);oldEnd.setDate(oldEnd.getDate()-1);
+ const oldStart=new Date(oldEnd);oldStart.setDate(oldStart.getDate()-6);
+ return {now:periodMetrics(iso(start),iso(end)),old:periodMetrics(iso(oldStart),iso(oldEnd)),start:iso(start),end:iso(end)};
+}
 function stat(p,title,v){const c=E("div","km-stat",undefined,p);E("strong","",v,c);E("small","",title,c);}
 function box(p,k,title,detail){const c=E("section","km-card",undefined,p);if(k)E("small","km-kicker",k,c);E("h3","",title,c);if(detail)E("p","km-muted",detail,c);return c;}
 function actions(p){return E("div","km-actions",undefined,p);}
@@ -69,13 +76,27 @@ function open(){
   const c=box(body,"01 · REVISAR","Elige el período","Las estadísticas permiten decidir qué territorios requieren atención, sin confundir planes con trabajo ya realizado.");
   field(c,"Fecha de inicio","date",[],draft.start,v=>{draft.start=v;draft.edits={};persist();open();});
   field(c,"Duración","select",[["7","Una semana"],["14","Dos semanas"],["month","Un mes (30 días)"]],draft.period,v=>{draft.period=v;draft.edits={};persist();open();});
-  const now=periodMetrics(draft.start,end),old=previousMetrics();
-  const report=box(body,"COMPARACIÓN","Período frente al anterior","Se contabilizan solo sectores con cierre de calle o volcado registrado en el período.");
+  const history=recentMetrics(),now=history.now,old=history.old;
+  const report=box(body,"COMPARACIÓN","Últimos 7 días frente a los 7 anteriores","Actividad registrada del "+history.start+" al "+history.end+". No se confunde la semana futura a planificar con resultados históricos.");
   const grid=E("div","km-stats",undefined,report);
   stat(grid,"Sectores actuales",now.count);stat(grid,"Sectores anteriores",old.count);stat(grid,"Respuestas Sí",now.yes);
   bar(report,"Conversión actual",now.yes,now.no);bar(report,"Conversión anterior",old.yes,old.no);
   if(now.yes+now.no<10||old.yes+old.no<10)E("p","km-muted","Datos insuficientes para concluir si la conversión mejora o empeora.",report);
   else E("p","km-muted",now.conv>old.conv?"Mejora "+(now.conv-old.conv)+" puntos respecto al período anterior.":now.conv<old.conv?"Baja "+(old.conv-now.conv)+" puntos respecto al período anterior.":"La conversión no ha variado respecto al período anterior.",report);
+  const street=box(body,"LECTURA TERRITORIAL","Dónde conviene concentrarse","Solo analizamos pueblos con suficientes respuestas para evitar conclusiones precipitadas.");
+  const recent=sectors().filter(z=>{const dt=dateOf(z.streetCompletedAt)||z.dumpDate||"";return dt>=history.start&&dt<=history.end;});
+  const towns=new Map();
+  for(const z of recent){const key=z.town||"Sin pueblo";if(!towns.has(key))towns.set(key,{name:key,zones:0,yes:0,no:0});const x=towns.get(key);x.zones++;x.yes+=Math.max(0,Number(z.stats?.si)||0);x.no+=Math.max(0,Number(z.stats?.no)||0);}
+  if(!towns.size)E("p","km-muted","No hay sectores con cierre registrado en los últimos siete días.",street);
+  for(const t of [...towns.values()].sort((a,b)=>b.yes-a.yes).slice(0,8)){
+   if(t.yes+t.no>=12){
+    E("p","km-townline",t.name+" · "+t.zones+" sector(es) · "+t.yes+" Sí y "+t.no+" No. Conversión: "+Math.round(100*t.yes/(t.yes+t.no))+"%",street);
+    if(t.yes/(t.yes+t.no)<.15)E("p","km-warning","Conversión baja en las visitas registradas de "+t.name+". Revisa horarios, accesos y calidad de la captación antes de asignar más sectores.",street);
+   }else E("p","km-townline",t.name+" · "+t.zones+" sector(es) · muestra insuficiente para evaluar conversión.",street);
+  }
+  const links=actions(street);
+  B(links,"Ver análisis operativo",()=>{document.getElementById("km-flow")?.remove();window.openKonsorTeamOperations?.();});
+  B(links,"Gestionar avisos del equipo",()=>{document.getElementById("km-flow")?.remove();window.openNotificationsCenterV2?.("tasks");});
   B(actions(body),"Continuar · equipo",next,"primary");
  }else if(draft.step===1){
   const available=activePeople(),c=box(body,"02 · PERSONAS","¿A quién organizamos el trabajo?","Incluye al jefe si también sale a vender. Se muestran perfiles aprobados y personas con sectores existentes.");
