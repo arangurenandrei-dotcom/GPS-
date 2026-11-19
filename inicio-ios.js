@@ -130,14 +130,19 @@ function makeMapBar(){
  const oldDropdown=document.getElementById("searchCandidatesDropdown");
  if(oldDropdown)mapBar.appendChild(oldDropdown);
  const controls=el("div","cnv-map-controls",undefined,mapBar);
- const items=[
+ const isChief=boss()&&["Andrei (Jefe)","Mikel (Jefe)"].includes(me());
+ const items=[...(isChief?[
+   ["office","Pueblos",()=>window.openCnTerritory?.()],
+   ["pin","Crear sector",()=>typeof startSectorDrawing==="function"&&startSectorDrawing()],
+   ["map","Dibujar pueblo",()=>typeof iniciarDibujoPueblo==="function"&&iniciarDibujoPueblo()]
+ ]:[]),
   ["gps","Mi GPS",()=>typeof centerOnUser==="function"&&centerOnUser()],
   ["layers","Catastro",()=>typeof setMapDisplay==="function"&&setMapDisplay("both")],
   ["map","Satélite",()=>typeof setMapDisplay==="function"&&setMapDisplay("satellite")],
   ["ruler","Medir superficie",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
   ["gps","Norte",()=>typeof resetMapNorth==="function"&&resetMapNorth()]
  ];
- items.filter(([key])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["layers","ruler","pin"].includes(key))).forEach(([key,label,fn])=>{
+ items.filter(([key,label])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&["Catastro","Medir superficie"].includes(label))).forEach(([key,label,fn])=>{
   const b=btn("",fn,"cnv-map-tool");b.title=label;b.setAttribute("aria-label",label);b.append(icon(key));controls.append(b);
  });
  const draw=el("section","cnv-drawing-panel",undefined,mapBar);
