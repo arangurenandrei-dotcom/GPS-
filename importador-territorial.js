@@ -71,7 +71,7 @@ window.konsorImportCsvWizard=function(api){
   if(faults.length)note(root,faults.length+' registros con datos obligatorios vacíos o respuesta no reconocida. Corrige el CSV y vuelve a cargarlo.','warn');
   if(dupes)note(root,dupes+' posibles duplicados dentro del archivo. Revisa antes de guardar.','warn');
   const snap=api.snapshot();const polygons=snap.towns||[],zones=snap.zones||[];
-  function findTown(t){return polygons.find(p=>norm(p.nombre)===norm(t)&&Array.isArray(p.points)&&p.points.length>=3)}
+  function findTown(t){return api.requireTownBoundary===false?{nombre:t}:polygons.find(p=>norm(p.nombre)===norm(t)&&Array.isArray(p.points)&&p.points.length>=3)}
   const unresolved=gs.filter(g=>!findTown(g.town));
   const missing=gs.filter(g=>!zones.some(z=>!z.isSingleHouse&&!z.isNoAptoZone&&norm(z.parentTown||z.town)===norm(g.town)&&norm(z.sectorName)===norm(draft.assign[g.id]||g.sector)));
   const h=document.createElement('h3');h.textContent='1 · Comprobar pueblos y sectores';root.append(h);
