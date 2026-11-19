@@ -116,7 +116,7 @@ function render(){
  const p=puebloAbierto?data.find(p=>p.key===puebloAbierto):null;
  if(p){renderDetail(body,p);return;}
  const active=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&currentTeam(z)&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&z.status!=="completada");
- const teamNames=["Comercial 1","Comercial 2","Comercial 3","Comercial 4","Comercial 5"].filter(name=>active.some(z=>z.comercial===name));
+ const teamNames=(typeof getActiveTeamUsers==="function"?getActiveTeamUsers(false):["Andrei (Jefe)","Comercial 1","Comercial 2","Comercial 3","Comercial 4","Comercial 5"]).filter(name=>name&&name!=="Andrei (Jefe)"&&!String(name).startsWith("Mikel")&&!String(name).startsWith("Comercial Mikel"));
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
  const planning=el("section","cn-summary",undefined,body);
  el("h3","cn-section-title","Continuidad del equipo",planning);
@@ -125,10 +125,11 @@ function render(){
  teamNames.forEach(name=>{
   const assigned=active.filter(z=>z.comercial===name);
   const overdue=assigned.filter(z=>day(z.date)&&day(z.date)<today).length;
+  const waitingDump=assigned.filter(z=>Number(z.streetCompletedAt)>0&&!z.dumpDate).length;
   const future=assigned.filter(z=>day(z.date)>=today).length;
   const line=el("div","cn-sector",undefined,planning);
   el("strong","cn-sector-name",name,line);
-  el("p","cn-detail",assigned.length+" sectores abiertos · "+overdue+" atrasados · "+future+" planificados desde hoy",line);
+  el("p","cn-detail", assigned.length+" sectores abiertos · "+overdue+" atrasados · "+future+" desde hoy · "+waitingDump+" por volcar",line);
  });
  if(teamNames.length&&teamNames.some(name=>!active.some(z=>z.comercial===name&&day(z.date)>=today))){
   notice(planning,"Hay comerciales sin próximos sectores programados. Asigna nuevas zonas o pueblos antes de agotar el trabajo disponible.");
