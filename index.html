@@ -2906,9 +2906,9 @@ function openMapToolsMenu() {
     'Elige la vista o una herramienta.',
     [
       ...(currentUserName === 'Andrei (Jefe)' ? [[
-        'Dibujar pueblo',
-        'Delimitar manualmente un pueblo y guardarlo en Firebase.',
-        iniciarDibujoPueblo
+        'Crear pueblo',
+        'Buscar y seleccionar un pueblo de Navarra. Dibujo manual disponible.',
+        () => window.openKonsorTownCreator?.()
       ]] : []),
 
       [
@@ -13512,7 +13512,7 @@ function suggestSectorDateFor(comercial) {
       const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
       if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
         const deletedZone = savedZones[idx];
-        if (deletedZone && deletedZone.id) {
+        if (false && deletedZone && deletedZone.id) {
           const delList = safeLoadStorage('comercial_deleted_ids');
           if (!delList.includes(deletedZone.id)) {
             delList.push(deletedZone.id);
@@ -19488,7 +19488,7 @@ function openCommercialStatsModalLegacy() {
 <script src="./resultados-ios.js?v=5"></script>
 <script src="./inicio-ios.js?v=10"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=3">
-<script src="./direccion-hub-ios.js?v=4"></script>
+<script src="./direccion-hub-ios.js?v=5"></script>
 <script src="./volcado-guiado-ios.js?v=4"></script>
 <script src="./vivienda-guiada-ios.js?v=2"></script>
 
