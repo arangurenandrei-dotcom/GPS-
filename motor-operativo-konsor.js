@@ -86,6 +86,7 @@ function shell(section,title,desc){
  const page=E("section","km-page",undefined,root);
  const head=E("header","km-head",undefined,page),h=E("div","",undefined,head);
  E("small","",section,h);E("h2","",title,h);
+ const back=B(head,"‹",dismiss,"back km-back");back.setAttribute("aria-label","Volver");head.insertBefore(back,h);
  B(head,"×",dismiss,"close").setAttribute("aria-label","Cerrar asistente");
  const body=E("div","km-body",undefined,page);
  if(desc)E("p","km-muted",desc,body);
