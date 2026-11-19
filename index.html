@@ -4252,6 +4252,8 @@ function renderIosPrimaryNavigation(area='commercial'){
  const grid=document.createElement('div');grid.className='ios-main-grid';
  const choices=isMikel?[
   ['Mi equipo','users',openAuditModal,currentUserRole==='jefe'],
+  ['Pueblos','building',()=>window.openCnTerritory?.(),currentUserRole==='jefe'],
+  ['Crear sector','map',()=>{window.cnvShowMap?.();startSectorDrawing();},currentUserRole==='jefe'],
   ['Llamadas','phone',()=>window.openCnCalls?.(),true],
   ['Fichas','contact',()=>window.openCnClients?.(),true],
   ['Resultados','chart',()=>window.openCnResults?.(),true]
@@ -19630,7 +19632,7 @@ function openCommercialStatsModalLegacy() {
 <script src="./operaciones-ios.js?v=12"></script>
 <link rel="stylesheet" href="./resultados-unificados-ios.css?v=1">
 <script src="./resultados-ios.js?v=5"></script>
-<script src="./inicio-ios.js?v=12"></script>
+<script src="./inicio-ios.js?v=13"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=4">
 <script src="./direccion-hub-ios.js?v=7"></script>
 <script src="./volcado-guiado-ios.js?v=5"></script>
