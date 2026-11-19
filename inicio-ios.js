@@ -91,7 +91,7 @@ function showHome(){
  const welcome=el("div","cnv-home-welcome",undefined,section);
  el("span","cnv-eyebrow",boss()?"PANEL DE RESPONSABLE":"MI ESPACIO",welcome);
  el("h1","",greeting(),welcome);
- el("p","",me()+". Aquí tienes lo importante de hoy.",welcome);
+ el("p","",getDisplayAlias(me()),welcome);
  const hero=el("section","cnv-home-hero",undefined,section);
  const iconBox=el("span","cnv-home-hero-icon",undefined,hero);iconBox.append(icon(next.icon));
  const heroText=el("div","cnv-home-hero-content",undefined,hero);
@@ -269,6 +269,70 @@ window.cnvRefreshHome=function(){if(document.body.classList.contains("cnv-home-a
 window.cnvShowHome=showHome;
 window.cnvShowMap=showMap;
 window.cnvStart=start;
+
+/* Acceso y ayuda comparten los mismos patrones visuales y mensajes seguros. */
+function syncAuthMode(){
+ const screen=document.getElementById("loginScreen");
+ const heading=document.getElementById("authHeading");
+ if(!screen||!heading)return;
+ const registering=heading.textContent.trim()==="Crear cuenta";
+ screen.classList.toggle("cnv-register-mode",registering);
+}
+function installAuthAndHelp(){
+ syncAuthMode();
+ const authHeading=document.getElementById("authHeading");
+ if(authHeading)new MutationObserver(syncAuthMode).observe(authHeading,{childList:true,characterData:true,subtree:true});
+
+ const openLegacyGuide=window.openHelpGuide;
+ if(typeof openLegacyGuide==="function")window.openHelpGuide=function(){
+  openLegacyGuide();
+  const modal=document.getElementById("helpGuideModal");
+  if(!modal)return;
+  modal.classList.add("cnv-help-guide");
+  modal.innerHTML=`<div class="modal-card cnv-help-card">
+   <header class="cnv-help-head"><div><span>AYUDA KONSOR</span><h2>Guía de uso</h2></div>
+    <button type="button" aria-label="Cerrar guía" onclick="closeModal('helpGuideModal')">×</button></header>
+   <div class="modal-scrollable-content cnv-help-body">
+    <p class="cnv-help-intro">Sigue el recorrido de tu rol. Si una opción no aparece, consulta con tu responsable.</p>
+    <details open><summary>1. Acceso y permisos</summary><p>Entra con el correo y la contraseña de tu cuenta aprobada. Las solicitudes nuevas quedan pendientes hasta que las apruebe un administrador. Tu cuenta solo debe mostrar las herramientas de su rol y equipo.</p></details>
+    <details><summary>2. Trabajo de calle</summary><p>En <strong>Mi jornada</strong>, revisa la asignación, registra el inicio y las pausas, y trabaja la zona indicada. Guarda el resultado del día desde el flujo de volcado antes de cerrar la jornada.</p></details>
+    <details><summary>3. Mapa y territorio</summary><p>En <strong>Mapa</strong> puedes buscar lugares, consultar la capa pública del Catastro y medir superficies. La creación o asignación de territorio depende de tu rol. Confirma el resultado antes de salir del dibujo.</p></details>
+    <details><summary>4. Fichas y seguimiento</summary><p>En <strong>Oficina</strong>, revisa los volcados y el seguimiento de clientes. Completa los datos necesarios, registra el resultado de cada llamada y vuelve a abrir la ficha para comprobar que el guardado quedó confirmado.</p></details>
+    <details><summary>5. Citas y CRM</summary><p>Al agendar, revisa la fecha, la franja y la dirección antes de confirmar. La transferencia a la CRM de la empresa requiere el proceso manual disponible en esta versión. KONSOR no sincroniza automáticamente con la CRM ni con Google Calendar.</p></details>
+    <details><summary>6. Sincronización y privacidad</summary><p>Espera la confirmación del servidor después de guardar. Si aparece un guardado pendiente, revisa la conexión y confirma el estado antes de repetir la acción. Usa solo los datos necesarios y no compartas datos de clientes en WhatsApp ni en mensajes de soporte.</p></details>
+    <details><summary>7. Ayuda y avisos</summary><p>En Ajustes puedes abrir los avisos y los mensajes preparados para sugerencias, fallos o dudas. Los mensajes de soporte están pensados para describir la pantalla y el problema sin nombres, teléfonos, direcciones, documentos ni capturas con datos personales.</p></details>
+   </div></div>`;
+ };
+
+ document.addEventListener("click",event=>{
+  const link=event.target?.closest?.("a.cn-help-link");
+  if(!link)return;
+  const label=(link.textContent||"").toLocaleLowerCase("es");
+  if(!/(sugerir una mejora|informar de un fallo|resolver una duda)/.test(label))return;
+  let phone="";
+  try{phone=new URL(link.href,location.href).pathname.replace(/\\D/g,"");}catch{}
+  if(!phone)return;
+  let alias="equipo KONSOR";
+  try{if(typeof currentUserName!=="undefined"&&typeof getDisplayAlias==="function")alias=getDisplayAlias(currentUserName)||alias;}catch{}
+  const date=new Intl.DateTimeFormat("es-ES",{dateStyle:"medium"}).format(new Date());
+  let title,questions;
+  if(label.includes("mejora")){
+   title="SUGERENCIA SOBRE KONSOR";
+   questions="¿Qué te gustaría mejorar?\\n\\n¿En qué tarea te ayudaría?";
+  }else if(label.includes("fallo")){
+   title="FALLO EN KONSOR";
+   questions="Pantalla o sección:\\n\\nQué hice antes:\\n\\nQué ocurrió:\\n\\nQué esperaba que ocurriera:\\n\\nDispositivo y navegador:";
+  }else{
+   title="CONSULTA SOBRE KONSOR";
+   questions="Pantalla o sección:\\n\\n¿Qué intentas hacer?\\n\\n¿Qué parte necesitas que te expliquemos?";
+  }
+  const message=`${title}\\nDe: ${alias}\\nFecha: ${date}\\n\\n${questions}\\n\\nNo incluyas datos de clientes ni capturas con información personal.`;
+  event.preventDefault();
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,"_blank","noopener,noreferrer");
+ },true);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installAuthAndHelp,{once:true});
+else installAuthAndHelp();
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{if(hasSession())start();},{once:true});
 else if(hasSession())start();
 })();

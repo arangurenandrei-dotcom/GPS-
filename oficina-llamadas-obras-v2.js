@@ -440,7 +440,11 @@ function root(){
 function title(p,heading,detail){e("h3","",heading,p);if(detail)e("p","koc-muted",detail,p);}
 function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
-function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
+function nav(body,label,fn){
+ const back=button("‹ "+label,fn,"koc-quiet");
+ back.dataset.konsorBack="true";
+ body.append(back);
+}
 function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};view="client";draw();}
 function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const oldest=remaining[0]?.date||"";const eligible=remaining.filter(i=>(i.date||"")===oldest);const row=(origin&&eligible.find(i=>sameStreet(origin,i)))||(origin&&eligible.find(i=>sameTown(origin,i)))||eligible[0]||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
@@ -695,7 +699,7 @@ async function saveBooking(){
   if(typeof ensureCrmUpload==="function"&&!ensureCrmUpload(draft,{date:z.dumpDate||z.date,town:z.town,comercial:z.comercial})){busy=false;draw();return;}
   const oldC={...c},oldZ=z._updatedAt;Object.assign(c,draft);z._updatedAt=Date.now();
   if(!await saveAndSync("comercial_custom_zones",savedZones)){Object.keys(c).forEach(k=>{if(!(k in oldC))delete c[k];});Object.assign(c,oldC);z._updatedAt=oldZ;throw Error("No se ha confirmado el guardado de la obra.");}
-  if(typeof logActivity==="function")logActivity("cita","Obra agendada: "+c.name+" · "+z.town+" · "+chosenDate+" "+selectedSlot,z.comercial);
+  if(typeof logActivity==="function")logActivity("cita","Obra agendada · "+chosenDate+" "+selectedSlot,z.comercial);
   view="whatsapp";draw();
  }catch(err){alert(err.message||"No se pudo agendar. La cita no se ha confirmado.");view="calendar";draw();}
  finally{busy=false;}

@@ -85,7 +85,7 @@
     activityLog=lists.comercial_activity; customUserProfiles=lists.comercial_user_profiles;
     bossPlanItems=lists.comercial_boss_tasks;
     if(taskCallback)taskCallback(bossPlanItems,false);
-    if(!initial && map){renderAllSavedZones();updateShiftUI();updateHudLiveSalaryPill();refreshLoginDropdownAliases();}
+    if(!initial && map){renderAllSavedZones();updateShiftUI();updateHudLiveSalaryPill();}
   }
   let invalidate=0, checked=0, stopWatch;
   function draftKey(){return 'trabajo_pendiente_v2_'+uid;}

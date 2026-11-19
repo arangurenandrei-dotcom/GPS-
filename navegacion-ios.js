@@ -2,8 +2,8 @@
 (function(){
 "use strict";
 if(window.__konsorNavigationFinal)return;window.__konsorNavigationFinal=true;
-const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
-const headers=".modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kd-head";
+const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kr-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
+const headers=".modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kr-head,.cn-call-head,.kd-head";
 let trail=[],topSeen=null,scheduled=false,gesture=null,locked=false;
 const visible=e=>!!e&&e.isConnected&&getComputedStyle(e).display!=="none"&&getComputedStyle(e).visibility!=="hidden"&&e.getClientRects().length>0;
 function current(){
@@ -14,8 +14,9 @@ function originalBack(el){
  if(el.classList.contains("kd-overlay"))return el.querySelector(".kd-head>.kd-back");
  if(el.classList.contains("km-overlay"))return el.querySelector(".km-head>.km-back");
  const buttons=[...el.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav")&&visible(b));
- const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i,konsorOfficeCallV2:/volver a/i};
+ const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i};
  if(patterns[el.id]){const b=buttons.find(x=>patterns[el.id].test(x.textContent||""));if(b)return b;}
+ if(el.id==="konsorOfficeCallV2")return el.querySelector("[data-konsor-back]");
  return buttons.find(b=>/^(?:‹\s*)?volver(?:\s+a|\s+al)?\b/i.test((b.textContent||"").trim()));
 }
 function close(el){
@@ -27,7 +28,8 @@ function close(el){
   const b=el.querySelector(".km-head>.close");if(b){b.click();return;}
  }
  if(el.id==="idenaViewerModal"&&typeof window.closeIdenaModal==="function"){window.closeIdenaModal();return;}
- const old=el.querySelector('.modal-header button[onclick*="closeModal"]');
+ const old=el.querySelector(".cn-original-close-hidden")||
+   el.querySelector('.modal-header button[onclick*="closeModal"]');
  if(old){old.click();return;}
  if(el.id==="konsor-csv-wizard"){el.remove();return;}
  el.classList.remove("active");
@@ -38,7 +40,18 @@ function back(){
   // Primero retrocede dentro de la pantalla actual: pueblo -> pueblos,
   // cliente -> llamadas, horario -> ficha, Oficina -> paso anterior.
   const inside=originalBack(el);
-  if(inside&&!inside.disabled){inside.click();return;}
+  if(inside){
+   if(!inside.disabled)inside.click();
+   return;
+  }
+  const i=trail.lastIndexOf(el);
+  const parent=trail.slice(0,Math.max(0,i)).findLast(candidate=>candidate.isConnected);
+  if(parent){
+   close(el);
+   if(!visible(parent))parent.classList.add("active");
+   trail=trail.slice(0,trail.indexOf(parent)+1);
+   return;
+  }
   // Cuando estamos en la raíz de una sección, volvemos a su propietario
   // inmediato; nunca saltamos directamente a Inicio desde una subpantalla.
   if(el.id==="cnTerritorio"){
@@ -47,15 +60,8 @@ function back(){
   if(el.id==="konsorOfficeCallV2"){
    close(el);window.openCnOffice?.();return;
   }
-  if(el.id==="cnOficina"){
+  if(el.id==="cnOficina"||el.id==="konsorResultsV3"){
    close(el);window.cnvShowHome?.();return;
-  }
-  const i=trail.lastIndexOf(el),parent=i>0?trail[i-1]:null;
-  if(parent&&parent.isConnected){
-   close(el);
-   if(!visible(parent))parent.classList.add("active");
-   trail=trail.slice(0,i);
-   return;
   }
   // Sin pantalla anterior conocida no se cierra ni se navega a Inicio.
   // La X sigue siendo la acción explícita de cerrar.
@@ -83,6 +89,7 @@ function scan(){
  const top=current();
  if(!top){trail=[];topSeen=null;return;}
  if(top!==topSeen){
+  trail=trail.filter(candidate=>candidate.isConnected);
   const i=trail.indexOf(top);if(i>=0)trail=trail.slice(0,i+1);else trail.push(top);
   topSeen=top;
  }
@@ -97,16 +104,20 @@ function init(){
  scan();new MutationObserver(schedule).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class","style"],childList:true});
  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&current()){e.preventDefault();closeTop();}else if(e.altKey&&e.key==="ArrowLeft"&&current()){e.preventDefault();back();}});
  document.addEventListener("touchstart",e=>{
-  if(e.touches.length!==1||!current())return;const t=e.touches[0];if(t.clientX>35)return;
+  gesture=null;
+  const surface=current();
+  if(e.touches.length!==1||!surface)return;const t=e.touches[0];if(t.clientX>35)return;
   if(e.target.closest("#map,.leaflet-container,input,textarea,select,[role=slider],.cnv-map-toolbar"))return;
-  gesture={x:t.clientX,y:t.clientY};
+  gesture={x:t.clientX,y:t.clientY,surface};
  },{passive:true});
  document.addEventListener("touchmove",e=>{
-  if(!gesture||e.touches.length!==1)return;const t=e.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
+  if(!gesture)return;
+  if(e.touches.length!==1||current()!==gesture.surface){gesture=null;return;}
+  const t=e.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
   if(dx>20&&dx>Math.abs(dy)*1.4&&e.cancelable)e.preventDefault();
  },{passive:false});
  document.addEventListener("touchend",e=>{
-  if(!gesture)return;const g=gesture;gesture=null;const t=e.changedTouches[0];if(!t)return;
+  if(!gesture)return;const g=gesture;gesture=null;const t=e.changedTouches[0];if(!t||current()!==g.surface)return;
   const dx=t.clientX-g.x,dy=t.clientY-g.y;
   if(dx>75&&Math.abs(dy)<65&&dx>Math.abs(dy)*1.5){
    e.preventDefault();
