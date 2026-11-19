@@ -14,3 +14,8 @@
  .kd-overlay .kd-head{background:rgba(255,255,255,.84)}
 }
 @media(max-width:450px){.kdp-body{padding:13px}.kdp-actions{gap:7px}.kdp-actions>.kd-btn{font-size:12px;padding:10px}}
+
+.kdp-metric{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid #e9eef5;font-size:12px;line-height:1.5}
+.kdp-metric:last-child{border-bottom:0}
+.kdp-metric span{color:#6b7f94}
+.kdp-metric strong{color:#283d57;text-align:right;overflow-wrap:anywhere;font-weight:660}
