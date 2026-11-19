@@ -25,7 +25,6 @@ function pueblos(){
   if(!grouped.has(k))grouped.set(k,{key:k,nombre:z.town,perimetro:null,sectores:[]});
   grouped.get(k).sectores.push({z,idx});
  });
- const marked=typeof completedTowns!=="undefined"&&Array.isArray(completedTowns)?completedTowns:[];
  return [...grouped.values()].map(p=>{
   const total=p.sectores.length;
   const terminados=p.sectores.filter(({z})=>z.status==="completada").length;
@@ -36,8 +35,9 @@ function pueblos(){
   const papelito=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.papelito),0);
   const comerciales=[...new Set(p.sectores.map(({z})=>z.comercial).filter(Boolean))];
   const fechas=p.sectores.map(({z})=>z.date).filter(Boolean).sort();
-  const completado=marked.some(name=>norm(name)===p.key);
-  const estado=completado||(total>0&&terminados===total)?"terminados":(haciendo>0||terminados>0)?"haciendo":"pendientes";
+  // El estado del pueblo depende SOLO de la captación de sus sectores.
+  // Ni las llamadas ni una marca manual histórica fuerzan "Terminado".
+  const estado=total>0&&terminados===total?"terminados":(haciendo>0||terminados>0)?"haciendo":"pendientes";
   return {...p,total,terminados,haciendo,si,no,ausente,papelito,
    visitadas:si+no+ausente+papelito,
    aceptacion:si+no>0?Math.round(100*si/(si+no)):null,
@@ -321,7 +321,7 @@ function render(){
  stat(totals,"Haciendo",counts.haciendo);
  stat(totals,"Terminados",counts.terminados);
  const tabs=el("div","cn-tabs",undefined,body);
- [["pendientes","Por hacer"],["haciendo","Haciendo"],["terminados","Terminados"]].forEach(([key,label])=>{
+ [["pendientes","Sin empezar"],["haciendo","En proceso"],["terminados","Terminada"]].forEach(([key,label])=>{
  const b=btn(label,()=>{filtro=key;render();},filtro===key?"selected":"");
  b.setAttribute("aria-pressed",String(filtro===key));tabs.append(b);
  });
@@ -337,7 +337,7 @@ function render(){
    const card=el("div","cn-town",undefined,results);
    const line=el("div","cn-flex",undefined,card);
    el("strong","cn-town-name",p.nombre,line);
-   el("span","cn-tag",p.estado==="pendientes"?"Por hacer":p.estado==="haciendo"?"Haciendo":"Terminado",line);
+   el("span","cn-tag",p.estado==="pendientes"?"Sin empezar":p.estado==="haciendo"?"En proceso":"Terminada",line);
    const summary=el("div","cn-flex cn-town-progress",undefined,card);
    el("span","",p.total?p.avance+"% de sectores":"Sin sectores todavía",summary);
    el("span","",p.terminados+" de "+p.total,summary);
