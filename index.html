@@ -2906,9 +2906,9 @@ function openMapToolsMenu() {
     'Elige la vista o una herramienta.',
     [
       ...(currentUserName === 'Andrei (Jefe)' ? [[
-        'Crear pueblo',
-        'Buscar y seleccionar un pueblo de Navarra. Dibujo manual disponible.',
-        () => window.openKonsorTownCreator?.()
+        'Dibujar pueblo',
+        'Marca el contorno del pueblo en el mapa y guárdalo como territorio principal.',
+        iniciarDibujoPueblo
       ]] : []),
 
       [
@@ -19549,21 +19549,21 @@ function openCommercialStatsModalLegacy() {
       }
     };
   </script>
-<script src="./territorio-ios.js?v=7"></script>
+<script src="./territorio-ios.js?v=8"></script>
 <script src="./oficina-ios.js?v=8"></script>
 <script src="./operaciones-ios.js?v=12"></script>
 <link rel="stylesheet" href="./resultados-unificados-ios.css?v=1">
 <script src="./resultados-ios.js?v=5"></script>
 <script src="./inicio-ios.js?v=10"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=3">
-<script src="./direccion-hub-ios.js?v=5"></script>
+<script src="./direccion-hub-ios.js?v=6"></script>
 <script src="./volcado-guiado-ios.js?v=4"></script>
 <script src="./vivienda-guiada-ios.js?v=2"></script>
 
 <script src="./jornadas-seguimiento.js?v=konsor-v5"></script>
 <link rel="stylesheet" href="./oficina-llamadas-obras-v2.css?v=10">
 <link rel="stylesheet" href="./konsor-legacy-light.css?v=1">
-<link rel="stylesheet" href="./ios-unified.css?v=5">
+<link rel="stylesheet" href="./ios-unified.css?v=6">
 <script src="./oficina-llamadas-obras-v2.js?v=16"></script>
 <script src="./asignaciones-zonas-ios.js?v=1"></script>
 <script src="./avisos-app.js?v=9"></script>
