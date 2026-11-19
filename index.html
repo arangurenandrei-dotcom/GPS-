@@ -13538,6 +13538,9 @@ function suggestSectorDateFor(comercial) {
         input.oninput=()=>{
           if(readonly)return;
           original.value=input.value;
+          if(selector==='.client-phone'&&box.dataset.konsorInvalidPhone==='1'){
+            delete box.dataset.konsorInvalidPhone;
+          }
           original.dispatchEvent(new Event('input',{bubbles:true}));
           if(selector==='.client-street')original.dataset.autoFilled='false';
           if(selector==='.client-total-m2'||selector==='.client-floors'){
@@ -13580,6 +13583,15 @@ function suggestSectorDateFor(comercial) {
         fila('Calle y número','.client-street',{placeholder:'Ej. Calle Mayor 12'});
         fila('Nombre del contacto','.client-name',{placeholder:'Nombre y apellidos'});
         fila('Teléfono','.client-phone',{tipo:'tel',placeholder:'Número de teléfono'});
+        boton(cuerpo,'No tengo un teléfono válido · Marcar ficha',()=>{
+          const name=inputOriginal('.client-name')?.value.trim();
+          const street=inputOriginal('.client-street')?.value.trim();
+          if(!name||!street){alert('Anota al menos el nombre y la dirección para identificar esta ficha.');return;}
+          if(!confirm('Esta ficha quedará registrada como NO CONTACTABLE, sin aparecer en la cola de llamadas. ¿Confirmas que el teléfono no es válido?'))return;
+          box.dataset.konsorInvalidPhone='1';
+          capturaGuiada.paso=2;mostrarPasoCaptacion();
+        },true);
+        if(box.dataset.konsorInvalidPhone==='1')aviso('Teléfono marcado como ilegible o no válido. Esta ficha no se enviará a la cola de llamadas.');
         const datosAuto=nodo(cuerpo,'div',null,'captacion-ios-summary');
         nodo(datosAuto,'strong','Comprobación automática de dirección');
         const localidadReal=inputOriginal('.client-locality');
@@ -13691,8 +13703,8 @@ function suggestSectorDateFor(comercial) {
           let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\\s()\\-.]/g,'');
           if(phone.startsWith('+34'))phone=phone.slice(3);
           else if(phone.startsWith('0034'))phone=phone.slice(4);
-          if(!name||!street||!(/^[6789]\\d{8}$/.test(phone))){
-            alert('Esta ficha necesita nombre, calle y un teléfono español válido de 9 dígitos. Puedes volver a editarla.');
+          if(!name||!street||(!(/^[6789]\\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1')){
+            alert('Esta ficha necesita nombre y calle, además de un teléfono válido o la marca de número ilegible.');
             capturaGuiada.paso=1;mostrarPasoCaptacion();return;
           }
           if(capturaGuiada.ficha+1<cajas.length){
@@ -13710,7 +13722,7 @@ function suggestSectorDateFor(comercial) {
           let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\\s()\\-.]/g,'');
           if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
           if(!street||!name){alert('Introduce dirección y nombre del contacto para continuar.');return;}
-          if(!(/^[6789]\\d{8}$/.test(phone))){alert('Revisar número de teléfono: se necesitan 9 cifras españolas válidas.');return;}
+          if(!(/^[6789]\\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1'){alert('Revisar número de teléfono: corrige los 9 dígitos o marca la ficha como no contactable.');return;}
         }
         cambio(1);
       });
@@ -13781,6 +13793,7 @@ function suggestSectorDateFor(comercial) {
         box.className = isComunidad ? 'comunidad-box' : 'client-box';
         box.setAttribute('data-client-index', i);
         if (existing.atticPhoto) box.dataset.atticPhoto = existing.atticPhoto;
+        if (existing.captacionInvalida) box.dataset.konsorInvalidPhone = '1';
 
         box.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -14830,9 +14843,12 @@ function suggestSectorDateFor(comercial) {
         if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
         return Boolean(v('.client-street')&&v('.client-name')&&/^[6789]\\d{8}$/.test(phone));
       };
-      const completeCount=Array.from(clientBoxes).filter(contactComplete).length;
+      const markedInvalid=box=>box.dataset.konsorInvalidPhone==='1' &&
+        Boolean(box.querySelector('.client-street')?.value.trim()&&box.querySelector('.client-name')?.value.trim());
+      const completeCount=Array.from(clientBoxes).filter(box=>contactComplete(box)||markedInvalid(box)).length;
+      const invalidCount=Array.from(clientBoxes).filter(markedInvalid).length;
       if(completeCount!==siDeclarados || clientBoxes.length!==siDeclarados){
-        alert('Volcado pendiente: '+completeCount+' de '+siDeclarados+' síes tienen su ficha con nombre, dirección y teléfono válido. Completa o corrige cada interesado antes de guardar.');
+        alert('Volcado pendiente: '+completeCount+' de '+siDeclarados+' interesados están revisados. Completa los contactos o marca expresamente los teléfonos ilegibles.');
         return;
       }
       await Promise.all(Array.from(clientBoxes,box=>pendingPostalLookups.get(box.querySelector('.client-cp'))));
@@ -14846,10 +14862,15 @@ function suggestSectorDateFor(comercial) {
       clientBoxes.forEach((box, idx) => {
         const prev = prevClients[idx] || {};
         const preservedCallStatus = prev.callStatus || 'pendiente';
-        z.clients.push(extractClientFromBox(box, preservedCallStatus, prev));
+        const client=extractClientFromBox(box, preservedCallStatus, prev);
+        client.captacionInvalida = box.dataset.konsorInvalidPhone==='1';
+        if(client.captacionInvalida)client.captacionInvalidReason='Telefono no valido o ilegible';
+        else{delete client.captacionInvalidReason;}
+        z.clients.push(client);
       });
 
             for (const cl of z.clients) {
+        if (cl.captacionInvalida)continue;
         if (!ensureCrmUpload(cl, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) {
           z.clients = prevClients;
           return;
