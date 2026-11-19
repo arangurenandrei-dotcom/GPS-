@@ -237,3 +237,10 @@ body .modal-overlay .modal-card table th{font-weight:700;color:#273b53!important
  #appContainer .leaflet-popup-content-wrapper{max-width:calc(100vw - 46px)}
  .cn-measure-result{max-width:calc(100vw - 24px)!important}
 }
+
+/* Ficha de lectura: información por campos, sin formulario heredado. */
+.cnx-modal .cnx-client-fact{display:flex;justify-content:space-between;align-items:start;gap:14px;padding:10px 0;border-bottom:1px solid #edf0f5;font:500 12px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.cnx-modal .cnx-client-fact:last-child{border:0}
+.cnx-modal .cnx-client-fact span{color:#6b7e94;max-width:46%}
+.cnx-modal .cnx-client-fact strong{color:#253951;max-width:54%;text-align:right;font-weight:650;overflow-wrap:anywhere}
+.cnx-modal .cnx-card .cnx-btn{min-height:44px;border-radius:14px}
