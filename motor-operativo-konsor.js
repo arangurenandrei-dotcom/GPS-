@@ -107,6 +107,7 @@ function safeOpen(action){dismiss();if(typeof action==="function")action();}
 let returnToOffice=false,returnCheck=null;
 function checkOfficeReturn(){
  if(!returnToOffice||document.getElementById("km-flow"))return;
+ if(typeof isDrawingMode!=="undefined"&&isDrawingMode)return;
  const active=document.querySelector(".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.cn-territorio.active,#konsor-csv-wizard");
  if(active)return;
  returnToOffice=false;
