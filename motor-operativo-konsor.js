@@ -149,14 +149,15 @@ async function leagueSummary(){
  const mine=rows.find(x=>x.name===me());
  if(!mine||!mine.rank)return "Aún no constan m² de captación para tu clasificación mensual.";
  if(mine.rank===1){
+  if(rows.some(x=>x.name!==me()&&x.rank===1))return "Compartes el primer puesto del mes con "+Math.round(mine.area)+" m². Un poco más te permite desempatar.";
   const second=rows.find(x=>x.name!==me()&&x.rank>1);
   if(!second)return "Primera posición del mes: "+Math.round(mine.area)+" m². No hay otro puesto con superficie registrada.";
   return "¡Primera posición! "+Math.round(mine.area)+" m². Ventaja sobre el segundo: "+Math.max(0,Math.round(mine.area-second.area))+" m².";
  }
  const upper=rows.filter(x=>x.rank<mine.rank).sort((a,b)=>b.rank-a.rank)[0];
  if(!upper)return "Puesto "+mine.rank+" · "+Math.round(mine.area)+" m² registrados.";
- const diff=Math.max(0,Math.ceil(upper.area-mine.area));
- return "Puesto "+mine.rank+" · "+Math.round(mine.area)+" m². Te faltan "+diff+" m² para igualar al puesto superior.";
+ const diff=Math.max(1,Math.floor(upper.area-mine.area)+1);
+ return "Puesto "+mine.rank+" · "+Math.round(mine.area)+" m². Te faltan "+diff+" m² para superar al puesto superior.";
 }
 
 function openOfficeGuide(){
