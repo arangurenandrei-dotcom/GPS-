@@ -321,3 +321,48 @@ body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool span:not(.cnv
 body.cnv-map-active #cnvMapToolbar:has(.cnv-drawing-panel.active) .cnv-map-controls{
  top:calc(env(safe-area-inset-top) + 146px)!important;bottom:auto!important;
 }
+
+/* KONSOR · marcadores de viviendas y consulta catastral estilo iOS */
+.konsor-house-marker-shell{background:transparent!important;border:0!important}
+.konsor-house-pin{
+ display:flex;align-items:center;justify-content:center;
+ width:39px;height:39px;box-sizing:border-box;border-radius:17px 17px 17px 6px;
+ color:var(--house-accent,#34465d);background:rgba(255,255,255,.96);
+ border:1px solid rgba(255,255,255,.94);box-shadow:0 3px 13px rgba(25,41,63,.20),inset 0 0 0 1px rgba(65,85,110,.10);
+ transform:rotate(-8deg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)
+}
+.konsor-house-pin svg{transform:rotate(8deg);display:block}
+.leaflet-popup-content .konsor-map-info{display:flex;flex-direction:column;gap:9px;min-width:215px;padding:2px 1px;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.konsor-map-eyebrow{display:block;font-size:10px;font-weight:760;letter-spacing:.11em;color:#8a99aa}
+.konsor-map-title{display:block;font-size:16px;line-height:1.25;font-weight:740;letter-spacing:-.025em;color:#223044;overflow-wrap:anywhere}
+.konsor-map-description{font-size:12px;color:#687a90;line-height:1.45;margin:0!important}
+.konsor-map-actions{display:flex;flex-direction:column;gap:7px}
+.konsor-map-actions button,.konsor-map-cadastre-trigger,.konsor-cadastre-link{
+ display:flex!important;justify-content:center!important;align-items:center!important;
+ width:100%!important;min-height:39px!important;padding:9px 12px!important;
+ border-radius:12px!important;border:1px solid #e2e7ef!important;
+ background:#f3f5f8!important;color:#293d55!important;
+ font-size:12px!important;font-weight:680!important;box-shadow:none!important;
+ text-align:center!important;text-decoration:none!important;cursor:pointer
+}
+.konsor-map-actions .konsor-map-action-primary,.konsor-cadastre-link{
+ background:#26394f!important;color:white!important;border-color:#26394f!important
+}
+.konsor-map-actions .konsor-map-action-danger,.konsor-delete-client-btn{
+ background:#fff5f4!important;color:#af453e!important;border:1px solid #f4d4d0!important
+}
+.konsor-delete-client-btn{
+ display:block;width:100%;font-size:12px;font-weight:670;
+ min-height:38px;border-radius:12px;padding:9px 12px;cursor:pointer;margin:5px 0 12px
+}
+.leaflet-popup.konsor-cadastre-popup .leaflet-popup-content-wrapper,
+.leaflet-popup .leaflet-popup-content-wrapper:has(.konsor-map-info){
+ background:rgba(255,255,255,.97)!important;color:#223044!important;border-radius:19px!important;
+ border:1px solid rgba(255,255,255,.95)!important;
+ box-shadow:0 14px 45px rgba(17,34,53,.18)!important;
+ backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)
+}
+.konsor-cadastre-card{display:flex;flex-direction:column;gap:11px;padding:4px;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.konsor-cadastre-card strong{font-size:16px;font-weight:720;color:#263449}
+.konsor-cadastre-card p{font-size:12px;line-height:1.5;color:#667890;margin:0}
+.inline-catastro-link-slot .konsor-cadastre-link{margin-top:8px}
