@@ -3304,22 +3304,15 @@ function openUserProfileModal() {
         ComercialCore.norm(p.nombre)===ComercialCore.norm(nombre));
       if (anterior && !confirm('¿Sustituir el perímetro existente?')) return;
       try {
+        if(typeof window.guardarPerimetroPueblo!=='function')throw Error('El servicio de pueblos no está disponible. Recarga KONSOR y vuelve a comprobar la conexión.');
         await window.guardarPerimetroPueblo({
           nombre,points:tempPoints.map(p=>[...p]),
           rev:anterior?.rev || 0
         });
         cancelDrawing();
         await cargarPerimetrosPueblos();
-        if (!completedTowns.some(t =>
-          ComercialCore.norm(t) === ComercialCore.norm(nombre)
-        ) && confirm('¿Marcar también este pueblo como TERMINADO?')) {
-          const propuesta=[...completedTowns,nombre];
-          if (await saveAndSync('comercial_completed_towns',propuesta))
-            completedTowns=propuesta;
-        }
         if (map) actualizarAgrupacionTerritorial();
-
-        alert('Pueblo guardado en Firebase');
+        alert('Perímetro de '+nombre+' guardado en Firebase. Ahora crea y asigna los sectores desde Dirección. El pueblo NO se ha marcado como terminado.');
       } catch(e) { alert('Sin guardar: '+e.message); }
     }
 
