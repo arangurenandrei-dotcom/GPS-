@@ -53,6 +53,7 @@ function open(){
  el("summary","","Análisis y supervisión avanzada",other);
  const secondary=el("div","kd-nav-secondary",undefined,other);
  tile(secondary,"Tareas y respuestas","Consultar encargos y confirmaciones.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
+ tile(secondary,"Limpiar fichas de prueba","Eliminar clientes de prueba con copia JSON previa y confirmación.",()=>launch(r,openTestCleanup));
  tile(secondary,"Tareas del jefe","Editar tareas, prioridades y encargos.",()=>launch(r,openPlan));
  tile(secondary,"Análisis operativo","Horas, visitas y resultados.",()=>launch(r,()=>showAnalytics("operations")));
  tile(secondary,"Comparar equipos","Comparación de actividad disponible.",()=>launch(r,()=>showAnalytics("compare")));
@@ -285,6 +286,62 @@ function showAnalytics(mode){
  }
  const actions=el("div","kdp-actions",undefined,body);
  planAction(actions,"Volver a Dirección",()=>{r.classList.remove("active");open();},true);
+}
+
+
+/* Limpieza acotada: solo fichas del equipo propio en sectores visibles.
+ * Sin tocar jornadas, usuarios, planes, pueblos ni sectores territoriales. */
+function openTestCleanup(){
+ if(!isBoss())return;
+ const r=planSurface(),body=r.querySelector(".kd-body");
+ r.querySelector(".kd-head h2").textContent="Limpiar pruebas";
+ body.replaceChildren();r.classList.add("active");
+ const own=z=>z&&!String(z.comercial||"").startsWith("Mikel");
+ const current=()=>Array.isArray(savedZones)?savedZones.filter(own):[];
+ const count=current().reduce((n,z)=>n+(Array.isArray(z.clients)?z.clients.length:0),0);
+ el("p","kd-intro","Esta herramienta elimina las fichas de prueba del equipo Andrei en Firebase. Conserva los pueblos, sectores, usuarios, tareas y jornadas. No afecta al equipo Mikel.",body);
+ const card=planSection(body,count+" fichas detectadas","Se descargará una copia JSON antes de iniciar la eliminación. No incluye posibles documentos huérfanos sin sector; requieren revisión administrativa.");
+ const input=el("input","",undefined,card);input.placeholder="Escribe BORRAR FICHAS";input.autocomplete="off";
+ input.style.cssText="width:100%;font-size:16px;min-height:46px;padding:10px;border:1px solid #dce3ec;border-radius:12px;background:white;color:#243447";
+ const status=el("p","kdp-form-status","Todavía no se ha eliminado nada.",card);
+ const action=planAction(card,"Descargar copia y eliminar fichas de prueba",async()=>{
+  if(input.value.trim().toUpperCase()!=="BORRAR FICHAS")return alert("Escribe BORRAR FICHAS para confirmar.");
+  if(!count)return alert("No se encontraron fichas asociadas a tus sectores.");
+  if(window.KonsorBridge?.busy||typeof window.KonsorBridge?.save!=="function")return alert("La sincronización no está lista.");
+  if(!confirm("¿Eliminar DEFINITIVAMENTE las "+count+" fichas de prueba de tu equipo? Los sectores y pueblos permanecerán."))return;
+  action.disabled=true;
+  const copy=JSON.stringify({exportedAt:new Date().toISOString(),team:"Andrei",zones:current()},null,2);
+  const url=URL.createObjectURL(new Blob([copy],{type:"application/json;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download="konsor-fichas-prueba-respaldo.json";document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  let deleted=0;
+  try{
+   // Los lotes son pequeños para respetar los límites del backend de Firestore.
+   while(true){
+    const rows=Array.isArray(savedZones)?savedZones:[];
+    const targets=rows.filter(z=>own(z)&&Array.isArray(z.clients)&&z.clients.length);
+    if(!targets.length)break;
+    const remaining=targets.flatMap(z=>z.clients.map(c=>({zid:String(z.id),cid:String(c.clientUid)})));
+    const batch=new Set(remaining.slice(0,20).map(x=>x.cid));
+    const candidate=JSON.parse(JSON.stringify(rows));
+    let changed=0;
+    for(const z of candidate)if(own(z)&&Array.isArray(z.clients)){
+     const before=z.clients.length;
+     z.clients=z.clients.filter(c=>!batch.has(String(c.clientUid)));
+     changed+=before-z.clients.length;
+    }
+    if(!changed)throw Error("No se pudo resolver el identificador de las fichas.");
+    status.textContent="Eliminando fichas: "+deleted+" de "+count+"…";
+    await window.KonsorBridge.save("comercial_custom_zones",candidate);
+    savedZones=candidate;deleted+=changed;
+   }
+   window.cnvRefreshHome?.();window.refreshCnTerritory?.();
+   status.textContent="Firestore confirmó la eliminación de "+deleted+" fichas asociadas a sectores. Recarga para verificar.";
+  }catch(e){
+   status.textContent="Eliminadas "+deleted+" fichas. Proceso interrumpido: "+(e.message||e)+". Recarga antes de reintentarlo.";
+  }finally{action.disabled=false;}
+ });
+ planAction(body,"Volver a Dirección",()=>{r.classList.remove("active");open();});
 }
 
 /* Mi equipo — supervisión compacta sin abrir el modal antiguo. */
