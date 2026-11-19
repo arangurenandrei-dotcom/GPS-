@@ -146,6 +146,34 @@ function openDay(){
  const foot=card(body,"Al regresar","Cuando termines el trabajo de calle, entra en Oficina para revisar fichas y organizar llamadas.");
  actions(foot,b("Abrir Oficina",()=>{close();window.openCnOffice?.();},"primary"));
 }
+function openClientDetail(entry){
+ const {c,z,idx,cidx}=entry;
+ const {body,close}=page("ficha","Ficha de captación","Datos del cliente · "+(z.town||"Localidad")+" · "+(z.sectorName||"Sector"));
+ const basic=card(body,c.name||"Cliente sin nombre",c.street||"Dirección por completar");
+ const states=$("div","cnx-meta",undefined,basic);
+ chip(states,c.captacionInvalida?"Sin teléfono válido":c.obraStatus==="no_apto"?"No apta":c.obraStatus==="realizada"?"Obra realizada":c.obraStatus==="agendada"?"Obra agendada":"Captación");
+ const rows=[
+  ["Tipo de inmueble",c.type==="urbanizacion"?"Urbanización":c.type==="comunidad"?"Comunidad":"Unifamiliar"],
+  ["Teléfono",c.captacionInvalida?"No válido · revisar":c.phone||"Pendiente"],
+  ["Localidad",c.locality||z.town||"Pendiente"],
+  ["Código postal",c.postalCode||"Pendiente"],
+  ["Zona climática",c.cteZone||"Pendiente"],
+  ["Año de construcción",c.buildYear||"Pendiente"],
+  ["Superficie estimada",c.m2?String(c.m2)+" m²":"Pendiente"],
+  ["Situación de la obra",c.obraStatus||"Sin programar"]
+ ];
+ const details=card(body,"Datos de vivienda","Los datos de captación son provisionales hasta su validación técnica y documental.");
+ rows.forEach(([label,value])=>{
+  const line=$("div","cnx-client-fact",undefined,details);
+  $("span","",label,line);$("strong","",value,line);
+ });
+ if(c.obraDate){const cta=card(body,"Reserva registrada",[c.obraDate,c.obraTime||"",c.obraEquipoInstalacion?"Equipo "+c.obraEquipoInstalacion:""].filter(Boolean).join(" · "));}
+ const controls=card(body,"Siguiente acción",c.captacionInvalida?"Corrige el teléfono antes de llamar a este cliente.":"Revisa o completa los datos técnicos de la ficha.");
+ actions(controls,b("Editar ficha paso a paso",()=>{
+  close();if(typeof openDumpModal==="function")openDumpModal(idx);
+  if(typeof abrirAsistenteCaptacion==="function")abrirAsistenteCaptacion(cidx);
+ },"primary"),b("Volver a clientes",()=>{close();openClients();},"outline"));
+}
 let query="",scope="mine";
 function openClients(){
  const {body,close}=page("clientes","Buscar clientes","Busca por nombre, teléfono, calle, localidad o sector. Los resultados se consultan directamente.");
@@ -181,7 +209,7 @@ function openClients(){
     const missing=[!c.name?"nombre":null,!c.street?"calle":null,!c.phone?"teléfono":null].filter(Boolean);
     if(missing.length)chip(badges,"Faltan: "+missing.join(", "));
     chip(badges,c.captacionInvalida?"Teléfono no válido · no contactable":c.obraStatus==="no_apto"?"No apta":c.obraStatus==="agendada"?"Cita agendada":c.obraStatus==="realizada"?"Obra realizada":"Registrada");
-    actions(row,b(missing.length?"Completar ficha":"Abrir ficha",()=>{close();openDumpModal(idx);},"primary"),b("Localizar",()=>{close();focusMapOnTownOrZone(z.town,idx);},"outline"));
+    actions(row,b(missing.length?"Completar ficha":"Ver ficha",()=>{close();openClientDetail(item);},"primary"),b("Localizar",()=>{close();focusMapOnTownOrZone(z.town,idx);},"outline"));
   }
  }
  input.addEventListener("input",render);render();
