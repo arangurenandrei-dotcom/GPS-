@@ -65,12 +65,76 @@ async function planSet(task,done){
  }catch(error){planStatus="No se ha confirmado el guardado.";alert("No se guardó la tarea: "+(error.message||error));}
  finally{planBusy=false;renderPlan();}
 }
+function planTaskEditor(task={}){
+ if(!isBoss())return;
+ let overlay=document.getElementById("konsorPlanTaskEditor");
+ if(!overlay){
+  overlay=el("div","kd-overlay kdp-editor-overlay",undefined,document.body);
+  overlay.id="konsorPlanTaskEditor";overlay.style.zIndex="10580";
+  overlay.addEventListener("click",e=>{if(e.target===overlay)overlay.classList.remove("active");});
+ }
+ overlay.replaceChildren();
+ const page=el("section","kd-page kdp-editor-page",undefined,overlay);
+ page.setAttribute("role","dialog");page.setAttribute("aria-modal","true");page.setAttribute("aria-label","Editar tarea de Dirección");
+ const head=el("header","kd-head",undefined,page),t=el("div","",undefined,head);
+ el("small","","KONSOR · MI PLAN",t);el("h2","",task.id?"Editar tarea":"Nueva tarea",t);
+ head.append(button("Cerrar",()=>overlay.classList.remove("active")));
+ const body=el("form","kd-body kdp-editor-form",undefined,page);
+ const field=(name,value,type="text",max=200)=>{
+  const label=el("label","kdp-field",undefined,body);
+  el("span","",name,label);
+  const input=el(type==="textarea"?"textarea":"input","",undefined,label);
+  if(type!=="textarea")input.type=type;
+  input.value=value||"";input.maxLength=max;
+  if(type==="textarea")input.rows=3;
+  return input;
+ };
+ const select=(name,options,value)=>{
+  const label=el("label","kdp-field",undefined,body);
+  el("span","",name,label);
+  const input=el("select","",undefined,label);
+  for(const [id,caption] of options){const option=el("option","",caption,input);option.value=id;}
+  input.value=value||options[0][0];
+  return input;
+ };
+ const name=field("Qué tienes que hacer",task.title||"","text",120);name.required=true;name.placeholder="Ej. Preparar sectores de Marcilla";
+ const details=field("Instrucciones o notas",task.detail||"","textarea",2000);
+ const date=field("Fecha límite",task.dueDate||planDate(),"date");
+ const priority=select("Prioridad",[["medium","Normal"],["high","Alta"],["low","Baja"]],task.priority);
+ const type=select("Categoría",[["territory","Pueblos y sectores"],["supervision","Supervisión"],["obras","Obras"],["management","Gestión"],["other","Otra"]],task.type);
+ const people=typeof getActiveTeamUsers==="function"?getActiveTeamUsers(false):[];
+ const person=select("Persona relacionada (no asigna la tarea)",[["","Ninguna"],...people.map(p=>[p,p])],task.person);
+ const town=field("Pueblo relacionado",task.town||"","text",80);
+ const status=el("p","kdp-form-status","Solo se marcará guardada cuando Firebase confirme la operación.",body);
+ const actions=el("div","kdp-actions",undefined,body);
+ const save=button("Guardar tarea",()=>{});save.classList.add("kdp-primary");save.type="submit";actions.append(save);
+ actions.append(button("Cancelar",()=>overlay.classList.remove("active")));
+ body.addEventListener("submit",async ev=>{
+  ev.preventDefault();if(save.disabled)return;
+  if(!name.value.trim()||!/^\d{4}-\d{2}-\d{2}$/.test(date.value)){status.textContent="Introduce un título y una fecha válida.";return;}
+  if(!window.bossTasksApi){status.textContent="Firebase no está disponible; no se ha guardado.";return;}
+  save.disabled=true;status.textContent="Guardando en Firebase…";
+  try{
+   const id=task.id||(window.crypto?.randomUUID?.()||Date.now()+"-"+Math.random().toString(36).slice(2));
+   const rows=await window.bossTasksApi.save({
+    id,title:name.value.trim(),detail:details.value.trim(),dueDate:date.value,priority:priority.value,
+    type:type.value,person:person.value,town:town.value.trim(),status:task.status||"pending",
+    sourceId:task.sourceId||"",sourceAction:task.sourceAction||""
+   });
+   planRows=rows;if(typeof bossPlanItems!=="undefined")bossPlanItems=rows;
+   planStatus="Tarea guardada en Firebase.";overlay.classList.remove("active");renderPlan();
+  }catch(error){status.textContent="No se ha confirmado el guardado: "+(error.message||error);}
+  finally{save.disabled=false;}
+ });
+ overlay.classList.add("active");
+ name.focus();
+}
 function planRenderTask(parent,task){
  const c=planSection(parent,task.title||"Tarea sin título",[(task.dueDate||"Sin fecha"),task.town||"",task.person||""].filter(Boolean).join(" · "));
  if(task.detail)el("p","",task.detail,c);
  const row=el("div","kdp-actions",undefined,c);
  planAction(row,task.status==="done"?"Reabrir":"Marcar hecha",()=>planSet(task,task.status!=="done"),task.status!=="done");
- planAction(row,"Editar",()=>{if(typeof editBossPlanTask==="function")editBossPlanTask(task);});
+ planAction(row,"Editar",()=>planTaskEditor(task));
 }
 function renderPlan(){
  const p=planSurface(),body=p.querySelector(".kd-body");body.replaceChildren();
@@ -103,7 +167,7 @@ function renderPlan(){
  if(!items.length)el("p","kd-intro","No hay tareas en este grupo.",queue);
  items.slice(0,40).forEach(task=>planRenderTask(queue,task));
  const edit=el("div","kdp-actions",undefined,body);
- planAction(edit,"Nueva tarea",()=>{if(typeof editBossPlanTask==="function")editBossPlanTask();},true);
+ planAction(edit,"Nueva tarea",()=>planTaskEditor(),true);
  planAction(edit,"Actualizar",()=>{if(!planUnsubscribe)openPlan();else renderPlan();});
 }
 function openPlan(){
