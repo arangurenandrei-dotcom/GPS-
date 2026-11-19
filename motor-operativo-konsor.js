@@ -181,6 +181,26 @@ function openDayGuide(){
 }
 function refreshIfOpen(){const root=document.getElementById("km-flow");if(!root)return;const tag=root.querySelector(".km-head small")?.textContent||"";if(tag.startsWith("OFICINA"))openOfficeGuide();else if(tag.startsWith("MI JORNADA"))openDayGuide();}
 
+
+function lunchReminder(){
+ const now=shift();
+ if(now?.status!=="lunch"||document.getElementById("km-lunch-reminder"))return;
+ const root=E("div","km-overlay",undefined,document.body);root.id="km-lunch-reminder";
+ const page=E("section","km-page km-lunch",undefined,root),head=E("header","km-head",undefined,page);
+ E("small","","KONSOR · COMIDA",head);B(head,"×",()=>root.remove(),"close").setAttribute("aria-label","Ahora no");
+ const body=E("div","km-body",undefined,page);
+ E("h2","","¿Vuelves al trabajo después de comer?",body);
+ E("p","km-muted","Sigues en pausa. Para que tu jornada se registre correctamente, confirma cuándo reanudas. Si solo entras a consultar algo, puedes cerrar.",body);
+ const row=actions(body);
+ B(row,"Sí, continuar jornada",async()=>{
+  if(typeof handleShiftAction!=="function")return;
+  try{const ok=await handleShiftAction("lunch");if(ok){root.remove();window.cnvRefreshHome?.();}}
+  catch(e){alert("No se ha podido confirmar la reanudación: "+(e.message||e));}
+ },"primary");
+ B(row,"Ahora no",()=>root.remove());
+}
+window.konsorLunchReminder=lunchReminder;
+
 window.konsorMotor={
  openDay:openDayGuide,openOffice:openOfficeGuide,
  openPlan:()=>window.konsorPlanificador?.open?.(),
