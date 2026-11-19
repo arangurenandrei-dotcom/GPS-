@@ -13504,9 +13504,9 @@ function suggestSectorDateFor(comercial) {
           <div class="input-group" style="margin-top:8px;">
             <span class="input-label">🏡 Estado del Sector</span>
             <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
-              <option value="sin_comprobar" ${z.status==='sin_comprobar'?'selected':''}>⚪ Por Hacer</option>
-              <option value="en_proceso" ${z.status==='en_proceso'?'selected':''}>🟡 Incompleto (Continuar mañana)</option>
-              <option value="completada" ${z.status==='completada'?'selected':''}>✅ Terminado</option>
+              <option value="sin_comprobar" ${z.status==='sin_comprobar'||z.status==='por_hacer'?'selected':''}>Por hacer</option>
+              <option value="en_proceso" ${z.status==='en_proceso'?'selected':''}>En proceso</option>
+              <option value="completada" ${z.status==='completada'?'selected':''}>Terminado</option>
             </select>
           </div>
 
@@ -19630,14 +19630,14 @@ function openCommercialStatsModalLegacy() {
 <script src="./inicio-ios.js?v=11"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=4">
 <script src="./direccion-hub-ios.js?v=7"></script>
-<script src="./volcado-guiado-ios.js?v=4"></script>
-<script src="./vivienda-guiada-ios.js?v=2"></script>
+<script src="./volcado-guiado-ios.js?v=5"></script>
+<script src="./vivienda-guiada-ios.js?v=3"></script>
 
 <script src="./jornadas-seguimiento.js?v=konsor-v5"></script>
 <link rel="stylesheet" href="./oficina-llamadas-obras-v2.css?v=10">
 <link rel="stylesheet" href="./konsor-legacy-light.css?v=1">
-<link rel="stylesheet" href="./ios-unified.css?v=11">
-<script src="./oficina-llamadas-obras-v2.js?v=17"></script>
+<link rel="stylesheet" href="./ios-unified.css?v=12">
+<script src="./oficina-llamadas-obras-v2.js?v=18"></script>
 <script src="./asignaciones-zonas-ios.js?v=1"></script>
 <script src="./avisos-app.js?v=9"></script>
 <script src="./navegacion-ios.js?v=1"></script>
