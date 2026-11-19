@@ -143,6 +143,7 @@ function openDay(){
  if(!shift)actions(status,b("Iniciar jornada",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("start"))openDay();},"primary"));
  else if(shift.status==="working")actions(status,b("Comida",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"outline"),b("Finalizar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("end"))openDay();},"outline"));
  else if(shift.status==="lunch")actions(status,b("Reanudar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"primary"));
+ actions(status,b("Corregir un fichaje olvidado",()=>{close();window.konsorCorregirJornada?.();},"outline"));
  const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&z.status!=="completada"&&z.comercial===currentUserName);
  const dumpPending=all.filter(({z})=>needsDump(z));
  const streetPending=all.filter(({z})=>!needsDump(z));
