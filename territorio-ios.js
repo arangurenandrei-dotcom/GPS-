@@ -27,7 +27,9 @@ function pueblos(){
  });
  return [...grouped.values()].map(p=>{
   const total=p.sectores.length;
-  const terminados=p.sectores.filter(({z})=>z.status==="completada"||z.precheck?.sectorStatus==="no_apto").length;
+  const terminados=p.sectores.filter(({z})=>z.status==="completada"&&z.precheck?.sectorStatus!=="no_apto").length;
+  const descartados=p.sectores.filter(({z})=>z.precheck?.sectorStatus==="no_apto").length;
+  const cerrados=terminados+descartados;
   const haciendo=p.sectores.filter(({z})=>z.status==="en_proceso"&&z.precheck?.sectorStatus!=="no_apto").length;
   const si=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.si),0);
   const no=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.no),0);
@@ -37,11 +39,11 @@ function pueblos(){
   const fechas=p.sectores.map(({z})=>z.date).filter(Boolean).sort();
   // El estado del pueblo depende SOLO de la captación de sus sectores.
   // Ni las llamadas ni una marca manual histórica fuerzan "Terminado".
-  const estado=total>0&&terminados===total?"terminados":(haciendo>0||terminados>0)?"haciendo":"pendientes";
-  return {...p,total,terminados,haciendo,si,no,ausente,papelito,
+  const estado=total>0&&cerrados===total?"terminados":(haciendo>0||cerrados>0)?"haciendo":"pendientes";
+  return {...p,total,terminados,descartados,cerrados,haciendo,si,no,ausente,papelito,
    visitadas:si+no+ausente+papelito,
    aceptacion:si+no>0?Math.round(100*si/(si+no)):null,
-   avance:total?Math.round(100*terminados/total):0,comerciales,fechas,estado};
+   avance:total?Math.round(100*cerrados/total):0,comerciales,fechas,estado};
  }).sort((a,b)=>(a.fechas[0]||"9999").localeCompare(b.fechas[0]||"9999")||a.nombre.localeCompare(b.nombre,"es"));
 }
 function add(parent,...nodes){parent.append(...nodes);return parent;}
@@ -342,6 +344,7 @@ function renderDetail(target,p){
  el("h3","cn-town-title",p.nombre,target);
  const row=el("div","cn-kpis",undefined,target);
  stat(row,"Sectores terminados",p.terminados+" / "+p.total);
+  if(p.descartados)stat(row,"Descartados técnicamente",p.descartados);
  stat(row,"Comerciales",p.comerciales.length);
  stat(row,"Progreso de sectores",p.avance+"%");
  if(p.perimetro){
