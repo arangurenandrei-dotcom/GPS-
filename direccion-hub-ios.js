@@ -45,7 +45,6 @@ function open(){
  tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
  tile(grid,"Importar fichas","Subir CSV, revisar registros y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
  tile(grid,"Mi equipo","Actividad, comerciales y próximos pasos.",()=>launch(r,openTeam));
- tile(grid,"Planificar","Semana, varias semanas o mes.",()=>launch(r,()=>window.konsorPlanificador?.open?.()));
  tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
  tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
  tile(grid,"Cierre del día","Pueblos, comerciales y decisiones.",()=>launch(r,()=>window.konsorPlanificador?.review?.()));

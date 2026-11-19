@@ -59,11 +59,29 @@ test('roof measurement has correct area in Navarra and reversed order',()=>{
  const p=[[lat,lng],[lat+dy,lng],[lat+dy,lng+dx],[lat,lng+dx]];
  assert.equal(area(p),100);assert.equal(area(p.reverse()),100);assert.equal(area([]),0);
 });
-test('Mikel actions return before map, permission or import access',()=>{
- for(const name of ['toggleCatastroLayer','openIdenaOfficialViewer','startRoofMeasureMode','sendLocalMobileNotification','setMapDisplay','openHistoricalImportModal']){
+test('Mikel conserva las restricciones de medición, visor, avisos e históricos',()=>{
+ for(const name of ['openIdenaOfficialViewer','startRoofMeasureMode','sendLocalMobileNotification','openHistoricalImportModal']){
   const fn=loadFunction(name,{isMikelTeamMember:()=>true,currentUserName:'Mikel (Jefe)'});
   assert.doesNotThrow(()=>fn('catastro'));
  }
+});
+test('Mikel puede activar la capa pública del Catastro y volver al satélite',()=>{
+ const layers=new Set();
+ const map={hasLayer:layer=>layers.has(layer),removeLayer:layer=>layers.delete(layer),getZoom:()=>18};
+ const satellite={addTo:()=>layers.add(satellite)};
+ const cadastral={addTo:()=>layers.add(cadastral),bringToFront(){}};
+ layers.add(satellite);
+ const context={
+  currentUserName:'Mikel (Jefe)',isMikelTeamMember:()=>true,map,
+  ignSatelliteLayer:satellite,catastroNavarraLayer:cadastral,
+  isCatastroActive:false,isSatelliteActive:true,
+  document:{getElementById:()=>null},triggerHapticAndSound(){},
+ };
+ const toggle=loadFunction('toggleCatastroLayer',context);
+ toggle();
+ assert.deepEqual([...layers],[cadastral]);
+ toggle();
+ assert.deepEqual([...layers],[satellite]);
 });
 class Element {
  constructor(tag){this.tag=tag;this.children=[];this.style={};this.value='';}

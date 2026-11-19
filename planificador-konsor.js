@@ -17,8 +17,15 @@ const dateOf=ms=>ms?iso(new Date(Number(ms))):"";
 const startDefault=()=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+((8-d.getDay())%7||7));return iso(d);};
 const draftKey=()=>"konsor_plan_v1_"+String(sessionStorage.getItem("auth_user_key")||me()).replace(/[^a-zA-Z0-9_-]/g,"_");
 function readDraft(){try{const d=JSON.parse(localStorage.getItem(draftKey())||"null");if(d&&d.owner===me()&&d.start&&d.period&&d.edits)return d;}catch{}return {owner:me(),step:0,start:startDefault(),period:"7",members:[me()],edits:{}};}
-let draft=readDraft(),busy=false;
-function persist(){localStorage.setItem(draftKey(),JSON.stringify(draft));}
+let draft=null,draftOwnerKey="",busy=false;
+function selectDraft(){
+ const key=draftKey();
+ if(!draft||draftOwnerKey!==key||draft.owner!==me()){
+  draft=readDraft();
+  draftOwnerKey=key;
+ }
+}
+function persist(){localStorage.setItem(draftOwnerKey,JSON.stringify(draft));}
 function periodEnd(){const d=new Date(dateMs(draft.start));if(!Number.isFinite(d.getTime()))throw Error("Fecha de inicio inválida.");d.setDate(d.getDate()+(draft.period==="month"?30:Number(draft.period))-1);return iso(d);}
 function activePeople(){
  const names=new Set([me()]);
@@ -74,11 +81,16 @@ function next(){draft.step=Math.min(3,draft.step+1);persist();open();}
 function prev(){draft.step=Math.max(0,draft.step-1);persist();open();}
 function open(){
  if(!boss())return;
+ selectDraft();
  const end=periodEnd(),body=page("Comenzar planificación","Del "+draft.start+" al "+end+" · Cuatro pasos guiados con publicación confirmada.");
  const p=E("div","km-progress",undefined,body);["Diagnóstico","Equipo","Asignación","Confirmación"].forEach((s,i)=>{const b=E("span",i<draft.step?"done":i===draft.step?"active":"",String(i+1),p);b.title=s;});
  if(draft.step===0){
   const c=box(body,"01 · REVISAR","Elige el período","Las estadísticas permiten decidir qué territorios requieren atención, sin confundir planes con trabajo ya realizado.");
-  field(c,"Fecha de inicio","date",[],draft.start,v=>{draft.start=v;draft.edits={};persist();open();});
+  const start=field(c,"Fecha de inicio","date",[],draft.start,v=>{
+   if(!v){start.value=draft.start;return;}
+   draft.start=v;draft.edits={};persist();open();
+  });
+  start.required=true;
   field(c,"Duración","select",[["7","Una semana"],["14","Dos semanas"],["month","Un mes (30 días)"]],draft.period,v=>{draft.period=v;draft.edits={};persist();open();});
   const history=recentMetrics(),now=history.now,old=history.old;
   const report=box(body,"COMPARACIÓN","Últimos 7 días frente a los 7 anteriores","Actividad registrada del "+history.start+" al "+history.end+". No se confunde la semana futura a planificar con resultados históricos.");
@@ -156,6 +168,7 @@ function open(){
    if(busy||errors.length)return;
    if(!window.KonsorBridge?.save||window.KonsorBridge.busy){alert("Servidor ocupado. Inténtalo más tarde.");return;}
    if(!confirm("¿Confirmar las fechas y responsables de los sectores mostrados?"))return;
+   const publicationKey=draftOwnerKey,publicationOwner=me();
    busy=true;save.disabled=true;save.textContent="Guardando…";
    try{
     const candidate=JSON.parse(JSON.stringify(zones()));
@@ -167,8 +180,9 @@ function open(){
      z.planPublishedAt=Date.now();z.planPublishedBy=me();
     }
     await window.KonsorBridge.save("comercial_custom_zones",candidate);
+    if(draftKey()!==publicationKey||me()!==publicationOwner)return;
     savedZones=candidate;window.refreshCnTerritory?.();window.cnvRefreshHome?.();
-    localStorage.removeItem(draftKey());draft=readDraft();
+    localStorage.removeItem(draftOwnerKey);draft=readDraft();
     const done=box(body,"PLANIFICACIÓN CONFIRMADA","Plan guardado",selected.length+" sectores distribuidos en el período. La recepción de cada asignación se confirma desde Mi jornada.");
     E("p","km-muted","La entrega de notificaciones push depende del motor de avisos y de los permisos del dispositivo; esta confirmación acredita el guardado, no la recepción de una notificación.",done);
     B(actions(done),"Volver a Dirección",()=>{document.getElementById("km-flow")?.remove();window.openKonsorDirection?.();},"primary");
@@ -220,10 +234,10 @@ function review(){
  const noFuture=[...people.keys()].filter(name=>!all.some(z=>z.comercial===name&&z.status!=="completada"&&z.date>=d));
  if(noFuture.length)E("p","km-warning","Sin próxima zona registrada: "+noFuture.join(", "),advice);
  if(!late&&!noFuture.length)E("p","km-good","No se detectan sectores terminados sin volcar ni personas con historial sin próximas zonas.",advice);
- const row=actions(advice);B(row,"Planificar",()=>{draft=readDraft();draft.step=0;open();},"primary");
+ const row=actions(advice);B(row,"Planificar",()=>{selectDraft();draft.step=0;open();},"primary");
  B(row,"Asignar tarea a un comercial",()=>{document.getElementById("km-flow")?.remove();window.openNotificationsCenterV2?.("tasks");});
  B(row,"Análisis operativo",()=>{document.getElementById("km-flow")?.remove();window.openKonsorTeamOperations?.();});
  B(row,"Terminar",()=>{document.getElementById("km-flow")?.remove();window.cnvShowHome?.();});
 }
-window.konsorPlanificador={open:()=>{draft=readDraft();open();},review,metrics:periodMetrics};
+window.konsorPlanificador={open,review,metrics:periodMetrics};
 })();
