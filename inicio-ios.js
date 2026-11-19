@@ -81,8 +81,9 @@ function showHome(){
  tile(grid,"Resultados","Cifras y Liga comercial","results",()=>window.openCnResults?.());
 
  if(boss()){
-  // Dirección es una tarjeta principal como Jornada, Mapa, Oficina y Resultados.
+  // Cada responsable tiene planificación propia, también cuando trabaja solo.
   tile(grid,andrei()?"Dirección":"Mi equipo",andrei()?"Pueblos, fichas y equipo":"Gestionar mi equipo","direction",()=>andrei()?window.openKonsorDirection?.():openAuditModal());
+  if(!andrei())tile(grid,"Planificar","Asignaciones del equipo","calendar",()=>window.konsorPlanificador?.open?.());
  }
  el("p","cnv-footer-note","Los cambios se guardan con las funciones actuales de Comercial Navarra.",section);
 }
