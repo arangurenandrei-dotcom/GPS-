@@ -1,78 +1,89 @@
-/* KONSOR · navegación de retorno y cierre para modales heredados y modernos.
-   No elimina motores de negocio ni altera datos. */
+/* KONSOR: navegación uniforme de una sola pantalla y gesto iOS. */
 (function(){
 "use strict";
-if(window.__konsorNavigationFinal)return;
-window.__konsorNavigationFinal=true;
-const eligible='.modal-overlay.active,.cnx-modal.active,.koc-overlay.active';
-const hidden=el=>getComputedStyle(el).display==='none';
-function closeSurface(overlay){
- if(overlay.id==='idenaViewerModal'&&typeof window.closeIdenaModal==='function'){
-  window.closeIdenaModal();return;
+if(window.__konsorNavigationFinal)return;window.__konsorNavigationFinal=true;
+const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
+const headers=".modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kd-head";
+let trail=[],topSeen=null,scheduled=false,gesture=null,locked=false;
+const visible=e=>!!e&&e.isConnected&&getComputedStyle(e).display!=="none"&&getComputedStyle(e).visibility!=="hidden"&&e.getClientRects().length>0;
+function current(){
+ const all=[...document.querySelectorAll(selector)].filter(visible);
+ return all.sort((a,b)=>(parseInt(getComputedStyle(a).zIndex,10)||0)-(parseInt(getComputedStyle(b).zIndex,10)||0)||((a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING)?-1:1)).at(-1)||null;
+}
+function originalBack(el){
+ if(el.classList.contains("kd-overlay"))return el.querySelector(".kd-head>.kd-back");
+ const buttons=[...el.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav"));
+ const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i,konsorOfficeCallV2:/volver a/i};
+ if(patterns[el.id]){const b=buttons.find(x=>patterns[el.id].test(x.textContent||""));if(b)return b;}
+ return buttons.find(b=>/^(?:‹\s*)?volver(?:\s+a|\s+al)?\b/i.test((b.textContent||"").trim()));
+}
+function close(el){
+ if(!el)return;
+ if(el.classList.contains("kd-overlay")){
+  const b=el.querySelector(".kd-head>.kd-close");if(b){b.click();return;}
  }
- if(overlay.id==='konsorOfficeCallV2'){
-  overlay.classList.remove('active');return;
- }
- const old=overlay.querySelector('.modal-header button[onclick*="closeModal"]');
+ if(el.id==="idenaViewerModal"&&typeof window.closeIdenaModal==="function"){window.closeIdenaModal();return;}
+ const old=el.querySelector('.modal-header button[onclick*="closeModal"]');
  if(old){old.click();return;}
- overlay.classList.remove('active');
+ if(el.id==="konsor-csv-wizard"){el.remove();return;}
+ el.classList.remove("active");
 }
-function backSurface(overlay){
- if(overlay.id==='cnTerritorio'){
-  const back=[...overlay.querySelectorAll('.cn-page-body button')].find(b=>/volver a pueblos/i.test(b.textContent));
-  if(back){back.click();return;}
-  closeSurface(overlay);
-  window.openKonsorDirection?.();return;
- }
- if(overlay.id==='cnOficina'){
-  const back=[...overlay.querySelectorAll('.cn-office-body button')].find(b=>/volver a oficina/i.test(b.textContent));
-  if(back){back.click();return;}
-  closeSurface(overlay);window.cnvShowHome?.();return;
- }
- if(overlay.id==='konsorOfficeCallV2'){
-  const back=[...overlay.querySelectorAll('.koc-body button')].find(b=>/volver a/i.test(b.textContent));
-  if(back){back.click();return;}
-  closeSurface(overlay);window.openCnOffice?.();return;
- }
- const inner=[...overlay.querySelectorAll('button')].find(b=>
-  !b.classList.contains('cn-global-back')&&!b.classList.contains('cn-global-close')&&
-  /^(?:‹\s*)?volver(?:\s+a|\s+al)?\b/i.test((b.textContent||'').trim()));
- if(inner){inner.click();return;}
- closeSurface(overlay);
- // Volver desde una ventana sin subpáginas a la app principal.
- if(!document.querySelector(eligible))window.cnvShowHome?.();
+function back(){
+ if(locked)return;const el=current();if(!el)return;locked=true;
+ try{
+  const inside=originalBack(el);if(inside&&!inside.disabled){inside.click();return;}
+  const i=trail.lastIndexOf(el),parent=i>0?trail[i-1]:null;
+  close(el);
+  if(parent&&parent.isConnected&&!visible(parent))parent.classList.add("active");
+  else if(!parent||!parent.isConnected)window.cnvShowHome?.();
+  if(i>=0)trail=trail.slice(0,i);
+ }finally{locked=false;queueMicrotask(scan);}
 }
-function mount(overlay){
- if(!overlay||overlay.classList.contains('kd-overlay'))return;
- if(overlay.querySelector('.cn-global-nav'))return;
- const header=overlay.querySelector('.modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header');
- if(!header)return;
- const row=document.createElement('div');row.className='cn-global-nav';
- const back=document.createElement('button');back.type='button';back.className='cn-global-back';
- back.textContent='‹';back.setAttribute('aria-label','Volver');
- back.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();backSurface(overlay);});
- const close=document.createElement('button');close.type='button';close.className='cn-global-close';
- close.textContent='×';close.setAttribute('aria-label','Cerrar sección');
- close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closeSurface(overlay);});
- row.append(back,close);
- header.append(row);
+function closeTop(){if(locked)return;const el=current();if(!el)return;locked=true;try{close(el);}finally{locked=false;queueMicrotask(scan);}}
+window.konsorGoBack=back;window.konsorCloseTop=closeTop;
+function mount(el){
+ if(el.classList.contains("kd-overlay")||el.querySelector(".cn-global-nav"))return;
+ const header=el.querySelector(headers);if(!header)return;
+ header.classList.add("cn-consistent-header");
+ const row=document.createElement("div");row.className="cn-global-nav";
+ const make=(label,aria,fn,cls)=>{const b=document.createElement("button");b.type="button";b.className=cls;b.textContent=label;b.setAttribute("aria-label",aria);b.onclick=e=>{e.preventDefault();e.stopPropagation();fn();};return b;};
+ row.append(make("‹","Volver una pantalla",back,"cn-global-back"),make("×","Cerrar",closeTop,"cn-global-close"));header.append(row);
+ const existing=header.querySelector('button[onclick*="closeModal"]');if(existing)existing.classList.add("cn-original-close-hidden");
 }
-let scheduled=false;
 function scan(){
- scheduled=false;
- document.querySelectorAll(eligible).forEach(el=>{if(!hidden(el))mount(el);});
+ scheduled=false;const all=[...document.querySelectorAll(selector)].filter(visible);
+ all.forEach(mount);
+ const top=current();
+ if(!top){trail=[];topSeen=null;return;}
+ if(top!==topSeen){
+  const i=trail.indexOf(top);if(i>=0)trail=trail.slice(0,i+1);else trail.push(top);
+  topSeen=top;
+ }
 }
-function schedule(){if(scheduled)return;scheduled=true;queueMicrotask(scan);}
+function schedule(){if(!scheduled){scheduled=true;queueMicrotask(scan);}}
 function init(){
- scan();
- const observer=new MutationObserver(schedule);
- observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class'],childList:true});
- document.addEventListener('keydown',event=>{
-  if(event.key!=='Escape')return;
-  const overlays=[...document.querySelectorAll(eligible)].filter(el=>!hidden(el));
-  const overlay=overlays[overlays.length-1];if(!overlay)return;
-  event.preventDefault();closeSurface(overlay);
- });
+ if(!document.getElementById("konsor-unified-nav-style")){
+  const st=document.createElement("style");st.id="konsor-unified-nav-style";
+  st.textContent=".cn-consistent-header{position:relative!important;padding-left:57px!important;padding-right:57px!important;min-height:59px}.cn-global-nav{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:0 10px;pointer-events:none}.cn-global-nav button{pointer-events:auto;display:flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;min-height:38px;padding:0;border:1px solid #e1e7ef;border-radius:50%;background:#eef2f7;color:#314660;font:400 26px/1 -apple-system,BlinkMacSystemFont,system-ui;box-shadow:none}.cn-global-nav button:active{background:#e1e9f2}.cn-consistent-header .cn-original-close-hidden{display:none!important}";
+  document.head.append(st);
+ }
+ scan();new MutationObserver(schedule).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class","style"],childList:true});
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&current()){e.preventDefault();closeTop();}else if(e.altKey&&e.key==="ArrowLeft"&&current()){e.preventDefault();back();}});
+ document.addEventListener("touchstart",e=>{
+  if(e.touches.length!==1||!current())return;const t=e.touches[0];if(t.clientX>35)return;
+  if(e.target.closest("#map,.leaflet-container,input,textarea,select,[role=slider],.cnv-map-toolbar"))return;
+  gesture={x:t.clientX,y:t.clientY};
+ },{passive:true});
+ document.addEventListener("touchmove",e=>{
+  if(!gesture||e.touches.length!==1)return;const t=e.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
+  if(dx>20&&dx>Math.abs(dy)*1.4&&e.cancelable)e.preventDefault();
+ },{passive:false});
+ document.addEventListener("touchend",e=>{
+  if(!gesture)return;const g=gesture;gesture=null;const t=e.changedTouches[0];if(!t)return;
+  const dx=t.clientX-g.x,dy=t.clientY-g.y;
+  if(dx>75&&Math.abs(dy)<65&&dx>Math.abs(dy)*1.5){e.preventDefault();back();}
+ },{passive:false});
+ document.addEventListener("touchcancel",()=>gesture=null,{passive:true});
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
 })();
