@@ -97,7 +97,7 @@ function open(){
    const base={date:z.date||draft.start,owner:z.comercial},edited={...base,...(draft.edits[String(z.id)]||{})};
    const wrapper=E("div","km-zoneform",undefined,c);E("strong","",z.sectorName||"Sector",wrapper);E("small","",z.town,wrapper);
    const grid=E("div","km-formgrid",undefined,wrapper);
-   const set=(k,v)=>{draft.edits[String(z.id)]={...draft.edits[String(z.id)],date:(k==="date"?v:edited.date),owner:(k==="owner"?v:edited.owner)};persist();};
+   const set=(k,v)=>{const current={...edited,...(draft.edits[String(z.id)]||{})};current[k]=v;draft.edits[String(z.id)]=current;persist();};
    field(grid,"Día","date",[],edited.date,v=>set("date",v));
    const members=[...new Set([...(draft.members||[]),edited.owner])].filter(Boolean);
    field(grid,"Comercial","select",members.map(n=>[n,n]),edited.owner,v=>set("owner",v));
