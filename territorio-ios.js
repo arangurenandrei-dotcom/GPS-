@@ -27,8 +27,8 @@ function pueblos(){
  });
  return [...grouped.values()].map(p=>{
   const total=p.sectores.length;
-  const terminados=p.sectores.filter(({z})=>z.status==="completada").length;
-  const haciendo=p.sectores.filter(({z})=>z.status==="en_proceso").length;
+  const terminados=p.sectores.filter(({z})=>z.status==="completada"||z.precheck?.sectorStatus==="no_apto").length;
+  const haciendo=p.sectores.filter(({z})=>z.status==="en_proceso"&&z.precheck?.sectorStatus!=="no_apto").length;
   const si=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.si),0);
   const no=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.no),0);
   const ausente=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.ausente),0);
@@ -170,7 +170,7 @@ function sectorCard(container,entry){
  const card=el("div","cn-sector",undefined,container);
  const row=el("div","cn-flex",undefined,card);
  el("strong","cn-sector-name",z.sectorName||"Sector sin nombre",row);
- const estado=z.status==="completada"?"Volcado terminado":z.streetCompletedAt&&!z.dumpDate?"Calle terminada · por volcar":z.status==="en_proceso"?"Haciendo":"Por hacer";
+ const estado=z.precheck?.sectorStatus==="no_apto"?"Descartado técnicamente":z.status==="completada"?"Volcado terminado":z.streetCompletedAt&&!z.dumpDate?"Calle terminada · por volcar":z.status==="en_proceso"?"Haciendo":"Por hacer";
  el("span","cn-tag",estado,row);
  el("p","cn-detail",[z.comercial||"Sin comercial",z.date||"Sin fecha"].join(" · "),card);
  if(z.comercial){
