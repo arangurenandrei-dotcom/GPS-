@@ -3355,7 +3355,7 @@ function openUserProfileModal() {
         await cargarPerimetrosPueblos();
         if (map) actualizarAgrupacionTerritorial();
         window.refreshCnTerritory?.();
-        window.openCnTerritory?.();
+        if(!konsorRetomarImportacionSiExiste())window.openCnTerritory?.();
       } catch(e) { alert('Sin guardar: '+e.message); }
     }
 
@@ -3439,6 +3439,7 @@ function openUserProfileModal() {
       const normalizeImport=s=>String(s||'').trim().normalize('NFD')
         .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
       window.konsorImportCsvWizard({
+        sessionKey:sessionStorage.getItem('auth_user_key')||currentUserName||'guest',
         snapshot:()=>({towns:perimetrosPueblos.slice(),
           zones:savedZones.slice(),canCommit:isChief&&!!window.KonsorBridge?.save}),
         drawTown:()=>{if(!isChief)return alert('Solo un responsable puede delimitar pueblos.');
@@ -3523,6 +3524,13 @@ function openUserProfileModal() {
       });
     }
     window.abrirImportadorTerritorialKonsor=abrirImportadorTerritorialKonsor;
+    function konsorRetomarImportacionSiExiste(){
+      const userKey=String(sessionStorage.getItem('auth_user_key')||currentUserName||'guest')
+        .replace(/[^a-zA-Z0-9_-]/g,'_');
+      if(!sessionStorage.getItem('konsor_import_csv_draft_v1_'+userKey))return false;
+      setTimeout(()=>abrirImportadorTerritorialKonsor(),200);
+      return true;
+    }
 
     function getLocalDateISO(dateObj = new Date()) {
       const offsetMs = dateObj.getTimezoneOffset() * 60000;
@@ -12869,6 +12877,7 @@ function konsorNextSectorNumber(town) {
       cancelDrawing();
       closeModal('assignModal');
       renderAllSavedZones();
+      konsorRetomarImportacionSiExiste();
     }
 
 
