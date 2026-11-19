@@ -152,7 +152,9 @@ function openTownCreator(){
  }
  const searchAction=btn("Buscar localidades",buscar,"primary");
  input.insertAdjacentElement("afterend",searchAction);
- input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();buscar();}});
+ let debounce=null;
+ input.addEventListener("input",()=>{clearTimeout(debounce);if(input.value.trim().length>=3)debounce=setTimeout(buscar,650);});
+ input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();clearTimeout(debounce);buscar();}});
  overlay.addEventListener("click",e=>{if(e.target===overlay)close();});
  input.focus();
 }
