@@ -40,7 +40,25 @@ function metric(root,label,value){
 }
 function chip(root,text){return $("span","cnx-chip",text,root);}
 function actions(root,...buttons){const row=$("div","cnx-actions",undefined,root);row.append(...buttons);}
-function zoneStatus(z){return z.status==="completada"?"Terminado":z.status==="en_proceso"?"Haciendo":"Por hacer";}
+function streetDone(z){return Number(z.streetCompletedAt)>0 || z.status==="completada";}
+function needsDump(z){return streetDone(z)&&!z.dumpDate&&z.status!=="completada";}
+function zoneStatus(z){return z.status==="completada"?"Volcado terminado":needsDump(z)?"Calle terminada · Volcado pendiente":z.status==="en_proceso"?"Calle en curso":"Por hacer";}
+async function markStreetDone(entry){
+ const original=entry.z;
+ if(currentUserName!==original.comercial||currentUserRole==="jefe"&&original.comercial!==currentUserName)throw Error("Solo el comercial responsable puede cerrar el trabajo de calle.");
+ if(original.status==="completada"||original.streetCompletedAt)return;
+ if(!window.KonsorBridge||window.KonsorBridge.busy)throw Error("Sin conexión de guardado disponible. Inténtalo de nuevo.");
+ const candidate=JSON.parse(JSON.stringify(savedZones));
+ const target=candidate.find(z=>String(z.id)===String(original.id));
+ if(!target||target.comercial!==currentUserName)throw Error("La asignación ha cambiado. Actualiza el listado.");
+ target.streetCompletedAt=Date.now();
+ target.streetCompletedBy=currentUserName;
+ // No marcar el sector completado hasta que se confirmen y guarden las fichas.
+ await window.KonsorBridge.save("comercial_custom_zones",candidate);
+ savedZones=candidate;
+ window.cnvRefreshHome?.();
+ window.refreshCnTerritory?.();
+}
 function openZone(entry,mode){
  const {z,idx}=entry;
  document.querySelectorAll(".cnx-modal.active").forEach(m=>m.classList.remove("active"));
@@ -68,7 +86,19 @@ function zoneCard(root,entry){
  if(z.isHotMission){$("p","cnx-intro","Prioridad especial · obras en curso en la zona",c);if(z.bossNote)$("p","cnx-intro",z.bossNote,c);}
  const line=$("div","cnx-meta",undefined,c);
  chip(line,zoneStatus(z));chip(line,z.date||"Sin fecha");chip(line,z.comercial||"Sin asignar");
- actions(c,b("Ir · Navegación",()=>driveTo(entry),"primary"),b("Ver zona y catastro",()=>openZone(entry,"map"),"outline"),b("Volcar / revisar",()=>openZone(entry),"outline"));
+ if(needsDump(z)){
+  actions(c,b("Volcar datos pendientes",()=>openZone(entry),"primary"),b("Ver mapa",()=>openZone(entry,"map"),"outline"));
+ }else if(z.status==="completada"){
+  actions(c,b("Revisar volcado",()=>openZone(entry),"outline"));
+ }else{
+  actions(c,b("Ir · Navegación",()=>driveTo(entry),"primary"),b("Ver zona y catastro",()=>openZone(entry,"map"),"outline"));
+  if(z.comercial===currentUserName){
+   const finish=b("Terminar calle · Volcar después",async()=>{if(!confirm("¿Confirmas que has terminado las visitas de este sector? Después quedará pendiente el volcado de datos."))return;finish.disabled=true;
+    try{await markStreetDone(entry);openDay();}catch(e){alert("No se ha confirmado el guardado: "+(e.message||e));finish.disabled=false;}
+   },"outline");
+   actions(c,finish);
+  }
+ }
  if(z.comercial===currentUserName&&z.status!=="completada"&&!z.assignmentReceivedAt){
   const receipt=b("He recibido esta zona",async()=>{
    receipt.disabled=true;try{
@@ -92,14 +122,20 @@ function openDay(){
  if(!shift)actions(status,b("Iniciar jornada",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("start"))openDay();},"primary"));
  else if(shift.status==="working")actions(status,b("Comida",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"outline"),b("Finalizar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("end"))openDay();},"outline"));
  else if(shift.status==="lunch")actions(status,b("Reanudar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"primary"));
- const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&z.status!=="completada");
+ const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&z.status!=="completada"&&z.comercial===currentUserName);
+ const dumpPending=all.filter(({z})=>needsDump(z));
+ const streetPending=all.filter(({z})=>!needsDump(z));
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
- const overdue=all.filter(({z})=>z.date&&z.date<today);
- const scheduled=all.filter(({z})=>z.date===today).sort((a,b)=>Number(!!b.z.isHotMission)-Number(!!a.z.isHotMission));
- const future=all.filter(({z})=>!z.date||z.date>today);
+ const overdue=streetPending.filter(({z})=>z.date&&z.date<today);
+ const scheduled=streetPending.filter(({z})=>z.date===today).sort((a,b)=>Number(!!b.z.isHotMission)-Number(!!a.z.isHotMission));
+ const future=streetPending.filter(({z})=>!z.date||z.date>today);
  const k=$("div","cnx-metrics",undefined,body);
- metric(k,"Atrasados",overdue.length);metric(k,"Hoy",scheduled.length);metric(k,"Próximos",future.length);
+ metric(k,"Atrasados",overdue.length);metric(k,"Hoy",scheduled.length);metric(k,"Por volcar",dumpPending.length);
  const display=(title,items)=>{$("h3","cnx-section",title,body);if(!items.length)$("p","cnx-empty","No hay sectores en este grupo.",body);else items.slice().sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999")).slice(0,15).forEach(x=>zoneCard(body,x));};
+ if(dumpPending.length){
+  const officeCard=card(body,"Calle terminada · Datos pendientes",dumpPending.length+" sector(es) por volcar. Puedes hacerlo al regresar a casa.");
+  actions(officeCard,b("Volcar ahora",()=>openZone(dumpPending[0]),"primary"),b("Ver Oficina",()=>{close();window.openCnOffice?.();},"outline"));
+ }
  const priority=nextWork([...overdue,...scheduled,...future])[0];
  if(priority){
   const current=card(body,"Tu siguiente sector",[priority.z.town||"Localidad",priority.z.sectorName||"Sector",priority.z.date||"Sin fecha"].join(" · "));
