@@ -11790,9 +11790,11 @@ function renderCommercialWorkDay() {
     }
 
     async function handleShiftAction(action) {
+      const before=JSON.parse(JSON.stringify(savedShifts));
       const now = new Date();
       const timeStr = now.toTimeString().slice(0, 5);
       let shift = getTodayShift(currentUserName);
+      if(!shift&&action!=='start')return false;
 
       if (action === 'start') {
         if (!shift) {
@@ -11835,7 +11837,7 @@ function renderCommercialWorkDay() {
         }
       }
 
-      if (!await saveAndSync('comercial_shifts', savedShifts)) return false;
+      if (!await saveAndSync('comercial_shifts', savedShifts)) { savedShifts=before;updateShiftUI();return false; }
       try { await window.konsorMotor?.onShiftAction?.(action,shift); }
       catch(error){alert('El fichaje se ha guardado, pero el cronómetro de calle requiere revisión: '+error.message);}
       updateShiftUI();window.cnvRefreshHome?.();
