@@ -10,12 +10,13 @@ const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.ty
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const owns=z=>z&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial))&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName))&&(z.comercial===currentUserName||(currentUserRole==="jefe"&&scope==="team"));
-const valid=c=>c&&typeof c==="object"&&!c.captacionInvalida&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
+const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
 function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
 const pending=i=>!done(i)&&i.c.obraStatus!=="no_apto";
-const callable=i=>pending(i)&&(!Number(i.c.nextContactAt)||Number(i.c.nextContactAt)<=Date.now());
+const complete=i=>!!(i&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim())&&!i.c.captacionInvalida);
+const callable=i=>complete(i)&&pending(i)&&(!Number(i.c.nextContactAt)||Number(i.c.nextContactAt)<=Date.now());
 
 /* Las oportunidades son recomendaciones, nunca reservas. Solo se usan datos del equipo visible. */
 const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
@@ -30,7 +31,7 @@ const sameStreet=(a,b)=>!!(street(a)&&street(a)===street(b)&&town(a)&&town(a)===
 const sameTown=(a,b)=>!!(town(a)&&town(a)===town(b));
 /* El nuevo motor no emplea radios arbitrarios de 2, 5 u 8 km.
    Las rutas entre municipios requieren comprobación de carretera. */
-const candidateOf=i=>!!(i&&callable(i)&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim()));
+const candidateOf=i=>!!(i&&callable(i));
 function firstRecommended(){
  const candidates=all().filter(candidateOf),groups=clusters(candidates);
  return groups.length?groups[0][0]:candidates[0]||null;
@@ -451,12 +452,23 @@ function row(body,item){const b=button("",()=>open(item),"koc-row");
 function draw(opts={}){
  ++clusterSeq;
  const r=root();r.classList.add("active");const body=r.querySelector(".koc-body");body.replaceChildren();
- const items=all(),todo=items.filter(callable),scheduled=items.filter(booked),deferred=items.filter(i=>pending(i)&&!callable(i));
+ const items=all(),todo=items.filter(callable),scheduled=items.filter(booked);
+ const deferred=items.filter(i=>complete(i)&&pending(i)&&!callable(i));
+ const incomplete=items.filter(i=>!complete(i));
  if(view==="group"){renderGroup(body);return;}
  if(view==="list"){
   title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
   const counts=e("div","koc-counts",undefined,body);
-  [["Clientes",items.length],["Por llamar",todo.length],["Obras agendadas",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
+  [["Fichas",items.length],["Por llamar",todo.length],["Citas y obras",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
+  const controls=e("div","koc-refresh-actions",undefined,body);
+  controls.append(button("Actualizar datos",async()=>{
+   const note=e("p","koc-muted","Comprobando sincronización con Firebase…",body);
+   try{await window.KonsorBridge?.refresh?.();}catch(err){note.textContent="No se pudo sincronizar: "+(err.message||err);return;}
+   draw();
+  },"koc-quiet"));
+  controls.append(button("Ver todas las fichas",()=>{
+   r.classList.remove("active");window.openCnClients?.();
+  },"koc-quiet"));
   if(currentUserRole==="jefe"){const s=e("select","koc-input",undefined,body);[["mine","Mis clientes"],["team","Todo mi equipo"]].forEach(([value,label])=>{const o=e("option","",label,s);o.value=value;});s.value=scope;s.onchange=()=>{scope=s.value;draw();};}
   const suggested=firstRecommended();
   if(suggested)body.append(button("Planificar primera calle · "+(suggested.z.town||""),()=>startGroup(suggested),"koc-primary"));
@@ -466,16 +478,26 @@ function draw(opts={}){
   if(!items.length){
     const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission);
     const recorded=zones.reduce((n,z)=>n+(Array.isArray(z.clients)?z.clients.length:0),0);
-    e("p","koc-muted",!zones.length
-      ?"No hay sectores del alcance seleccionado. Revisa Pueblos y sectores o cambia el filtro de equipo."
-      :!recorded
-      ?"Hay "+zones.length+" sectores, pero aún no contienen clientes volcados. Primero registra las fichas de captación."
-      :"Hay "+recorded+" registros, pero no cumplen los requisitos mínimos de ficha (nombre, teléfono o dirección). Revisa las fichas originales.",list);
-  } else if(!todo.length)e("p","koc-muted","No hay llamadas vencidas. Los recordatorios futuros permanecen guardados.",list);
-  const incomplete=items.filter(i=>!i.c.name||!i.c.phone||!i.c.street);
+    const systemTotal=(Array.isArray(savedZones)?savedZones:[]).reduce((n,z)=>n+(Array.isArray(z.clients)?z.clients.length:0),0);
+    const note=card(body);
+    title(note,"Sin fichas visibles en este filtro",!zones.length
+      ?"No hay sectores visibles para el perfil o el equipo seleccionado."
+      :!recorded?"Hay "+zones.length+" zonas, pero todavía no tienen fichas guardadas. Registra o vuelca los interesados para que aparezcan aquí."
+      :"Existen "+recorded+" fichas en las zonas visibles, pero no contienen datos identificativos utilizables.");
+    e("p","koc-muted","Diagnóstico: "+zones.length+" zonas del filtro · "+recorded+" fichas en esas zonas · "+systemTotal+" fichas cargadas en esta sesión.",note);
+    if(currentUserRole==="jefe"&&scope==="mine")note.append(button("Ver todo mi equipo",()=>{scope="team";draw();},"koc-primary"));
+  } else if(!todo.length)e("p","koc-muted","No hay llamadas disponibles ahora. Revisa los seguimientos, las fichas por completar o las citas existentes.",list);
   if(incomplete.length){
-    const warning=card(body);title(warning,"Fichas por completar",incomplete.length+" registros sin nombre, teléfono o calle. Se muestran para corregirlos, pero no permiten reservar hasta completarlos.");
-    incomplete.slice(0,15).forEach(i=>row(warning,i));
+    const warning=card(body);title(warning,"Fichas que necesitan revisión",incomplete.length+" registros no contactables: faltan datos o el teléfono está marcado como no válido.");
+    incomplete.slice(0,30).forEach(i=>{
+      const cell=card(warning);e("strong","",i.c.name||"Sin nombre",cell);
+      e("p","koc-muted",(i.z.town||"Sin pueblo")+" · "+(i.c.street||"Sin calle")+(i.c.captacionInvalida?" · Teléfono no válido":""),cell);
+      cell.append(button("Abrir ficha",()=>{
+       r.classList.remove("active");
+       if(typeof window.openKonsorClientDetail==="function")window.openKonsorClientDetail(i.zi,i.ci);
+       else window.openCnClients?.();
+      },"koc-quiet"));
+    });
   }
   if(deferred.length){const waits=e("details","koc-closed",undefined,body);e("summary","","Seguimientos futuros ("+deferred.length+")",waits);deferred.forEach(i=>row(waits,i));}
   const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+items.filter(i=>!pending(i)).length+")",details);items.filter(i=>!pending(i)).forEach(i=>row(details,i));
@@ -493,7 +515,15 @@ function draw(opts={}){
   if(group.length>1){const hint=card(body);e("strong","","Oportunidad · Misma calle",hint);e("p","koc-muted",group.length+" viviendas por llamar en esta calle. Conviene proponer franjas del mismo día y equipo antes de abrir otra ruta.",hint);hint.append(button("Ver jornada con estos clientes",()=>startGroup(item),"koc-quiet"));}
   if(plannedChoice?.key===item.key){const suggestion=card(body);e("strong","","Franja que intentamos completar",suggestion);e("p","koc-muted",plannedChoice.date+" · "+plannedChoice.time+" · Equipo "+plannedChoice.team+" (sin reservar). Propón este horario durante la llamada.",suggestion);}
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
-  if(!callable(item)&&pending(item)){const nextAt=new Date(Number(c.nextContactAt)).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});e("p","koc-muted","Seguimiento programado para "+nextAt+". Puedes consultar la ficha sin adelantar la llamada.",body);}
+  if(!complete(item)){
+   body.append(show("Ficha pendiente: falta nombre, calle, teléfono o localidad, o tiene el teléfono marcado como no válido."));
+   body.append(button("Completar ficha original",()=>{
+    r.classList.remove("active");
+    window.openKonsorClientDetail?.(item.zi,item.ci);
+   },"koc-primary"));
+   return;
+  }
+  if(!callable(item)&&pending(item)){const nextAt=new Date(Number(c.nextContactAt)).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit"});e("p","koc-muted","Seguimiento programado para "+nextAt+". Puedes consultar la ficha sin adelantar la llamada.",body);}
   if(booked(item)){
    body.append(button("Ver confirmación y WhatsApp",()=>{view="whatsapp";draw();},"koc-primary"));
    body.append(button("Cambiar fecha",()=>{chosenDate=c.obraDate||tomorrow();view="calendar";draw();},"koc-quiet"));
