@@ -180,7 +180,7 @@ function openClients(){
     if(c.phone)chip(badges,c.phone);
     const missing=[!c.name?"nombre":null,!c.street?"calle":null,!c.phone?"teléfono":null].filter(Boolean);
     if(missing.length)chip(badges,"Faltan: "+missing.join(", "));
-    chip(badges,c.obraStatus==="no_apto"?"No apta":c.obraStatus==="agendada"?"Cita agendada":c.obraStatus==="realizada"?"Obra realizada":"Registrada");
+    chip(badges,c.captacionInvalida?"Teléfono no válido · no contactable":c.obraStatus==="no_apto"?"No apta":c.obraStatus==="agendada"?"Cita agendada":c.obraStatus==="realizada"?"Obra realizada":"Registrada");
     actions(row,b(missing.length?"Completar ficha":"Abrir ficha",()=>{close();openDumpModal(idx);},"primary"),b("Localizar",()=>{close();focusMapOnTownOrZone(z.town,idx);},"outline"));
   }
  }
