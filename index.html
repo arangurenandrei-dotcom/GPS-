@@ -1388,6 +1388,7 @@ html,body{background:#f5f5f7;color:#17202c}
 .cn-territorio .cn-btn:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 .cn-territorio .cn-footer{display:flex;margin-top:5px}.cn-territorio .cn-footer button{width:100%}
 @media(max-width:420px){.cn-territorio .cn-page{border-radius:22px}.cn-territorio .cn-page-body{padding:12px}.cn-territorio .cn-kpi{padding:10px 7px}.cn-territorio .cn-kpi strong{font-size:19px}}
+.konsor-sector-preview{padding:15px;background:#f0f4f9;border:1px solid #dfe6ef;border-radius:15px;color:#243b56;font-size:17px;font-weight:750}
 </style>
 <style id="cnOfficeWorkflow">
 /* Flujo iOS para el trabajo de oficina */
@@ -1988,14 +1989,16 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
         </div>
 
         <div class="input-group">
-          <span class="input-label">Nombre del sector · opcional</span>
-          <input type="text" id="assignSectorName" class="input-field" placeholder="Dejar en blanco para auto-generar">
+          <span class="input-label">Sector · numeración automática</span>
+          <div id="assignSectorPreview" class="konsor-sector-preview" aria-live="polite">Calculando sector…</div>
+          <span class="input-label">Referencia · opcional</span>
+          <input type="text" id="assignSectorName" class="input-field" placeholder="Ej. Zona norte o calles">
         </div>
 
         <div class="input-group">
           <span class="input-label">Responsable</span>
           <select id="assignComercial" class="select-field">
-            <option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
+            <option value="Andrei (Jefe)">Andrei (Trabajo propio)</option>
             <option value="Comercial 1">Comercial 1</option>
             <option value="Comercial 2">Comercial 2</option>
             <option value="Comercial 3">Comercial 3</option>
@@ -2009,7 +2012,7 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
           <input type="text" id="assignBossNote" class="input-field" placeholder="Ej. Empezar por la zona este..." style="width:100%;">
         </div>
 
-        <p class="cn-sector-form-desc">La zona dibujada se asignará al responsable para la fecha seleccionada. Los campos opcionales pueden completarse después.</p>
+        <p class="cn-sector-form-desc">La numeración es automática dentro de cada pueblo. Puedes añadir una referencia reconocible; fecha, responsable e indicaciones se mantienen editables.</p>
         <button class="btn-modal-save" onclick="confirmSectorAssignment()">Guardar y asignar sector</button>
       </div>
     </div>
@@ -11745,7 +11748,7 @@ function renderCommercialWorkDay() {
              <option value="Mikel Com. 3">Mikel Com. 3</option>
              <option value="Mikel Com. 4">Mikel Com. 4</option>
              <option value="Mikel Com. 5">Mikel Com. 5</option>`
-          : `<option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
+          : `<option value="Andrei (Jefe)">Andrei (Trabajo propio)</option>
              <option value="Comercial 1">Comercial 1</option>
              <option value="Comercial 2">Comercial 2</option>
              <option value="Comercial 3">Comercial 3</option>
@@ -11784,7 +11787,7 @@ function renderCommercialWorkDay() {
              <option value="Mikel Com. 3">Mikel Com. 3</option>
              <option value="Mikel Com. 4">Mikel Com. 4</option>
              <option value="Mikel Com. 5">Mikel Com. 5</option>`
-          : `<option value="Andrei (Jefe)">👑 Andrei (Trabajo Propio)</option>
+          : `<option value="Andrei (Jefe)">Andrei (Trabajo propio)</option>
              <option value="Comercial 1">Comercial 1</option>
              <option value="Comercial 2">Comercial 2</option>
              <option value="Comercial 3">Comercial 3</option>
@@ -12517,6 +12520,8 @@ const labelStreet = clientObj.street ||
             responsible.dataset.konsorSuggestedDate = '1';
           }
         }
+        const sectorNameField=document.getElementById('assignSectorName');
+        if(sectorNameField)sectorNameField.value='';
         const townParent=puebloParaSectorKonsor(tempPoints);
         const chosen=konsorSectorParentTown
           ? perimetrosPueblos.find(p=>ComercialCore.norm(p.nombre)===ComercialCore.norm(konsorSectorParentTown))
@@ -12533,9 +12538,17 @@ const labelStreet = clientObj.street ||
           const input=document.getElementById('assignTown');
           input.value=chosen.nombre;
           input.readOnly=true;
+          const preview=document.getElementById('assignSectorPreview');
+          if(preview)preview.textContent=konsorSectorLabel(chosen.nombre)+' · '+chosen.nombre;
         }else{
           const input=document.getElementById('assignTown');
           input.readOnly=false;
+          const preview=document.getElementById('assignSectorPreview');
+          const render=()=>{if(preview)preview.textContent=input.value.trim()
+            ? konsorSectorLabel(input.value.trim())+' · '+input.value.trim()
+            : 'Indica el pueblo para numerar el sector';};
+          input.addEventListener('input',render,{once:false});
+          render();
           detectTownFromCoordinates(centerLat,centerLon);
         }
       }
@@ -12645,7 +12658,17 @@ const labelStreet = clientObj.street ||
       );
     }
 
-function suggestSectorDateFor(comercial) {
+function konsorNextSectorNumber(town) {
+      const zones=savedZones.filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&
+        ComercialCore.norm(z.parentTown||z.town)===ComercialCore.norm(town));
+      const nums=zones.map(z=>{
+        const m=String(z.sectorName||'').match(/^Sector\\s+(?:.*?\\s+#)?(\\d+)(?:\\b|\\s*[·-])/i);
+        return m?Number(m[1]):0;
+      }).filter(n=>Number.isInteger(n)&&n>0);
+      return Math.max(zones.length,...nums,0)+1;
+    }
+    function konsorSectorLabel(town){return 'Sector '+konsorNextSectorNumber(town);}
+    function suggestSectorDateFor(comercial) {
       const today = getTodayISO();
       const queued = savedZones.filter(z => z && z.comercial === comercial &&
         !z.isSingleHouse && !z.isNoAptoZone && !z.isHotMission &&
@@ -12681,13 +12704,10 @@ function suggestSectorDateFor(comercial) {
       }
 
       if(parentTown)town=parentTown.nombre;
-      let sectorName = document.getElementById('assignSectorName').value.trim();
-      const bossNote = document.getElementById('assignBossNote').value.trim();
-
-      if (!sectorName) {
-        const sectorCount = savedZones.filter(z => z.town === town && !z.isSingleHouse).length + 1;
-        sectorName = `Sector ${town} #${sectorCount}`;
-      }
+      const sectorRef=document.getElementById('assignSectorName').value.trim();
+      const bossNote=document.getElementById('assignBossNote').value.trim();
+      const sectorNumber=konsorNextSectorNumber(town);
+      const sectorName='Sector '+sectorNumber+(sectorRef?' · '+sectorRef:'');
 
       const comercial = document.getElementById('assignComercial').value;
       if (!getActiveTeamUsers(
@@ -12728,6 +12748,8 @@ function suggestSectorDateFor(comercial) {
         town,
         parentTown:parentTown?.nombre||'',
         sectorName,
+        sectorNumber,
+        sectorRef,
         comercial,
         bossNote: bossNote || '',
         pendingNote: '',
