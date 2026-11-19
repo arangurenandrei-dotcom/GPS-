@@ -21,7 +21,13 @@ function root(){
  el("main","kd-body",undefined,p);r.addEventListener("click",e=>{if(e.target===r)r.classList.remove("active");});return r;
 }
 function tile(body,name,desc,fn){
- const c=el("section","kd-card",undefined,body);el("h3","",name,c);el("p","",desc,c);c.append(button("Abrir",fn));
+ const c=el("button","kd-card kd-nav-tile",undefined,body);
+ c.type="button";c.onclick=fn;
+ const h=el("span","kd-nav-title",undefined,c);
+ el("strong","",name,h);
+ el("span","kd-nav-chevron","›",h);
+ el("small","kd-nav-description",desc,c);
+ return c;
 }
 function open(){
  if(!isBoss())return;
@@ -30,13 +36,19 @@ function open(){
  el("p","kd-intro","Planifica y controla el trabajo desde un solo lugar. Se conservan los guardados actuales.",body);
  const stats=el("div","kd-stats",undefined,body);
  [["Sectores",m.total],["Sin terminar",m.pending],["Clientes",m.clients]].forEach(([label,value])=>{const cell=el("div","kd-stat",undefined,stats);el("strong","",value,cell);el("small","",label,cell);});
- tile(body,"1. Territorio y sectores","Revisar pueblos, sectores pendientes y asignar nueva zona.",()=>launch(r,()=>window.openCnTerritory?.()));
- tile(body,"2. Plan del equipo","Tarea prioritaria, planificación de zonas, encargos y continuidad del trabajo.",()=>launch(r,openPlan));
- tile(body,"3. Gestionar clientes","Consultar todas las fichas del equipo, buscar por teléfono o dirección y abrir cada cliente.",()=>launch(r,()=>window.openCnClients?.()));
- tile(body,"4. Tareas y respuestas","Asignar un trabajo y consultar cuándo lo recibe o completa el comercial.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
- tile(body,"5. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
- tile(body,"6. Análisis operativo","Horas efectivas, puertas, respuestas y seguimiento de productividad.",()=>launch(r,()=>showAnalytics("operations")));
- tile(body,"7. Comparación de equipos","Resultados comparables y diferencias entre los equipos, con los datos realmente disponibles.",()=>launch(r,()=>showAnalytics("compare")));
+ const grid=el("div","kd-nav-grid",undefined,body);
+ tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
+ tile(grid,"Importar fichas","Subir CSV, revisar registros y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
+ tile(grid,"Mi equipo","Comerciales y asignación del trabajo.",()=>launch(r,()=>typeof openTeamManagementMenu==="function"?openTeamManagementMenu():openPlan()));
+ tile(grid,"Planificar","Tareas, encargos y calendario del equipo.",()=>launch(r,openPlan));
+ tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
+ tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
+ const other=el("details","kd-more",undefined,body);
+ el("summary","","Análisis y supervisión avanzada",other);
+ const secondary=el("div","kd-nav-secondary",undefined,other);
+ tile(secondary,"Tareas y respuestas","Consultar encargos y confirmaciones.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
+ tile(secondary,"Análisis operativo","Horas, visitas y resultados.",()=>launch(r,()=>showAnalytics("operations")));
+ tile(secondary,"Comparar equipos","Comparación de actividad disponible.",()=>launch(r,()=>showAnalytics("compare")));
 }
 /* Plan de Dirección: pantalla nueva, mismos encargos y guardado de Firestore. */
 let planUnsubscribe=null,planRows=[],planFilter="pending",planStatus="Conectando…",planBusy=false;
