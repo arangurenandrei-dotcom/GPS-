@@ -185,6 +185,7 @@ function sectorCard(container,entry){
   document.getElementById("cnTerritorio")?.classList.remove("active");
   if(typeof focusMapOnTownOrZone==="function")focusMapOnTownOrZone(z.town,idx);
  },"outline"));
+ actions.append(btn("Evaluar viviendas",()=>openPrecheck(z.id),"outline"));
  actions.append(btn("Revisar sector",()=>{
   document.getElementById("cnTerritorio")?.classList.remove("active");
   if(typeof openDumpModal==="function")openDumpModal(idx);
@@ -199,6 +200,98 @@ function sectorCard(container,entry){
    render();
   },"outline"));
  }
+}
+
+
+/* Evaluación técnica previa: no confundir descartes con respuestas comerciales. */
+function openPrecheck(zoneId){
+ const zone=(Array.isArray(savedZones)?savedZones:[]).find(z=>String(z?.id)===String(zoneId));
+ if(!zone)return alert("No se encuentra el sector.");
+ const owner=zone.comercial;
+ const authorized=(typeof currentUserRole!=="undefined"&&currentUserRole==="jefe")||owner===currentUserName;
+ if(!authorized)return alert("Este sector no está asignado a tu cuenta.");
+ let root=document.getElementById("konsorPrecheck");
+ if(root)root.remove();
+ root=$("div","modal-overlay cn-territorio");root.id="konsorPrecheck";root.style.zIndex="11030";
+ const page=$("section","cn-page");page.style.maxWidth="560px";
+ const head=$("div","cn-page-head");const title=$("div");
+ title.append($("span","cn-eyebrow","EVALUACIÓN PREVIA"),$("h2","","Revisar viviendas"));
+ head.append(title);head.append(btn("Cerrar",()=>root.remove()));
+ const body=$("div","cn-page-body");page.append(head,body);root.append(page);document.body.append(root);root.classList.add("active");
+ root.addEventListener("click",e=>{if(e.target===root)root.remove()});
+ let draft=JSON.parse(JSON.stringify(zone.precheck||{houses:[],sectorStatus:"pendiente"}));
+ if(!Array.isArray(draft.houses))draft.houses=[];
+ const note=text=>el("p","cn-hint",text,body);
+ const field=(placeholder,value="")=>{const input=$("input");input.placeholder=placeholder;input.value=value;input.style.cssText="box-sizing:border-box;width:100%;min-height:45px;border:1px solid #dce4ee;border-radius:13px;background:#fff;color:#243447;padding:11px;font-size:16px";return input};
+ const status=$("p","cn-hint");
+ async function commit(){
+  if(!window.KonsorBridge?.save||window.KonsorBridge.busy)throw Error("No está disponible el guardado sincronizado.");
+  const candidate=JSON.parse(JSON.stringify(savedZones));
+  const target=candidate.find(z=>String(z?.id)===String(zoneId));
+  if(!target)throw Error("El sector ya no existe.");
+  target.precheck={...draft,updatedBy:currentUserName,updatedAt:Date.now()};
+  target._updatedAt=Date.now();
+  await window.KonsorBridge.save("comercial_custom_zones",candidate);
+  savedZones=candidate;window.refreshCnTerritory?.();window.cnvRefreshHome?.();
+ }
+ async function save(){
+  status.textContent="Guardando en Firestore…";
+  try{await commit();status.textContent="Guardado confirmado.";render()}catch(e){status.textContent="No se confirmó el guardado: "+(e.message||e);}
+ }
+ function render(){
+  body.replaceChildren();
+  note("Usa Catastro y la inspección visual para identificar viviendas. No descartes automáticamente casas solo porque se parezcan.");
+  const stats={apta:0,no_apta:0,dudosa:0};
+  for(const h of draft.houses)if(Object.hasOwn(stats,h.status))stats[h.status]++;
+  const row=el("div","cn-actions",undefined,body);
+  for(const [key,label] of [["apta","Posibles aptas"],["no_apta","No aptas"],["dudosa","Dudosas"]])row.append($("span","cn-tag",label+": "+stats[key]));
+  const list=el("div","",undefined,body);
+  draft.houses.forEach((h,i)=>{
+   const card=el("div","cn-sector",undefined,list);
+   el("strong","",h.address||"Vivienda sin dirección",card);
+   el("p","cn-detail",({apta:"Posiblemente apta",no_apta:"No apta",dudosa:"Necesita comprobación"})[h.status]||"Pendiente",card);
+   if(h.reason)el("p","cn-detail",h.reason,card);
+   const a=el("div","cn-actions",undefined,card);
+   a.append(btn("Editar",()=>editor(i),"outline"),btn("Quitar",()=>{draft.houses.splice(i,1);render()},"outline"));
+  });
+  const actions=el("div","cn-actions",undefined,body);
+  actions.append(btn("Añadir vivienda",()=>editor(-1)));
+  actions.append(btn("Guardar revisión",save,"outline"));
+  const sector=el("div","cn-sector",undefined,body);
+  el("strong","","Evaluación del sector",sector);
+  note("Puedes marcar todo el sector como no apto, pero debes justificarlo. No cuenta como rechazo comercial.");
+  const reason=field("Motivo técnico del descarte total",draft.sectorReason||"");sector.append(reason);
+  const action=el("div","cn-actions",undefined,sector);
+  action.append(btn("Sector no apto",async()=>{
+   if(!reason.value.trim())return alert("Indica el motivo técnico.");
+   if(!confirm("¿Confirmas que TODO el sector debe descartarse técnicamente? Esta acción no borra fichas ni clientes."))return;
+   draft.sectorStatus="no_apto";draft.sectorReason=reason.value.trim();await save();
+  },"outline"));
+  if(draft.sectorStatus==="no_apto")action.append(btn("Reabrir sector",async()=>{draft.sectorStatus="pendiente";draft.sectorReason="";await save()},"outline"));
+  body.append(status);
+ }
+ function editor(i){
+  body.replaceChildren();
+  const h=i<0?{address:"",status:"dudosa",reason:""}:draft.houses[i];
+  el("h3","","Clasificar vivienda",body);
+  const address=field("Calle y número / referencia",h.address);body.append(address);
+  const select=$("select");select.style.cssText="width:100%;min-height:47px;padding:10px;border:1px solid #dce4ee;border-radius:13px;background:#fff;color:#243447;font-size:16px";
+  [["dudosa","Pendiente de comprobar"],["apta","Posiblemente apta"],["no_apta","No apta"]].forEach(([value,label])=>{const opt=$("option");opt.value=value;opt.textContent=label;select.append(opt)});
+  select.value=h.status;body.append(select);
+  const reason=field("Motivo u observaciones",h.reason);body.append(reason);
+  const actions=el("div","cn-actions",undefined,body);
+  actions.append(btn("Continuar",()=>{
+   if(!address.value.trim())return alert("Identifica la vivienda para evitar duplicados.");
+   const addressKey=norm(address.value);
+   if(draft.houses.some((x,j)=>j!==i&&norm(x.address)===addressKey))return alert("Esta vivienda ya está clasificada.");
+   const entry={address:address.value.trim(),status:select.value,reason:reason.value.trim()};
+   if(i<0)draft.houses.push(entry);else draft.houses[i]=entry;
+   render();
+  }));
+  actions.append(btn("Cancelar",render,"outline"));
+  note("Los cambios se sincronizan al pulsar Guardar revisión.");
+ }
+ render();
 }
 
 async function deleteTownSafely(p){
