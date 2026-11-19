@@ -441,7 +441,7 @@ function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
 function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
 function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};view="client";draw();}
-function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const row=(origin&&remaining.find(i=>sameStreet(origin,i)))||(origin&&remaining.find(i=>sameTown(origin,i)))||remaining.find(i=>i.key===firstRecommended()?.key)||remaining[0];if(row)open(row);else{view="list";draw();}}
+function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const oldest=remaining[0]?.date||"";const eligible=remaining.filter(i=>(i.date||"")===oldest);const row=(origin&&eligible.find(i=>sameStreet(origin,i)))||(origin&&eligible.find(i=>sameTown(origin,i)))||eligible[0]||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
  e("small","",(item.z.town||"Sin municipio")+" · "+(item.c.street||"Sin calle"),txt);
@@ -661,7 +661,19 @@ function normalizePhone(p){let d=String(p||"").replace(/\D/g,"");if(d.startsWith
 function message(c,z){
  const date=c.obraDate?new Date(c.obraDate+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"por confirmar";
  const range=SLOTS.find(x=>x[0]===c.obraTime);
- return "Hola"+(c.name?" "+c.name.trim().split(/\s+/)[0]:"")+", te confirmamos la obra de aislamiento de tu vivienda con Konsor Energía.\n\nFecha: "+date+"\nHorario previsto: "+(range?range.join("–"):c.obraTime||"por confirmar")+"\nDirección: "+(c.street||"")+" · "+(z.town||"Navarra")+"\n\nPor favor, ten preparados el DNI y las escrituras de la vivienda para la documentación. Debe haber una persona en casa y acceso a la zona de trabajo.\n\nSi necesitas cambiar algo, responde a este mensaje. Gracias.";
+ const area=Number(String(c.m2||"").replace(",","."));
+ const property=[c.street||"Dirección pendiente",z.town||"Navarra"].join(" · ");
+ const details=[Number.isFinite(area)&&area>0?"Superficie estimada: "+area+" m²":null,
+  /^\\d{4}$/.test(String(c.buildYear||""))?"Año de construcción indicado: "+c.buildYear:null].filter(Boolean).join("\\n");
+ return "KONSOR ENERGÍA\\nConfirmación de instalación de aislamiento\\n\\n"+
+  "Estimado/a "+(String(c.name||"cliente").trim())+":\\n"+
+  "Te confirmamos la cita prevista para la vivienda situada en "+property+".\\n\\n"+
+  (details?details+"\\n":"")+
+  "Fecha: "+date+"\\n"+
+  "Franja prevista: "+(range?range.join("–"):c.obraTime||"por confirmar")+"\\n\\n"+
+  "Te recordamos que debes tener a mano tu DNI/NIE y las escrituras de la vivienda para acreditar la titularidad. "+
+  "Debe haber una persona responsable en casa y acceso a la zona de trabajo.\\n\\n"+
+  "Si necesitas modificar la cita, responde a este mensaje. Gracias por confiar en KONSOR Energía.";
 }
 async function markWhatsApp(){
  const row=resolve();if(!row||busy)return;busy=true;
