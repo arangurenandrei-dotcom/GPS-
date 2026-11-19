@@ -12,7 +12,7 @@ function current(){
 }
 function originalBack(el){
  if(el.classList.contains("kd-overlay"))return el.querySelector(".kd-head>.kd-back");
- const buttons=[...el.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav"));
+ const buttons=[...el.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav")&&visible(b));
  const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i,konsorOfficeCallV2:/volver a/i};
  if(patterns[el.id]){const b=buttons.find(x=>patterns[el.id].test(x.textContent||""));if(b)return b;}
  return buttons.find(b=>/^(?:‹\s*)?volver(?:\s+a|\s+al)?\b/i.test((b.textContent||"").trim()));
@@ -31,12 +31,30 @@ function close(el){
 function back(){
  if(locked)return;const el=current();if(!el)return;locked=true;
  try{
-  const inside=originalBack(el);if(inside&&!inside.disabled){inside.click();return;}
+  // Primero retrocede dentro de la pantalla actual: pueblo -> pueblos,
+  // cliente -> llamadas, horario -> ficha, Oficina -> paso anterior.
+  const inside=originalBack(el);
+  if(inside&&!inside.disabled){inside.click();return;}
+  // Cuando estamos en la raíz de una sección, volvemos a su propietario
+  // inmediato; nunca saltamos directamente a Inicio desde una subpantalla.
+  if(el.id==="cnTerritorio"){
+   close(el);window.openKonsorDirection?.();return;
+  }
+  if(el.id==="konsorOfficeCallV2"){
+   close(el);window.openCnOffice?.();return;
+  }
+  if(el.id==="cnOficina"){
+   close(el);window.cnvShowHome?.();return;
+  }
   const i=trail.lastIndexOf(el),parent=i>0?trail[i-1]:null;
-  close(el);
-  if(parent&&parent.isConnected&&!visible(parent))parent.classList.add("active");
-  else if(!parent||!parent.isConnected)window.cnvShowHome?.();
-  if(i>=0)trail=trail.slice(0,i);
+  if(parent&&parent.isConnected){
+   close(el);
+   if(!visible(parent))parent.classList.add("active");
+   trail=trail.slice(0,i);
+   return;
+  }
+  // Sin pantalla anterior conocida no se cierra ni se navega a Inicio.
+  // La X sigue siendo la acción explícita de cerrar.
  }finally{locked=false;queueMicrotask(scan);}
 }
 function closeTop(){if(locked)return;const el=current();if(!el)return;locked=true;try{close(el);}finally{locked=false;queueMicrotask(scan);}}
@@ -81,7 +99,15 @@ function init(){
  document.addEventListener("touchend",e=>{
   if(!gesture)return;const g=gesture;gesture=null;const t=e.changedTouches[0];if(!t)return;
   const dx=t.clientX-g.x,dy=t.clientY-g.y;
-  if(dx>75&&Math.abs(dy)<65&&dx>Math.abs(dy)*1.5){e.preventDefault();back();}
+  if(dx>75&&Math.abs(dy)<65&&dx>Math.abs(dy)*1.5){
+   e.preventDefault();
+   // El gesto pulsa el MISMO botón de volver que ve el usuario.
+   const top=current();
+   const arrow=top?.querySelector(".cn-global-nav .cn-global-back")||
+     top?.querySelector(".kd-head > .kd-back");
+   if(arrow&&!arrow.disabled)arrow.click();
+   else back();
+  }
  },{passive:false});
  document.addEventListener("touchcancel",()=>gesture=null,{passive:true});
 }
