@@ -1347,6 +1347,12 @@ html,body{background:#f5f5f7;color:#17202c}
 #appContainer .ios-nav-card>span:last-child{font-size:11px;line-height:1.25;font-weight:650;color:#202b39}
 #appContainer .ios-nav-card:active{transform:scale(.98);background:#f0f3f7}
 #appContainer .ios-nav-card:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+#appContainer .ios-work-segment{margin:2px 0 5px;background:rgba(239,242,247,.92);border:1px solid #dce2ea;box-shadow:inset 0 1px 2px rgba(15,23,42,.03)}
+#appContainer .ios-work-segment button{min-height:44px;font-size:13px;transition:background .16s ease,color .16s ease}
+#appContainer .ios-work-segment button.selected{background:#fff;color:#25374c;box-shadow:0 2px 9px rgba(15,23,42,.09)}
+#appContainer .ios-main-grid .ios-nav-card{min-height:90px;border-radius:19px;padding:13px 12px}
+#appContainer #iosPrimaryNavigation .ios-nav-card .ios-nav-icon{color:#465b74}
+#appContainer #iosPrimaryNavigation .ios-nav-card>span:last-child{font-size:12px;font-weight:680}
 @media(max-width:370px){#appContainer .ios-main-grid{gap:6px}#appContainer .ios-nav-card{padding:10px 8px;min-height:72px}#appContainer .ios-nav-card>span:last-child{font-size:10px}}
 </style>
 <style id="iosCaptureGuidanceV2">#captacionGuiadaModal .captacion-ios-correccion{background:#fff;border:1px solid #e1e7f0;border-radius:14px;padding:12px;color:#334155}#captacionGuiadaModal .captacion-ios-correccion summary{font-size:13px;font-weight:600;cursor:pointer;color:#536277}#captacionGuiadaModal .captacion-ios-correction-fields{display:grid;gap:10px;padding-top:14px}#captacionGuiadaModal .captacion-ios-summary strong{display:block;margin-bottom:6px;color:#1e293b}#captacionGuiadaModal .captacion-ios-choice{text-align:left;padding:16px;font-size:15px;font-weight:600;border-radius:16px}</style>
@@ -4349,16 +4355,16 @@ function renderIosPrimaryNavigation(area='commercial'){
  top.className='ios-main-heading';
  const heading=document.createElement('div');
  const eyebrow=document.createElement('span');eyebrow.className='ios-eyebrow';eyebrow.textContent='COMERCIAL NAVARRA';
- const title=document.createElement('strong');title.textContent=direction?'Dirección del equipo':'Mi espacio de trabajo';
+ const title=document.createElement('strong');title.textContent=direction?'Dirección':'Mi espacio de trabajo';
  heading.append(eyebrow,title);
  const toggle=document.createElement('button');toggle.type='button';toggle.className='ios-menu-toggle';
  toggle.setAttribute('aria-expanded','true');toggle.textContent='Ocultar';
  top.append(heading,toggle);shell.append(top);
  if(isAndrei){
-  const seg=document.createElement('div');seg.className='ios-work-segment';
+  const seg=document.createElement('div');seg.className='ios-work-segment';seg.setAttribute('role','group');seg.setAttribute('aria-label','Cambiar espacio de trabajo');
   [['commercial','Mi trabajo'],['management','Dirección']].forEach(([key,label])=>{
     const b=document.createElement('button');b.type='button';b.textContent=label;
-    if(area===key)b.className='selected';
+    if(area===key){b.className='selected';b.setAttribute('aria-current','page');}
     b.onclick=()=>renderWorkNavigation(key);
     seg.appendChild(b);
   });
@@ -4374,12 +4380,12 @@ function renderIosPrimaryNavigation(area='commercial'){
   ['Fichas','contact',()=>window.openCnClients?.(),true],
   ['Resultados','chart',()=>window.openCnResults?.(),true]
  ]:direction?[
-  ['Pueblos','building',()=>window.openCnTerritory?.(),true],
-  ['Gestión del equipo','users',openTeamManagementMenu,true],
+  ['Territorio','building',()=>window.openCnTerritory?.(),true],
+  ['Importar fichas','contact',abrirImportadorTerritorialKonsor,true],
+  ['Mi equipo','users',openTeamManagementMenu,true],
   ['Comerciales','contact',openPeopleManagement,true],
-  ['Comparar equipos','chart',openMikelRadarModal,true],
-  ['Plan de dirección','calendar',openBossWorkMenu,true],
-  ['Herramientas','settings',openMapToolsMenu,true]
+  ['Resultados','chart',openMikelRadarModal,true],
+  ['Planificar','calendar',openBossWorkMenu,true]
  ]:[
   ['Mi jornada','calendar',()=>window.openCnDay?.(),true],
   ['Oficina','building',()=>window.openCnOffice?.(),true],
