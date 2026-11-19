@@ -145,7 +145,7 @@ function openOfficeGuide(){
   const row=actions(c);
   B(row,"Ver Liga",()=>safeOpen(()=>{if(typeof openLeagueRankingModal==="function")openLeagueRankingModal();else window.openCnResults?.();}),"primary");
   B(row,"Mis resultados",()=>safeOpen(()=>window.openCnResults?.()));
-  if(isChief())B(row,"Cierre de Dirección",()=>openDailyReview());
+  if(isChief())B(row,"Cierre de Dirección",()=>window.konsorPlanificador?.review?.());
  }
  const foot=card(body,"SECUENCIA","¿Qué hacemos después?","Volcar → Revisar → Esperas → Llamadas y citas → Balance. Puedes cerrar y retomarla desde Oficina.");
  B(actions(foot),"Actualizar mi progreso",openOfficeGuide);
