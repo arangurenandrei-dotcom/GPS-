@@ -12934,7 +12934,7 @@ function suggestSectorDateFor(comercial) {
               <div class="popup-zone-title">${iconEmoji} ${client.street || z.sectorName}</div>
               <div class="popup-zone-sub">👤 <strong>${client.name || 'Cliente'}</strong> • ${m2Val} m²${docsProgressText}</div>
               <div class="popup-zone-sub">🏃 ${z.comercial} | 📅 ${formatDate(z.date)}</div>
-              <button class="btn-popup-open" onclick="openSingleHouseModal(${z.singlePoint[0]}, ${z.singlePoint[1]}, ${idx})">✏️ Ver / Editar Ficha</button>
+              <button class="btn-popup-open" onclick="window.openKonsorClientDetail?.(${idx},0)">Ver ficha</button>
             </div>
           `;
           marker.bindPopup(popupHtml);
@@ -12995,7 +12995,7 @@ function suggestSectorDateFor(comercial) {
         if (z.status === 'completada') statusBadgeText = '✅ Terminado';
 
         const isSupervisor = (currentUserRole === 'jefe' && z.comercial !== currentUserName);
-        const btnActionLabel = isSupervisor ? '🔍 Ver Datos & Supervisar' : '📝 Volcar Hoja / Editar';
+        const btnActionLabel = isSupervisor ? 'Abrir Dirección' : 'Ver mi jornada';
 
         polygon.on('click', (e) => {
           if (isDrawingMode) {
@@ -13011,8 +13011,8 @@ function suggestSectorDateFor(comercial) {
               <div class="popup-zone-sub">👤 <strong>${displayComercial}</strong> | ${statusBadgeText}</div>
               ${z.pendingNote ? `<div style="font-size:10px; color:#fde047; margin-bottom:6px;">✏️ <strong>Falta:</strong> ${z.pendingNote}</div>` : ''}
               <div style="display:flex; flex-direction:column; gap:5px; margin-top:4px;">
-                <button class="btn-popup-open" style="background:#0284c7;" onclick="inspectNavarraCadastreAtPoint(L.latLng(${lat}, ${lng}))">🏛️ Ver Catastro de esta casa</button>
-                <button class="btn-popup-open" onclick="openDumpModal(${idx})">${btnActionLabel}</button>
+                <button class="btn-popup-open" onclick="inspectNavarraCadastreAtPoint(L.latLng(${lat}, ${lng}))">Consultar Catastro</button>
+                <button class="btn-popup-open" onclick="${isSupervisor ? 'window.openCnTerritory?.()' : 'window.openCnDay?.()'}">${btnActionLabel}</button>
               </div>
             </div>
           `;
