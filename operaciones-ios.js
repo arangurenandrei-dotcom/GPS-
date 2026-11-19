@@ -221,5 +221,13 @@ function openCalls(){
 }
 window.openCnDay=openDay;
 window.openCnClients=()=>{query="";scope="mine";openClients();};
+window.openKonsorClientDetail=(zoneIndex,clientIndex)=>{
+ const z=Array.isArray(savedZones)?savedZones[zoneIndex]:null;
+ const c=z?.clients?.[clientIndex];
+ if(!z||!c)return;
+ if(currentUserRole!=="jefe"&&z.comercial!==currentUserName)return;
+ if(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)!==isMikelTeamMember(currentUserName))return;
+ openClientDetail({z,c,idx:zoneIndex,cidx:clientIndex});
+};
 window.openCnCalls=openCalls;
 })();
