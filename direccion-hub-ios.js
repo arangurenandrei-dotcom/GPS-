@@ -29,13 +29,11 @@ function open(){
  const stats=el("div","kd-stats",undefined,body);
  [["Sectores",m.total],["Sin terminar",m.pending],["Clientes",m.clients]].forEach(([label,value])=>{const cell=el("div","kd-stat",undefined,stats);el("strong","",value,cell);el("small","",label,cell);});
  tile(body,"1. Territorio y sectores","Revisar pueblos, sectores pendientes y asignar nueva zona.",()=>launch(r,()=>window.openCnTerritory?.()));
- tile(body,"2. Plan del equipo","Prioridades, encargos y organización de comerciales.",()=>launch(r,()=>window.openBossWorkMenu?.()));
+ tile(body,"2. Plan del equipo","Tarea prioritaria, planificación de zonas, encargos y continuidad del trabajo.",()=>launch(r,()=>window.openBossWorkMenu?.()));
  tile(body,"3. Tareas y respuestas","Asignar un trabajo y consultar cuándo lo recibe o completa el comercial.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
  tile(body,"4. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
- const other=el("details","kd-more",undefined,body);el("summary","","Herramientas adicionales",other);
- other.append(button("Comerciales y permisos",()=>launch(r,()=>typeof openPeopleManagement==="function"&&openPeopleManagement())));
- other.append(button("Análisis operativo",()=>launch(r,()=>typeof openManagementAudit==="function"&&openManagementAudit("comerciales"))));
- other.append(button("Comparar equipos",()=>launch(r,()=>typeof openMikelRadarModal==="function"&&openMikelRadarModal())));
+ tile(body,"5. Análisis operativo","Horas efectivas, puertas, respuestas y seguimiento de productividad.",()=>launch(r,()=>typeof openManagementAudit==="function"&&openManagementAudit("comerciales")));
+ tile(body,"6. Comparación de equipos","Comparar periodos y resultados del equipo Andrei con los datos disponibles de otros equipos.",()=>launch(r,()=>typeof openMikelRadarModal==="function"&&openMikelRadarModal()));
 }
 window.openKonsorDirection=open;
 })();
