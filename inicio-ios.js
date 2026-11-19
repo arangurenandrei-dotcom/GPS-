@@ -205,6 +205,7 @@ function makeMapBar(){
 function showMap(){
  if(!hasSession())return;
  screen="map";
+ window.cnvFollowGps?.(true);
  document.body.classList.remove("cnv-home-active");document.body.classList.add("cnv-map-active");
  makeMapBar();
  window.cnvStartLiveGps?.();
