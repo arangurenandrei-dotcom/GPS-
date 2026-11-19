@@ -2905,7 +2905,7 @@ function openMapToolsMenu() {
     'Herramientas del mapa',
     'Elige la vista o una herramienta.',
     [
-      ...(currentUserName === 'Andrei (Jefe)' ? [[
+      ...(['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName) ? [[
         'Dibujar pueblo',
         'Marca el contorno del pueblo en el mapa y guárdalo como territorio principal.',
         iniciarDibujoPueblo
@@ -3300,7 +3300,7 @@ function openUserProfileModal() {
     let isPuebloDrawingMode = false;
 
     async function cargarPerimetrosPueblos() {
-      if (currentUserName !== 'Andrei (Jefe)') return;
+      if (!['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName)) return;
       try {
         const r = await window.leerPerimetrosPueblo({});
         perimetrosPueblos = r.data.perimetros || [];
@@ -3310,7 +3310,7 @@ function openUserProfileModal() {
     }
 
     function iniciarDibujoPueblo() {
-      if (currentUserName !== 'Andrei (Jefe)') return;
+      if (!['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName)) return;
       cancelDrawing();
       isDrawingMode = true;
       isPuebloDrawingMode = true;
@@ -12920,29 +12920,27 @@ function suggestSectorDateFor(comercial) {
       );
     }
 
-    function abrirPanelPuebloManual(nombre) {
-      window.openCnTerritory?.(nombre);
-      return;
-      const sectores = sectoresDePuebloManual(nombre);
-      const grupos = new Map();
-
-      for (const item of sectores) {
-        const comercial = item.z.comercial || 'Sin asignar';
-        if (!grupos.has(comercial)) grupos.set(comercial,[]);
-        grupos.get(comercial).push(item);
-      }
-
-      openWorkMenu(
-        '🏘️ ' + nombre,
-        sectores.length + ' sectores · ' +
-        grupos.size + ' comerciales',
-        [...grupos].map(([comercial,lista])=>[
-          '👤 ' + comercial,
-          lista.filter(x=>x.z.status==='completada').length +
-          '/' + lista.length + ' sectores terminados',
-          ()=>abrirSectoresPuebloManual(nombre,comercial,lista)
-        ])
-      );
+    function abrirPanelPuebloManual(nombre,latlng) {
+      if (!map) return;
+      const centro=latlng||map.getCenter();
+      const popup=L.popup({maxWidth:290,className:'konsor-town-actions-popup'}).setLatLng(centro);
+      const card=document.createElement('section');card.className='konsor-map-info konsor-town-actions';
+      const tag=document.createElement('span');tag.className='konsor-map-eyebrow';tag.textContent='TERRITORIO';
+      const title=document.createElement('strong');title.className='konsor-map-title';title.textContent=nombre;
+      const actions=document.createElement('div');actions.className='konsor-map-actions';
+      const make=(label,fn,primary=false)=>{
+        const button=document.createElement('button');button.type='button';
+        button.textContent=label;
+        if(primary)button.className='konsor-map-action-primary';
+        button.onclick=()=>{map.closePopup();fn();};
+        actions.append(button);
+      };
+      make('Ver pueblo y sus sectores',()=>window.openCnTerritory?.(nombre),true);
+      make('Consultar Catastro aquí',()=>inspectNavarraCadastreAtPoint(centro));
+      if(['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName))
+        make('Crear sector dentro',()=>window.konsorStartSectorInTown?.(nombre));
+      card.append(tag,title,actions);
+      popup.setContent(card).openOn(map);
     }
 
     function abrirSectoresPuebloManual(nombre,comercial,lista) {
@@ -12977,6 +12975,8 @@ function suggestSectorDateFor(comercial) {
       );
     }
 
+    window.konsorOpenTownActions=abrirPanelPuebloManual;
+
     function actualizarAgrupacionTerritorial() {
       if (!map) return;
 
@@ -12994,7 +12994,7 @@ function suggestSectorDateFor(comercial) {
 
       const pueblosDibujados = new Set();
 
-      if (currentUserName === 'Andrei (Jefe)') {
+      if (['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName)) {
         for (const pueblo of perimetrosPueblos) {
           if (!Array.isArray(pueblo.points) ||
               pueblo.points.length < 3) continue;
@@ -13022,7 +13022,8 @@ function suggestSectorDateFor(comercial) {
 
           capa.on('click',e=>{
             L.DomEvent.stopPropagation(e);
-            abrirPanelPuebloManual(pueblo.nombre);
+            if(isDrawingMode){handleMapClick(e);return;}
+            abrirPanelPuebloManual(pueblo.nombre,e.latlng);
           });
 
           capasPueblosManuales.push(capa);
