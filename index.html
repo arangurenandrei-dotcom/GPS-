@@ -13700,10 +13700,10 @@ function suggestSectorDateFor(comercial) {
         boton(cuerpo,'Ficha revisada · continuar',()=>{
           const name=inputOriginal('.client-name')?.value.trim()||'';
           const street=inputOriginal('.client-street')?.value.trim()||'';
-          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\\s()\\-.]/g,'');
+          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\s().-]/g,'');
           if(phone.startsWith('+34'))phone=phone.slice(3);
           else if(phone.startsWith('0034'))phone=phone.slice(4);
-          if(!name||!street||(!(/^[6789]\\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1')){
+          if(!name||!street||(!(/^[6789]\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1')){
             alert('Esta ficha necesita nombre y calle, además de un teléfono válido o la marca de número ilegible.');
             capturaGuiada.paso=1;mostrarPasoCaptacion();return;
           }
@@ -13719,10 +13719,10 @@ function suggestSectorDateFor(comercial) {
         if(paso===1){
           const name=inputOriginal('.client-name')?.value.trim()||'';
           const street=inputOriginal('.client-street')?.value.trim()||'';
-          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\\s()\\-.]/g,'');
+          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\s().-]/g,'');
           if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
           if(!street||!name){alert('Introduce dirección y nombre del contacto para continuar.');return;}
-          if(!(/^[6789]\\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1'){alert('Revisar número de teléfono: corrige los 9 dígitos o marca la ficha como no contactable.');return;}
+          if(!(/^[6789]\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1'){alert('Revisar número de teléfono: corrige los 9 dígitos o marca la ficha como no contactable.');return;}
         }
         cambio(1);
       });
@@ -14839,9 +14839,9 @@ function suggestSectorDateFor(comercial) {
       const siDeclarados = Math.max(0,parseInt(document.getElementById('dumpSi')?.value,10)||0);
       const contactComplete = box=>{
         const v=sel=>box.querySelector(sel)?.value?.trim()||'';
-        let phone=v('.client-phone').replace(/[\\s()\\-.]/g,'');
+        let phone=v('.client-phone').replace(/[\s().-]/g,'');
         if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
-        return Boolean(v('.client-street')&&v('.client-name')&&/^[6789]\\d{8}$/.test(phone));
+        return Boolean(v('.client-street')&&v('.client-name')&&/^[6789]\d{8}$/.test(phone));
       };
       const markedInvalid=box=>box.dataset.konsorInvalidPhone==='1' &&
         Boolean(box.querySelector('.client-street')?.value.trim()&&box.querySelector('.client-name')?.value.trim());
