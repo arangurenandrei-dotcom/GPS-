@@ -72,6 +72,16 @@ window.konsorImportCsvWizard=function(api){
   if(dupes)note(root,dupes+' posibles duplicados dentro del archivo. Revisa antes de guardar.','warn');
   const snap=api.snapshot();const polygons=snap.towns||[],zones=snap.zones||[];
   function findTown(t){return api.requireTownBoundary===false?{nombre:t}:polygons.find(p=>norm(p.nombre)===norm(t)&&Array.isArray(p.points)&&p.points.length>=3)}
+  // Sugerir asignación automática solo cuando sector + pueblo coinciden de manera inequívoca.
+  const chosenIds=new Set(Object.values(draft.assign||{}).filter(Boolean).map(String));
+  for(const g of gs){
+   if(draft.assign[g.id])continue;
+   const candidates=zones.filter(z=>!z.isSingleHouse&&!z.isNoAptoZone&&
+     norm(z.parentTown||z.town)===norm(g.town)&&norm(z.sectorName)===norm(g.sector)&&!chosenIds.has(String(z.id)));
+   if(candidates.length===1){
+    draft.assign[g.id]=String(candidates[0].id);chosenIds.add(String(candidates[0].id));save();
+   }
+  }
   const unresolved=gs.filter(g=>!findTown(g.town));
   const missing=gs.filter(g=>!zones.some(z=>!z.isSingleHouse&&!z.isNoAptoZone&&norm(z.parentTown||z.town)===norm(g.town)&&norm(z.sectorName)===norm(draft.assign[g.id]||g.sector)));
   const h=document.createElement('h3');h.textContent='1 · Comprobar pueblos y sectores';root.append(h);
@@ -100,11 +110,17 @@ window.konsorImportCsvWizard=function(api){
   const ready=!faults.length&&!dupes&&!unresolved.length&&assigned&&uniqueAssignments&&!!snap.canCommit;
   const review=document.createElement('div');review.className='card';const mark=document.createElement('label');mark.style.cssText='display:flex;align-items:center;gap:10px;font-size:14px';
   const check=document.createElement('input');check.type='checkbox';check.checked=!!draft.verified;check.disabled=!ready;check.onchange=()=>{draft.verified=check.checked;save();render()};mark.append(check,document.createTextNode('He comprobado todas las fichas y la asignación de sectores.'));review.append(mark);
-  if(!snap.canCommit)note(review,'El guardado final está reservado a responsables autorizados. Puedes preparar y revisar el archivo, pero no publicarlo.');
+  const done=document.createElement('label');done.style.cssText='display:flex;align-items:flex-start;gap:10px;font-size:13px;margin-top:14px;color:#52637a';
+  const complete=document.createElement('input');complete.type='checkbox';complete.checked=!!draft.completeSectors;
+  complete.onchange=()=>{draft.completeSectors=complete.checked;save();};
+  done.append(complete,document.createTextNode('Este CSV incluye todas las fichas de los sectores seleccionados. Después de guardar, marcar el volcado de esos sectores como finalizado.'));
+  review.append(done);
+  note(review,'Deja esta casilla sin marcar si solo estás importando una parte de las hojas. Ningún sector se cerrará automáticamente sin tu confirmación.');
+  if(!snap.canCommit)note(review,'Este usuario no tiene sectores autorizados para guardar este archivo. Revisa que las fichas pertenezcan a su equipo y sector.');
   else if(!ready)note(review,uniqueAssignments?'Para guardar, corrige los errores, delimita los pueblos y selecciona todos los sectores.':'No puedes asociar dos fichas de sector distintas al mismo sector dibujado.');
   const actions=document.createElement('div');actions.className='controls';
   actions.append(btn('Cambiar archivo',()=>{if(!confirm('¿Descartar esta revisión?'))return;sessionStorage.removeItem(storageKey);draft={rows:[],verified:false,assign:{},filename:''};render()}));
-  const commit=btn('Guardar fichas confirmadas',async()=>{commit.disabled=true;try{const result=await api.commit(draft.rows,gs,draft.assign);sessionStorage.removeItem(storageKey);alert('Importación finalizada: '+result+' registros incorporados a sus sectores.');close();}catch(e){alert('No se han confirmado todos los datos: '+e.message);commit.disabled=false}},true);
+  const commit=btn('Guardar fichas confirmadas',async()=>{commit.disabled=true;try{const result=await api.commit(draft.rows,gs,draft.assign,{complete:!!draft.completeSectors});sessionStorage.removeItem(storageKey);alert('Importación finalizada: '+result+' registros incorporados a sus sectores.');close();}catch(e){alert('No se han confirmado todos los datos: '+e.message);commit.disabled=false}},true);
   commit.disabled=!ready||!draft.verified;actions.append(commit);review.append(actions);root.append(review);
  }
  render();
