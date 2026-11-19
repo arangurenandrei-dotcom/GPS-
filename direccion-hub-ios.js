@@ -30,10 +30,11 @@ function open(){
  [["Sectores",m.total],["Sin terminar",m.pending],["Clientes",m.clients]].forEach(([label,value])=>{const cell=el("div","kd-stat",undefined,stats);el("strong","",value,cell);el("small","",label,cell);});
  tile(body,"1. Territorio y sectores","Revisar pueblos, sectores pendientes y asignar nueva zona.",()=>launch(r,()=>window.openCnTerritory?.()));
  tile(body,"2. Plan del equipo","Tarea prioritaria, planificación de zonas, encargos y continuidad del trabajo.",()=>launch(r,openPlan));
- tile(body,"3. Tareas y respuestas","Asignar un trabajo y consultar cuándo lo recibe o completa el comercial.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
- tile(body,"4. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
- tile(body,"5. Análisis operativo","Horas efectivas, puertas, respuestas y seguimiento de productividad.",()=>launch(r,()=>showAnalytics("operations")));
- tile(body,"6. Comparación de equipos","Comparar periodos y resultados del equipo Andrei con los datos disponibles de otros equipos.",()=>launch(r,()=>showAnalytics("compare")));
+ tile(body,"3. Gestionar clientes","Consultar todas las fichas del equipo, buscar por teléfono o dirección y abrir cada cliente.",()=>launch(r,()=>window.openCnClients?.()));
+ tile(body,"4. Tareas y respuestas","Asignar un trabajo y consultar cuándo lo recibe o completa el comercial.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
+ tile(body,"5. Resultados del equipo","Captaciones, metros cuadrados, citas, producción y Liga.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
+ tile(body,"6. Análisis operativo","Horas efectivas, puertas, respuestas y seguimiento de productividad.",()=>launch(r,()=>showAnalytics("operations")));
+ tile(body,"7. Comparación de equipos","Comparar periodos y resultados del equipo Andrei con los datos disponibles de otros equipos.",()=>launch(r,()=>showAnalytics("compare")));
 }
 /* Plan de Dirección: pantalla nueva, mismos encargos y guardado de Firestore. */
 let planUnsubscribe=null,planRows=[],planFilter="pending",planStatus="Conectando…",planBusy=false;
