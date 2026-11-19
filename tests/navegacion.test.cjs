@@ -100,3 +100,28 @@ test('el gesto pulsa la flecha visible y se cancela si la pantalla cambia', () =
  touch('touchend', 100);
  assert.equal(backs, 1);
 });
+
+test('Resultados vuelve a Inicio cuando se abrió directamente', () => {
+ const { window, surface, flush } = navigation();
+ let homes = 0;
+ window.cnvShowHome = () => homes++;
+ const results = surface('konsorResultsV3', 2);
+ results.active = true;
+ flush();
+ window.konsorGoBack();
+ assert.equal(results.active, false);
+ assert.equal(homes, 1);
+});
+
+test('la confirmación de cita vuelve al horario antes de salir de Clientes', () => {
+ const { window, surface, flush } = navigation();
+ let back = 0;
+ const clients = surface('konsorOfficeCallV2', 2, {
+  '[data-konsor-back]': { click() { back++; } }
+ });
+ clients.active = true;
+ flush();
+ window.konsorGoBack();
+ assert.equal(back, 1);
+ assert.equal(clients.active, true);
+});

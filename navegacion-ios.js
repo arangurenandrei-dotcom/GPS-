@@ -2,8 +2,8 @@
 (function(){
 "use strict";
 if(window.__konsorNavigationFinal)return;window.__konsorNavigationFinal=true;
-const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
-const headers=".modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kd-head";
+const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kr-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
+const headers=".modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kr-head,.cn-call-head,.kd-head";
 let trail=[],topSeen=null,scheduled=false,gesture=null,locked=false;
 const visible=e=>!!e&&e.isConnected&&getComputedStyle(e).display!=="none"&&getComputedStyle(e).visibility!=="hidden"&&e.getClientRects().length>0;
 function current(){
@@ -14,8 +14,9 @@ function originalBack(el){
  if(el.classList.contains("kd-overlay"))return el.querySelector(".kd-head>.kd-back");
  if(el.classList.contains("km-overlay"))return el.querySelector(".km-head>.km-back");
  const buttons=[...el.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav")&&visible(b));
- const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i,konsorOfficeCallV2:/volver a/i};
+ const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i};
  if(patterns[el.id]){const b=buttons.find(x=>patterns[el.id].test(x.textContent||""));if(b)return b;}
+ if(el.id==="konsorOfficeCallV2")return el.querySelector("[data-konsor-back]");
  return buttons.find(b=>/^(?:‹\s*)?volver(?:\s+a|\s+al)?\b/i.test((b.textContent||"").trim()));
 }
 function close(el){
@@ -59,7 +60,7 @@ function back(){
   if(el.id==="konsorOfficeCallV2"){
    close(el);window.openCnOffice?.();return;
   }
-  if(el.id==="cnOficina"){
+  if(el.id==="cnOficina"||el.id==="konsorResultsV3"){
    close(el);window.cnvShowHome?.();return;
   }
   // Sin pantalla anterior conocida no se cierra ni se navega a Inicio.

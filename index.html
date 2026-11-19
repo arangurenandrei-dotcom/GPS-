@@ -1616,9 +1616,9 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
   <div id="loginScreen">
     <div class="login-card">
       <div class="ios-login-heading">
-        <div class="ios-login-badge">ESPACIO DE TRABAJO</div>
-        <h1 class="login-title">KONSOR</h1>
-        <p class="login-subtitle">Organización territorial y<br>trabajo comercial</p>
+        <div class="auth-brand"><span class="cnv-brand-mark" aria-hidden="true">K</span><strong>KONSOR</strong></div>
+        <h1 class="login-title" id="authHeading">Iniciar sesión</h1>
+        <p class="login-subtitle" id="authDescription">Accede a tu espacio de trabajo.</p>
       </div>
       <div class="ios-login-separator"></div>
 
@@ -3587,7 +3587,6 @@ function openUserProfileModal() {
  }
 
     /* ===== CUENTAS CON CORREO Y CONTRASEÑA ===== */
-    const BOSS_EMAIL = 'arangurenandrei@gmail.com';
     let authBusy = false;
     let authRegisterMode = false;
 
@@ -3635,6 +3634,10 @@ function openUserProfileModal() {
       const lead = document.getElementById('iosRegisterLead');
       wrap.style.display = authRegisterMode ? 'flex' : 'none';
       name.disabled = !authRegisterMode;
+      name.required = authRegisterMode;
+      document.getElementById('authHeading').textContent = authRegisterMode ? 'Crear cuenta' : 'Iniciar sesión';
+      document.getElementById('authDescription').textContent = authRegisterMode ? 'Solicita acceso con tu correo de trabajo.' : 'Accede a tu espacio de trabajo.';
+      document.querySelector('.ios-login-forgot').hidden = authRegisterMode;
       document.getElementById('authPass').autocomplete =
         authRegisterMode ? 'new-password' : 'current-password';
       primary.textContent = authRegisterMode ? 'Crear cuenta' : 'Entrar';
@@ -3660,17 +3663,11 @@ function openUserProfileModal() {
       authSetMsg('⏳ Creando tu cuenta...', 'info');
       authBusy = true;
       try {
-        const isBoss = BOSS_EMAIL.includes('@') && email.toLowerCase() === BOSS_EMAIL.trim().toLowerCase();
-        const user = await window.authApi.register(email, pass, name, isBoss ? { estado: 'aprobado', userKey: 'jefe' } : { estado: 'pendiente', userKey: '' });
+        await window.authApi.register(email, pass, name);
+        await window.authApi.logout();
         authBusy = false;
-        if (isBoss) {
-          authResetRegisterUI();
-          await authFinishLogin(user);
-        } else {
-          await window.authApi.logout();
-          authResetRegisterUI();
-          authSetMsg('✅ Cuenta creada. Ahora Andrei tiene que aprobarla. Cuando lo haga, entra con tu correo y tu contraseña.', 'ok');
-        }
+        authResetRegisterUI();
+        authSetMsg('Cuenta creada. Podrás entrar cuando se apruebe tu acceso.', 'ok');
       } catch (e) {
         authBusy = false;
         authSetMsg(authFriendlyError(e), 'err');
@@ -3723,14 +3720,13 @@ function openUserProfileModal() {
         return;
       }
            if (!prof) {
-        const isBossEmail = BOSS_EMAIL.includes('@') && (user.email || '').toLowerCase() === BOSS_EMAIL.trim().toLowerCase();
         const nm = (user.email || '').split('@')[0];
         try {
           await window.authApi.setProfile(user.uid, {
             email: user.email,
             nombre: nm,
-            estado: isBossEmail ? 'aprobado' : 'pendiente',
-            userKey: isBossEmail ? 'jefe' : '',
+            estado: 'pendiente',
+            userKey: '',
             createdAt: Date.now()
           });
           prof = await authWithDeadline(window.authApi.getProfile(user.uid), 'Lectura del perfil');
@@ -19555,13 +19551,13 @@ function openCommercialStatsModalLegacy() {
  window.callAgendarObraEquipo = httpsCallable(functionsEu, 'agendarObraEquipo');
 
     window.authApi = {
-      async register(email, pass, name, profile) {
+      async register(email, pass, name) {
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         await setDoc(doc(db, 'usuarios', cred.user.uid), {
           email: email,
           nombre: name,
-          estado: profile.estado,
-          userKey: profile.userKey,
+          estado: 'pendiente',
+          userKey: '',
           createdAt: Date.now(),
           updatedAt: Date.now()
         });
@@ -19649,11 +19645,11 @@ function openCommercialStatsModalLegacy() {
 <script src="./jornadas-seguimiento.js?v=konsor-v5"></script>
 <link rel="stylesheet" href="./oficina-llamadas-obras-v2.css?v=10">
 <link rel="stylesheet" href="./konsor-legacy-light.css?v=1">
-<link rel="stylesheet" href="./ios-unified.css?v=12">
-<script src="./oficina-llamadas-obras-v2.js?v=20"></script>
+<link rel="stylesheet" href="./ios-unified.css?v=13">
+<script src="./oficina-llamadas-obras-v2.js?v=21"></script>
 <script src="./asignaciones-zonas-ios.js?v=1"></script>
 <script src="./avisos-app.js?v=9"></script>
-<script src="./navegacion-ios.js?v=6"></script>
+<script src="./navegacion-ios.js?v=7"></script>
 <link rel="stylesheet" href="./motor-operativo-konsor.css?v=2">
 <script src="./motor-operativo-konsor.js?v=3"></script>
 <script src="./planificador-konsor.js?v=4"></script>

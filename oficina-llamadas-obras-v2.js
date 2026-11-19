@@ -440,7 +440,11 @@ function root(){
 function title(p,heading,detail){e("h3","",heading,p);if(detail)e("p","koc-muted",detail,p);}
 function card(p){return e("section","koc-card",undefined,p);}
 function show(msg){const t=e("p","koc-error",msg);return t;}
-function nav(body,label,fn){body.append(button("‹ "+label,fn,"koc-quiet"));}
+function nav(body,label,fn){
+ const back=button("‹ "+label,fn,"koc-quiet");
+ back.dataset.konsorBack="true";
+ body.append(back);
+}
 function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};view="client";draw();}
 function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const oldest=remaining[0]?.date||"";const eligible=remaining.filter(i=>(i.date||"")===oldest);const row=(origin&&eligible.find(i=>sameStreet(origin,i)))||(origin&&eligible.find(i=>sameTown(origin,i)))||eligible[0]||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");

@@ -511,7 +511,7 @@ body.cnv-home-active #cnvHome{
 #cnvHome .cnv-home-head,#cnvHome .cnv-home-content{max-width:640px!important;margin-left:auto!important;margin-right:auto!important}
 #cnvHome .cnv-home-head{padding:8px 0 30px!important;align-items:center!important;gap:16px!important}
 #cnvHome .cnv-home-brand{display:flex;align-items:center;gap:10px;min-width:0}
-#cnvHome .cnv-brand-mark{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:14px;color:#fff;background:#283c53;box-shadow:0 5px 14px rgba(26,50,75,.14);font-size:20px;font-weight:760;letter-spacing:-.07em}
+#cnvHome .cnv-brand-mark,#loginScreen .cnv-brand-mark{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:14px;color:#fff;background:#283c53;box-shadow:0 5px 14px rgba(26,50,75,.14);font-size:20px;font-weight:760;letter-spacing:-.07em}
 #cnvHome .cnv-brand-text{display:flex;flex-direction:column;gap:3px;min-width:0}
 #cnvHome .cnv-brand-text strong{font-size:16px!important;line-height:1.05;letter-spacing:.075em;font-weight:790;color:#24364c!important}
 #cnvHome .cnv-brand-text small{font-size:9px;letter-spacing:.1em;color:#8290a1;font-weight:730}
@@ -522,7 +522,8 @@ body.cnv-home-active #cnvHome{
 #cnvHome .cnv-home-welcome{padding:0 2px}
 #cnvHome .cnv-home-welcome h1{margin:9px 0 6px;color:#1c2d42!important;font-size:clamp(30px,7.4vw,38px)!important;line-height:1.05;font-weight:750;letter-spacing:-.055em}
 #cnvHome .cnv-home-welcome p{font-size:13.5px;color:#8290a2;line-height:1.5}
-#cnvHome .cnv-home-hero{position:relative;display:flex;flex-direction:column;gap:11px;padding:21px;border-radius:26px;border:1px solid rgba(255,255,255,.94);background:linear-gradient(150deg,rgba(255,255,255,.93),rgba(249,251,255,.72));box-shadow:0 13px 40px rgba(29,47,70,.08),inset 0 1px rgba(255,255,255,.95);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5)}
+:root{--konsor-tarjeta:linear-gradient(150deg,rgba(255,255,255,.93),rgba(249,251,255,.72));--konsor-borde:1px solid rgba(255,255,255,.94);--konsor-sombra:0 13px 40px rgba(29,47,70,.08),inset 0 1px rgba(255,255,255,.95)}
+#cnvHome .cnv-home-hero{position:relative;display:flex;flex-direction:column;gap:11px;padding:21px;border-radius:26px;border:var(--konsor-borde);background:var(--konsor-tarjeta);box-shadow:var(--konsor-sombra);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5)}
 #cnvHome .cnv-home-hero-icon{display:flex;width:43px;height:43px;align-items:center;justify-content:center;border:1px solid rgba(217,230,246,.84);border-radius:14px;background:rgba(235,243,251,.84);color:#405e80}
 #cnvHome .cnv-home-hero-icon svg{width:22px;height:22px}
 #cnvHome .cnv-home-hero-content{display:flex;flex-direction:column;gap:7px}
@@ -551,3 +552,19 @@ body.cnv-home-active #cnvHome{
 #cnvHome button:focus-visible{outline:3px solid #6f9bc8!important;outline-offset:2px}
 @media(max-width:390px){#cnvHome .cnv-home-management{flex-direction:column;align-items:stretch}#cnvHome .cnv-home-management-button{width:100%}}
 @media(prefers-reduced-motion:reduce){#cnvHome .cnv-tile{transition:none!important}}
+
+/* Acceso y registro comparten marca, superficie y controles con Inicio. */
+#loginScreen .auth-brand{display:flex;align-items:center;gap:12px;color:#26384e;margin-bottom:24px;font-size:17px;letter-spacing:.04em}
+#loginScreen>.login-card{border-radius:26px!important;background:linear-gradient(150deg,rgba(255,255,255,.96),rgba(249,251,255,.82))!important;box-shadow:0 13px 40px rgba(29,47,70,.08)!important}
+#loginScreen .ios-login-heading{text-align:left!important;align-items:flex-start!important}
+#loginScreen .login-title{font-size:30px!important;letter-spacing:-.045em!important;color:#26384e!important}
+#loginScreen .ios-login-form .ios-login-primary{background:#283c53!important;color:white!important;border-radius:14px!important;min-height:48px}
+#loginScreen .ios-login-form .form-input{background:#f6f8fb!important;border:1px solid #d9e2ed!important;border-radius:14px!important;font-size:16px!important}
+#loginScreen .ios-login-form :focus-visible{outline:3px solid #6f9bc8!important;outline-offset:2px}
+#loginScreen .ios-login-forgot[hidden]{display:none!important}
+
+/* Tarjetas de contenido. Las alertas y los estados conservan sus colores semánticos. */
+:is(.kr-page,.kd-page,.km-page,.cn-office-page,.koc-page) :is(.kr-panel,.kd-card,.km-card,.cn-office-card,.koc-card){
+ background:var(--konsor-tarjeta);border:var(--konsor-borde);border-radius:22px;box-shadow:var(--konsor-sombra)
+}
+#loginScreen>.login-card{background:var(--konsor-tarjeta)!important;border:var(--konsor-borde)!important;box-shadow:var(--konsor-sombra)!important}
