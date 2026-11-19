@@ -52,6 +52,9 @@ function applyTypes(){
  let pos=0;
  groups.forEach(g=>{for(let j=0;j<(plan[g.key]||0);j++){
   const b=all[pos];if(!b)throw Error("Falta un formulario.");
+  const prior=(typeof selectedZoneIndexToDump==="number"?savedZones[selectedZoneIndexToDump]?.clients?.[pos]:null);
+  if(prior&&["agendada","realizada"].includes(prior.obraStatus)&&prior.type!==g.key)
+   throw Error("La ficha "+(pos+1)+" ya tiene una cita u obra. No se puede cambiar su tipo mediante un reparto nuevo.");
   const select=b.querySelector(".client-type");
   if(!select||![...select.options].some(o=>o.value===g.key))throw Error("El tipo de vivienda no está disponible.");
   if(select.value!==g.key){select.value=g.key;if(typeof switchClientTypeView!=="function")throw Error("No se puede cambiar el tipo de ficha.");switchClientTypeView(select,pos);}
