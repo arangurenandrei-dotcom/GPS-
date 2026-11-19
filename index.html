@@ -3284,13 +3284,16 @@ function openUserProfileModal() {
       cancelDrawing();
       isDrawingMode = true;
       isPuebloDrawingMode = true;
+      window.cnvShowMap?.();
       document.getElementById('drawingBanner').classList.add('active');
       document.getElementById('drawingBannerActionsRow').style.display='flex';
+      const single=document.getElementById('btnToggleSingleHouseMode');
+      if(single)single.style.display='none';
       document.getElementById('drawingBannerText').textContent =
-        'Marca las esquinas del pueblo y confirma';
+        'Marca al menos 3 puntos para delimitar el pueblo.';
       const b=document.getElementById('btnConfirmSectorPoly');
       b.style.display='inline-block';
-      b.textContent='GUARDAR PUEBLO';
+      b.textContent='Guardar perímetro';
     }
 
     async function guardarPuebloDibujado() {
@@ -8337,6 +8340,31 @@ function renderBossPlan() {
       return Math.round(Math.abs(area) / 2);
     }
 
+    function showRoofMeasureResult(m2,points) {
+      let surface=document.getElementById('konsorMeasurementResult');
+      if(!surface){
+        surface=document.createElement('div');
+        surface.id='konsorMeasurementResult';
+        surface.className='modal-overlay';
+        surface.style.zIndex='10440';
+        surface.innerHTML='<div class="modal-card cn-measure-result" role="dialog" aria-modal="true" aria-label="Medición de tejado">'+
+          '<div class="modal-header"><span>Medición de superficie</span></div>'+
+          '<div class="cn-measure-value" id="konsorMeasureValue"></div>'+
+          '<p class="cn-measure-note">Superficie aproximada del polígono dibujado en el mapa. No sustituye la comprobación catastral ni la medición real de la buhardilla.</p>'+
+          '<div class="cn-measure-actions"><button type="button" id="konsorMeasureRepeat">Medir otra zona</button><button type="button" id="konsorMeasureCopy">Copiar m²</button><button type="button" id="konsorMeasureClose">Cerrar</button></div></div>';
+        document.body.appendChild(surface);
+      }
+      const formatted=new Intl.NumberFormat('es-ES',{maximumFractionDigits:0}).format(m2);
+      document.getElementById('konsorMeasureValue').textContent=formatted+' m²';
+      document.getElementById('konsorMeasureCopy').onclick=async()=>{
+        try{await navigator.clipboard.writeText(String(m2));}
+        catch(e){const value=prompt('Copia esta superficie aproximada (m²):',String(m2));}
+      };
+      document.getElementById('konsorMeasureRepeat').onclick=()=>{surface.classList.remove('active');startRoofMeasureMode();};
+      document.getElementById('konsorMeasureClose').onclick=()=>surface.classList.remove('active');
+      surface.classList.add('active');
+    }
+
     function startRoofMeasureMode() {
       if (isMikelTeamMember(currentUserName)) return;
       cancelDrawing();
@@ -8354,9 +8382,9 @@ function renderBossPlan() {
       if (btnSingle) btnSingle.style.display = 'none';
       if (btnConfirm) {
         btnConfirm.style.display = 'inline-block';
-        btnConfirm.innerText = '✅ CERRAR MEDICIÓN';
+        btnConfirm.innerText = 'Ver resultado';
       }
-      document.getElementById('drawingBannerText').innerText = "📐 Toca las esquinas del tejado: 0 m²";
+      document.getElementById('drawingBannerText').innerText = "Marca las esquinas del tejado. Mínimo 3 puntos · Resultado aproximado.";
     }
 
     function toggleSatelliteLayer() {
@@ -11789,7 +11817,7 @@ function renderCommercialWorkDay() {
       }
 
       tempPoints.push(pt);
-      const dotColor = isRoofMeasureMode ? '#f59e0b' : '#7c3aed';
+      const dotColor = isRoofMeasureMode ? '#3478f6' : '#3478f6';
       const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: dotColor, fillOpacity: 1 }).addTo(map);
       tempMarkers.push(m);
 
@@ -11797,15 +11825,15 @@ function renderCommercialWorkDay() {
         if (measurePolygonLayer) map.removeLayer(measurePolygonLayer);
         if (tempPoints.length >= 3) {
           measurePolygonLayer = L.polygon(tempPoints, {
-            color: '#fbbf24',
+            color: '#3478f6',
             weight: 2.5,
-            fillColor: '#f59e0b',
-            fillOpacity: 0.35
+            fillColor: '#79aafa',
+            fillOpacity: 0.20
           }).addTo(map);
           const m2 = calculatePolygonAreaM2(tempPoints);
-          document.getElementById('drawingBannerText').innerText = `📐 Superficie tejado: ${m2} m² (toca más esquinas o cierra)`;
+          document.getElementById('drawingBannerText').innerText = `Superficie aproximada: ${m2} m² · Añade esquinas o pulsa Ver resultado`;
         } else {
-          document.getElementById('drawingBannerText').innerText = `📐 Punto ${tempPoints.length} marcado (mínimo 3 esquinas)...`;
+          document.getElementById('drawingBannerText').innerText = `Puntos marcados: ${tempPoints.length}/3 como mínimo`;
         }
       }
     }
@@ -12296,8 +12324,9 @@ const labelStreet = clientObj.street ||
 
      if (isRoofMeasureMode) {
         const totalM2 = calculatePolygonAreaM2(tempPoints);
-        alert(`📐 Superficie total medida del tejado: ${totalM2} m²`);
+        const measuredPoints=tempPoints.map(p=>[...p]);
         cancelDrawing();
+        showRoofMeasureResult(totalM2,measuredPoints);
         return;
       }
 
