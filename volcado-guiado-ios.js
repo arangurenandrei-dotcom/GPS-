@@ -28,6 +28,38 @@ function field(parent,id,label,type="number"){
  }
  return node;
 }
+function sectorStatusControl(parent){
+ const orig=original("dumpProgressState");if(!orig)return;
+ const section=el("section","cng-state",undefined,parent);
+ el("strong","cng-state-heading","Estado del sector",section);
+ el("p","cng-state-caption","Indica si queda trabajo pendiente o si el sector está terminado.",section);
+ const row=el("div","cng-state-options",undefined,section);
+ const options=[
+  ["sin_comprobar","Por hacer","No iniciado"],
+  ["en_proceso","En proceso","Queda trabajo"],
+  ["completada","Terminado","Trabajo cerrado"]
+ ];
+ options.forEach(([value,label,detail])=>{
+  const choice=button(label,()=>{
+   orig.value=value;orig.dispatchEvent(new Event("change",{bubbles:true}));
+   render();
+  },"cng-state-option"+(orig.value===value?" selected":""));
+  choice.setAttribute("aria-pressed",String(orig.value===value));
+  el("small","",detail,choice);
+  row.append(choice);
+ });
+ if(orig.value==="en_proceso"){
+  const real=original("dumpPendingNote");
+  if(real){
+   const label=el("label","cng-field",undefined,section);
+   el("span","","Qué queda por terminar",label);
+   const input=el("input","",undefined,label);
+   input.type="text";input.value=real.value||"";
+   input.placeholder="Ej. Falta la acera de los números pares";
+   input.addEventListener("input",()=>{real.value=input.value;real.dispatchEvent(new Event("input",{bubbles:true}));});
+  }
+ }
+}
 function resetPlanIfChanged(){
  const key=String(typeof selectedZoneIndexToDump==="number"?savedZones[selectedZoneIndexToDump]?.id||selectedZoneIndexToDump:"no-zone");
  if(planKey!==key){planKey=key;plan=null;groupIndex=0;step=0;}
@@ -130,8 +162,7 @@ function render(){
   const expected=number("dumpSi"),ready=completed(),done=resolved(),all=boxes();
   const doors=["dumpNo","dumpAusente","dumpPapelito","dumpYaAislado","dumpSi"].reduce((n,id)=>n+number(id),0);
   summary(ui,doors+" resultados de calle",expected+" interesados · "+ready+" contactables · "+(done-ready)+" sin teléfono · "+(expected-done)+" pendientes");
-  field(ui,"dumpProgressState","Estado del sector");
-  if(original("dumpProgressState")?.value==="en_proceso")field(ui,"dumpPendingNote","Qué queda por hacer","text");
+  sectorStatusControl(ui);
   if(done!==expected){
    el("p","cn-house-warning","No puedes cerrar el volcado con fichas pendientes. Cada sí necesita una ficha con contacto válido o una marca explícita de teléfono no válido.",ui);
   }
