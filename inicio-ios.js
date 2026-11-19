@@ -93,15 +93,8 @@ function showHome(){
  tile(grid,"Resultados","Cifras y Liga comercial","results",()=>window.openCnResults?.());
 
  if(boss()){
-  const bossCard=el("section","cnv-director",undefined,section);
-  const t=el("div","",undefined,bossCard);
-  el("span","cnv-eyebrow","DIRECCIÓN",t);el("h2","", andrei()?"Gestión del equipo":"Mi equipo",t);
-  el("p","", "Pueblos, sectores, comerciales y planificación territorial.",t);
-  bossCard.append(btn("Abrir Dirección",()=>andrei()?window.openKonsorDirection?.():openAuditModal(),"cnv-dark"));
-  if(andrei()){
-   const management=el("div","cnv-shortcuts",undefined,section);
-   management.append(btn("Ver tareas del equipo",()=>window.openNotificationsCenterV2?.("tasks"),"cnv-glass"));
-  }
+  // Dirección es una tarjeta principal como Jornada, Mapa, Oficina y Resultados.
+  tile(grid,andrei()?"Dirección":"Mi equipo",andrei()?"Pueblos, fichas y equipo":"Gestionar mi equipo","direction",()=>andrei()?window.openKonsorDirection?.():openAuditModal());
  }
  el("p","cnv-footer-note","Los cambios se guardan con las funciones actuales de Comercial Navarra.",section);
 }
