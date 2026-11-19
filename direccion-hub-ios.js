@@ -44,7 +44,7 @@ function open(){
  const grid=el("div","kd-nav-grid",undefined,body);
  tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
  tile(grid,"Importar fichas","Subir CSV, revisar registros y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
- tile(grid,"Mi equipo","Comerciales, estadísticas y supervisión.",()=>launch(r,()=>typeof openAuditModal==="function"?openAuditModal():openPlan()));
+ tile(grid,"Mi equipo","Actividad, comerciales y próximos pasos.",()=>launch(r,openTeam));
  tile(grid,"Planificar","Semana, varias semanas o mes.",()=>launch(r,()=>window.konsorPlanificador?.open?.()));
  tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
  tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
@@ -286,6 +286,39 @@ function showAnalytics(mode){
  const actions=el("div","kdp-actions",undefined,body);
  planAction(actions,"Volver a Dirección",()=>{r.classList.remove("active");open();},true);
 }
+
+/* Mi equipo — supervisión compacta sin abrir el modal antiguo. */
+function openTeam(){
+ if(!isBoss())return;
+ const r=planSurface(),body=r.querySelector(".kd-body");
+ r.querySelector(".kd-head h2").textContent="Mi equipo";
+ body.replaceChildren();r.classList.add("active");
+ const people=analyticsRows().filter(x=>!x.name.startsWith("Mikel"));
+ const total=people.reduce((a,x)=>({zones:a.zones+x.zones,done:a.done+x.done,si:a.si+x.si,appointments:a.appointments+x.appointments}),{zones:0,done:0,si:0,appointments:0});
+ el("p","kd-intro","Información de los sectores de tu equipo. Selecciona un comercial para revisar su actividad. Las citas no equivalen a ingresos cobrados.",body);
+ const metrics=el("div","kd-stats",undefined,body);
+ [["Comerciales",people.length],["Sectores",total.done+" / "+total.zones],["Respuestas SÍ",total.si]].forEach(([label,value])=>{
+  const k=el("div","kd-stat",undefined,metrics);el("strong","",value,k);el("small","",label,k);
+ });
+ if(!people.length)planSection(body,"Sin actividad todavía","Cuando haya sectores asignados, aquí aparecerán tus comerciales y su evolución.");
+ for(const person of people.sort((a,b)=>b.si-a.si)){
+  const section=planSection(body,person.name,person.done+" de "+person.zones+" sectores terminados");
+  const primary=el("div","kd-stats",undefined,section);
+  const conversion=person.si+person.no?Math.round(100*person.si/(person.si+person.no))+"%":"—";
+  [["Sí",person.si],["Conversión",conversion],["Citas",person.appointments]].forEach(([label,value])=>{
+   const k=el("div","kd-stat",undefined,primary);el("strong","",value,k);el("small","",label,k);
+  });
+  const details=el("details","kd-more",undefined,section);
+  el("summary","","Ver actividad detallada",details);
+  [["No",person.no],["Ausentes",person.ausente],["Información entregada",person.papelito],["Obras realizadas registradas",person.executed]].forEach(([label,value])=>{
+   const line=el("div","kdp-metric",undefined,details);el("span","",label,line);el("strong","",String(value),line);
+  });
+ }
+ const actions=el("div","kdp-actions",undefined,body);
+ planAction(actions,"Analizar rendimiento",()=>showAnalytics("operations"));
+ planAction(actions,"Volver a Dirección",()=>{r.classList.remove("active");open();});
+}
+
 window.openKonsorDirection=open;
 window.openKonsorDirectorPlan=openPlan;
 window.openKonsorTeamComparison=()=>showAnalytics("compare");
