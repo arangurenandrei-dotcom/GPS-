@@ -18,10 +18,13 @@ const complete=c=>!!(String(c.name||"").trim()&&String(c.phone||"").trim()&&Stri
 function state(){
  const zz=zones(),cc=clientRows(),open=zz.filter(x=>x.z.status!=="completada");
  const late=zz.filter(x=>x.z.dumpDate&&x.z.dumpDate>x.z.date);
- const unuploaded=zz.filter(x=>x.z.date&&x.z.date<today()&&!x.z.dumpDate);
+ const unuploaded=zz.filter(x=>(Number(x.z.streetCompletedAt)>0&&!x.z.dumpDate) || (x.z.date&&x.z.date<today()&&!x.z.dumpDate));
+ const streetFinished=unuploaded.filter(x=>Number(x.z.streetCompletedAt)>0&&!x.z.dumpDate);
+ const lateUnstarted=unuploaded.filter(x=>!x.z.streetCompletedAt);
+ const ordered=streetFinished.concat(lateUnstarted).sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999"));
  const pending=cc.filter(x=>!booked(x.c)&&!excluded(x.c));
  const incomplete=pending.filter(x=>!complete(x.c));
- return {zz,cc,open,late,unuploaded,pending,incomplete,booked:cc.filter(x=>booked(x.c)),scheduled:cc.filter(x=>x.c.obraStatus==="agendada")};
+ return {zz,cc,open,late,unuploaded:ordered,streetFinished,pending,incomplete,booked:cc.filter(x=>booked(x.c)),scheduled:cc.filter(x=>x.c.obraStatus==="agendada")};
 }
 function root(){
  let r=document.getElementById("cnOficina");if(r)return r;
@@ -51,12 +54,12 @@ function render(){
  const body=root().querySelector(".cn-office-body");body.replaceChildren();
  const s=state();
  if(section==="home"){
-  const lead=card(body,"TU SIGUIENTE ACCIÓN",s.unuploaded.length?"Hay "+s.unuploaded.length+" sectores de días anteriores sin volcar":s.incomplete.length?"Revisa "+s.incomplete.length+" fichas incompletas":s.pending.length?"Tienes "+s.pending.length+" clientes por gestionar":"Trabajo de Oficina al día",
-   s.unuploaded.length?"Empieza por las hojas atrasadas. Conserva la fecha original de trabajo; no cambies la fecha para ocultar el retraso.":s.incomplete.length?"Completa los datos esenciales antes de gestionar citas.":s.pending.length?"Continúa las llamadas hasta resolver la situación de cada cliente.":"Consulta las obras confirmadas o revisa el cierre.");
+  const lead=card(body,"TU SIGUIENTE ACCIÓN",s.unuploaded.length?"Hay "+s.unuploaded.length+" sectores que requieren revisión o volcado":s.incomplete.length?"Revisa "+s.incomplete.length+" fichas incompletas":s.pending.length?"Tienes "+s.pending.length+" clientes por gestionar":"Trabajo de Oficina al día",
+   s.unuploaded.length?"Empieza por las calles ya terminadas y pendientes de volcar. Revisa después los sectores antiguos cuyo trabajo no conste como terminado.":s.incomplete.length?"Completa los datos esenciales antes de gestionar citas.":s.pending.length?"Continúa las llamadas hasta resolver la situación de cada cliente.":"Consulta las obras confirmadas o revisa el cierre.");
   lead.append(btn(s.unuploaded.length?"Volcar hojas pendientes":s.pending.length?"Continuar con clientes":"Ver agenda",()=>{if(s.unuploaded.length){section="volcados";render();}else if(s.pending.length)openCalls();else{section="agenda";render();}},"primary"));
   const steps=card(body,"RECORRIDO DE OFICINA","Cuatro momentos, una sola secuencia");
   [
-   ["01 · Volcar hojas",s.unuploaded.length+" atrasados · "+s.open.length+" sectores abiertos","volcados"],
+   ["01 · Volcar hojas",s.streetFinished.length+" calles terminadas · "+s.unuploaded.length+" sectores por revisar","volcados"],
    ["02 · Revisar fichas",s.incomplete.length+" incompletas","clients"],
    ["03 · Llamar y agendar",s.pending.length+" pendientes · "+s.scheduled.length+" citas programadas","calls"],
    ["04 · Revisar y cerrar",s.booked.length+" registros con obra programada o realizada","review"]
@@ -66,11 +69,11 @@ function render(){
  }else if(section==="volcados"){
   nav(body);
   const list=card(body,"01 · VOLCADO","Hojas pendientes","Abre el sector, comprueba los resultados y guarda con la fecha real del trabajo de calle.");
-  const items=s.open.slice().sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999"));
+  const items=s.unuploaded.concat(s.open.filter(x=>!s.unuploaded.some(item=>String(item.z.id)===String(x.z.id))));
   if(!items.length)el("p","","No quedan sectores abiertos.",list);
   items.forEach(({z,idx})=>{
-   const delayed=z.date&&z.date<today()&&!z.dumpDate;
-   line(list,z.town||"Localidad pendiente",[z.sectorName||"Sector",z.date||"Sin fecha",delayed?"Pendiente de volcado desde el día anterior":"",z.dumpDate?"Registrado: "+z.dumpDate:""].filter(Boolean).join(" · "),"Abrir hoja",()=>openSheet(idx));
+   const delayed=z.date&&z.date<today()&&!z.dumpDate; const streetCompleted=Number(z.streetCompletedAt)>0&&!z.dumpDate;
+   line(list,z.town||"Localidad pendiente",[z.sectorName||"Sector",z.date||"Sin fecha",streetCompleted?"Calle terminada · Volcado pendiente":delayed?"Sector antiguo · Comprueba trabajo de calle":"",z.dumpDate?"Registrado: "+z.dumpDate:""].filter(Boolean).join(" · "),"Abrir hoja",()=>openSheet(idx));
   });
  }else if(section==="agenda"){
   nav(body);
