@@ -201,27 +201,46 @@ function sectorCard(container,entry){
  }
 }
 
-function deleteTownSafely(p){
+async function deleteTownSafely(p){
  if(!p?.perimetro)return;
- const sectors=p.sectores.length;
- const message=sectors?
-   "Este pueblo tiene "+sectors+" sectores asociados. Primero elimina o reasigna esos sectores para no dejar fichas y tareas sin pueblo.":
-   "¿Eliminar el perímetro de "+p.nombre+" del territorio? Esta acción requiere confirmación del servidor.";
- if(sectors){alert(message);return;}
- if(!confirm(message))return;
- // No retirar de la interfaz ni del almacenamiento local sin eliminación real confirmada.
- if(typeof window.eliminarPerimetroPueblo!=="function"){
-  alert("La eliminación todavía no está habilitada en el servicio de Firebase. El pueblo no se ha borrado. Falta publicar la función segura de eliminación en el backend.");
+ const nombre=p.nombre;
+ const clave=norm(nombre);
+ const asociados=(Array.isArray(savedZones)?savedZones:[]).filter(z=>
+   z&&!z.isNoAptoZone&&!z.isHotMission&&
+   (norm(z.town)===clave||norm(z.parentTown)===clave));
+ if(asociados.length){
+  alert("No se puede eliminar "+nombre+": tiene "+asociados.length+
+   " sector(es) o ficha(s) asociados. Elimina o reasigna primero esas zonas.");
   return;
  }
- const name=p.nombre;
- Promise.resolve(window.eliminarPerimetroPueblo({nombre:name,rev:p.perimetro.rev||0})).then(async()=>{
-  if(typeof cargarPerimetrosPueblos==="function")await cargarPerimetrosPueblos();
-  const remains=(typeof perimetrosPueblos!=="undefined"?perimetrosPueblos:[]).some(t=>norm(t.nombre)===norm(name));
-  if(remains)throw Error("El servidor sigue devolviendo el pueblo; no se ha confirmado su eliminación.");
-  puebloAbierto=null;render();
+ if(!confirm("¿Eliminar definitivamente el perímetro de "+nombre+
+  " de Firebase? Esta acción no se puede deshacer."))return;
+ if(typeof window.guardarPerimetroPueblo!=="function"){
+  alert("No está disponible la conexión con Firebase. El pueblo no se ha borrado.");
+  return;
+ }
+ const overlay=document.getElementById("cnTerritorio");
+ const controls=overlay?.querySelectorAll("button")||[];
+ controls.forEach(b=>b.disabled=true);
+ try{
+  // La Cloud Function existente ofrece el borrado transaccional mediante eliminar:true.
+  const resultado=await window.guardarPerimetroPueblo({
+   nombre,rev:p.perimetro.rev||0,eliminar:true
+  });
+  if(resultado?.data?.ok!==true)throw Error("Firebase no confirmó la eliminación.");
+  if(typeof cargarPerimetrosPueblos!=="function")throw Error("Falta la recarga de perímetros.");
+  await cargarPerimetrosPueblos();
+  const permanece=(Array.isArray(perimetrosPueblos)?perimetrosPueblos:[])
+   .some(t=>norm(t.nombre)===clave);
+  if(permanece)throw Error("Firebase sigue devolviendo este pueblo. Actualiza y comprueba su estado.");
+  puebloAbierto=null;
   if(typeof actualizarAgrupacionTerritorial==="function")actualizarAgrupacionTerritorial();
- }).catch(e=>alert("No se ha confirmado el borrado: "+(e.message||e)));
+  render();
+ }catch(error){
+  alert("No se ha podido confirmar la eliminación: "+(error.message||error));
+ }finally{
+  controls.forEach(b=>b.disabled=false);
+ }
 }
 
 function renderDetail(target,p){
