@@ -75,9 +75,9 @@ function showHome(){
  // La jornada está disponible en su tarjeta; no repetir el mismo acceso en Inicio.
  const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
- tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>window.openCnDay?.());
+ tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>window.konsorMotor?.openDay?.()||window.openCnDay?.());
  tile(grid,"Mapa","GPS, parcelas y medición","map",()=>showMap());
- tile(grid,"Oficina","Volcados, clientes y obras","office",()=>window.openCnOffice?.());
+ tile(grid,"Oficina","Volcados, clientes y obras","office",()=>window.konsorMotor?.openOffice?.()||window.openCnOffice?.());
  tile(grid,"Resultados","Cifras y Liga comercial","results",()=>window.openCnResults?.());
 
  if(boss()){
