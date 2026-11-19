@@ -34,19 +34,26 @@ function open(){
  const r=root(),body=r.querySelector(".kd-body");body.replaceChildren();r.classList.add("active");
  const m=summary();
  el("p","kd-intro","Planifica y controla el trabajo desde un solo lugar. Se conservan los guardados actuales.",body);
+ const invite=el("section","kd-card kd-plan-invite",undefined,body);
+ el("small","kd-plan-kicker","TU SIGUIENTE PLANIFICACIÓN",invite);
+ el("h3","","Organizar la semana, semanas o mes",invite);
+ el("p","","Revisamos resultados, equipo, sectores y fechas hasta dejar el trabajo preparado.",invite);
+ invite.append(button("Comenzar planificación",()=>launch(r,()=>window.konsorPlanificador?.open?.())));
  const stats=el("div","kd-stats",undefined,body);
  [["Sectores",m.total],["Sin terminar",m.pending],["Clientes",m.clients]].forEach(([label,value])=>{const cell=el("div","kd-stat",undefined,stats);el("strong","",value,cell);el("small","",label,cell);});
  const grid=el("div","kd-nav-grid",undefined,body);
  tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
  tile(grid,"Importar fichas","Subir CSV, revisar registros y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
  tile(grid,"Mi equipo","Comerciales, estadísticas y supervisión.",()=>launch(r,()=>typeof openAuditModal==="function"?openAuditModal():openPlan()));
- tile(grid,"Planificar","Tareas, encargos y calendario del equipo.",()=>launch(r,openPlan));
+ tile(grid,"Planificar","Semana, varias semanas o mes.",()=>launch(r,()=>window.konsorPlanificador?.open?.()));
  tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
  tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
+ tile(grid,"Cierre del día","Pueblos, comerciales y decisiones.",()=>launch(r,()=>window.konsorPlanificador?.review?.()));
  const other=el("details","kd-more",undefined,body);
  el("summary","","Análisis y supervisión avanzada",other);
  const secondary=el("div","kd-nav-secondary",undefined,other);
  tile(secondary,"Tareas y respuestas","Consultar encargos y confirmaciones.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
+ tile(secondary,"Tareas del jefe","Editar tareas, prioridades y encargos.",()=>launch(r,openPlan));
  tile(secondary,"Análisis operativo","Horas, visitas y resultados.",()=>launch(r,()=>showAnalytics("operations")));
  tile(secondary,"Comparar equipos","Comparación de actividad disponible.",()=>launch(r,()=>showAnalytics("compare")));
 }
