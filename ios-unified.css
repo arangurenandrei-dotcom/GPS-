@@ -563,6 +563,61 @@ body.cnv-home-active #cnvHome{
 #loginScreen .ios-login-form :focus-visible{outline:3px solid #6f9bc8!important;outline-offset:2px}
 #loginScreen .ios-login-forgot[hidden]{display:none!important}
 
+/* El registro conserva la tarjeta de acceso y añade una nota de aprobación. */
+#loginScreen.cnv-register-mode .ios-login-heading{gap:0!important}
+#loginScreen.cnv-register-mode #authDescription::after{
+ content:"Un administrador activará tu acceso cuando apruebe la solicitud.";
+ display:block;margin:12px 0 0;padding:10px 12px;
+ border:1px solid rgba(190,204,222,.55);border-radius:13px;
+ background:rgba(239,244,250,.78);color:#53677f;
+ font-size:12px;line-height:1.45;text-align:left;
+}
+#loginScreen.cnv-register-mode .ios-login-field label{
+ color:#53657c!important;font-size:12px!important;font-weight:650!important;
+}
+#loginScreen.cnv-register-mode #iosAuthPrimary{margin-top:4px!important}
+
+/* Guía de uso: el contenido heredado adopta las superficies claras de KONSOR. */
+#helpGuideModal .modal-card{background:#f5f7fa!important;color:#26374d!important}
+#helpGuideModal .modal-scrollable-content{color:#3b4d63!important}
+#helpGuideModal details{
+ background:rgba(255,255,255,.96)!important;
+ border:1px solid #e2e8f0!important;border-radius:16px!important;
+ padding:12px 14px!important;margin:0 0 9px!important;
+ color:#465a72!important;font-size:13px!important;line-height:1.55!important;
+ box-shadow:0 2px 8px rgba(29,45,65,.035)!important;
+}
+#helpGuideModal details>summary{
+ color:#263a52!important;font-size:13px!important;font-weight:690!important;
+ line-height:1.4!important;list-style:none;display:flex;justify-content:space-between;gap:12px;
+}
+#helpGuideModal details>summary::-webkit-details-marker{display:none}
+#helpGuideModal details>summary::after{content:"+";color:#8291a4;font-weight:500}
+#helpGuideModal details[open]>summary::after{content:"−"}
+#helpGuideModal details strong{color:#263a52!important}
+#helpGuideModal.cnv-help-guide .cnv-help-card{
+ display:flex!important;flex-direction:column!important;max-height:calc(100dvh - 32px)!important;
+ overflow:hidden!important;padding:18px!important;
+}
+#helpGuideModal.cnv-help-guide .cnv-help-head{
+ display:flex;align-items:center;justify-content:space-between;gap:14px;
+ padding:2px 0 14px;border-bottom:1px solid #e3e9f0;
+}
+#helpGuideModal.cnv-help-guide .cnv-help-head span{
+ color:#77879b;font-size:10px;font-weight:720;letter-spacing:.11em;
+}
+#helpGuideModal.cnv-help-guide .cnv-help-head h2{
+ color:#24364d;font-size:23px;letter-spacing:-.035em;margin:4px 0 0;
+}
+#helpGuideModal.cnv-help-guide .cnv-help-head button{
+ width:40px;height:40px;border:1px solid #e1e7ef;border-radius:50%;
+ background:#fff;color:#60738a;font-size:24px;line-height:1;cursor:pointer;
+}
+#helpGuideModal.cnv-help-guide .cnv-help-body{padding:12px 2px 2px;overflow-y:auto}
+#helpGuideModal.cnv-help-guide .cnv-help-intro{margin:0 2px 12px;color:#6b7a8f;font-size:13px;line-height:1.5}
+#helpGuideModal.cnv-help-guide details p{margin:12px 0 1px;color:#52647a;font-size:13px;line-height:1.58}
+#helpGuideModal.cnv-help-guide details strong{font-weight:680}
+
 /* Tarjetas de contenido. Las alertas y los estados conservan sus colores semánticos. */
 :is(.kr-page,.kd-page,.km-page,.cn-office-page,.koc-page) :is(.kr-panel,.kd-card,.km-card,.cn-office-card,.koc-card){
  background:var(--konsor-tarjeta);border:var(--konsor-borde);border-radius:22px;box-shadow:var(--konsor-sombra)
