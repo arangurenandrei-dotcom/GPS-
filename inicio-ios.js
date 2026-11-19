@@ -38,8 +38,8 @@ function myZones(){
 }
 function info(){
  const zones=myZones(),today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
- const open=zones.filter(z=>z.status!=="completada"&&!z.streetCompletedAt);
- const waitingDump=zones.filter(z=>z.status!=="completada"&&z.streetCompletedAt&&!z.dumpDate).length;
+ const open=zones.filter(z=>z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&!z.streetCompletedAt);
+ const waitingDump=zones.filter(z=>z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&z.streetCompletedAt&&!z.dumpDate).length;
  const todayCount=open.filter(z=>z.date===today).length;
  const old=open.filter(z=>z.date&&z.date<today).length;
  const next=open.filter(z=>!z.date||z.date>today).length;
@@ -60,34 +60,65 @@ function tile(grid,label,detail,name,fn){
  grid.append(card);
 }
 function go(fn){return ()=>{if(typeof fn==="function")fn();};}
+function openDay(){if(window.konsorMotor?.openDay)window.konsorMotor.openDay();else window.openCnDay?.();}
+function openOffice(){if(window.konsorMotor?.openOffice)window.konsorMotor.openOffice();else window.openCnOffice?.();}
+function greeting(){
+ const h=new Date().getHours();
+ return h<13?"Buenos días":h<21?"Buenas tardes":"Buenas noches";
+}
+function nextAction(data){
+ if(data.shift?.status==="lunch")return {title:"Tu pausa sigue activa",description:"Cuando vuelvas a trabajar, reanuda la jornada para que el registro sea correcto.",button:"Revisar jornada",icon:"calendar",action:openDay};
+ if(data.waitingDump)return {title:data.waitingDump===1?"Tienes 1 sector sin volcar": "Tienes "+data.waitingDump+" sectores sin volcar",description:"Empieza por el más antiguo y continúa el trabajo de Oficina.",button:"Ir a Oficina",icon:"office",action:openOffice};
+ if(data.old)return {title:data.old===1?"Tienes 1 sector pendiente":"Tienes "+data.old+" sectores pendientes",description:"Continúa lo pendiente antes de empezar nuevos sectores.",button:"Ver jornada",icon:"calendar",action:openDay};
+ if(data.todayCount)return {title:data.todayCount===1?"Tienes 1 sector para hoy":"Tienes "+data.todayCount+" sectores para hoy",description:"Consulta el orden asignado y abre la ruta cuando estés preparado.",button:"Ver jornada",icon:"calendar",action:openDay};
+ if(!data.shift)return {title:"Prepara tu jornada",description:"Consulta tu trabajo y confirma el inicio cuando vayas a trabajar.",button:"Ver mi jornada",icon:"calendar",action:openDay};
+ return {title:"Todo al día por ahora",description:"Consulta tus resultados o revisa tus próximas asignaciones.",button:"Ver resultados",icon:"results",action:()=>window.openCnResults?.()};
+}
 function showHome(){
  if(!hasSession())return;
  screen="home";window.cnvStopLiveGps?.();document.body.classList.remove("cnv-map-active");document.body.classList.add("cnv-home-active");
  const home=root();home.replaceChildren();
+ const data=info(),next=nextAction(data);
  const top=el("header","cnv-home-head",undefined,home);
- const title=el("div","",undefined,top);
- el("span","cnv-eyebrow","COMERCIAL NAVARRA",title);
- el("h1","", "Mi espacio de trabajo",title);
- el("p","", "¿Qué quieres hacer hoy?",title);
- top.append(btn("Avisos",()=>window.openNotificationsCenterV2?.(),"cnv-glass"));
- top.append(btn("Ajustes",()=>openUserProfileModal(),"cnv-glass"));
+ const brand=el("div","cnv-home-brand",undefined,top);
+ const symbol=el("div","cnv-brand-mark","K",brand);symbol.setAttribute("aria-hidden","true");
+ const brandText=el("div","cnv-brand-text",undefined,brand);
+ el("strong","","KONSOR",brandText);el("small","","ESPACIO DE TRABAJO",brandText);
+ const topActions=el("div","cnv-home-top-actions",undefined,top);
+ const alerts=btn("",()=>window.openNotificationsCenterV2?.(),"cnv-glass cnv-icon-action");alerts.append(icon("calendar"));alerts.title="Avisos";alerts.setAttribute("aria-label","Abrir avisos");topActions.append(alerts);
+ const settings=btn("",()=>openUserProfileModal(),"cnv-glass cnv-icon-action");settings.append(icon("settings"));settings.title="Ajustes";settings.setAttribute("aria-label","Abrir ajustes");topActions.append(settings);
  const section=el("section","cnv-home-content",undefined,home);
- // La jornada está disponible en su tarjeta; no repetir el mismo acceso en Inicio.
- const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
+ const welcome=el("div","cnv-home-welcome",undefined,section);
+ el("span","cnv-eyebrow",boss()?"PANEL DE RESPONSABLE":"MI ESPACIO",welcome);
+ el("h1","",greeting(),welcome);
+ el("p","",me()+". Aquí tienes lo importante de hoy.",welcome);
+ const hero=el("section","cnv-home-hero",undefined,section);
+ const iconBox=el("span","cnv-home-hero-icon",undefined,hero);iconBox.append(icon(next.icon));
+ const heroText=el("div","cnv-home-hero-content",undefined,hero);
+ el("span","cnv-hero-eyebrow","SIGUIENTE PASO RECOMENDADO",heroText);
+ el("h2","",next.title,heroText);
+ el("p","",next.description,heroText);
+ const heroButton=btn(next.button,next.action,"cnv-home-primary");heroButton.append(el("span","", "→"));hero.append(heroButton);
+ const caption=el("div","cnv-group-label",undefined,section);
+ el("strong","","TU TRABAJO",caption);el("span","","Accesos principales",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
- tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>{if(window.konsorMotor?.openDay)window.konsorMotor.openDay();else window.openCnDay?.();});
- tile(grid,"Mapa","GPS, parcelas y medición","map",()=>showMap());
- tile(grid,"Oficina","Volcados, clientes y obras","office",()=>{if(window.konsorMotor?.openOffice)window.konsorMotor.openOffice();else window.openCnOffice?.();});
- tile(grid,"Resultados","Cifras y Liga comercial","results",()=>window.openCnResults?.());
-
+ tile(grid,"Mi jornada","Ruta, actividad y fichaje","calendar",openDay);
+ tile(grid,"Mapa","Satélite, GPS y Catastro","map",showMap);
+ tile(grid,"Oficina","Volcados, llamadas y citas","office",openOffice);
+ tile(grid,"Resultados","Tu progreso y clasificación","results",()=>window.openCnResults?.());
  if(boss()){
-  // Cada responsable tiene planificación propia, también cuando trabaja solo.
-  tile(grid,andrei()?"Dirección":"Mi equipo",andrei()?"Pueblos, fichas y equipo":"Gestionar mi equipo","direction",()=>andrei()?window.openKonsorDirection?.():openAuditModal());
-  if(!andrei())tile(grid,"Planificar","Asignaciones del equipo","calendar",()=>window.konsorPlanificador?.open?.());
+  const director=el("section","cnv-home-management",undefined,section);
+  const t=el("div","cnv-home-management-copy",undefined,director);
+  el("span","cnv-eyebrow","GESTIÓN DEL EQUIPO",t);
+  el("strong","","Dirección",t);
+  el("p","","Planificación, territorio, supervisión y análisis.",t);
+  const access=btn("Abrir dirección",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.(),"cnv-home-management-button");
+  director.append(access);
  }
- el("p","cnv-footer-note","KONSOR · Versión operativa 19.11.2026 · Las modificaciones de trabajo requieren confirmación de guardado.",section);
+ const footer=el("div","cnv-home-footer",undefined,section);
+ el("span","","KONSOR",footer);
+ el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
 }
-
 /* Pregunta de entrada: no inicia la jornada por sí sola ni reaparece tras cerrar
    o si hoy ya existe un fichaje, incluido uno finalizado. */
 let startPromptPending=false;
