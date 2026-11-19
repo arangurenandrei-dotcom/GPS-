@@ -435,3 +435,31 @@ body .modal-overlay .modal-card :is(.input-field,.select-field){
  background:#fff!important;color:#263449!important;border:1px solid #dfe5ec!important;border-radius:12px!important;
  box-shadow:none!important
 }
+
+/* Estado del sector — control táctil compacto y blanco, coherente con KONSOR */
+#dumpModal .cng-state{display:flex;flex-direction:column;gap:10px;background:#fff!important;border:1px solid #e5eaf0!important;border-radius:18px!important;padding:15px!important}
+#dumpModal .cng-state-heading{color:#26384c!important;font-size:14px!important;font-weight:710!important;letter-spacing:-.02em}
+#dumpModal .cng-state-caption{color:#7b8b9e!important;font-size:12px!important;line-height:1.5;margin:0!important}
+#dumpModal .cng-state-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+#dumpModal .cng-state-options .cng-state-option{
+ display:flex!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;
+ gap:3px!important;min-width:0!important;min-height:65px!important;padding:8px 4px!important;
+ border:1px solid #e2e8f0!important;border-radius:13px!important;background:#f5f7fa!important;
+ color:#475b72!important;font-size:12px!important;line-height:1.2!important;font-weight:710!important;
+ box-shadow:none!important;white-space:normal!important
+}
+#dumpModal .cng-state-options .cng-state-option small{font-size:10px!important;color:#8391a3!important;font-weight:450!important}
+#dumpModal .cng-state-options .cng-state-option.selected{
+ background:#2b3a4d!important;color:#fff!important;border-color:#2b3a4d!important
+}
+#dumpModal .cng-state-options .cng-state-option.selected small{color:#e0e5ed!important}
+#dumpModal .cng-state .cng-field{margin-top:7px}
+.cn-inline-catastro-result{display:flex;flex-direction:column;gap:8px;margin:3px 0 12px;width:100%;box-sizing:border-box}
+.cn-inline-catastro-result:empty{display:none!important}
+.cn-inline-catastro-result>a{display:flex!important;width:100%;min-height:44px;align-items:center;justify-content:center;
+ background:#eef2f7!important;color:#283c56!important;border:1px solid #dce5ef!important;border-radius:13px!important;
+ font-size:13px!important;font-weight:690!important;text-align:center!important;text-decoration:none!important;padding:11px!important;box-sizing:border-box}
+.cn-inline-catastro-result>p{margin:0!important;color:#677d96!important;font-size:12px!important;line-height:1.5!important}
+.cn-inline-catastro-button:disabled{opacity:.6}
+.koc-refresh-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.koc-refresh-actions>.koc-btn{min-height:42px!important;font-size:12px!important}
