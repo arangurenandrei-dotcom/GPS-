@@ -93,8 +93,27 @@ function zoneCard(root,entry){
  }else{
   actions(c,b("Ir · Navegación",()=>driveTo(entry),"primary"),b("Ver zona y catastro",()=>openZone(entry,"map"),"outline"));
   if(z.comercial===currentUserName){
-   const finish=b("Terminar calle · Volcar después",async()=>{if(!confirm("¿Confirmas que has terminado las visitas de este sector? Después quedará pendiente el volcado de datos."))return;finish.disabled=true;
-    try{await markStreetDone(entry);openDay();}catch(e){alert("No se ha confirmado el guardado: "+(e.message||e));finish.disabled=false;}
+   const shift=currentShift();
+   const timer=z.streetTiming||{};
+   if(window.konsorMotor&&shift?.status==="working"){
+    const control=b(timer.activeSince?"Pausar tiempo de calle":timer.seconds?"Continuar tiempo de calle":"He llegado · Empezar tiempo",async()=>{
+     control.disabled=true;
+     try{
+      if(timer.activeSince)await window.konsorMotor.pauseStreet(z.id);
+      else await window.konsorMotor.startStreet(z.id);
+      openDay();
+     }catch(e){alert("No se ha confirmado el tiempo de calle: "+(e.message||e));control.disabled=false;}
+    },timer.activeSince?"outline":"primary");
+    actions(c,control);
+   }
+   if(window.konsorMotor?.duration&&timer.seconds||timer.activeSince)
+    $("p","cnx-meta","Tiempo de calle: "+(window.konsorMotor?.duration?.(timer)||0)+" min"+(timer.activeSince?" · contando":" · en pausa"),c);
+   const finish=b("Terminar visitas · Volcar después",async()=>{
+    finish.disabled=true;
+    try{
+     if(window.konsorMotor){if(await window.konsorMotor.finishStreet(z.id))openDay();else finish.disabled=false;}
+     else{if(!confirm("¿Confirmas que has terminado las visitas de este sector?")){finish.disabled=false;return;}await markStreetDone(entry);openDay();}
+    }catch(e){alert("No se ha confirmado el cierre de calle: "+(e.message||e));finish.disabled=false;}
    },"outline");
    actions(c,finish);
   }
@@ -117,6 +136,8 @@ function currentShift(){
 }
 function openDay(){
  const {body,close}=page("jornada","Mi jornada","Tu trabajo, ordenado por fecha y estado. Sin menús innecesarios.");
+ const guide=card(body,"TU GUÍA","Siguiente acción del día","La guía prioriza sectores antiguos, navegación y tiempo de calle.");
+ actions(guide,b("Continuar mi recorrido",()=>{close();window.konsorMotor?.openDay?.();},"primary"));
  const shift=currentShift();
  const status=card(body,"Estado de jornada",!shift?"Todavía no has iniciado el fichaje.":shift.status==="finished"?"Tu jornada está cerrada.":shift.status==="lunch"?"Estás en pausa de comida.":"Jornada en curso desde "+(shift.startTime||"la hora registrada")+".");
  if(!shift)actions(status,b("Iniciar jornada",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("start"))openDay();},"primary"));
