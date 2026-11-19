@@ -13,7 +13,7 @@ function clientRows(){
  return zones().flatMap(({z,idx})=>(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).map(c=>({c,z,idx})));
 }
 const booked=c=>["agendada","realizada"].includes(c.obraStatus);
-const excluded=c=>c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
+const excluded=c=>c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
 const complete=c=>!!(String(c.name||"").trim()&&String(c.phone||"").trim()&&String(c.street||"").trim());
 function state(){
  const zz=zones(),cc=clientRows(),open=zz.filter(x=>x.z.status!=="completada");
