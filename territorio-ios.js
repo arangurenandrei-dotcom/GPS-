@@ -16,13 +16,16 @@ function currentTeam(z){
 }
 function pueblos(){
  const grouped=new Map();
- if(!Array.isArray(savedZones))return [];
- savedZones.forEach((z,idx)=>{
+ // Un pueblo existe desde que se dibuja y guarda, aunque todavía no tenga sectores.
+ const outlines=typeof perimetrosPueblos!=="undefined"&&Array.isArray(perimetrosPueblos)?perimetrosPueblos:[];
+ outlines.forEach(p=>{if(!p?.nombre)return;const k=norm(p.nombre);grouped.set(k,{key:k,nombre:p.nombre,perimetro:p,sectores:[]});});
+ if(Array.isArray(savedZones))savedZones.forEach((z,idx)=>{
   if(!z||!currentTeam(z)||z.isSingleHouse||z.isNoAptoZone||z.isHotMission||!String(z.town||"").trim())return;
-  const k=norm(z.town);
-  if(!grouped.has(k))grouped.set(k,{key:k,nombre:z.town,sectores:[]});
+  const k=norm(z.parentTown||z.town);
+  if(!grouped.has(k))grouped.set(k,{key:k,nombre:z.town,perimetro:null,sectores:[]});
   grouped.get(k).sectores.push({z,idx});
  });
+ const marked=typeof completedTowns!=="undefined"&&Array.isArray(completedTowns)?completedTowns:[];
  return [...grouped.values()].map(p=>{
   const total=p.sectores.length;
   const terminados=p.sectores.filter(({z})=>z.status==="completada").length;
@@ -33,11 +36,12 @@ function pueblos(){
   const papelito=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.papelito),0);
   const comerciales=[...new Set(p.sectores.map(({z})=>z.comercial).filter(Boolean))];
   const fechas=p.sectores.map(({z})=>z.date).filter(Boolean).sort();
-  const estado=terminados===total?"terminados":(haciendo>0||terminados>0?"haciendo":"pendientes");
+  const completado=marked.some(name=>norm(name)===p.key);
+  const estado=completado||(total>0&&terminados===total)?"terminados":(haciendo>0||terminados>0)?"haciendo":"pendientes";
   return {...p,total,terminados,haciendo,si,no,ausente,papelito,
    visitadas:si+no+ausente+papelito,
    aceptacion:si+no>0?Math.round(100*si/(si+no)):null,
-   avance:Math.round(100*terminados/total),comerciales,fechas,estado};
+   avance:total?Math.round(100*terminados/total):0,comerciales,fechas,estado};
  }).sort((a,b)=>(a.fechas[0]||"9999").localeCompare(b.fechas[0]||"9999")||a.nombre.localeCompare(b.nombre,"es"));
 }
 function add(parent,...nodes){parent.append(...nodes);return parent;}
@@ -204,21 +208,31 @@ function renderDetail(target,p){
  stat(row,"Sectores terminados",p.terminados+" / "+p.total);
  stat(row,"Comerciales",p.comerciales.length);
  stat(row,"Progreso de sectores",p.avance+"%");
+ if(p.perimetro){
+  const boundary=el("p","cn-hint","Perímetro del pueblo guardado en el mapa. Dentro puedes añadir sectores para cada comercial.",target);
+  const actions=el("div","cn-actions",undefined,target);
+  actions.append(btn("Ver perímetro en el mapa",()=>{
+   document.getElementById("cnTerritorio")?.classList.remove("active");
+   window.cnvShowMap?.();
+   if(typeof map!=="undefined"&&map&&p.perimetro.points?.length>=3)map.fitBounds(L.latLngBounds(p.perimetro.points),{padding:[25,25]});
+  }));
+ }
  const waiting=p.sectores.filter(({z})=>z.comercial&&z.status!=="completada"&&!(z.assignmentReceivedAt&&z.assignmentReceivedBy===z.comercial)).length;
- el("p","cn-hint",waiting?waiting+" sectores todavía sin confirmación de recepción.":"No hay sectores pendientes de confirmar recepción en este pueblo.",target);
+ if(p.total)el("p","cn-hint",waiting?waiting+" sectores todavía sin confirmación de recepción.":"No hay sectores pendientes de confirmar recepción en este pueblo.",target);
  progress(target,p.avance);
- notice(target,"El progreso refleja sectores terminados, no superficie física cubierta. La cobertura territorial requiere delimitar el área objetivo y medir los sectores.");
+ notice(target,p.total?"El avance indica sectores terminados, no superficie cubierta.":"Todavía no hay sectores en este pueblo. Crea el primero dentro de su perímetro.");
  const summary=el("div","cn-summary",undefined,target);
  const metrics=el("div","cn-kpis",undefined,summary);
  stat(metrics,"Sí",p.si);stat(metrics,"No",p.no);stat(metrics,"Puertas registradas",p.visitadas);
  el("p","cn-detail","Tasa de aceptación: "+(p.aceptacion===null?"Sin respuestas suficientes":p.aceptacion+"%")+" (sí / sí + no)",summary);
  const quick=el("div","cn-actions",undefined,target);
- quick.append(btn("Asignar otro sector",()=>{
+ quick.append(btn("Dibujar sector dentro del pueblo",()=>{
   document.getElementById("cnTerritorio")?.classList.remove("active");
-  if(typeof focusMapOnTownOrZone==="function")focusMapOnTownOrZone(p.nombre,p.sectores[0]?.idx??null);
-  const input=document.getElementById("assignTown");
-  if(input)input.value=p.nombre;
-  if(typeof startSectorDrawing==="function")startSectorDrawing();
+  if(typeof window.konsorStartSectorInTown==="function"&&p.perimetro)window.konsorStartSectorInTown(p.nombre);
+  else{
+   if(typeof focusMapOnTownOrZone==="function"&&p.sectores.length)focusMapOnTownOrZone(p.nombre,p.sectores[0].idx);
+   if(typeof startSectorDrawing==="function")startSectorDrawing();
+  }
  },"primary"));
  el("h4","cn-section-title","Sectores del pueblo",target);
  p.sectores.slice().sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999")).forEach(entry=>sectorCard(target,entry));
@@ -231,8 +245,9 @@ function render(){
  const active=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&currentTeam(z)&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&z.status!=="completada");
  const teamNames=(typeof getActiveTeamUsers==="function"?getActiveTeamUsers(false):["Andrei (Jefe)","Comercial 1","Comercial 2","Comercial 3","Comercial 4","Comercial 5"]).filter(name=>name&&name!=="Andrei (Jefe)"&&!String(name).startsWith("Mikel")&&!String(name).startsWith("Comercial Mikel"));
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
- const planning=el("section","cn-summary",undefined,body);
- el("h3","cn-section-title","Continuidad del equipo",planning);
+ const planning=el("details","cn-summary",undefined,body);
+ el("summary","cn-section-title","Planificación del equipo · Ver detalles",planning);
+
  notice(planning,"Sectores asignados todavía abiertos. El porcentaje de pueblo indica sectores terminados, no cobertura de superficie.");
  const day=x=>String(x||"").slice(0,10);
  teamNames.forEach(name=>{
@@ -269,30 +284,34 @@ function render(){
  function fillList(){
   results.replaceChildren();
   const filtered=data.filter(p=>p.estado===filtro&&norm(p.nombre).includes(norm(textoBusqueda)));
-  if(!filtered.length)notice(results,"No hay pueblos con sectores en este estado. Los pueblos sin sectores todavía no forman parte del listado sincronizado.");
+  if(!filtered.length)notice(results,"No hay pueblos en este estado. Crea uno dibujando su perímetro en el mapa.");
   filtered.forEach(p=>{
    const card=el("div","cn-town",undefined,results);
    const line=el("div","cn-flex",undefined,card);
    el("strong","cn-town-name",p.nombre,line);
    el("span","cn-tag",p.estado==="pendientes"?"Por hacer":p.estado==="haciendo"?"Haciendo":"Terminado",line);
    const summary=el("div","cn-flex cn-town-progress",undefined,card);
-   el("span","",p.avance+"% de sectores",summary);
+   el("span","",p.total?p.avance+"% de sectores":"Sin sectores todavía",summary);
    el("span","",p.terminados+" de "+p.total,summary);
    progress(card,p.avance);
-   el("p","cn-detail",p.comerciales.length+" comerciales · "+p.si+" sí · "+p.no+" no · "+(p.aceptacion===null?"Sin tasa":"Aceptación "+p.aceptacion+"%"),card);
+   el("p","cn-detail",(p.perimetro?"Perímetro dibujado · ":"Pueblo con sectores · ")+p.comerciales.length+" comerciales · "+p.si+" sí · "+p.no+" no",card);
    card.append(btn("Abrir pueblo",()=>{puebloAbierto=p.key;render();},"outline"));
   });
  }
  fillList();
  const foot=el("div","cn-footer",undefined,body);
- foot.append(btn("Crear pueblo · Búsqueda automática",openTownCreator,"primary"));
+ foot.append(btn("Dibujar nuevo pueblo",()=>{
+  root.classList.remove("active");
+  window.cnvShowMap?.();
+  if(typeof iniciarDibujoPueblo==="function")iniciarDibujoPueblo();
+ },"primary"));
  foot.append(btn("Crear y asignar sector",()=>{
   root.classList.remove("active");
   if(typeof startSectorDrawing==="function")startSectorDrawing();
   else alert("No se ha cargado la herramienta de sectores. Recarga la aplicación.");
  },"outline"));
- notice(body,"Busca y selecciona un pueblo para registrar su perímetro; después dibuja los sectores de trabajo y asígnales responsable y fecha.");
+ notice(body,"Primero dibuja el perímetro de un pueblo. Después ábrelo y dibuja dentro los sectores que asignarás a los comerciales.");
 }
-window.openCnTerritory=function(){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=null;filtro="haciendo";textoBusqueda="";const root=modal();render();root.classList.add("active");};
+window.openCnTerritory=function(){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=null;filtro="pendientes";textoBusqueda="";const root=modal();render();root.classList.add("active");};
 window.refreshCnTerritory=function(){if(document.getElementById("cnTerritorio")?.classList.contains("active"))render();};
 })();
