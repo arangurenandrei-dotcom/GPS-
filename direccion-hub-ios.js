@@ -61,7 +61,7 @@ async function planSet(task,done){
  planBusy=true;planStatus="Guardando cambio…";renderPlan();
  try{
   const rows=await window.bossTasksApi.save({id:task.id,status:done?"done":"pending",doneAt:done?Date.now():null});
-  planRows=rows;planStatus="Guardado y confirmado en Firestore.";
+  planRows=rows;if(typeof bossPlanItems!=="undefined")bossPlanItems=rows;planStatus="Guardado y confirmado en Firestore.";
  }catch(error){planStatus="No se ha confirmado el guardado.";alert("No se guardó la tarea: "+(error.message||error));}
  finally{planBusy=false;renderPlan();}
 }
@@ -113,7 +113,7 @@ function openPlan(){
  if(planUnsubscribe){renderPlan();return;}
  planStatus="Cargando tareas sincronizadas…";
  planUnsubscribe=window.bossTasksApi.watch((rows,fromCache)=>{
-  planRows=rows;planStatus=fromCache?"Datos en caché · comprobando servidor":"Tareas sincronizadas con Firebase.";
+  planRows=rows;if(typeof bossPlanItems!=="undefined")bossPlanItems=rows;planStatus=fromCache?"Datos en caché · comprobando servidor":"Tareas sincronizadas con Firebase.";
   if(p.classList.contains("active"))renderPlan();
  },err=>{planStatus="No se pudieron cargar las tareas: "+(err.message||err);if(p.classList.contains("active"))renderPlan();});
  renderPlan();
