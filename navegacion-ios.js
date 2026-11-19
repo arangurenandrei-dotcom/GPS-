@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 if(window.__konsorNavigationFinal)return;window.__konsorNavigationFinal=true;
-const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
+const selector=".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard";
 const headers=".modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kd-head";
 let trail=[],topSeen=null,scheduled=false,gesture=null,locked=false;
 const visible=e=>!!e&&e.isConnected&&getComputedStyle(e).display!=="none"&&getComputedStyle(e).visibility!=="hidden"&&e.getClientRects().length>0;
@@ -12,6 +12,7 @@ function current(){
 }
 function originalBack(el){
  if(el.classList.contains("kd-overlay"))return el.querySelector(".kd-head>.kd-back");
+ if(el.classList.contains("km-overlay"))return el.querySelector(".km-head>.km-back");
  const buttons=[...el.querySelectorAll("button")].filter(b=>!b.closest(".cn-global-nav")&&visible(b));
  const patterns={cnTerritorio:/volver a pueblos/i,cnOficina:/volver a oficina/i,konsorOfficeCallV2:/volver a/i};
  if(patterns[el.id]){const b=buttons.find(x=>patterns[el.id].test(x.textContent||""));if(b)return b;}
@@ -21,6 +22,9 @@ function close(el){
  if(!el)return;
  if(el.classList.contains("kd-overlay")){
   const b=el.querySelector(".kd-head>.kd-close");if(b){b.click();return;}
+ }
+ if(el.classList.contains("km-overlay")){
+  const b=el.querySelector(".km-head>.close");if(b){b.click();return;}
  }
  if(el.id==="idenaViewerModal"&&typeof window.closeIdenaModal==="function"){window.closeIdenaModal();return;}
  const old=el.querySelector('.modal-header button[onclick*="closeModal"]');
@@ -60,7 +64,7 @@ function back(){
 function closeTop(){if(locked)return;const el=current();if(!el)return;locked=true;try{close(el);}finally{locked=false;queueMicrotask(scan);}}
 window.konsorGoBack=back;window.konsorCloseTop=closeTop;
 function mount(el){
- if(el.classList.contains("kd-overlay")||el.querySelector(".cn-global-nav"))return;
+ if(el.classList.contains("kd-overlay")||el.classList.contains("km-overlay")||el.querySelector(".cn-global-nav"))return;
  const header=el.querySelector(headers);if(!header)return;
  header.classList.add("cn-consistent-header");
  const row=document.createElement("div");row.className="cn-global-nav";
@@ -109,7 +113,8 @@ function init(){
    // El gesto pulsa el MISMO botón de volver que ve el usuario.
    const top=current();
    const arrow=top?.querySelector(".cn-global-nav .cn-global-back")||
-     top?.querySelector(".kd-head > .kd-back");
+     top?.querySelector(".kd-head > .kd-back")||
+     top?.querySelector(".km-head > .km-back");
    if(arrow&&!arrow.disabled)arrow.click();
    else back();
   }
