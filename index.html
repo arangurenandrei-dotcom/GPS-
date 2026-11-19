@@ -11,35 +11,9 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-<script>
-(function () {
-  var team = new URLSearchParams(location.search).get('equipo');
-  document.documentElement.dataset.loginTeam = team === 'mikel' ? 'mikel' : 'andrei';
-  if (team === 'mikel') document.title = 'Equipo Mikel · Control Comercial Navarra';
-})();
-</script>
 
 <style id="cnMinimalSettings">
 #userProfileModal .modal-card{background:#f7f8fb!important;color:#263449!important;border:1px solid #e8edf3!important;border-radius:27px!important;box-shadow:0 24px 70px rgba(15,23,42,.19)!important}#userProfileModal .modal-header{color:#263449!important}#userProfileModal .modal-header span{font-size:22px!important;font-weight:750!important}#userProfileModalBody.cn-settings-clean{display:flex;flex-direction:column;gap:12px;padding:4px 0 15px}#userProfileModalBody .cn-settings-card{padding:16px;border:1px solid #e2e8f0;border-radius:19px;background:#fff;color:#263449}#userProfileModalBody .cn-settings-card h3{font-size:16px!important;color:#263449!important;margin:0 0 8px;font-weight:730}#userProfileModalBody .cn-settings-card p{color:#77859a!important;font-size:13px;line-height:1.5;margin:4px 0 10px}#userProfileModalBody .cn-settings-card input,#userProfileModalBody .cn-settings-card select{width:100%;padding:12px 14px;min-height:47px;margin:7px 0 10px;color:#263449!important;background:#f8fafc!important;border:1px solid #dbe3ee!important;border-radius:13px;font-size:16px!important}#userProfileModalBody .cn-settings-button{min-height:44px;width:100%;border:1px solid #e0e6ee;border-radius:13px;background:#f2f5f9;color:#263449;font-weight:650;font-size:14px}#userProfileModalBody .cn-settings-label{display:block;font-size:13px;color:#52627a;font-weight:650}#userProfileModalBody summary{font-weight:700;color:#263449;cursor:pointer}
-</style>
-<style id="teamPortalStyle">
-#legacyLoginControls { display:none !important; }
-.portal-mikel { display:none; }
-html[data-login-team="mikel"] .portal-andrei { display:none !important; }
-html[data-login-team="mikel"] .portal-mikel { display:block; }
-html[data-login-team="mikel"] #loginScreen { background:#111827; }
-html[data-login-team="mikel"] #loginScreen .login-card {
-  background:#1f2937;border-color:#475569;border-radius:14px;
-  box-shadow:0 12px 30px rgba(0,0,0,.3);backdrop-filter:none;
-}
-html[data-login-team="mikel"] #loginScreen .btn-login { background:#475569; }
-html[data-login-team="mikel"] #loginTeamBadge {
-  background:#334155 !important;border-color:#64748b !important;
-  color:#e2e8f0 !important;border-radius:6px !important;
-}
-#loginScreen .portal-link {color:#94a3b8;font-size:11px;line-height:1.5;text-decoration:underline;}
-#loginScreen .portal-author {color:#94a3b8;font-size:10px;line-height:1.5;text-align:center;margin-top:8px;}
-#loginScreen .portal-foot {border-top:1px solid #334155;padding-top:12px;text-align:center;}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
@@ -891,14 +865,12 @@ html[data-login-team="mikel"] #loginTeamBadge {
 
 <style id="iosAccessRedesign">
 /* Interfaz de acceso: blanco, sereno, y sin elementos promocionales. */
-#loginScreen,
-html[data-login-team="mikel"] #loginScreen {
+#loginScreen {
   background: radial-gradient(ellipse at 50% -25%, #ffffff 14%, #f3f6fa 68%, #ebf0f7 100%) !important;
   color: #111827 !important;
   padding: max(env(safe-area-inset-top), 18px) 16px max(env(safe-area-inset-bottom), 18px);
 }
-#loginScreen .login-card,
-html[data-login-team="mikel"] #loginScreen .login-card {
+#loginScreen .login-card {
   width: min(100%, 420px) !important;
   max-width: 420px !important;
   background: rgba(255,255,255,.76) !important;
@@ -910,9 +882,7 @@ html[data-login-team="mikel"] #loginScreen .login-card {
   backdrop-filter: blur(24px) saturate(145%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
 }
-#loginScreen #andreiWelcomeBanner { display:none !important; }
-#loginScreen #loginTeamBadge,
-html[data-login-team="mikel"] #loginTeamBadge {
+#loginScreen .ios-login-badge {
   background: #eff4fb !important;
   border: 1px solid #e2e9f5 !important;
   color: #54708e !important;
@@ -953,8 +923,7 @@ html[data-login-team="mikel"] #loginTeamBadge {
   outline: 2px solid rgba(43,111,236,.2) !important;
   border-color:#6b9df1 !important;
 }
-#loginScreen .btn-login,
-html[data-login-team="mikel"] #loginScreen .btn-login {
+#loginScreen .btn-login {
   background: linear-gradient(180deg,#3481fb,#2265db) !important;
   color: #fff !important;
   border: 1px solid rgba(40,89,186,.22) !important;
@@ -985,10 +954,8 @@ html[data-login-team="mikel"] #loginScreen .btn-login {
 #loginScreen .portal-link { color:#2466cc !important;font-size:12px !important; }
 #loginScreen .portal-author {color:#8692a4 !important;font-size:10px !important;}
 #loginScreen .form-label {color:#536277 !important;}
-#loginScreen #loginError { color:#b42318 !important;background:#fff1f0 !important;border-color:#fdd4d0 !important; }
 @media(max-width:420px) {
-  #loginScreen .login-card,
-  html[data-login-team="mikel"] #loginScreen .login-card {
+  #loginScreen .login-card {
     padding:23px 18px 20px !important;
     border-radius:21px !important;
   }
@@ -1006,8 +973,7 @@ html[data-login-team="mikel"] #loginScreen .btn-login {
   overflow-y:auto !important;
   -webkit-overflow-scrolling:touch;
 }
-#loginScreen > .login-card,
-html[data-login-team="mikel"] #loginScreen > .login-card {
+#loginScreen > .login-card {
   flex:0 1 auto !important;
   align-self:center !important;
   display:flex !important;
@@ -1067,7 +1033,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
 @media(max-width:420px){#captacionGuiadaModal .captacion-ios-card{padding:17px;border-radius:20px;max-height:94dvh}}
 </style>
 <style id="iosLoginReferenceV2">
-#loginScreen, html[data-login-team="mikel"] #loginScreen {
+#loginScreen {
   position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;
   display:flex!important;align-items:center!important;justify-content:center!important;
   overflow-y:auto!important;overflow-x:hidden!important;
@@ -1075,7 +1041,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
   background:linear-gradient(145deg,#fbfcfe 0%,#f2f5fa 67%,#eaf0f8 100%)!important;
   color:#111827!important;-webkit-overflow-scrolling:touch;
 }
-#loginScreen>.login-card,html[data-login-team="mikel"] #loginScreen>.login-card {
+#loginScreen>.login-card {
   display:flex!important;flex-direction:column!important;align-items:stretch!important;
   flex:0 0 auto!important;box-sizing:border-box!important;width:100%!important;max-width:420px!important;
   padding:34px 24px 30px!important;margin:auto!important;gap:0!important;
@@ -1086,7 +1052,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
   backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;
 }
 #loginScreen .ios-login-heading {display:flex!important;flex-direction:column!important;align-items:center!important;gap:0!important;width:100%!important;text-align:center!important}
-#loginScreen #loginTeamBadge,html[data-login-team="mikel"] #loginTeamBadge {
+#loginScreen .ios-login-badge {
   display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;
   background:#eff3fb!important;border:1px solid #dfe7f4!important;
   color:#64748b!important;border-radius:999px!important;
@@ -1105,8 +1071,6 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
   margin:0!important;
 }
 #loginScreen .ios-login-separator {height:1px;width:100%;background:#e7ecf4;margin:27px 0 24px}
-#loginScreen #andreiWelcomeBanner,
-#loginScreen #legacyLoginControls {display:none!important}
 #loginScreen .ios-login-form {display:flex!important;flex-direction:column!important;gap:0!important;min-width:0;width:100%!important;margin:0!important;}
 #loginScreen .ios-login-field {display:flex!important;flex-direction:column!important;gap:9px!important;margin:0 0 19px!important;min-width:0;width:100%!important;}
 #loginScreen .ios-login-field label {color:#142034!important;font-size:17px!important;font-weight:600!important;line-height:1.4!important;text-align:left!important}
@@ -1143,10 +1107,8 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
   cursor:pointer!important;
 }
 #loginScreen #authMsg {padding:10px 12px!important;border-radius:11px!important;font-size:12px!important;line-height:1.45!important;margin:0 0 13px!important}
-#loginScreen .ios-login-team-switch {display:none!important}
-#loginScreen #loginError {font-size:12px!important;color:#b42318!important;background:#fff1f0!important;border:1px solid #fdd4d0!important;border-radius:10px!important;padding:10px!important}
 @media (max-width:370px) {
- #loginScreen>.login-card,html[data-login-team="mikel"] #loginScreen>.login-card {padding:26px 18px!important;border-radius:24px!important}
+ #loginScreen>.login-card {padding:26px 18px!important;border-radius:24px!important}
  #loginScreen .ios-login-separator {margin:23px 0 20px}
  #loginScreen .ios-login-field {margin-bottom:15px!important}
 }
@@ -1156,7 +1118,7 @@ html[data-login-team="mikel"] #loginScreen > .login-card {
 }
 </style>
 <style id="iosMinimalV3">
-#loginScreen[style*="display: none"],html[data-login-team="mikel"] #loginScreen[style*="display: none"]{display:none!important}
+#loginScreen[style*="display: none"] {display:none!important}
 :root{--bg-dark:#f5f5f7;--bg-panel:rgba(255,255,255,.9);--border-panel:rgba(25,35,55,.10);--primary:#1d2530}
 html,body{background:#f5f5f7;color:#17202c}
 #appContainer .hud-header{background:rgba(255,255,255,.87)!important;border:1px solid rgba(255,255,255,.88)!important;box-shadow:0 10px 35px rgba(15,23,42,.12)!important;backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border-radius:22px!important;color:#192331!important}
@@ -1654,31 +1616,11 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
   <div id="loginScreen">
     <div class="login-card">
       <div class="ios-login-heading">
-        <div id="loginTeamBadge" class="ios-login-badge">
-          <span class="portal-andrei">EQUIPO ANDREI</span>
-          <span class="portal-mikel">EQUIPO MIKEL</span>
-        </div>
-        <h1 class="login-title">Comercial Navarra</h1>
+        <div class="ios-login-badge">ESPACIO DE TRABAJO</div>
+        <h1 class="login-title">KONSOR</h1>
         <p class="login-subtitle">Organización territorial y<br>trabajo comercial</p>
       </div>
       <div class="ios-login-separator"></div>
-      <div id="andreiWelcomeBanner" hidden aria-hidden="true"></div>
-      <div id="loginError" style="display:none" role="alert">Contraseña incorrecta</div>
-
-      <!-- Los identificadores antiguos se conservan para compatibilidad. -->
-      <div id="legacyLoginControls" hidden aria-hidden="true" style="display:none!important">
-        <label id="loginProfileLabel" for="userSelect">Perfil</label>
-        <select id="userSelect">
-          <option value="jefe">Andrei</option>
-          <option value="comercial1">Comercial 1</option>
-          <option value="comercial2">Comercial 2</option>
-          <option value="comercial3">Comercial 3</option>
-          <option value="comercial4">Comercial 4</option>
-          <option value="comercial5">Comercial 5</option>
-        </select>
-        <input type="password" id="passInput" autocomplete="off">
-        <button id="btnMainLoginSubmit" type="button" onclick="executeLogin()">Acceder</button>
-      </div>
 
       <form class="ios-login-form" onsubmit="event.preventDefault();authSubmitIOS()">
         <div class="ios-login-field" id="authNameWrap" style="display:none">
@@ -1701,11 +1643,6 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
         </p>
         <button type="button" class="ios-login-forgot" onclick="authDoReset()">¿Has olvidado tu contraseña?</button>
       </form>
-      <div class="ios-login-team-switch">
-        <a class="portal-andrei" href="./?equipo=mikel">Acceso equipo Mikel</a>
-        <a class="portal-mikel" href="./?equipo=andrei">Acceso equipo Andrei</a>
-      </div>
-      <button id="btnToggleExternalTeamLogin" type="button" hidden style="display:none" onclick="toggleExternalTeamLogin()">Cambiar equipo</button>
     </div>
   </div>
 
@@ -2094,13 +2031,12 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 
   <!-- PUENTE LIGERO KONSOR V2 (BLOQUE D) -->
   <script src="comercial-core.js?v=3"></script>
-<script src="konsor-v2-bridge.js?v=5"></script>
+<script src="konsor-v2-bridge.js?v=6"></script>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 
   <script>
-        const DEFAULT_PASSWORDS = {};
 
     const CANONICAL_USER_NAMES = {
       jefe: 'Andrei (Jefe)',
@@ -2120,9 +2056,6 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
     let customUserProfiles = {};
     if (Array.isArray(customUserProfiles)) customUserProfiles = {};
 
-    function getUserPassword(userKey) {
-      return '';
-    }
 
     function getDisplayAlias(canonicalOrKey) {
       if (!canonicalOrKey) return '';
@@ -2133,7 +2066,8 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
       if (foundKey && customUserProfiles[foundKey] && customUserProfiles[foundKey].alias) {
         return customUserProfiles[foundKey].alias;
       }
-      return canonicalOrKey;
+      const canonical = CANONICAL_USER_NAMES[canonicalOrKey] || canonicalOrKey;
+      return canonical.replace(/ \(Jefe\)$/, '');
     }
 
     /* ===== NOMBRE (ALIAS) EN TODA LA APP · solo equipo de Andrei: Comercial 1 a 5 ===== */
@@ -2209,18 +2143,6 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
     }
     setTimeout(startAliasObserver, 0);
 
-    function refreshLoginDropdownAliases() {
-      const userSel = document.getElementById('userSelect');
-      if (!userSel || isExternalTeamLoginMode) return;
-      userSel.innerHTML = `
-        <option value="jefe">👑 ${getDisplayAlias('jefe')} (Jefe)</option>
-        <option value="comercial1">🏃 ${getDisplayAlias('comercial1')}</option>
-        <option value="comercial2">🏃 ${getDisplayAlias('comercial2')}</option>
-        <option value="comercial3">🏃 ${getDisplayAlias('comercial3')}</option>
-        <option value="comercial4">🏃 ${getDisplayAlias('comercial4')}</option>
-        <option value="comercial5">🏃 ${getDisplayAlias('comercial5')}</option>
-      `;
-    }
 
     let appPrefs = Object.assign(
       { theme: 'zafiro', motion: 'spring', uiSize: 'normal', batterySaver: false, sound: true, vibrate: true, navApp: 'auto' },
@@ -3151,7 +3073,6 @@ function openUserProfileModal() {
       customUserProfiles[userKey] = { alias: newAlias, updatedAt: Date.now() };
       if (!await saveAndSync('comercial_user_profiles', customUserProfiles)) return;
 
-      refreshLoginDropdownAliases();
       document.getElementById('displayUserName').innerText = newAlias;
       triggerHapticAndSound('success');
       closeModal('userProfileModal');
@@ -3644,76 +3565,6 @@ function openUserProfileModal() {
       return acc;
     }
 
-    let isExternalTeamLoginMode = false;
-
-    function toggleExternalTeamLogin() {
-      isExternalTeamLoginMode = !isExternalTeamLoginMode;
-      selectLoginTeam(isExternalTeamLoginMode ? 'mikel' : 'andrei');
-    }
-
-    function selectLoginTeam(teamKey) {
-      const userSel = document.getElementById('userSelect');
-      const welcomeBanner = document.getElementById('andreiWelcomeBanner');
-      const teamBadge = document.getElementById('loginTeamBadge');
-      const profileLbl = document.getElementById('loginProfileLabel');
-      const submitBtn = document.getElementById('btnMainLoginSubmit');
-      const toggleExtBtn = document.getElementById('btnToggleExternalTeamLogin');
-      if (!userSel) return;
-
-      if (teamKey === 'mikel') {
-        isExternalTeamLoginMode = true;
-        if (welcomeBanner) welcomeBanner.style.display = 'none';
-        if (teamBadge) {
-          teamBadge.innerText = '🔒 Acceso Externo • Bloque Mikel';
-          teamBadge.style.background = 'rgba(100,116,139,0.2)';
-          teamBadge.style.borderColor = '#64748b';
-          teamBadge.style.color = '#94a3b8';
-        }
-        if (profileLbl) profileLbl.innerText = 'Perfil de Usuario (Equipo Mikel)';
-        if (submitBtn) {
-          submitBtn.innerText = 'Acceder (Bloque Externo)';
-          submitBtn.style.background = '#334155';
-          submitBtn.style.boxShadow = 'none';
-        }
-        if (toggleExtBtn) {
-          toggleExtBtn.innerText = '← Volver al acceso principal (Equipo Andrei)';
-          toggleExtBtn.style.color = '#a78bfa';
-        }
-
-        userSel.innerHTML = `
-          <option value="jefe_mikel">Mikel (Jefe de Equipo)</option>
-          <option value="mikel_com1">Comercial 1 (Equipo Mikel)</option>
-          <option value="mikel_com2">Comercial 2 (Equipo Mikel)</option>
-          <option value="mikel_com3">Comercial 3 (Equipo Mikel)</option>
-          <option value="mikel_com4">Comercial 4 (Equipo Mikel)</option>
-          <option value="mikel_com5">Comercial 5 (Equipo Mikel)</option>
-        `;
-      } else {
-        isExternalTeamLoginMode = false;
-        if (welcomeBanner) welcomeBanner.style.display = 'block';
-        if (teamBadge) {
-          teamBadge.innerText = '👑 Plataforma Oficial • Equipo Andrei';
-          teamBadge.style.background = 'rgba(124,58,237,0.25)';
-          teamBadge.style.borderColor = '#a78bfa';
-          teamBadge.style.color = '#ddd6fe';
-        }
-        if (profileLbl) profileLbl.innerText = 'Selecciona tu Perfil (Equipo Andrei)';
-        if (submitBtn) {
-          submitBtn.innerText = '🚀 Entrar al Equipo Andrei';
-          submitBtn.style.background = 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)';
-          submitBtn.style.boxShadow = '0 6px 20px rgba(124,58,237,0.4)';
-        }
-        if (toggleExtBtn) {
-          toggleExtBtn.innerText = 'Acceso otros equipos (Equipo Mikel) ▾';
-          toggleExtBtn.style.color = '#64748b';
-        }
-
-        refreshLoginDropdownAliases();
-      }
-      document.getElementById('loginError').style.display = 'none';
-    }
-
-    function executeLogin() { authDoLogin(); }
 
         function executeLogout() {
    if (window.KonsorBridge?.busy) { alert('Hay cambios pendientes. Mantén la sesión abierta y recarga para recuperarlos.'); return; }
@@ -19640,7 +19491,6 @@ function openCommercialStatsModalLegacy() {
 
     window.onload = () => {
       applyAppVisualSettings();
-      refreshLoginDropdownAliases();
       // El acceso lo inicia authFinishLogin tras validar la cuenta de Firebase.
     };
 
@@ -19783,9 +19633,9 @@ function openCommercialStatsModalLegacy() {
 <script src="./operaciones-ios.js?v=14"></script>
 <link rel="stylesheet" href="./resultados-unificados-ios.css?v=1">
 <script src="./resultados-ios.js?v=6"></script>
-<script src="./inicio-ios.js?v=19"></script>
+<script src="./inicio-ios.js?v=20"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=5">
-<script src="./direccion-hub-ios.js?v=12"></script>
+<script src="./direccion-hub-ios.js?v=13"></script>
 <script src="./volcado-guiado-ios.js?v=5"></script>
 <script src="./vivienda-guiada-ios.js?v=3"></script>
 

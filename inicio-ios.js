@@ -91,7 +91,7 @@ function showHome(){
  const welcome=el("div","cnv-home-welcome",undefined,section);
  el("span","cnv-eyebrow",boss()?"PANEL DE RESPONSABLE":"MI ESPACIO",welcome);
  el("h1","",greeting(),welcome);
- el("p","",me()+". Aquí tienes lo importante de hoy.",welcome);
+ el("p","",getDisplayAlias(me()),welcome);
  const hero=el("section","cnv-home-hero",undefined,section);
  const iconBox=el("span","cnv-home-hero-icon",undefined,hero);iconBox.append(icon(next.icon));
  const heroText=el("div","cnv-home-hero-content",undefined,hero);
