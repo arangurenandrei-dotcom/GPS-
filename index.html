@@ -13615,7 +13615,21 @@ function suggestSectorDateFor(comercial) {
       } else if(paso===2){
         aviso('Consulta el catastro y revisa los datos. Los metros netos se calculan con el motor actual, incluyendo plantas y deducciones.');
         const cat=box.querySelector('button[onclick*="openCadastreFromClientBox"]');
-        if(cat)boton(cuerpo,'Consultar catastro de la vivienda',()=>{fondo.classList.remove('active');cat.click();},true);
+        if(cat)boton(cuerpo,'Consultar Catastro de esta vivienda',async()=>{
+          const status=nodo(cuerpo,'p','Buscando localización y ficha catastral…','captacion-ios-note');
+          try{
+            await openCadastreFromClientBox(cat);
+            const slot=cat.parentElement?.querySelector('.inline-catastro-link-slot');
+            const link=slot?.querySelector('a[href]');
+            if(link){
+              const official=nodo(cuerpo,'a','Abrir ficha en Catastro ↗','captacion-ios-btn');
+              official.href=link.href;official.target='_blank';official.rel='noopener noreferrer';
+              status.textContent='Se ha encontrado un enlace de consulta. Ábrelo para comprobar año y m²; después regresa a esta ficha.';
+            }else{
+              status.textContent=slot?.textContent?.trim()||'No se pudo localizar la vivienda. Revisa la dirección y el número.';
+            }
+          }catch(err){status.textContent='No se pudo consultar Catastro: '+(err.message||err);}
+        },true);
         fila('Año de construcción','.client-build-year',{tipo:'number',placeholder:'Ej. 1998'});
         if(inputOriginal('.client-total-m2')){
           fila('Superficie catastral (m²)','.client-total-m2',{tipo:'number',placeholder:'m²'});
@@ -13671,12 +13685,35 @@ function suggestSectorDateFor(comercial) {
           fondo.classList.remove('active');
           box.scrollIntoView({behavior:'smooth',block:'start'});
         },true);
-        boton(cuerpo,'Guardar hoja con el sistema actual',async()=>{
-          fondo.classList.remove('active');
-          await saveDumpData();
+        boton(cuerpo,'Ficha revisada · continuar',()=>{
+          const name=inputOriginal('.client-name')?.value.trim()||'';
+          const street=inputOriginal('.client-street')?.value.trim()||'';
+          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\\s()\\-.]/g,'');
+          if(phone.startsWith('+34'))phone=phone.slice(3);
+          else if(phone.startsWith('0034'))phone=phone.slice(4);
+          if(!name||!street||!(/^[6789]\\d{8}$/.test(phone))){
+            alert('Esta ficha necesita nombre, calle y un teléfono español válido de 9 dígitos. Puedes volver a editarla.');
+            capturaGuiada.paso=1;mostrarPasoCaptacion();return;
+          }
+          if(capturaGuiada.ficha+1<cajas.length){
+            capturaGuiada.ficha++;capturaGuiada.paso=0;mostrarPasoCaptacion();
+          }else{
+            fondo.classList.remove('active');
+            window.cnRefreshDumpWizard?.();
+          }
         });
       }
-      if(paso<3)boton(pie,'Continuar',()=>cambio(1));
+      if(paso<3)boton(pie,'Continuar',()=>{
+        if(paso===1){
+          const name=inputOriginal('.client-name')?.value.trim()||'';
+          const street=inputOriginal('.client-street')?.value.trim()||'';
+          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\\s()\\-.]/g,'');
+          if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
+          if(!street||!name){alert('Introduce dirección y nombre del contacto para continuar.');return;}
+          if(!(/^[6789]\\d{8}$/.test(phone))){alert('Revisar número de teléfono: se necesitan 9 cifras españolas válidas.');return;}
+        }
+        cambio(1);
+      });
       if(paso>0)boton(pie,'Atrás',()=>cambio(-1),true);
       boton(pie,'Salir sin guardar',()=>fondo.classList.remove('active'),true);
       if(paso===3&&cajas.length>1){
@@ -14786,6 +14823,18 @@ function suggestSectorDateFor(comercial) {
       if (selectedZoneIndexToDump === null) return;
 
       const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      const siDeclarados = Math.max(0,parseInt(document.getElementById('dumpSi')?.value,10)||0);
+      const contactComplete = box=>{
+        const v=sel=>box.querySelector(sel)?.value?.trim()||'';
+        let phone=v('.client-phone').replace(/[\\s()\\-.]/g,'');
+        if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
+        return Boolean(v('.client-street')&&v('.client-name')&&/^[6789]\\d{8}$/.test(phone));
+      };
+      const completeCount=Array.from(clientBoxes).filter(contactComplete).length;
+      if(completeCount!==siDeclarados || clientBoxes.length!==siDeclarados){
+        alert('Volcado pendiente: '+completeCount+' de '+siDeclarados+' síes tienen su ficha con nombre, dirección y teléfono válido. Completa o corrige cada interesado antes de guardar.');
+        return;
+      }
       await Promise.all(Array.from(clientBoxes,box=>pendingPostalLookups.get(box.querySelector('.client-cp'))));
       if(Array.from(clientBoxes).some(box=>box.querySelector('.address-choices:not([hidden])'))){alert('Selecciona la localidad de las direcciones pendientes antes de guardar.');return;}
       const z = savedZones[selectedZoneIndexToDump];
@@ -14814,7 +14863,7 @@ function suggestSectorDateFor(comercial) {
         ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
         papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
         yaAislado: parseInt(document.getElementById('dumpYaAislado')?.value) || 0,
-        si: validFilledCount > 0 ? z.clients.filter(c => isClientValidFilled(c) && c.obraStatus !== 'no_apto').length : reportedSi
+        si: reportedSi
       };
 
       const newStatus = document.getElementById('dumpProgressState').value;
