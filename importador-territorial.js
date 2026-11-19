@@ -1,7 +1,7 @@
 /* KONSOR · Importador territorial CSV v1. No importa sin confirmación ni crea geografía automáticamente. */
 (function(){
 'use strict';
-const key='konsor_import_csv_draft_v1';
+const baseKey='konsor_import_csv_draft_v1';
 const norm=s=>String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
 const html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const schema=['localidad','sector','calle','numero','nombre','telefono','respuesta','comercial','observaciones','origen_hoja'];
@@ -34,12 +34,13 @@ function response(v){
 }
 function groups(rows){const m=new Map();rows.forEach((r,i)=>{const id=norm(r.localidad)+'|'+norm(r.sector);if(!m.has(id))m.set(id,{id,town:r.localidad,sector:r.sector,rows:[],target:''});m.get(id).rows.push({...r,index:i});});return [...m.values()];}
 function fingerprint(r){return [r.localidad,r.sector,r.calle,r.numero,r.nombre,r.telefono,r.origen_hoja].map(norm).join('|');}
-function getDraft(){try{return JSON.parse(sessionStorage.getItem(key)||'null')}catch{return null}}
-function setDraft(d){sessionStorage.setItem(key,JSON.stringify(d))}
+function getDraft(key){try{return JSON.parse(sessionStorage.getItem(key)||'null')}catch{return null}}
+function setDraft(key,d){sessionStorage.setItem(key,JSON.stringify(d))}
 window.konsorImportCsvWizard=function(api){
  if(!api||typeof api.snapshot!=='function')throw Error('Falta integración territorial de KONSOR');
+ const storageKey=baseKey+'_'+String(api.sessionKey||'default').replace(/[^a-zA-Z0-9_-]/g,'_');
  const previous=document.getElementById('konsor-csv-wizard');if(previous)previous.remove();
- let draft=getDraft()||{rows:[],verified:false,assign:{},filename:''};
+ let draft=getDraft(storageKey)||{rows:[],verified:false,assign:{},filename:''};
  const overlay=document.createElement('div');overlay.id='konsor-csv-wizard';
  overlay.style.cssText='position:fixed;inset:0;z-index:2147483400;background:#10203966;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:14px';
  const root=document.createElement('section');
@@ -48,7 +49,7 @@ window.konsorImportCsvWizard=function(api){
  const style=document.createElement('style');style.textContent='#konsor-csv-wizard h2{font-size:24px;letter-spacing:-.5px;margin:8px 0}#konsor-csv-wizard p{font-size:13px;color:#68788c;line-height:1.5}#konsor-csv-wizard button,#konsor-csv-wizard select,#konsor-csv-wizard input{font:inherit;font-size:14px}#konsor-csv-wizard button{min-height:43px;border-radius:13px;border:1px solid #dfe5ee;background:#fff;color:#273952;padding:8px 13px;cursor:pointer}#konsor-csv-wizard button.primary{background:#273b52;color:#fff;border-color:#273b52}#konsor-csv-wizard button:disabled{opacity:.45;cursor:not-allowed}#konsor-csv-wizard .card{border:1px solid #e2e6ed;border-radius:17px;background:#fff;padding:15px;margin:11px 0}#konsor-csv-wizard .line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}#konsor-csv-wizard select{width:100%;padding:10px;background:#f9fafc;color:#243447;border:1px solid #dce3ec;border-radius:11px}#konsor-csv-wizard .muted{font-size:12px;color:#75859a}#konsor-csv-wizard .warn{color:#ac5a19}#konsor-csv-wizard .good{color:#157653}#konsor-csv-wizard .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}';
  overlay.append(style);
  function close(){overlay.remove();}
- function save(){setDraft(draft)}
+ function save(){setDraft(storageKey,draft)}
  function btn(label,fn,primary=false){const b=document.createElement('button');b.textContent=label;if(primary)b.className='primary';b.onclick=fn;return b;}
  function note(parent,msg,cls=''){const p=document.createElement('p');p.textContent=msg;if(cls)p.className=cls;parent.append(p);}
  function render(){
@@ -95,14 +96,15 @@ window.konsorImportCsvWizard=function(api){
    root.append(card);
   }
   const assigned=gs.every(g=>{const z=zones.find(z=>String(z.id)===String(draft.assign[g.id]));return z&&!z.isSingleHouse&&norm(z.parentTown||z.town)===norm(g.town)});
-  const ready=!faults.length&&!dupes&&!unresolved.length&&assigned&&!!snap.canCommit;
+  const uniqueAssignments=new Set(gs.map(g=>String(draft.assign[g.id]||''))).size===gs.length;
+  const ready=!faults.length&&!dupes&&!unresolved.length&&assigned&&uniqueAssignments&&!!snap.canCommit;
   const review=document.createElement('div');review.className='card';const mark=document.createElement('label');mark.style.cssText='display:flex;align-items:center;gap:10px;font-size:14px';
   const check=document.createElement('input');check.type='checkbox';check.checked=!!draft.verified;check.disabled=!ready;check.onchange=()=>{draft.verified=check.checked;save();render()};mark.append(check,document.createTextNode('He comprobado todas las fichas y la asignación de sectores.'));review.append(mark);
   if(!snap.canCommit)note(review,'El guardado final está reservado a responsables autorizados. Puedes preparar y revisar el archivo, pero no publicarlo.');
-  else if(!ready)note(review,'Para guardar, corrige los errores, delimita los pueblos y selecciona todos los sectores.');
+  else if(!ready)note(review,uniqueAssignments?'Para guardar, corrige los errores, delimita los pueblos y selecciona todos los sectores.':'No puedes asociar dos fichas de sector distintas al mismo sector dibujado.');
   const actions=document.createElement('div');actions.className='controls';
-  actions.append(btn('Cambiar archivo',()=>{if(!confirm('¿Descartar esta revisión?'))return;sessionStorage.removeItem(key);draft={rows:[],verified:false,assign:{},filename:''};render()}));
-  const commit=btn('Guardar fichas confirmadas',async()=>{commit.disabled=true;try{const result=await api.commit(draft.rows,gs,draft.assign);sessionStorage.removeItem(key);alert('Importación finalizada: '+result+' registros incorporados a sus sectores.');close();}catch(e){alert('No se han confirmado todos los datos: '+e.message);commit.disabled=false}},true);
+  actions.append(btn('Cambiar archivo',()=>{if(!confirm('¿Descartar esta revisión?'))return;sessionStorage.removeItem(storageKey);draft={rows:[],verified:false,assign:{},filename:''};render()}));
+  const commit=btn('Guardar fichas confirmadas',async()=>{commit.disabled=true;try{const result=await api.commit(draft.rows,gs,draft.assign);sessionStorage.removeItem(storageKey);alert('Importación finalizada: '+result+' registros incorporados a sus sectores.');close();}catch(e){alert('No se han confirmado todos los datos: '+e.message);commit.disabled=false}},true);
   commit.disabled=!ready||!draft.verified;actions.append(commit);review.append(actions);root.append(review);
  }
  render();
