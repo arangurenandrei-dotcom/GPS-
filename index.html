@@ -3456,7 +3456,7 @@ function openUserProfileModal() {
           iniciarDibujoPueblo();},
         drawSector:name=>{if(!isChief)return alert('Solo un responsable puede delimitar sectores.');
           window.konsorStartSectorInTown(name);},
-        commit:async(rows,groups,assign)=>{
+        commit:async(rows,groups,assign,options={})=>{
           if(!currentUserName||!currentUserRole)throw Error('Inicia sesión para importar fichas.');
           if(!window.KonsorBridge?.save||window.KonsorBridge.busy)
             throw Error('El servidor no está disponible o existe un guardado pendiente.');
@@ -3516,7 +3516,8 @@ function openUserProfileModal() {
               z.clients.push({
                 clientUid:'imp_'+item.hash,type:'vivienda',
                 name:item.r.nombre||'',street:address,phone:item.r.telefono||'',
-                locality:item.r.localidad,obraStatus:'a_poner',callStatus:'pendiente',
+                locality:item.r.localidad,obraStatus:'a_poner',
+                callStatus:item.resp==='no'?'no_interesado':item.resp==='si'?'pendiente':'pendiente_visita',
                 captacionRespuesta:item.resp,observaciones:item.r.observaciones||'',
                 comercialOrigen:item.r.comercial||z.comercial,
                 origenHoja:item.r.origen_hoja||'',konsorImportKey:item.hash,
@@ -3529,9 +3530,26 @@ function openUserProfileModal() {
             await window.KonsorBridge.save('comercial_custom_zones',candidate);
             savedZones=candidate;
           }
+          if(options.complete){
+            // Solo después de completar TODOS los lotes confirmados:
+            // no se inventa una hora de trabajo de calle.
+            const completed=structuredClone(savedZones);
+            for(const group of groups){
+              const z=completed.find(z=>String(z.id)===String(assign[group.id]));
+              if(!z||!allowedImportZone(z))throw Error('El sector ha cambiado antes de cerrar el volcado.');
+              z.status='completada';
+              z.dumpDate=getTodayISO();
+              z.dumpSource='csv';
+              z.dumpConfirmedAt=Date.now();
+              z.dumpConfirmedBy=currentUserName;
+            }
+            await window.KonsorBridge.save('comercial_custom_zones',completed);
+            savedZones=completed;
+          }
           if(map)renderAllSavedZones();
           window.refreshCnTerritory?.();
-          return added+' nuevos; '+skipped+' repetidos omitidos';
+          window.cnvRefreshHome?.();
+          return added+' nuevos; '+skipped+' repetidos omitidos'+(options.complete?' · volcado confirmado':' · pendientes de cierre de volcado');
         }
       });
     }
