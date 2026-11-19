@@ -3299,6 +3299,7 @@ function openUserProfileModal() {
         const r = await window.leerPerimetrosPueblo({});
         perimetrosPueblos = r.data.perimetros || [];
         if (map) actualizarAgrupacionTerritorial();
+        window.refreshCnTerritory?.();
       } catch(e) { console.error('Pueblos:', e); }
     }
 
@@ -3321,7 +3322,7 @@ function openUserProfileModal() {
     }
 
     async function guardarPuebloDibujado() {
-      const nombre=prompt('Nombre del pueblo:')?.trim();
+      const nombre=prompt('Nombre para este pueblo:')?.trim();
       if (!nombre) return;
       const anterior=perimetrosPueblos.find(p =>
         ComercialCore.norm(p.nombre)===ComercialCore.norm(nombre));
@@ -3335,9 +3336,42 @@ function openUserProfileModal() {
         cancelDrawing();
         await cargarPerimetrosPueblos();
         if (map) actualizarAgrupacionTerritorial();
-        alert('Perímetro de '+nombre+' guardado en Firebase. Ahora crea y asigna los sectores desde Dirección. El pueblo NO se ha marcado como terminado.');
+        window.refreshCnTerritory?.();
+        window.openCnTerritory?.();
       } catch(e) { alert('Sin guardar: '+e.message); }
     }
+
+
+    // Relación geográfica pueblo → sector. Las coordenadas Leaflet son [lat,lng].
+    let konsorSectorParentTown = '';
+    function puntoEnPoligonoKonsor(point, polygon) {
+      if(!Array.isArray(point)||!Array.isArray(polygon)||polygon.length<3)return false;
+      const y=Number(point[0]),x=Number(point[1]);
+      let inside=false;
+      for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+        const yi=Number(polygon[i][0]),xi=Number(polygon[i][1]);
+        const yj=Number(polygon[j][0]),xj=Number(polygon[j][1]);
+        if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+      }
+      return inside;
+    }
+    function puebloParaSectorKonsor(points) {
+      if(!Array.isArray(points)||!points.length)return null;
+      const centro=[
+        points.reduce((n,p)=>n+Number(p[0]),0)/points.length,
+        points.reduce((n,p)=>n+Number(p[1]),0)/points.length
+      ];
+      return perimetrosPueblos.find(p=>puntoEnPoligonoKonsor(centro,p.points))||null;
+    }
+    window.konsorStartSectorInTown=function(name){
+      const p=perimetrosPueblos.find(p=>ComercialCore.norm(p.nombre)===ComercialCore.norm(name));
+      if(!p){alert('Este pueblo ya no está disponible. Actualiza territorios.');return;}
+      startSectorDrawing();
+      konsorSectorParentTown=p.nombre;
+      if(map&&p.points?.length>=3)map.fitBounds(L.latLngBounds(p.points),{padding:[30,30]});
+      const banner=document.getElementById('drawingBannerText');
+      if(banner)banner.textContent='Sector dentro de '+p.nombre+' · marca las esquinas.';
+    };
 
     let completedTowns = [];
     let hotLeadMissions = [];
@@ -12433,7 +12467,27 @@ const labelStreet = clientObj.street ||
             responsible.dataset.konsorSuggestedDate = '1';
           }
         }
-        detectTownFromCoordinates(centerLat, centerLon);
+        const townParent=puebloParaSectorKonsor(tempPoints);
+        const chosen=konsorSectorParentTown
+          ? perimetrosPueblos.find(p=>ComercialCore.norm(p.nombre)===ComercialCore.norm(konsorSectorParentTown))
+          : townParent;
+        if(chosen){
+          const outside=tempPoints.some(p=>!puntoEnPoligonoKonsor(p,chosen.points));
+          if(outside){
+            alert('El sector tiene esquinas fuera del perímetro de '+chosen.nombre+'. Ajusta el dibujo antes de asignarlo.');
+            closeModal('assignModal');
+            document.getElementById('drawingBanner').classList.add('active');
+            window.cnvMapDrawingState?.({mode:'sector',points:tempPoints.length});
+            return;
+          }
+          const input=document.getElementById('assignTown');
+          input.value=chosen.nombre;
+          input.readOnly=true;
+        }else{
+          const input=document.getElementById('assignTown');
+          input.readOnly=false;
+          detectTownFromCoordinates(centerLat,centerLon);
+        }
       }
     }
 
@@ -12441,6 +12495,7 @@ const labelStreet = clientObj.street ||
     function cancelDrawing() {
       isPuebloDrawingMode = false;
       pendingSectorId = null;
+      konsorSectorParentTown = '';
       isDrawingMode = false;
       isCropMode = false;
       isSingleHouseMode = false;
@@ -12557,12 +12612,25 @@ function suggestSectorDateFor(comercial) {
 
     async function confirmSectorAssignment() {
       const dateVal = document.getElementById('assignDate').value || getTodayISO();
+      const parentTown=puebloParaSectorKonsor(tempPoints);
+      if(konsorSectorParentTown&&!parentTown){
+        alert('El sector debe estar dentro del pueblo seleccionado.');
+        return;
+      }
+      if(konsorSectorParentTown&&parentTown&&ComercialCore.norm(parentTown.nombre)!==ComercialCore.norm(konsorSectorParentTown)){
+        alert('El sector pertenece a otro pueblo. Revisa el dibujo.');
+        return;
+      }
+      if(parentTown&&tempPoints.some(p=>!puntoEnPoligonoKonsor(p,parentTown.points))){
+        alert('Todas las esquinas del sector deben estar dentro del pueblo.');return;
+      }
       let town = document.getElementById('assignTown').value.trim();
       if (!town || town === 'Detectando localidad...') {
         alert("⚠️ Escribe el nombre del pueblo o municipio antes de guardar.");
         return;
       }
 
+      if(parentTown)town=parentTown.nombre;
       let sectorName = document.getElementById('assignSectorName').value.trim();
       const bossNote = document.getElementById('assignBossNote').value.trim();
 
@@ -12608,6 +12676,7 @@ function suggestSectorDateFor(comercial) {
         id: pendingSectorId,
         date: dateVal,
         town,
+        parentTown:parentTown?.nombre||'',
         sectorName,
         comercial,
         bossNote: bossNote || '',
@@ -12874,7 +12943,7 @@ function suggestSectorDateFor(comercial) {
           entrada.capa.addTo(map);
       }
 
-      if (map.getZoom() >= 13) return;
+      const zoomCercano = map.getZoom() >= 13;
 
       const pueblosDibujados = new Set();
 
@@ -12890,10 +12959,15 @@ function suggestSectorDateFor(comercial) {
             ComercialCore.norm(t)===clave
           );
 
-          const color=terminado?'#22c55e':'#eab308';
+          const list=savedZones.filter(z=>!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&ComercialCore.norm(z.town)===clave);
+          const completos=list.filter(z=>z.status==='completada').length;
+          const estado=terminado||(list.length>0&&completos===list.length)?'hecho':list.some(z=>z.status==='en_proceso'||z.status==='completada')?'haciendo':'pendiente';
+          const color=estado==='hecho'?'#34a479':estado==='haciendo'?'#558bd2':'#8797a9';
           const capa=L.polygon(pueblo.points,{
-            color,weight:4,fillColor:color,fillOpacity:0.19
+            color,weight:zoomCercano?2:3,fillColor:color,fillOpacity:zoomCercano?.035:.12,
+            dashArray:zoomCercano?'6 5':null
           }).addTo(map);
+          if(zoomCercano)capa.bringToBack();
 
           capa.bindTooltip(pueblo.nombre,{
             sticky:true,direction:'center'
@@ -12915,7 +12989,7 @@ function suggestSectorDateFor(comercial) {
         const clave=ComercialCore.norm(z.town);
 
         if (pueblosDibujados.has(clave)) {
-          map.removeLayer(entrada.capa);
+          if (!zoomCercano) map.removeLayer(entrada.capa);
           continue;
         }
 
@@ -12925,6 +12999,7 @@ function suggestSectorDateFor(comercial) {
       }
 
       // Alternativa visual para pueblos aún no dibujados.
+      if (zoomCercano) return;
       for (const entradas of grupos.values()) {
         if (entradas.length < 2) continue;
 
