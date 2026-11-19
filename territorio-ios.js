@@ -57,6 +57,89 @@ function modal(){
  }
  return root;
 }
+
+/* Selector de municipios de Navarra: búsqueda, desambiguación y perímetro oficial. */
+let townSearchToken=0;
+function municipioPoints(feature){
+ const g=feature.geometry||{};
+ const rings=g.type==="Polygon"?[g.coordinates?.[0]]:g.type==="MultiPolygon"?(g.coordinates||[]).map(p=>p[0]):[];
+ const valid=rings.filter(r=>Array.isArray(r)&&r.length>=4);
+ if(!valid.length)throw Error("Este municipio no tiene un perímetro utilizable.");
+ const ring=valid.sort((a,b)=>b.length-a.length)[0];
+ const unique=ring.slice(0,-1);
+ // Mantener un número de vértices controlado para los documentos sincronizados.
+ const step=Math.max(1,Math.ceil(unique.length/90));
+ const coords=unique.filter((_,i)=>i%step===0).map(p=>[Number(p[1]),Number(p[0])]);
+ if(coords.length<3||coords.some(p=>p.some(n=>!Number.isFinite(n))))throw Error("El polígono del municipio es inválido.");
+ return coords;
+}
+function openTownCreator(){
+ const existing=document.getElementById("cnTownCreator");
+ if(existing)existing.remove();
+ const overlay=el("div","modal-overlay cn-territorio",undefined,document.body);
+ overlay.id="cnTownCreator";overlay.classList.add("active");overlay.style.zIndex="10620";
+ const page=el("section","cn-page",undefined,overlay);
+ page.setAttribute("role","dialog");page.setAttribute("aria-modal","true");
+ const head=el("header","cn-page-head",undefined,page);
+ const title=el("div","",undefined,head);
+ el("span","cn-eyebrow","KONSOR · TERRITORIO",title);
+ el("h2","","Añadir pueblo",title);
+ const close=()=>overlay.remove();
+ head.append(btn("Cerrar",close));
+ const content=el("div","cn-page-body",undefined,page);
+ notice(content,"Busca el municipio de Navarra. Selecciona el resultado correcto y se guardará su perímetro automáticamente, sin tener que dibujarlo.");
+ const input=el("input","cn-search",undefined,content);
+ input.type="search";input.placeholder="Nombre del pueblo (ej. Zizur Mayor)";
+ input.setAttribute("aria-label","Buscar municipio");
+ const state=el("p","cn-hint","Cargando municipios…",content);
+ const list=el("div","cn-town-list",undefined,content);
+ const manual=el("div","cn-actions",undefined,content);
+ manual.append(btn("Delimitar manualmente en el mapa",()=>{
+   close();document.getElementById("cnTerritorio")?.classList.remove("active");
+   window.cnvShowMap?.();if(typeof iniciarDibujoPueblo==="function")iniciarDibujoPueblo();
+ }));
+ let features=[];
+ function candidates(){
+  const token=norm(input.value);
+  list.replaceChildren();
+  if(!token){state.textContent=features.length+" municipios disponibles. Escribe un nombre para buscar.";return;}
+  const matches=features.filter(f=>norm(f.properties?.nombre||"").includes(token)).slice(0,16);
+  state.textContent=matches.length?matches.length+" resultado(s). Selecciona el municipio correcto.":"No hay coincidencias. Prueba otra forma del nombre.";
+  matches.forEach(f=>{
+   const row=el("section","cn-town",undefined,list);
+   el("strong","cn-town-name",f.properties.nombre,row);
+   el("p","cn-detail","Navarra · Perímetro municipal oficial",row);
+   const action=btn("Seleccionar y crear pueblo",async()=>{
+    if(action.disabled)return;
+    action.disabled=true;
+    state.textContent="Guardando perímetro en Firebase…";
+    try{
+     if(typeof window.guardarPerimetroPueblo!=="function"||typeof window.leerPerimetrosPueblo!=="function")
+       throw Error("El servicio territorial no está disponible.");
+     const nombre=String(f.properties.nombre||"").trim();
+     const old=(typeof perimetrosPueblos!=="undefined"?perimetrosPueblos:[]).find(p=>norm(p.nombre)===norm(nombre));
+     if(old&&!confirm("Ya existe "+nombre+". ¿Actualizar su perímetro?")){action.disabled=false;state.textContent="Operación cancelada.";return;}
+     const points=municipioPoints(f);
+     await window.guardarPerimetroPueblo({nombre,points,rev:old?.rev||0});
+     if(typeof cargarPerimetrosPueblos==="function")await cargarPerimetrosPueblos();
+     if(typeof actualizarAgrupacionTerritorial==="function"&&typeof map!=="undefined"&&map)actualizarAgrupacionTerritorial();
+     if(typeof map!=="undefined"&&map){map.fitBounds(L.latLngBounds(points),{padding:[25,25]});}
+     close();document.getElementById("cnTerritorio")?.classList.remove("active");
+     alert(nombre+" guardado. Su perímetro ya está disponible en el mapa.");
+    }catch(e){state.textContent="No se ha podido guardar: "+(e.message||e);action.disabled=false;}
+   },"primary");
+   row.append(action);
+  });
+ }
+ input.addEventListener("input",candidates);
+ overlay.addEventListener("click",e=>{if(e.target===overlay)close();});
+ fetch("./municipios-navarra.geojson",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("No se pudo cargar la cartografía.");return r.json();}).then(data=>{
+  features=(data.features||[]).filter(f=>f.properties?.nombre&&f.geometry);
+  candidates();input.focus();
+ }).catch(e=>{state.textContent="Sin cartografía automática: "+(e.message||e)+". Puedes delimitar el pueblo manualmente.";});
+}
+window.openKonsorTownCreator=openTownCreator;
+
 function notice(target,text){el("p","cn-hint",text,target);}
 function sectorCard(container,entry){
  const {z,idx}=entry;
@@ -82,6 +165,16 @@ function sectorCard(container,entry){
   document.getElementById("cnTerritorio")?.classList.remove("active");
   if(typeof openDumpModal==="function")openDumpModal(idx);
  },"outline"));
+ if(typeof currentUserRole!=="undefined"&&currentUserRole==="jefe"){
+  actions.append(btn("Eliminar sector",async()=>{
+   const zona=savedZones?.[idx];
+   if(!zona)return;
+   if((zona.clients||[]).length&&!confirm("Este sector tiene fichas registradas. Borrarlo también eliminará esos datos. ¿Continuar?"))return;
+   if(typeof deleteZone!=="function")return alert("No está disponible la eliminación.");
+   await deleteZone(idx);
+   render();
+  },"outline"));
+ }
 }
 function renderDetail(target,p){
  const back=btn("Volver a pueblos",()=>{puebloAbierto=null;render();},"subtle");
@@ -172,18 +265,13 @@ function render(){
  }
  fillList();
  const foot=el("div","cn-footer",undefined,body);
- foot.append(btn("Crear pueblo · Dibujar perímetro",()=>{
-  root.classList.remove("active");
-  window.cnvShowMap?.();
-  if(typeof iniciarDibujoPueblo==="function")iniciarDibujoPueblo();
-  else alert("No se ha cargado la herramienta de pueblos. Recarga la aplicación.");
- },"primary"));
+ foot.append(btn("Crear pueblo · Búsqueda automática",openTownCreator,"primary"));
  foot.append(btn("Crear y asignar sector",()=>{
   root.classList.remove("active");
   if(typeof startSectorDrawing==="function")startSectorDrawing();
   else alert("No se ha cargado la herramienta de sectores. Recarga la aplicación.");
  },"outline"));
- notice(body,"Crear pueblo guarda el perímetro territorial. Crear sector dibuja zonas de trabajo y permite asignar comercial y fecha. Son operaciones diferentes.");
+ notice(body,"Busca y selecciona un pueblo para registrar su perímetro; después dibuja los sectores de trabajo y asígnales responsable y fecha.");
 }
 window.openCnTerritory=function(){if(currentUserName!=="Andrei (Jefe)")return;puebloAbierto=null;filtro="haciendo";textoBusqueda="";const root=modal();render();root.classList.add("active");};
 window.refreshCnTerritory=function(){if(document.getElementById("cnTerritorio")?.classList.contains("active"))render();};
