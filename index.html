@@ -8343,12 +8343,19 @@ function renderBossPlan() {
         surface.innerHTML='<div class="modal-card cn-measure-result" role="dialog" aria-modal="true" aria-label="Medición de tejado">'+
           '<div class="modal-header"><span>Medición de superficie</span></div>'+
           '<div class="cn-measure-value" id="konsorMeasureValue"></div>'+
-          '<p class="cn-measure-note">Superficie aproximada del polígono dibujado en el mapa. No sustituye la comprobación catastral ni la medición real de la buhardilla.</p>'+
+          '<p class="cn-measure-meta" id="konsorMeasureDetails"></p>'+
+          '<p class="cn-measure-note">Superficie aproximada de la proyección del tejado dibujado. No equivale necesariamente a la superficie útil de la buhardilla ni sustituye las mediciones reales.</p>'+
           '<div class="cn-measure-actions"><button type="button" id="konsorMeasureRepeat">Medir otra zona</button><button type="button" id="konsorMeasureCopy">Copiar m²</button><button type="button" id="konsorMeasureClose">Cerrar</button></div></div>';
         document.body.appendChild(surface);
       }
       const formatted=new Intl.NumberFormat('es-ES',{maximumFractionDigits:0}).format(m2);
       document.getElementById('konsorMeasureValue').textContent=formatted+' m²';
+      const perimeter=points.reduce((sum,p,i)=>{
+        const next=points[(i+1)%points.length];
+        return sum+L.latLng(p[0],p[1]).distanceTo(L.latLng(next[0],next[1]));
+      },0);
+      document.getElementById('konsorMeasureDetails').textContent=
+        points.length+' esquinas · perímetro estimado '+Math.round(perimeter)+' m';
       document.getElementById('konsorMeasureCopy').onclick=async()=>{
         try{await navigator.clipboard.writeText(String(m2));}
         catch(e){const value=prompt('Copia esta superficie aproximada (m²):',String(m2));}
@@ -12317,6 +12324,7 @@ const labelStreet = clientObj.street ||
 
      if (isRoofMeasureMode) {
         const totalM2 = calculatePolygonAreaM2(tempPoints);
+        if(totalM2<=0){alert('El polígono no tiene superficie calculable. Separa los puntos y vuelve a cerrar.');return;}
         const measuredPoints=tempPoints.map(p=>[...p]);
         cancelDrawing();
         showRoofMeasureResult(totalM2,measuredPoints);
