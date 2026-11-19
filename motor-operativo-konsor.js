@@ -25,7 +25,9 @@ const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!c.phone?
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
 const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
 const unfinished=z=>z.status!=="completada"&&!z.streetCompletedAt;
-const pendingDump=z=>z.streetCompletedAt&&!z.dumpDate||(z.date&&z.date<today()&&!z.dumpDate&&!z.streetCompletedAt&&z.status!=="completada");
+const pendingDump=z=>!!z.streetCompletedAt&&!z.dumpDate||
+ (!z.streetStartedAt&&z.status==="en_proceso"&&z.date&&z.date<today()&&!z.dumpDate&&
+ ["si","no","ausente","papelito"].some(k=>Number(z.stats?.[k])>0));
 const sorted=rows=>rows.slice().sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")||String(a.town).localeCompare(String(b.town)));
 function nextSector(){return sorted(own().filter(unfinished)).sort((a,b)=> {
  const priority=z=>z.date&&z.date<today()?0:z.date===today()?1:2;
@@ -101,6 +103,23 @@ function stat(parent,label,value){const x=E("div","km-stat",undefined,parent);E(
 function actions(parent){return E("div","km-actions",undefined,parent);}
 function count(c){return (c||[]).length;}
 function safeOpen(action){dismiss();if(typeof action==="function")action();}
+let returnToOffice=false,returnCheck=null;
+function checkOfficeReturn(){
+ if(!returnToOffice||document.getElementById("km-flow"))return;
+ const active=document.querySelector(".modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kd-overlay.active,.cn-territorio.active,#konsor-csv-wizard");
+ if(active)return;
+ returnToOffice=false;
+ openOfficeGuide();
+}
+function leaveOffice(action){
+ returnToOffice=true;dismiss();
+ if(typeof action==="function")action();
+ setTimeout(checkOfficeReturn,400);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{
+ new MutationObserver(()=>{if(returnToOffice){clearTimeout(returnCheck);returnCheck=setTimeout(checkOfficeReturn,250);}}).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"],childList:true});
+},{once:true});
+else new MutationObserver(()=>{if(returnToOffice){clearTimeout(returnCheck);returnCheck=setTimeout(checkOfficeReturn,250);}}).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"],childList:true});
 const openMap=()=>window.cnvShowMap?.();
 const openOffice=()=>window.openCnOffice?.();
 const openClient=()=>window.openCnClients?.();
@@ -126,19 +145,20 @@ function openOfficeGuide(){
   const c=card(body,"SECTOR "+position+" DE "+total,z.sectorName||"Sector",z.town+" · fecha de calle "+(z.date||"sin registrar"));
   E("p","km-muted","Primero los sectores antiguos. Volcar no cambia la fecha en que se trabajó la zona.",c);
   const row=actions(c);
-  B(row,"Volcado manual",()=>safeOpen(()=>{const idx=zones().findIndex(x=>String(x.id)===String(z.id));if(idx>=0&&typeof openDumpModal==="function")openDumpModal(idx);}),"primary");
-  B(row,"Fotos → CSV",()=>safeOpen(()=>window.abrirImportadorTerritorialKonsor?.()),"");
-  B(row,"Ver todos los pendientes",()=>safeOpen(openOffice),"");
+  B(row,"Volcado manual",()=>leaveOffice(()=>{const idx=zones().findIndex(x=>String(x.id)===String(z.id));if(idx>=0&&typeof openDumpModal==="function")openDumpModal(idx);}),"primary");
+  B(row,"Fotos → CSV",()=>leaveOffice(()=>window.abrirImportadorTerritorialKonsor?.()),"");
+  B(row,"Instrucciones para fotos",()=>window.open("https://github.com/arangurenandrei-dotcom/GPS-/blob/main/PROMPT-CHAT-FICHAS-KONSOR.md","_blank","noopener,noreferrer"));
+  B(row,"Ver todos los pendientes",()=>leaveOffice(openOffice),"");
  }else if(step===1){
   const first=s.needFix[0],c=card(body,"REVISIÓN",s.needFix.length+" fichas para revisar","Después de volcar, corrige nombre, calle, teléfono u otros datos señalados antes de gestionar citas.");
   E("p","km-muted","Primera ficha: "+(first.c.name||"Sin nombre")+" · "+first.z.town+" · "+(first.c.street||"Sin calle"),c);
-  B(actions(c),"Revisar fichas",()=>safeOpen(openClient),"primary");
+  B(actions(c),"Revisar fichas",()=>leaveOffice(openClient),"primary");
  }else if(step===2||step===3){
   const items=step===2?s.waits:s.calls,first=items[0];
   const c=card(body,step===2?"SEGUIMIENTO PRIORITARIO":"LLAMADAS POR ANTIGÜEDAD",items.length+" contactos por resolver",
    step===2?"Hay personas esperando respuesta o una nueva llamada. Revisa primero la que corresponda hoy.":"La gestión de clientes existente agrupa llamadas por calle y conserva las reservas individuales.");
   E("p","km-muted","Primero: "+(first.c.name||"Sin nombre")+" · "+first.z.town+" · "+first.z.sectorName,c);
-  B(actions(c),"Continuar llamadas y citas",()=>safeOpen(openCalls),"primary");
+  B(actions(c),"Continuar llamadas y citas",()=>leaveOffice(openCalls),"primary");
  }else{
   const c=card(body,"AL DÍA","Recorrido principal completado","Los seguimientos futuros se conservan para la fecha fijada; no se consideran atrasados.");
   if(s.deferred.length)E("p","km-muted",s.deferred.length+" seguimientos están previstos para una fecha posterior.",c);
