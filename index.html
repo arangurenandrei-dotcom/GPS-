@@ -3434,8 +3434,7 @@ function openUserProfileModal() {
 
 
 
-    // Asistente CSV: el jefe confirma todas las asignaciones antes de guardar.
-    // Los comerciales pueden preparar un CSV para revisión sin publicar cambios.
+    // Asistente CSV: responsables para su equipo y comerciales solo para los sectores propios.
     function abrirImportadorTerritorialKonsor(){
       if(typeof window.konsorImportCsvWizard !== 'function'){
         alert('No se ha cargado el asistente. Actualiza KONSOR y vuelve a intentarlo.');return;
@@ -3444,16 +3443,21 @@ function openUserProfileModal() {
         ['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName);
       const normalizeImport=s=>String(s||'').trim().normalize('NFD')
         .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+      const allowedImportZone=z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&
+        isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName)&&
+        (isChief||z.comercial===currentUserName);
       window.konsorImportCsvWizard({
+        requireTownBoundary:isChief,
         sessionKey:sessionStorage.getItem('auth_user_key')||currentUserName||'guest',
-        snapshot:()=>({towns:perimetrosPueblos.slice(),
-          zones:savedZones.slice(),canCommit:isChief&&!!window.KonsorBridge?.save}),
+        snapshot:()=>({towns:isChief?perimetrosPueblos.slice():[],
+          zones:savedZones.filter(allowedImportZone),
+          canCommit:!!window.KonsorBridge?.save&&savedZones.some(allowedImportZone)}),
         drawTown:()=>{if(!isChief)return alert('Solo un responsable puede delimitar pueblos.');
           iniciarDibujoPueblo();},
         drawSector:name=>{if(!isChief)return alert('Solo un responsable puede delimitar sectores.');
           window.konsorStartSectorInTown(name);},
         commit:async(rows,groups,assign)=>{
-          if(!isChief)throw Error('Solo un responsable puede confirmar la importación.');
+          if(!currentUserName||!currentUserRole)throw Error('Inicia sesión para importar fichas.');
           if(!window.KonsorBridge?.save||window.KonsorBridge.busy)
             throw Error('El servidor no está disponible o existe un guardado pendiente.');
           const response=v=>{
@@ -3477,13 +3481,15 @@ function openUserProfileModal() {
             if(!id||used.has(id))throw Error('Cada ficha/sector debe vincularse a un sector distinto.');
             used.add(id);
             const zone=savedZones.find(z=>String(z.id)===id &&
-              !z.isSingleHouse&&!z.isNoAptoZone &&
+              allowedImportZone(z) &&
               normalizeImport(z.parentTown||z.town)===normalizeImport(group.town));
             if(!zone)throw Error('Sector no encontrado en '+group.town+': '+group.sector);
-            const town=perimetrosPueblos.find(p=>
-              normalizeImport(p.nombre)===normalizeImport(group.town) &&
-              Array.isArray(p.points)&&p.points.length>=3);
-            if(!town)throw Error('Falta confirmar el perímetro de '+group.town);
+            if(isChief){
+              const town=perimetrosPueblos.find(p=>
+                normalizeImport(p.nombre)===normalizeImport(group.town) &&
+                Array.isArray(p.points)&&p.points.length>=3);
+              if(!town)throw Error('Falta confirmar el perímetro de '+group.town);
+            }
             for(const r of group.rows){
               if(!r.calle||!r.localidad||!r.sector)throw Error('Datos incompletos, fila '+r.line);
               const resp=response(r.respuesta);
@@ -3499,7 +3505,7 @@ function openUserProfileModal() {
             const candidate=structuredClone(savedZones);
             for(const item of preflight.slice(i,i+20)){
               const z=candidate.find(z=>String(z.id)===item.zoneId);
-              if(!z)throw Error('Ha cambiado un sector durante la importación.');
+              if(!z||!allowedImportZone(z))throw Error('Ha cambiado un sector o sus permisos durante la importación.');
               z.clients=Array.isArray(z.clients)?z.clients:[];
               const same=z.clients.some(c=>c.konsorImportKey===item.hash);
               if(same){skipped++;continue;}
@@ -3985,6 +3991,7 @@ function openUserProfileModal() {
       updateShiftUI();
       initMap();
       window.cnvStart?.();
+      setTimeout(()=>window.konsorMotor?.checkLunch?.(),1700);
       if (currentUserName === 'Andrei (Jefe)') {
         void cargarSectoresMikelSupervision();
       }
@@ -11817,7 +11824,8 @@ function renderCommercialWorkDay() {
           }
         }
       } else if (action === 'end') {
-        if (confirm("¿Seguro que quieres finalizar la jornada de hoy? Recuerda haber volcado tu hoja de trabajo.")) {
+        if (!confirm("¿Seguro que quieres finalizar la jornada de hoy? Los sectores pendientes seguirán en Oficina.")) return false;
+        {
           if (shift.status === 'lunch' && shift._lunchStartMs) {
             const diffMin = Math.round((Date.now() - shift._lunchStartMs) / 60000);
             shift.lunchMinutes = (shift.lunchMinutes || 0) + diffMin;
@@ -11827,8 +11835,10 @@ function renderCommercialWorkDay() {
         }
       }
 
-      if (!await saveAndSync('comercial_shifts', savedShifts)) return;
-      updateShiftUI();
+      if (!await saveAndSync('comercial_shifts', savedShifts)) return false;
+      try { await window.konsorMotor?.onShiftAction?.(action,shift); }
+      catch(error){alert('El fichaje se ha guardado, pero el cronómetro de calle requiere revisión: '+error.message);}
+      updateShiftUI();window.cnvRefreshHome?.();
       return true;
     }
 
