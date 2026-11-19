@@ -203,6 +203,17 @@ function review(){
  if(!found)E("p","km-muted","Todavía no constan visitas iniciadas o terminadas hoy.",place);
  const team=box(body,"02 · EQUIPO","Actividad de los comerciales","No mostramos horas exactas de volcado si la fecha se guarda sin hora.");
  for(const p of people.values())E("p","km-townline",p.name+" · "+p.started+" iniciados · "+p.finished+" terminados · "+p.uploaded+" volcados · "+p.booked+" citas modificadas hoy · "+p.pending+" fichas activas",team);
+ if(me()==="Andrei (Jefe)"&&typeof sectoresMikelSupervision!=="undefined"&&Array.isArray(sectoresMikelSupervision)&&sectoresMikelSupervision.length){
+  const other=box(body,"SUPERVISIÓN DISPONIBLE · MIKEL","Sectores del otro equipo","Lectura de sectores autorizados. No se incluyen fichas privadas ni se atribuyen visitas de hoy sin fecha verificada.");
+  const places=new Map();
+  for(const z of sectoresMikelSupervision){
+   const n=z.town||"Pueblo sin indicar";
+   if(!places.has(n))places.set(n,{town:n,total:0,done:0,yes:0});
+   const p=places.get(n);p.total++;if(z.status==="completada")p.done++;p.yes+=Math.max(0,Number(z.stats?.si)||0);
+  }
+  for(const p of [...places.values()].sort((a,b)=>b.yes-a.yes).slice(0,8))
+   E("p","km-townline",p.town+" · "+p.done+"/"+p.total+" sectores terminados · "+p.yes+" respuestas Sí registradas",other);
+ }
  const advice=box(body,"03 · SIGUIENTES ACCIONES","Conclusiones y revisión","Un Sí es una oportunidad. No se considera ingreso cobrado sin información económica verificada.");
  const late=all.filter(z=>z.streetCompletedAt&&!z.dumpDate).length;
  if(late)E("p","km-warning",late+" sector(es) terminados en calle siguen pendientes de volcar.",advice);
