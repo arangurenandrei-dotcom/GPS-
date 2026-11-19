@@ -156,7 +156,7 @@ function openDayGuide(){
   !s?"Puedes consultar KONSOR sin iniciar. El fichaje se guarda con la hora real cuando confirmas.":s.status==="lunch"?"La jornada sigue en comida hasta que pulses reanudar.":s.status==="finished"?"La jornada de hoy está terminada. Oficina puede tener tareas pendientes.":"Primero termina las zonas anteriores y luego continúa con el plan de hoy.");
  const c=card(body,"FICHAJE",!s?"Fuera de jornada":s.status==="lunch"?"En comida":s.status==="finished"?"Finalizada":"Trabajando",s?"Inicio: "+(s.startTime||"—")+" · Estado: "+s.status:"Sin hora registrada hoy");
  let row=actions(c);
- const shiftBtn=(label,action,kind)=>B(row,label,async()=>{const b=event?.currentTarget;try{const ok=typeof handleShiftAction==="function"&&await handleShiftAction(action);if(ok)openDayGuide();}catch(e){alert(e.message||e);}},kind);
+ const shiftBtn=(label,action,kind)=>B(row,label,async()=>{try{const ok=typeof handleShiftAction==="function"&&await handleShiftAction(action);if(ok)openDayGuide();}catch(e){alert(e.message||e);}},kind);
  if(!s)shiftBtn("Iniciar jornada","start","primary");
  else if(s.status==="working"){shiftBtn("Pausar para comer","lunch","");shiftBtn("Finalizar jornada","end","");}
  else if(s.status==="lunch")shiftBtn("Continuar después de comer","lunch","primary");
@@ -181,4 +181,12 @@ function openDayGuide(){
 }
 function refreshIfOpen(){const root=document.getElementById("km-flow");if(!root)return;const tag=root.querySelector(".km-head small")?.textContent||"";if(tag.startsWith("OFICINA"))openOfficeGuide();else if(tag.startsWith("MI JORNADA"))openDayGuide();}
 
+window.konsorMotor={
+ openDay:openDayGuide,openOffice:openOfficeGuide,
+ openPlan:()=>window.konsorPlanificador?.open?.(),
+ openReview:()=>window.konsorPlanificador?.review?.(),
+ startStreet:id=>street(id,"start"),pauseStreet:id=>street(id,"pause"),finishStreet:id=>street(id,"finish"),
+ onShiftAction:syncShift,checkLunch:()=>window.konsorLunchReminder?.(),
+ refresh:refreshIfOpen,nextSector,officeState,duration
+};
 })();
