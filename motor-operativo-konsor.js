@@ -24,7 +24,7 @@ const isContact=c=>!c.captacionRespuesta||c.captacionRespuesta==="si";
 const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!c.phone?.trim()||!!c.captacionInvalida);
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
 const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
-const unfinished=z=>z.status!=="completada"&&!z.streetCompletedAt;
+const unfinished=z=>z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&!z.streetCompletedAt;
 const pendingDump=z=>!!z.streetCompletedAt&&!z.dumpDate||
  (!z.streetStartedAt&&z.status==="en_proceso"&&z.date&&z.date<today()&&!z.dumpDate&&
  ["si","no","ausente","papelito"].some(k=>Number(z.stats?.[k])>0));
@@ -34,7 +34,7 @@ function nextSector(){return sorted(own().filter(unfinished)).sort((a,b)=> {
  return priority(a)-priority(b)||(a.date||"9999").localeCompare(b.date||"9999");
  })[0]||null;}
 function duration(t){const sec=(Number(t?.seconds)||0)+(Number(t?.activeSince)?Math.max(0,(Date.now()-Number(t.activeSince))/1000):0);return Math.round(sec/60);}
-function sessionAllowed(z){if(!z||z.comercial!==me()||z.isSingleHouse||z.isNoAptoZone)return false;return true;}
+function sessionAllowed(z){if(!z||z.comercial!==me()||z.isSingleHouse||z.isNoAptoZone||z.precheck?.sectorStatus==="no_apto")return false;return true;}
 async function saveZones(candidate){
  if(!window.KonsorBridge?.save||window.KonsorBridge.busy)throw Error("El guardado está ocupado o no disponible. Comprueba la conexión.");
  await window.KonsorBridge.save("comercial_custom_zones",candidate);
