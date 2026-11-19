@@ -39,7 +39,7 @@ function open(){
  const grid=el("div","kd-nav-grid",undefined,body);
  tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
  tile(grid,"Importar fichas","Subir CSV, revisar registros y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
- tile(grid,"Mi equipo","Comerciales y asignación del trabajo.",()=>launch(r,()=>typeof openTeamManagementMenu==="function"?openTeamManagementMenu():openPlan()));
+ tile(grid,"Mi equipo","Comerciales, estadísticas y supervisión.",()=>launch(r,()=>typeof openAuditModal==="function"?openAuditModal():openPlan()));
  tile(grid,"Planificar","Tareas, encargos y calendario del equipo.",()=>launch(r,openPlan));
  tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
  tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
