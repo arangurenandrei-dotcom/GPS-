@@ -366,3 +366,47 @@ body.cnv-map-active #cnvMapToolbar:has(.cnv-drawing-panel.active) .cnv-map-contr
 .konsor-cadastre-card strong{font-size:16px;font-weight:720;color:#263449}
 .konsor-cadastre-card p{font-size:12px;line-height:1.5;color:#667890;margin:0}
 .inline-catastro-link-slot .konsor-cadastre-link{margin-top:8px}
+
+/* KONSOR FINAL · una estética coherente para todas las pantallas */
+:root{--konsor-bg:#f5f5f7;--konsor-paper:#fff;--konsor-ink:#25364b;--konsor-muted:#718196;--konsor-border:#e4e9ef;--konsor-action:#2b3a4d}
+body.cnv-home-active #appContainer :is(.hud-header,.hud-nav-grid,.bottom-action-panel,.modern-map-dock,.banner-drawing,#btnMapCompass),
+body.cnv-map-active #appContainer :is(.hud-header,.hud-nav-grid,.bottom-action-panel,.modern-map-dock,#btnMapCompass){display:none!important}
+body.cnv-map-active #appContainer .banner-drawing{display:none!important}
+body.cnv-map-active #cnvMapToolbar{z-index:1950!important}
+#userProfileModal .cn-help-modern{order:-1;background:#fff!important;border:1px solid #e4e9ef!important;border-radius:20px!important}
+#userProfileModal .cn-help-actions{display:flex;flex-direction:column;gap:7px;margin-top:13px}
+#userProfileModal .cn-help-link{display:flex;align-items:center;justify-content:space-between;gap:9px;
+ width:100%;padding:13px 14px;min-height:47px;box-sizing:border-box;
+ background:#f5f6f9!important;border:1px solid #e3e8ef!important;border-radius:13px!important;
+ font-size:13px!important;font-weight:680!important;text-align:left;
+ color:#2c4058!important;text-decoration:none!important;cursor:pointer;box-shadow:none!important}
+#userProfileModal .cn-help-link span{font-size:22px;font-weight:400;line-height:1;color:#7a8ba2}
+#userProfileModal .cn-settings-clean{background:#f5f5f7}
+#userProfileModal .cn-settings-card{background:#fff!important;border:1px solid #e5eaf0!important;border-radius:19px!important}
+#userProfileModal .cn-settings-button{background:#f1f4f8!important;color:#2c4058!important;border:1px solid #e3e9ef!important;border-radius:12px!important}
+#appContainer .modal-card .btn-modal-save,
+body .cnx-modal .cnx-btn.primary,body .cn-oficina .cn-office-btn.primary,
+body #avisosCenterV2 .av-primary,body #avisosCenterV2 button.av-primary{
+ background:#2b3a4d!important;color:white!important;border-color:#2b3a4d!important;box-shadow:none!important
+}
+#appContainer .modal-card button[style*="background:#2563eb"],#appContainer .modal-card button[style*="background: #2563eb"]{
+ background:#2b3a4d!important;color:white!important;border-color:#2b3a4d!important
+}
+body .modal-overlay.active .modal-card,body .cnx-modal.active .cnx-page{color:#263449}
+body .cn-global-nav{display:flex;align-items:center;gap:7px;flex:0 0 auto;z-index:2}
+body .cn-global-nav button{display:flex!important;align-items:center!important;justify-content:center!important;
+ width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;
+ padding:0!important;background:#eef1f5!important;color:#283b53!important;border:1px solid #e2e7ee!important;
+ border-radius:50%!important;box-shadow:none!important;font-size:23px!important;font-weight:450!important;line-height:1!important}
+body .cn-global-nav button:focus-visible{outline:2px solid #91a4bd!important;outline-offset:2px}
+body .cn-global-nav .cn-global-back{font-size:29px!important}
+body .modal-overlay .modal-header:has(.cn-global-nav)>button:not(.cn-global-back):not(.cn-global-close),
+body .cn-territorio .cn-page-head:has(.cn-global-nav)>.cn-close,
+body .cn-oficina .cn-office-header:has(.cn-global-nav)>.cn-office-exit,
+body .cnx-modal .cnx-head:has(.cn-global-nav)>.cnx-btn{display:none!important}
+body .cn-global-nav-row{margin:0 0 7px!important;display:flex!important;justify-content:flex-end!important}
+body .modal-overlay .modal-header:has(.cn-global-nav){gap:9px}
+body .modal-overlay .modal-header:has(.cn-global-nav)>span{flex:1}
+body .cn-territorio .cn-page-head:has(.cn-global-nav)>div,
+body .cn-oficina .cn-office-header:has(.cn-global-nav)>div,
+body .cnx-modal .cnx-head:has(.cn-global-nav)>div{flex:1;min-width:0}
