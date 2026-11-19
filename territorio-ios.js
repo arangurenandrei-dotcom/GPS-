@@ -63,7 +63,7 @@ function sectorCard(container,entry){
  const card=el("div","cn-sector",undefined,container);
  const row=el("div","cn-flex",undefined,card);
  el("strong","cn-sector-name",z.sectorName||"Sector sin nombre",row);
- const estado=z.status==="completada"?"Terminado":z.status==="en_proceso"?"Haciendo":"Por hacer";
+ const estado=z.status==="completada"?"Volcado terminado":z.streetCompletedAt&&!z.dumpDate?"Calle terminada · por volcar":z.status==="en_proceso"?"Haciendo":"Por hacer";
  el("span","cn-tag",estado,row);
  el("p","cn-detail",[z.comercial||"Sin comercial",z.date||"Sin fecha"].join(" · "),card);
  if(z.comercial){
