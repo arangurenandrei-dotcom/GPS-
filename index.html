@@ -2421,7 +2421,7 @@ function refreshMapDock(area) {
 }
 
 function setMapDisplay(mode) {
-  if (isMikelTeamMember(currentUserName) && mode !== 'satellite') return;
+  // La capa catastral es una consulta pública: disponible a los dos jefes.
   if (
     !map ||
     !ignSatelliteLayer ||
@@ -3158,9 +3158,11 @@ function openUserProfileModal() {
 
     function applyTeamToolRestrictions() {
       const restricted=isMikelTeamMember(currentUserName);
+      const mikelChief=currentUserName==='Mikel (Jefe)';
       document.documentElement.dataset.activeTeam=restricted?'mikel':'andrei';
       for(const id of ['btnToggleCatastro','btnMeasureRoof','btnEnableNotifs']){
-        const el=document.getElementById(id);if(el)el.style.display=restricted?'none':'';
+        const el=document.getElementById(id);
+        if(el)el.style.display=restricted&&!(mikelChief&&id==='btnToggleCatastro')?'none':'';
       }
     }
     function isMikelTeamMember(name) {
@@ -8229,7 +8231,7 @@ function renderBossPlan() {
     }
 
     function toggleCatastroLayer() {
-      if (isMikelTeamMember(currentUserName)) return;
+      // Catastro visible para ambos equipos; no modifica ninguna ficha.
       if (!map || !catastroNavarraLayer || !ignSatelliteLayer) return;
       const btn = document.getElementById('btnToggleCatastro');
       if (isCatastroActive) {
