@@ -13,7 +13,9 @@ function valid(b){
  const v=q=>b.querySelector(q)?.value?.trim()||"";
  return Boolean(v(".client-street")&&v(".client-name")&&phoneOk(v(".client-phone"))&&v(".client-type"));
 }
+function invalid(b){return b.dataset.konsorInvalidPhone==="1" && Boolean(b.querySelector(".client-street")?.value.trim()&&b.querySelector(".client-name")?.value.trim());}
 const completed=()=>boxes().filter(valid).length;
+const resolved=()=>boxes().filter(b=>valid(b)||invalid(b)).length;
 function field(parent,id,label,type="number"){
  const orig=original(id);if(!orig)return null;
  const row=el("label","cng-field",undefined,parent);el("span","",label,row);
@@ -108,34 +110,34 @@ function render(){
    if(groupIndex+1<active.length){groupIndex++;render();}else{step=3;render();}
   },"primary"));
  }else if(step===3){
-  const all=boxes(),needed=number("dumpSi"),ready=completed();
-  summary(ui,ready+" de "+needed+" fichas con contacto válido","Una ficha vacía no cuenta. El teléfono debe ser válido y cada interesado debe tener nombre y dirección.");
+  const all=boxes(),needed=number("dumpSi"),ready=completed(),done=resolved();
+  summary(ui,done+" de "+needed+" interesados revisados",ready+" contactables · "+(done-ready)+" sin teléfono válido. Una ficha vacía nunca cuenta como completada.");
   if(!needed)el("p","cng-info","No hay interesados en este sector. Puedes pasar a revisar.",ui);
   all.slice(0,needed).forEach((b,i)=>{
    const type=b.querySelector(".client-type")?.selectedOptions?.[0]?.textContent?.trim()||"Vivienda";
-   const full=valid(b),name=b.querySelector(".client-name")?.value?.trim(),street=b.querySelector(".client-street")?.value?.trim();
+   const full=valid(b),bad=invalid(b),name=b.querySelector(".client-name")?.value?.trim(),street=b.querySelector(".client-street")?.value?.trim();
    const row=el("div","cng-summary",undefined,ui);
-   el("strong","","Ficha "+(i+1)+" · "+(full?"Contacto válido":"Pendiente"),row);
+   el("strong","","Ficha "+(i+1)+" · "+(full?"Contacto válido":bad?"Teléfono no válido · registrada sin llamada":"Pendiente"),row);
    el("p","",type+" · "+[name,street].filter(Boolean).join(" · "),row);
-   row.append(button(full?"Revisar ficha":"Completar ficha",()=>{if(typeof abrirAsistenteCaptacion==="function")abrirAsistenteCaptacion(i);else alert("No se ha cargado el asistente de captación.");},"outline"));
+   row.append(button(full||bad?"Revisar ficha":"Completar ficha",()=>{if(typeof abrirAsistenteCaptacion==="function")abrirAsistenteCaptacion(i);else alert("No se ha cargado el asistente de captación.");},"outline"));
   });
-  if(ready!==needed)el("p","cn-house-warning","Faltan "+Math.max(0,needed-ready)+" fichas válidas. No podrás cerrar la hoja como completada hasta revisarlas.",ui);
+  if(done!==needed)el("p","cn-house-warning","Quedan "+Math.max(0,needed-done)+" interesados sin revisar. Indica los datos o marca expresamente si el teléfono es ilegible.",ui);
   ui.append(button("Comprobar todas las fichas",()=>{step=4;render();},"primary"));
  }else{
-  const expected=number("dumpSi"),ready=completed(),all=boxes();
+  const expected=number("dumpSi"),ready=completed(),done=resolved(),all=boxes();
   const doors=["dumpNo","dumpAusente","dumpPapelito","dumpYaAislado","dumpSi"].reduce((n,id)=>n+number(id),0);
-  summary(ui,doors+" resultados de calle",expected+" interesados · "+ready+" fichas con contacto válido · "+(expected-ready)+" pendientes");
+  summary(ui,doors+" resultados de calle",expected+" interesados · "+ready+" contactables · "+(done-ready)+" sin teléfono · "+(expected-done)+" pendientes");
   field(ui,"dumpProgressState","Estado del sector");
   if(original("dumpProgressState")?.value==="en_proceso")field(ui,"dumpPendingNote","Qué queda por hacer","text");
-  if(ready!==expected){
-   el("p","cn-house-warning","No puedes cerrar el volcado con fichas pendientes. Cada sí debe tener una ficha identificable con teléfono válido, o corregirse el recuento.",ui);
+  if(done!==expected){
+   el("p","cn-house-warning","No puedes cerrar el volcado con fichas pendientes. Cada sí necesita una ficha con contacto válido o una marca explícita de teléfono no válido.",ui);
   }
   const save=button("Guardar volcado",async()=>{
-   const actual=completed(),total=number("dumpSi");
+   const actual=resolved(),total=number("dumpSi");
    if(actual!==total){alert("Hay "+(total-actual)+" interesados sin ficha válida. Revisa las fichas antes de guardar.");step=3;render();return;}
    if(typeof saveDumpData==="function")await saveDumpData();
   },"primary");
-  save.disabled=ready!==expected;ui.append(save);
+  save.disabled=done!==expected;ui.append(save);
   ui.append(button("Volver a las fichas",()=>{step=3;render();},"outline"));
  }
  if(step>0)ui.append(button("‹ Volver al paso anterior",()=>{if(step===2){if(groupIndex>0){groupIndex--;}else{step=1;}}else step--;render();},"subtle"));
@@ -150,5 +152,6 @@ function enhance(){
  body.append(advanced);step=0;plan=null;render();
 }
 window.cnEnhanceDump=enhance;
-window.cnDumpProgress=()=>({declared:number("dumpSi"),valid:completed(),forms:boxes().length});
+window.cnDumpProgress=()=>({declared:number("dumpSi"),valid:completed(),resolved:resolved(),forms:boxes().length});
+window.cnRefreshDumpWizard=()=>{if(original("dumpModal")?.classList.contains("active"))render();};
 })();
