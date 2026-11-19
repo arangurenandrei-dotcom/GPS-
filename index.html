@@ -1640,6 +1640,7 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 .av-quick-actions>button{flex:1;min-width:135px}
 </style>
 <script defer src="asistente-pueblos.js"></script>
+<script defer src="importador-territorial.js"></script>
 </head>
 <body>
 
@@ -2942,8 +2943,13 @@ function openMapToolsMenu() {
         'Dibujar una zona descartada y anotar el motivo.',
         startNoAptoZoneDrawing
       ],
+      ...(currentUserRole === 'jefe' ? [[
+        'Importar fichas CSV',
+        'Revisar localidades, dibujar pueblos y vincular fichas a sectores antes de guardar.',
+        abrirImportadorTerritorialKonsor
+      ]] : []),
       ...(currentUserName === 'Andrei (Jefe)' ? [[
-        'Importar clientes',
+        'Importar clientes históricos',
         'Preparar fichas históricas, revisar estados y duplicados antes de importarlas.',
         openHistoricalImportModal
       ]] : []),
@@ -3420,6 +3426,103 @@ function openUserProfileModal() {
    }
 
 
+
+
+    // Asistente CSV: el jefe confirma todas las asignaciones antes de guardar.
+    // Los comerciales pueden preparar un CSV para revisión sin publicar cambios.
+    function abrirImportadorTerritorialKonsor(){
+      if(typeof window.konsorImportCsvWizard !== 'function'){
+        alert('No se ha cargado el asistente. Actualiza KONSOR y vuelve a intentarlo.');return;
+      }
+      const isChief=currentUserRole==='jefe' &&
+        ['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName);
+      const normalizeImport=s=>String(s||'').trim().normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+      window.konsorImportCsvWizard({
+        snapshot:()=>({towns:perimetrosPueblos.slice(),
+          zones:savedZones.slice(),canCommit:isChief&&!!window.KonsorBridge?.save}),
+        drawTown:()=>{if(!isChief)return alert('Solo un responsable puede delimitar pueblos.');
+          iniciarDibujoPueblo();},
+        drawSector:name=>{if(!isChief)return alert('Solo un responsable puede delimitar sectores.');
+          window.konsorStartSectorInTown(name);},
+        commit:async(rows,groups,assign)=>{
+          if(!isChief)throw Error('Solo un responsable puede confirmar la importación.');
+          if(!window.KonsorBridge?.save||window.KonsorBridge.busy)
+            throw Error('El servidor no está disponible o existe un guardado pendiente.');
+          const response=v=>{
+            const x=normalizeImport(v);
+            if(['si','sí','interesado','positivo'].includes(x))return 'si';
+            if(['no','negativo','no interesado'].includes(x))return 'no';
+            if(['ausente','no estaba','no contesta'].includes(x))return 'ausente';
+            if(['papelito','aviso','nota dejada'].includes(x))return 'papelito';
+            throw Error('Respuesta sin validar: '+v);
+          };
+          const checksum=async r=>{
+            const data=[r.localidad,r.sector,r.calle,r.numero,r.nombre,r.telefono,r.origen_hoja]
+              .map(normalizeImport).join('|');
+            const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(data));
+            return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+          };
+          const preflight=[];
+          const used=new Set();
+          for(const group of groups){
+            const id=String(assign[group.id]||'');
+            if(!id||used.has(id))throw Error('Cada ficha/sector debe vincularse a un sector distinto.');
+            used.add(id);
+            const zone=savedZones.find(z=>String(z.id)===id &&
+              !z.isSingleHouse&&!z.isNoAptoZone &&
+              normalizeImport(z.parentTown||z.town)===normalizeImport(group.town));
+            if(!zone)throw Error('Sector no encontrado en '+group.town+': '+group.sector);
+            const town=perimetrosPueblos.find(p=>
+              normalizeImport(p.nombre)===normalizeImport(group.town) &&
+              Array.isArray(p.points)&&p.points.length>=3);
+            if(!town)throw Error('Falta confirmar el perímetro de '+group.town);
+            for(const r of group.rows){
+              if(!r.calle||!r.localidad||!r.sector)throw Error('Datos incompletos, fila '+r.line);
+              const resp=response(r.respuesta);
+              const hash=await checksum(r);
+              preflight.push({zoneId:id,r,resp,hash});
+            }
+          }
+          // El bridge de persistencia trabaja con el conjunto de zonas.
+          // Lotes pequeños + clave idempotente para recuperar reintentos parciales.
+          let added=0,skipped=0;
+          for(let i=0;i<preflight.length;i+=20){
+            if(window.KonsorBridge.busy)throw Error('Existe un guardado simultáneo.');
+            const candidate=structuredClone(savedZones);
+            for(const item of preflight.slice(i,i+20)){
+              const z=candidate.find(z=>String(z.id)===item.zoneId);
+              if(!z)throw Error('Ha cambiado un sector durante la importación.');
+              z.clients=Array.isArray(z.clients)?z.clients:[];
+              const same=z.clients.some(c=>c.konsorImportKey===item.hash);
+              if(same){skipped++;continue;}
+              const address=(item.r.calle+' '+(item.r.numero||'')).trim();
+              if(z.clients.some(c=>normalizeImport(c.street)===normalizeImport(address) &&
+                normalizeImport(c.phone)===normalizeImport(item.r.telefono) &&
+                (c.street||c.phone)))throw Error('Posible duplicado en '+z.sectorName+': '+address+'. Revisa antes de continuar.');
+              z.clients.push({
+                clientUid:'imp_'+item.hash,type:'vivienda',
+                name:item.r.nombre||'',street:address,phone:item.r.telefono||'',
+                locality:item.r.localidad,obraStatus:'a_poner',callStatus:'pendiente',
+                captacionRespuesta:item.resp,observaciones:item.r.observaciones||'',
+                comercialOrigen:item.r.comercial||z.comercial,
+                origenHoja:item.r.origen_hoja||'',konsorImportKey:item.hash,
+                importedCsv:true,createdAt:Date.now(),statusChangedAt:Date.now()
+              });
+              z.stats=z.stats||{si:0,no:0,ausente:0,papelito:0};
+              z.stats[item.resp]=(Number(z.stats[item.resp])||0)+1;
+              added++;
+            }
+            await window.KonsorBridge.save('comercial_custom_zones',candidate);
+            savedZones=candidate;
+          }
+          if(map)renderAllSavedZones();
+          window.refreshCnTerritory?.();
+          return added+' nuevos; '+skipped+' repetidos omitidos';
+        }
+      });
+    }
+    window.abrirImportadorTerritorialKonsor=abrirImportadorTerritorialKonsor;
 
     function getLocalDateISO(dateObj = new Date()) {
       const offsetMs = dateObj.getTimezoneOffset() * 60000;
