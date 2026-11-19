@@ -6534,6 +6534,8 @@ let teamOverviewTab = 'summary';
 
 function openTeamManagementMenu() {
   if (currentUserName !== 'Andrei (Jefe)') return;
+  window.openKonsorDirection?.();
+  return;
 
   let modal = document.getElementById('teamOverviewModal');
 
@@ -7342,6 +7344,8 @@ function bossPlanStartWatch() {
 
 function openBossWorkMenu() {
   if (currentUserName !== 'Andrei (Jefe)') return;
+  window.openKonsorDirectorPlan?.();
+  return;
 
   const cache = bossPlanItems;
 
