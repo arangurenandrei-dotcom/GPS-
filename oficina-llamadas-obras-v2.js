@@ -10,7 +10,7 @@ const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.ty
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const owns=z=>z&&typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial)&&!isMikelTeamMember(currentUserName)&&(z.comercial===currentUserName||currentUserRole==="jefe"&&scope==="team");
-const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
+const valid=c=>c&&typeof c==="object"&&!c.captacionInvalida&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
 function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
