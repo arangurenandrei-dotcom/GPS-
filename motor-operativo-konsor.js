@@ -135,6 +135,29 @@ function officeState(){
  for(const z of list){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
  return {pending,needFix,waits,calls,deferred,cc,town:[...town.values()]};
 }
+async function leagueSummary(){
+ if(typeof leagueRows!=="function"||typeof personalStatsRange!=="function"||typeof isMikelTeamMember==="function"&&isMikelTeamMember(me()))return "Puedes consultar tu clasificación en Resultados.";
+ const date=today(),range=personalStatsRange("month",date),before=personalStatsRange("month",date,true);
+ let totals=null;
+ if(typeof currentUserRole!=="undefined"&&currentUserRole==="comercial"){
+  if(typeof window.teamSummaryV2!=="function")throw Error("La clasificación del equipo no está disponible.");
+  const answer=await window.teamSummaryV2({mode:"liga",range,previous:before,phase:"captadas"});
+  totals=answer.data?.current||null;
+ }
+ const rows=leagueRows("month",date,"captadas",false,totals).filter(x=>Number(x.area)>0);
+ const mine=rows.find(x=>x.name===me());
+ if(!mine||!mine.rank)return "Aún no constan m² de captación para tu clasificación mensual.";
+ if(mine.rank===1){
+  const second=rows.find(x=>x.name!==me()&&x.rank>1);
+  if(!second)return "Primera posición del mes: "+Math.round(mine.area)+" m². No hay otro puesto con superficie registrada.";
+  return "¡Primera posición! "+Math.round(mine.area)+" m². Ventaja sobre el segundo: "+Math.max(0,Math.round(mine.area-second.area))+" m².";
+ }
+ const upper=rows.filter(x=>x.rank<mine.rank).sort((a,b)=>b.rank-a.rank)[0];
+ if(!upper)return "Puesto "+mine.rank+" · "+Math.round(mine.area)+" m² registrados.";
+ const diff=Math.max(0,Math.ceil(upper.area-mine.area));
+ return "Puesto "+mine.rank+" · "+Math.round(mine.area)+" m². Te faltan "+diff+" m² para igualar al puesto superior.";
+}
+
 function openOfficeGuide(){
  const s=officeState();const step=s.pending.length?0:s.needFix.length?1:s.waits.length?2:s.calls.length?3:4;
  const phases=["Volcar hojas","Revisar fichas","Resolver esperas","Llamar y agendar","Balance"];
@@ -164,6 +187,8 @@ function openOfficeGuide(){
   const c=card(body,"AL DÍA","Recorrido principal completado","Los seguimientos futuros se conservan para la fecha fijada; no se consideran atrasados.");
   if(s.deferred.length)E("p","km-muted",s.deferred.length+" seguimientos están previstos para una fecha posterior.",c);
   for(const p of s.town){E("p","km-townline",p.name+" · "+p.yes+" respuestas Sí · "+p.booked+" citas/obras · "+p.waiting+" en espera",c);}
+  const liga=E("p","km-muted","Consultando la Liga mensual…",c);
+  leagueSummary().then(msg=>{if(liga.isConnected)liga.textContent=msg;}).catch(()=>{if(liga.isConnected)liga.textContent="Consulta tu clasificación actual desde Resultados.";});
   const row=actions(c);
   B(row,"Ver Liga",()=>safeOpen(()=>{if(typeof openLeagueRankingModal==="function")openLeagueRankingModal();else window.openCnResults?.();}),"primary");
   B(row,"Mis resultados",()=>safeOpen(()=>window.openCnResults?.()));
