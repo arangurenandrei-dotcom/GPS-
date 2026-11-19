@@ -250,18 +250,18 @@
   const head=node('div',undefined,'av-card');
   head.append(node('h3','Pendiente de hacer'),node('p','Zonas, encargos y gestiones que necesitan una acción. Se mantienen aquí hasta que estén resueltas.'));
   body.append(head);
+  const quick=node('div',undefined,'av-actions av-quick-actions');
+  if(me.key==='jefe'){
+   const assign=button('Asignar tarea al comercial',()=>editReminder({assignment:true}));assign.className='av-primary';quick.append(assign);
+  }
+  quick.append(button('Crear recordatorio',()=>editReminder()));
+  body.append(quick);
   const assigned=active.filter(r=>r.to===me.name),supervised=me.key==='jefe'?active.filter(r=>r.to!==me.name):[];
   if(assigned.length)body.append(node('div','Encargos asignados ('+assigned.length+')','av-section'));
   assigned.forEach(r=>body.append(reminderTask(r)));
   if(supervised.length){body.append(node('div','Encargos del equipo ('+supervised.length+')','av-section'));supervised.forEach(r=>body.append(reminderTask(r)));}
   if(attention.length){body.append(node('div','Otras tareas y zonas ('+attention.length+')','av-section'));attention.forEach(n=>body.append(noticeCard(n,true)));}
   if(!active.length&&!attention.length)body.append(node('div','No tienes tareas pendientes.','av-empty'));
-  const add=node('div',undefined,'av-actions');
-  if(me.key==='jefe'){
-   const assign=button('Asignar tarea al comercial',()=>editReminder({assignment:true}));assign.className='av-primary';add.append(assign);
-  }
-  add.append(button('Crear recordatorio',()=>editReminder()));
-  body.append(add);
   const extra=node('details'),summary=node('summary','Ver todos los recordatorios');extra.append(summary);
   const region=node('div');extra.append(region);body.append(extra);
   reminders.filter(r=>!r.assignment||!r.enabled||r.completedAt).forEach(r=>region.append(reminderTask(r)));
