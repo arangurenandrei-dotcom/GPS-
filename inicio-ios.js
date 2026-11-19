@@ -72,19 +72,7 @@ function showHome(){
  top.append(btn("Avisos",()=>window.openNotificationsCenterV2?.(),"cnv-glass"));
  top.append(btn("Ajustes",()=>openUserProfileModal(),"cnv-glass"));
  const section=el("section","cnv-home-content",undefined,home);
- const data=info();
- const hero=el("section","cnv-hero",undefined,section);
- const upper=el("div","cnv-hero-upper",undefined,hero);
- el("span","cnv-eyebrow","TU JORNADA",upper);
- let state="Sin iniciar";
- if(data.shift)state=data.shift.status==="working"?"En curso":data.shift.status==="lunch"?"En pausa":"Finalizada";
- el("span","cnv-state",state,upper);
- el("h2","",data.old?"Primero, "+data.old+" sectores pendientes":data.todayCount?"Tienes "+data.todayCount+" sectores para hoy":data.waitingDump?"Tienes "+data.waitingDump+" hojas por volcar":"Organiza tu jornada",hero);
- el("p","",data.old?data.old+" sectores anteriores pendientes · "+data.next+" próximos":"Consulta tu planificación y sigue el siguiente paso.",hero);
- const nextAction=!data.shift?"Iniciar jornada":data.shift.status==="lunch"?"Reanudar trabajo":data.shift.status==="finished"?"Revisar fichas y llamadas":data.old?"Resolver sector anterior":data.todayCount?"Ver sector de hoy":data.waitingDump?"Volcar trabajo de calle":"Abrir Oficina";
- const nextStep=!data.shift?"Empieza registrando tu entrada.":data.shift.status==="lunch"?"Al volver de comer, reanuda el fichaje.":data.shift.status==="finished"?"Comprueba que las fichas estén completas y organiza las llamadas.":data.old?"Acaba primero el trabajo anterior. Si ya lo hiciste, pasa al volcado.":data.todayCount?"Continúa con los sectores de hoy.":data.waitingDump?"Las visitas están cerradas; registra los datos en Oficina.":"Revisa las hojas pendientes y las llamadas del día.";
- el("p","cnv-next-step","Siguiente paso · "+nextStep,hero);
- hero.append(btn(nextAction,()=>{if(!data.shift||data.shift.status==="lunch"||data.old||data.todayCount&&data.shift.status==="working")window.openCnDay?.();else window.openCnOffice?.();},"cnv-dark"));
+ // La jornada está disponible en su tarjeta; no repetir el mismo acceso en Inicio.
  const caption=el("div","cnv-group-label",undefined,section);el("strong","","ACCESOS PRINCIPALES",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
  tile(grid,"Mi jornada","Plan y fichaje del día","calendar",()=>window.openCnDay?.());
@@ -98,6 +86,57 @@ function showHome(){
  }
  el("p","cnv-footer-note","Los cambios se guardan con las funciones actuales de Comercial Navarra.",section);
 }
+
+/* Pregunta de entrada: no inicia la jornada por sí sola ni reaparece tras cerrar
+   o si hoy ya existe un fichaje, incluido uno finalizado. */
+let startPromptPending=false;
+function maybePromptStartShift(){
+ if(startPromptPending||!hasSession())return;
+ const date=typeof getTodayISO==="function"?getTodayISO():new Date().toLocaleDateString("en-CA");
+ const userKey=(sessionStorage.getItem("auth_user_key")||me()).replace(/[^a-zA-Z0-9_-]/g,"_");
+ const dismissedKey="konsor_start_prompt_dismissed_"+userKey+"_"+date;
+ if(sessionStorage.getItem(dismissedKey)==="1")return;
+ if(info().shift)return;
+ startPromptPending=true;
+ window.setTimeout(()=>{
+  startPromptPending=false;
+  if(!hasSession()||info().shift||sessionStorage.getItem(dismissedKey)==="1")return;
+  const veil=el("div","cnv-start-overlay",undefined,document.body);
+  veil.id="cnvStartPrompt";
+  veil.setAttribute("role","dialog");veil.setAttribute("aria-modal","true");
+  veil.setAttribute("aria-label","Confirmar inicio de jornada");
+  const card=el("section","cnv-start-card",undefined,veil);
+  const top=el("div","cnv-start-top",undefined,card);
+  el("span","cnv-eyebrow","KONSOR · JORNADA",top);
+  const done=()=>{
+   sessionStorage.setItem(dismissedKey,"1");
+   veil.remove();
+  };
+  const x=btn("×",done,"cnv-start-close");x.setAttribute("aria-label","Cerrar aviso");
+  top.append(x);
+  el("h2","","¿Vas a empezar a trabajar?",card);
+  el("p","","Si vas a iniciar tu jornada, registra tu entrada. Si solo quieres consultar KONSOR, puedes cerrar este aviso.",card);
+  const actions=el("div","cnv-start-actions",undefined,card);
+  const start=btn("Iniciar jornada",async()=>{
+   if(info().shift){done();return;}
+   if(typeof handleShiftAction!=="function"){alert("El registro de jornada no está disponible.");return;}
+   start.disabled=true;
+   try{
+    const success=await handleShiftAction("start");
+    if(success){done();window.cnvRefreshHome?.();}
+    else start.disabled=false;
+   }catch(error){start.disabled=false;alert("No se ha confirmado el inicio: "+(error?.message||error));}
+  },"cnv-dark");
+  actions.append(start,btn("Ahora no",done,"cnv-glass"));
+  const styleId="cnv-start-prompt-css";
+  if(!document.getElementById(styleId)){
+   const style=document.createElement("style");style.id=styleId;
+   style.textContent=".cnv-start-overlay{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(23,37,56,.30);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}.cnv-start-card{width:min(100%,430px);border:1px solid #e5eaf1;border-radius:25px;background:#f8fafc;color:#27374a;padding:24px;box-shadow:0 20px 70px #14213440;box-sizing:border-box}.cnv-start-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.cnv-start-close{width:36px!important;height:36px!important;border-radius:50%!important;background:#ecf0f5!important;color:#354860!important;border:1px solid #e0e6ee!important;padding:0!important;font-size:24px!important}.cnv-start-card h2{font-size:23px;line-height:1.18;letter-spacing:-.5px;margin:13px 0 9px;color:#233449}.cnv-start-card p{font-size:13px;color:#758397;line-height:1.5;margin:0 0 17px}.cnv-start-actions{display:flex;flex-direction:column;gap:9px}.cnv-start-actions button{min-height:47px!important;border-radius:14px!important;font-size:14px!important}.cnv-start-actions .cnv-dark{background:#273b53!important;color:#fff!important}.cnv-start-actions .cnv-glass{background:#edf1f6!important;color:#3a4c63!important}";
+   document.head.append(style);
+  }
+ },700);
+}
+
 function makeMapBar(){
  if(mapBar)return mapBar;
  mapBar=el("nav","cnv-map-toolbar",undefined,document.body);
@@ -167,6 +206,7 @@ function showMap(){
 function start(){
  if(!hasSession())return;
  showHome();
+ maybePromptStartShift();
 }
 window.cnvMapDrawingState=function(state){
  const bar=makeMapBar(),panel=bar.querySelector("#cnvDrawingPanel");
