@@ -13512,13 +13512,6 @@ function suggestSectorDateFor(comercial) {
       const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
       if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
         const deletedZone = savedZones[idx];
-        if (false && deletedZone && deletedZone.id) {
-          const delList = safeLoadStorage('comercial_deleted_ids');
-          if (!delList.includes(deletedZone.id)) {
-            delList.push(deletedZone.id);
-            localStorage.setItem('comercial_deleted_ids', JSON.stringify(delList));
-          }
-        }
         savedZones.splice(idx, 1);
         if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
         closeModal('dumpModal');
