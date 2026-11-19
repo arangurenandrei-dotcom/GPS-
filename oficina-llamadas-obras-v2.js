@@ -3,13 +3,13 @@
 "use strict";
 const ID="konsorOfficeCallV2";
 const SLOTS=[["09:00","11:00"],["11:00","13:00"],["15:00","17:00"],["17:00","19:00"]];
-let current=null, view="list", scope="mine", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
+let current=null, view="list", scope="team", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
 let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null,clusterAutoSearch=false,clusterSearchSeq=0,clusterPlanNotice="";
 const e=(t,c,txt,p)=>{let x=document.createElement(t);if(c)x.className=c;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
 const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.type="button";b.onclick=fn;return b;};
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
-const owns=z=>z&&typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial)&&!isMikelTeamMember(currentUserName)&&(z.comercial===currentUserName||currentUserRole==="jefe"&&scope==="team");
+const owns=z=>z&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial))&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName))&&(z.comercial===currentUserName||(currentUserRole==="jefe"&&scope==="team"));
 const valid=c=>c&&typeof c==="object"&&!c.captacionInvalida&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
 function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
@@ -463,7 +463,20 @@ function draw(opts={}){
   opportunityCards(body,todo);
   const list=card(body);title(list,"Clientes pendientes",todo.length+" fichas para gestionar · Prioriza las agrupaciones");
   todo.forEach(i=>row(list,i));
-  if(!todo.length)e("p","koc-muted","No hay llamadas vencidas. Los recordatorios futuros permanecen guardados.",list);
+  if(!items.length){
+    const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission);
+    const recorded=zones.reduce((n,z)=>n+(Array.isArray(z.clients)?z.clients.length:0),0);
+    e("p","koc-muted",!zones.length
+      ?"No hay sectores del alcance seleccionado. Revisa Pueblos y sectores o cambia el filtro de equipo."
+      :!recorded
+      ?"Hay "+zones.length+" sectores, pero aún no contienen clientes volcados. Primero registra las fichas de captación."
+      :"Hay "+recorded+" registros, pero no cumplen los requisitos mínimos de ficha (nombre, teléfono o dirección). Revisa las fichas originales.",list);
+  } else if(!todo.length)e("p","koc-muted","No hay llamadas vencidas. Los recordatorios futuros permanecen guardados.",list);
+  const incomplete=items.filter(i=>!i.c.name||!i.c.phone||!i.c.street);
+  if(incomplete.length){
+    const warning=card(body);title(warning,"Fichas por completar",incomplete.length+" registros sin nombre, teléfono o calle. Se muestran para corregirlos, pero no permiten reservar hasta completarlos.");
+    incomplete.slice(0,15).forEach(i=>row(warning,i));
+  }
   if(deferred.length){const waits=e("details","koc-closed",undefined,body);e("summary","","Seguimientos futuros ("+deferred.length+")",waits);deferred.forEach(i=>row(waits,i));}
   const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+items.filter(i=>!pending(i)).length+")",details);items.filter(i=>!pending(i)).forEach(i=>row(details,i));
   return;
@@ -680,6 +693,6 @@ async function markWhatsApp(){
  const old=row.c.whatsappObraEnviadoAt;row.c.whatsappObraEnviadoAt=Date.now();row.z._updatedAt=Date.now();
  if(!await saveAndSync("comercial_custom_zones",savedZones)){row.c.whatsappObraEnviadoAt=old;alert("No se pudo guardar el envío.");}draw();busy=false;
 }
-window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;view="list";draw();};
+window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";view="list";draw();};
 window.openKonsorOfficeClients=window.openCnCallQueue;
 })();
