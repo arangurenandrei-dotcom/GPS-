@@ -2969,6 +2969,10 @@ function openUserProfileModal() {
   const label=wrap('label','', 'Nombre visible',profile);
   const alias=wrap('input','',undefined,profile);alias.id='profileAliasInput';alias.maxLength=22;alias.value=getDisplayAlias(key);alias.setAttribute('aria-label','Nombre visible');
   btn(profile,'Guardar nombre',saveUserProfileSettings);
+  const help=wrap('div','cn-settings-card cn-help-modern',undefined,root);
+  wrap('h3','', 'Ayuda y contacto',help);
+  wrap('p','', 'Consulta la guía, informa de un problema o contacta con el responsable.',help);
+  const box=wrap('div','cn-help-actions',undefined,help);box.innerHTML=helpSectionHtml();
   if(key==='jefe'){
     const team=wrap('div','cn-settings-card',undefined,root);
     wrap('h3','', 'Equipo y accesos',team);
@@ -2988,10 +2992,6 @@ function openUserProfileModal() {
   const size=wrap('label','cn-settings-label','Tamaño de los controles',access);
   const sel=wrap('select','',undefined,access);[['normal','Normal'],['large','Grande']].forEach(([v,t])=>{const op=wrap('option','',t,sel);op.value=v;});
   sel.value=appPrefs.uiSize||'normal';sel.onchange=()=>updateAppPref('uiSize',sel.value);
-  const help=wrap('div','cn-settings-card cn-help-modern',undefined,root);
-  wrap('h3','', 'Ayuda y contacto',help);
-  wrap('p','', 'Consulta la guía, informa de un problema o contacta con el responsable.',help);
-  const box=wrap('div','cn-help-actions',undefined,help);box.innerHTML=helpSectionHtml();
   const notif=wrap('div','cn-settings-card',undefined,root);
   wrap('h3','', 'Notificaciones',notif);
   wrap('p','', 'Permiso del dispositivo: '+('Notification' in window?Notification.permission:'No disponible'),notif);
@@ -19623,10 +19623,11 @@ function openCommercialStatsModalLegacy() {
 <script src="./jornadas-seguimiento.js?v=konsor-v5"></script>
 <link rel="stylesheet" href="./oficina-llamadas-obras-v2.css?v=10">
 <link rel="stylesheet" href="./konsor-legacy-light.css?v=1">
-<link rel="stylesheet" href="./ios-unified.css?v=9">
+<link rel="stylesheet" href="./ios-unified.css?v=10">
 <script src="./oficina-llamadas-obras-v2.js?v=17"></script>
 <script src="./asignaciones-zonas-ios.js?v=1"></script>
 <script src="./avisos-app.js?v=9"></script>
+<script src="./navegacion-ios.js?v=1"></script>
 <script>
 /* Eliminar pictogramas decorativos únicamente de la representación DOM.
    Nunca modifica datos de Firebase, textos guardados o valores de formularios. */
