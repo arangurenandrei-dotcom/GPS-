@@ -163,21 +163,29 @@ function makeMapBar(){
  const oldDropdown=document.getElementById("searchCandidatesDropdown");
  if(oldDropdown)mapBar.appendChild(oldDropdown);
  const controls=el("div","cnv-map-controls",undefined,mapBar);
- const isChief=boss()&&["Andrei (Jefe)","Mikel (Jefe)"].includes(me());
- const items=[...(isChief?[
-   ["office","Pueblos",()=>window.openCnTerritory?.()],
-   ["pin","Crear sector",()=>typeof startSectorDrawing==="function"&&startSectorDrawing()],
-   ["map","Dibujar pueblo",()=>typeof iniciarDibujoPueblo==="function"&&iniciarDibujoPueblo()]
- ]:[]),
-  ["gps","Mi GPS",()=>typeof centerOnUser==="function"&&centerOnUser()],
-  ["layers","Catastro",()=>typeof setMapDisplay==="function"&&setMapDisplay("both")],
-  ["map","Satélite",()=>typeof setMapDisplay==="function"&&setMapDisplay("satellite")],
-  ["ruler","Medir superficie",()=>typeof startRoofMeasureMode==="function"&&startRoofMeasureMode()],
-  ["gps","Norte",()=>typeof resetMapNorth==="function"&&resetMapNorth()]
+ // Cuatro controles estables. Las opciones de organización permanecen en Dirección.
+ const controlsLabel=el("span","cnv-sr-only","Catastro, medir, norte y ubicación",controls);
+ const tools=[
+  ["layers","Catastro",()=>{
+   const active=typeof isCatastroActive!=="undefined"&&isCatastroActive;
+   if(typeof setMapDisplay==="function")setMapDisplay(active?"satellite":"both");
+   refreshTools();
+  }],
+  ["ruler","Medir",()=>{if(typeof startRoofMeasureMode==="function")startRoofMeasureMode()}],
+  ["map","Norte",()=>{if(typeof resetMapNorth==="function")resetMapNorth()}],
+  ["gps","Mi ubicación",()=>{window.cnvFollowGps?.(true);if(typeof centerOnUser==="function")centerOnUser()}]
  ];
- items.filter(([key,label])=>!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(me())&&(label==="Medir superficie"||(label==="Catastro"&&me()!=="Mikel (Jefe)")))).forEach(([key,label,fn])=>{
-  const b=btn("",fn,"cnv-map-tool");b.title=label;b.setAttribute("aria-label",label);b.append(icon(key));controls.append(b);
- });
+ for(const [name,label,fn] of tools){
+  const b=btn("",fn,"cnv-map-tool");b.dataset.tool=label;b.title=label;b.setAttribute("aria-label",label);
+  b.append(icon(name));controls.append(b);
+ }
+ function refreshTools(){
+  const active=typeof isCatastroActive!=="undefined"&&isCatastroActive;
+  const button=controls.querySelector('[data-tool="Catastro"]');
+  if(button){button.classList.toggle("is-active",active);button.setAttribute("aria-pressed",String(active));}
+ }
+ window.cnvRefreshMapControls=refreshTools;
+ refreshTools();
  const draw=el("section","cnv-drawing-panel",undefined,mapBar);
  draw.id="cnvDrawingPanel";
  const status=el("div","cnv-drawing-status",undefined,draw);
