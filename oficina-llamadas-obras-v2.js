@@ -695,7 +695,7 @@ async function saveBooking(){
   if(typeof ensureCrmUpload==="function"&&!ensureCrmUpload(draft,{date:z.dumpDate||z.date,town:z.town,comercial:z.comercial})){busy=false;draw();return;}
   const oldC={...c},oldZ=z._updatedAt;Object.assign(c,draft);z._updatedAt=Date.now();
   if(!await saveAndSync("comercial_custom_zones",savedZones)){Object.keys(c).forEach(k=>{if(!(k in oldC))delete c[k];});Object.assign(c,oldC);z._updatedAt=oldZ;throw Error("No se ha confirmado el guardado de la obra.");}
-  if(typeof logActivity==="function")logActivity("cita","Obra agendada: "+c.name+" · "+z.town+" · "+chosenDate+" "+selectedSlot,z.comercial);
+  if(typeof logActivity==="function")logActivity("cita","Obra agendada · "+chosenDate+" "+selectedSlot,z.comercial);
   view="whatsapp";draw();
  }catch(err){alert(err.message||"No se pudo agendar. La cita no se ha confirmado.");view="calendar";draw();}
  finally{busy=false;}

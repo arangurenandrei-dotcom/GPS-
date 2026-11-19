@@ -5208,6 +5208,7 @@ async function confirmGroupedAppointment(proposal) {
     return;
   }
 
+  const nuevaConfirmacion = needsCrmUpload(draft) && !isMikelTeamMember(z.comercial);
   if (!ensureCrmUpload(draft, {
     date: z.dumpDate || z.date,
     town: z.town,
@@ -5225,6 +5226,7 @@ async function confirmGroupedAppointment(proposal) {
     return;
   }
 
+  if (nuevaConfirmacion) showCitaSavedModal(c, z);
   logActivity(
     'cita',
     `📅 Cita de grupo: ${c.name} · ${z.town} · ` +
@@ -9515,6 +9517,7 @@ async function confirmScheduleFromFollowUp(
     return;
   }
 
+  const nuevaConfirmacion = needsCrmUpload(draft) && !isMikelTeamMember(z.comercial);
   if (!ensureCrmUpload(draft, {
     date: z.dumpDate || z.date,
     town: z.town,
@@ -9532,6 +9535,7 @@ async function confirmScheduleFromFollowUp(
     return;
   }
 
+  if (nuevaConfirmacion) showCitaSavedModal(c, z);
   logActivity(
     'cita',
     `📅 Cita de obra: ${c.name} · ${z.town} · ` +
@@ -12126,9 +12130,8 @@ function renderCommercialWorkDay() {
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const safe = (c.name || 'cliente').replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 30);
       link.href = url;
-      link.download = `Cita_CRM_${safe}_${c.obraDate || ''}.json`;
+      link.download = `Cita_CRM_${c.obraDate || ''}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -12172,7 +12175,6 @@ if (!routeValidateAppointment(c, ctx)) return false;
       c.crmUploadedAt = Date.now();
       c.crmDate = c.obraDate;
       c.crmTime = c.obraTime;
-      setTimeout(() => showCitaSavedModal(c, ctx), 150);
       return true;
     }
 
@@ -12349,6 +12351,7 @@ if (!routeValidateAppointment(c, ctx)) return false;
       if (!townVal || townVal === 'Detectando...') { alert('Indica la localidad de la vivienda antes de guardar.'); return; }
       const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
 
+      const nuevaConfirmacion = needsCrmUpload(clientObj) && !isMikelTeamMember(comercialVal);
       if (!ensureCrmUpload(clientObj, {
   date: dateVal,
   town: townVal,
@@ -12396,6 +12399,7 @@ const labelStreet = clientObj.street ||
       editingSingleHouseIndex = null;
       pendingSingleHouseCoords = null;
       closeModal('singleHouseModal');
+      if (nuevaConfirmacion) showCitaSavedModal(clientObj, {town:townVal, comercial:comercialVal});
       renderAllSavedZones();
       updateHudLiveSalaryPill();
     }
@@ -15129,8 +15133,10 @@ function konsorNextSectorNumber(town) {
         z.clients.push(client);
       });
 
+      const confirmaciones = [];
             for (const cl of z.clients) {
         if (cl.captacionInvalida)continue;
+        if (needsCrmUpload(cl) && !isMikelTeamMember(z.comercial)) confirmaciones.push(cl);
         if (!ensureCrmUpload(cl, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) {
           z.clients = prevClients;
           return;
@@ -15158,6 +15164,7 @@ function konsorNextSectorNumber(town) {
 
       if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
       closeModal('dumpModal');
+      if (confirmaciones.length) showCitaSavedModal(confirmaciones.at(-1), z);
       renderAllSavedZones();
       updateHudLiveSalaryPill();
            try {
@@ -19636,14 +19643,14 @@ function openCommercialStatsModalLegacy() {
 <script src="./inicio-ios.js?v=20"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=5">
 <script src="./direccion-hub-ios.js?v=13"></script>
-<script src="./volcado-guiado-ios.js?v=5"></script>
+<script src="./volcado-guiado-ios.js?v=6"></script>
 <script src="./vivienda-guiada-ios.js?v=3"></script>
 
 <script src="./jornadas-seguimiento.js?v=konsor-v5"></script>
 <link rel="stylesheet" href="./oficina-llamadas-obras-v2.css?v=10">
 <link rel="stylesheet" href="./konsor-legacy-light.css?v=1">
 <link rel="stylesheet" href="./ios-unified.css?v=12">
-<script src="./oficina-llamadas-obras-v2.js?v=19"></script>
+<script src="./oficina-llamadas-obras-v2.js?v=20"></script>
 <script src="./asignaciones-zonas-ios.js?v=1"></script>
 <script src="./avisos-app.js?v=9"></script>
 <script src="./navegacion-ios.js?v=6"></script>

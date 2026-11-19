@@ -43,3 +43,11 @@ El privilegio global propuesto para el creador alcanza los indicadores agregados
 
 Producción se mantiene separada. El arranque vacío se comprueba con un proyecto sin registros reales y cuentas ficticias.
 
+## Citas y futura conexión al CRM
+
+El proceso actual incluye una exportación manual de una ficha y una declaración del comercial de que la ha subido. El campo histórico `crmUploaded` expresa esa declaración. El borrador retrasa la confirmación visual de la cita hasta que el guardado devuelve éxito y omite el nombre del cliente en el nombre del archivo exportado.
+
+Si la empresa acepta la aplicación, la integración tendrá una única entrada en el sistema externo. Tras confirmar la reserva en KONSOR, el servidor registrará una entrega pendiente, identificada por ficha y versión de la cita. El adaptador enviará los campos acordados al CRM, guardará su identificador y distinguirá entre pendiente, aceptada y en revisión. El CRM gestionará la obra en Google Calendar. Para cambios de fecha y cancelaciones habrá que acordar cómo actualizar el mismo registro, incluido el caso de una respuesta perdida.
+
+La implementación del adaptador depende del producto y versión del CRM, su mecanismo de entrada, esquema de campos, autenticación y un entorno de pruebas de la empresa. La prueba de aceptación deberá verificar que reservar, reintentar y reprogramar termina con una ficha y un único evento en el calendario corporativo.
+

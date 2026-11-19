@@ -16,17 +16,23 @@ function valid(b){
 function invalid(b){return b.dataset.konsorInvalidPhone==="1" && Boolean(b.querySelector(".client-street")?.value.trim()&&b.querySelector(".client-name")?.value.trim());}
 const completed=()=>boxes().filter(valid).length;
 const resolved=()=>boxes().filter(b=>valid(b)||invalid(b)).length;
-function field(parent,id,label,type="number"){
- const orig=original(id);if(!orig)return null;
- const row=el("label","cng-field",undefined,parent);el("span","",label,row);
- let node;
- if(orig.tagName==="SELECT"){node=orig.cloneNode(true);node.removeAttribute("id");node.removeAttribute("onchange");row.append(node);node.value=orig.value;
-  node.addEventListener("change",()=>{orig.value=node.value;orig.dispatchEvent(new Event("change",{bubbles:true}));if(id==="dumpProgressState")render();});
- }else{node=el("input","",undefined,row);node.type=type;node.value=orig.value;node.placeholder=type==="number"?"0":"";
-  node.addEventListener("input",()=>{orig.value=node.value;orig.dispatchEvent(new Event("input",{bubbles:true}));});
-  node.addEventListener("change",()=>{orig.dispatchEvent(new Event("change",{bubbles:true}));});
+// Cada paso presenta el mismo control que consumen el cálculo y el guardado.
+const positions = new Map();
+function field(parent, id, label) {
+ const input = original(id);
+ if (!input) return;
+ const row = el("label", "cng-field", undefined, parent);
+ el("span", "", label, row);
+ const anchor = document.createComment(id);
+ input.before(anchor);
+ positions.set(input, anchor);
+ row.append(input);
+}
+function restoreFields() {
+ for (const [input, anchor] of positions) {
+  if (anchor.isConnected) anchor.replaceWith(input);
  }
- return node;
+ positions.clear();
 }
 function sectorStatusControl(parent){
  const orig=original("dumpProgressState");if(!orig)return;
@@ -49,15 +55,7 @@ function sectorStatusControl(parent){
   row.append(choice);
  });
  if(orig.value==="en_proceso"){
-  const real=original("dumpPendingNote");
-  if(real){
-   const label=el("label","cng-field",undefined,section);
-   el("span","","Qué queda por terminar",label);
-   const input=el("input","",undefined,label);
-   input.type="text";input.value=real.value||"";
-   input.placeholder="Ej. Falta la acera de los números pares";
-   input.addEventListener("input",()=>{real.value=input.value;real.dispatchEvent(new Event("input",{bubbles:true}));});
-  }
+  field(section,"dumpPendingNote","Qué queda por terminar");
  }
 }
 function resetPlanIfChanged(){
@@ -100,6 +98,7 @@ function members(group){
 }
 function summary(parent,main,detail){const x=el("div","cng-summary",undefined,parent);el("strong","",main,x);if(detail)el("p","",detail,x);return x;}
 function render(){
+ restoreFields();
  const body=original("dumpModalBodyContent");if(!body||!body.querySelector(".cng-original"))return;
  resetPlanIfChanged();
  let ui=body.querySelector("#cngGuidedSheet");if(!ui){ui=el("section","cng-sheet");ui.id="cngGuidedSheet";body.prepend(ui);}
@@ -115,7 +114,7 @@ function render(){
   field(grid,"dumpPapelito","Información / papelitos");
   field(ui,"dumpYaAislado","Ya aislados");
   field(ui,"dumpSi","Sí · interesados");
-  field(ui,"dumpDate","Fecha real del trabajo","date");
+  field(ui,"dumpDate","Fecha real del trabajo");
   summary(ui,(number("dumpNo")+number("dumpAusente")+number("dumpPapelito")+number("dumpYaAislado")+number("dumpSi"))+" respuestas registradas","Los síes son personas interesadas, NO fichas completadas.");
   ui.append(button("Continuar · Distribuir viviendas",()=>{if(number("dumpSi")<0){alert("Revisa el recuento.");return;}initializePlan();step=1;render();},"primary"));
  }else if(step===1){
