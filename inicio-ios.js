@@ -103,7 +103,7 @@ function showHome(){
  el("strong","","TU TRABAJO",caption);el("span","","Accesos principales",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
  tile(grid,"Mi jornada","Ruta, actividad y fichaje","calendar",openDay);
- tile(grid,"Mapa","Satélite, GPS y Catastro","map",showMap);
+ tile(grid,"Mapa","Satélite, GPS y Catastro","map",()=>showMap(true));
  tile(grid,"Oficina","Volcados, llamadas y citas","office",openOffice);
  tile(grid,"Resultados","Tu progreso y clasificación","results",()=>window.openCnResults?.());
  if(boss()){
@@ -233,10 +233,10 @@ function makeMapBar(){
  el("p","cnv-map-tip","Toca una parcela para consultar Catastro. Para medir, marca las esquinas del tejado.",mapBar).id="cnvMapInstruction";
  return mapBar;
 }
-function showMap(){
+function showMap(followGps=false){
  if(!hasSession())return;
  screen="map";
- window.cnvFollowGps?.(true);
+ window.cnvFollowGps?.(followGps === true);
  document.body.classList.remove("cnv-home-active");document.body.classList.add("cnv-map-active");
  makeMapBar();
  window.cnvStartLiveGps?.();
