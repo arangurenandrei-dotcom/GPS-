@@ -1941,14 +1941,7 @@ body.cnv-home-active .cnv-map-toolbar{display:none!important}
 
         <div class="input-group">
           <span class="input-label">Responsable</span>
-          <select id="assignComercial" class="select-field">
-            <option value="Andrei (Jefe)">Andrei (Trabajo propio)</option>
-            <option value="Comercial 1">Comercial 1</option>
-            <option value="Comercial 2">Comercial 2</option>
-            <option value="Comercial 3">Comercial 3</option>
-            <option value="Comercial 4">Comercial 4</option>
-            <option value="Comercial 5">Comercial 5</option>
-          </select>
+          <select id="assignComercial" class="select-field"></select>
         </div>
 
         <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px;">
@@ -3897,6 +3890,7 @@ function openUserProfileModal() {
       window.authApi.watchProfiles(list => {
         const prevPending = new Set(accessProfiles.filter(p => p.estado === 'pendiente').map(p => p.uid));
         accessProfiles = list;
+        refreshSectorAssignees();
         const fresh = list.filter(p => p.estado === 'pendiente' && !prevPending.has(p.uid));
         if (!first && fresh.length > 0) {
           triggerHapticAndSound('alert');
@@ -3993,23 +3987,25 @@ function openUserProfileModal() {
 
     /* ORGANIZACIÓN DE TRABAJO Y DIRECCIÓN */
 
+function refreshSectorAssignees() {
+  const select = document.getElementById('assignComercial');
+  if (!select || currentUserRole !== 'jefe') return;
+  const previous = select.value;
+  const isMikel = isMikelTeamMember(currentUserName);
+  const names = isMikel ? getActiveTeamUsers(true) : [currentUserName, ...accessProfiles
+    .filter(profile => profile.estado === 'aprobado' && /^comercial[1-5]$/.test(profile.userKey))
+    .map(profile => CANONICAL_USER_NAMES[profile.userKey])];
+  select.replaceChildren(...Array.from(new Set(names), name => new Option(getDisplayAlias(name), name)));
+  select.value = names.includes(previous) ? previous : currentUserName;
+  select.closest('.input-group').style.display = names.length === 1 ? 'none' : '';
+}
+
 function setupRoleInterface() {
   const isMikel = isMikelTeamMember(currentUserName);
   const isBoss = currentUserRole === 'jefe';
   const isAndrei = currentUserName === 'Andrei (Jefe)';
   // Cada jefe asigna sectores exclusivamente a su equipo.
-  const asignacion = document.getElementById('assignComercial');
-  if (asignacion && isBoss) {
-    asignacion.replaceChildren();
-
-    for (const nombre of getActiveTeamUsers(isMikel)) {
-      const opcion = document.createElement('option');
-      opcion.value = nombre;
-      opcion.textContent = getDisplayAlias(nombre);
-      asignacion.appendChild(opcion);
-    }
-  }
-
+  if (isBoss) refreshSectorAssignees();
 
   const authKey = sessionStorage.getItem('auth_user_key');
 
@@ -8142,7 +8138,10 @@ function renderBossPlan() {
           const ll=L.latLng(latitude,longitude);
           lastGpsAccuracy=accuracy;
           const reliable=accuracy<=100;
-          if(reliable){map.fire('locationfound',{latlng:ll,accuracy});map.setView(ll,Math.max(map.getZoom(),16));}
+          if (reliable) {
+            map.fire('locationfound', {latlng:ll, accuracy});
+            if (cnvGpsFollow) map.setView(ll, Math.max(map.getZoom(),16));
+          }
           const gpsBtn=document.querySelector('.hud-header .btn-hud.gps');
           if(gpsBtn)gpsBtn.title='Precisión GPS estimada: ±'+Math.round(accuracy)+' m';
           if(manual&&!reliable)alert('La precisión recibida es de ±'+Math.round(accuracy)+' m. No se ha centrado el mapa para evitar una posición engañosa. Prueba al aire libre y vuelve a pulsar GPS.');
@@ -8589,6 +8588,7 @@ function renderBossPlan() {
       const dropdown = document.getElementById('searchCandidatesDropdown');
       if (dropdown) dropdown.style.display = 'none';
 
+      cnvGpsFollow = false;
       const zoomLvl = c.isPortal ? 18 : 17;
       map.invalidateSize();
       map.setView([c.lat, c.lon], zoomLvl, { animate: false });
@@ -8618,7 +8618,8 @@ function renderBossPlan() {
           const basicTown = query.includes(',') ? query.split(',').pop().trim() : query.split(/\s+/).pop().trim();
           const res = await queryNominatimNavarra(basicTown);
           if (res && res.length > 0) {
-            map.setView([res[0].lat, res[0].lon], 15, { animate: false });
+            cnvGpsFollow = false;
+          map.setView([res[0].lat, res[0].lon], 15, { animate: false });
           } else {
             alert("Municipio no encontrado.");
           }
@@ -11763,23 +11764,7 @@ function renderCommercialWorkDay() {
       }
       if (btnConfirm) btnConfirm.style.display = 'inline-block';
 
-      const assignSel = document.getElementById('assignComercial');
-      if (assignSel) {
-        const isMikel = isMikelTeamMember(currentUserName);
-        assignSel.innerHTML = isMikel
-          ? `<option value="Mikel (Jefe)">👑 Mikel (Trabajo Propio)</option>
-             <option value="Mikel Com. 1">Mikel Com. 1</option>
-             <option value="Mikel Com. 2">Mikel Com. 2</option>
-             <option value="Mikel Com. 3">Mikel Com. 3</option>
-             <option value="Mikel Com. 4">Mikel Com. 4</option>
-             <option value="Mikel Com. 5">Mikel Com. 5</option>`
-          : `<option value="Andrei (Jefe)">Andrei (Trabajo propio)</option>
-             <option value="Comercial 1">Comercial 1</option>
-             <option value="Comercial 2">Comercial 2</option>
-             <option value="Comercial 3">Comercial 3</option>
-             <option value="Comercial 4">Comercial 4</option>
-             <option value="Comercial 5">Comercial 5</option>`;
-      }
+      refreshSectorAssignees();
 
       document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
     }
@@ -11802,23 +11787,7 @@ function renderCommercialWorkDay() {
         btnSingle.classList.remove('active');
         btnSingle.innerHTML = '🏠 Vivienda única';
         btnConfirm.style.display = 'inline-block';
-        const assignSel = document.getElementById('assignComercial');
-      if (assignSel) {
-        const isMikel = isMikelTeamMember(currentUserName);
-        assignSel.innerHTML = isMikel
-          ? `<option value="Mikel (Jefe)">👑 Mikel (Trabajo Propio)</option>
-             <option value="Mikel Com. 1">Mikel Com. 1</option>
-             <option value="Mikel Com. 2">Mikel Com. 2</option>
-             <option value="Mikel Com. 3">Mikel Com. 3</option>
-             <option value="Mikel Com. 4">Mikel Com. 4</option>
-             <option value="Mikel Com. 5">Mikel Com. 5</option>`
-          : `<option value="Andrei (Jefe)">Andrei (Trabajo propio)</option>
-             <option value="Comercial 1">Comercial 1</option>
-             <option value="Comercial 2">Comercial 2</option>
-             <option value="Comercial 3">Comercial 3</option>
-             <option value="Comercial 4">Comercial 4</option>
-             <option value="Comercial 5">Comercial 5</option>`;
-      }
+        refreshSectorAssignees();
 
       document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
     }
@@ -19502,6 +19471,7 @@ function openCommercialStatsModalLegacy() {
     }
 
     function centerOnUser() {
+      cnvGpsFollow = true;
       requestReliableGps(true);
     }
 
@@ -19649,7 +19619,7 @@ function openCommercialStatsModalLegacy() {
 <script src="./operaciones-ios.js?v=14"></script>
 <link rel="stylesheet" href="./resultados-unificados-ios.css?v=1">
 <script src="./resultados-ios.js?v=6"></script>
-<script src="./inicio-ios.js?v=20"></script>
+<script src="./inicio-ios.js?v=21"></script>
 <link rel="stylesheet" href="./direccion-hub-ios.css?v=5">
 <script src="./direccion-hub-ios.js?v=13"></script>
 <script src="./volcado-guiado-ios.js?v=6"></script>
