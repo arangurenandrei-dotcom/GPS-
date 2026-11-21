@@ -60,6 +60,8 @@ function render(){
   const lead=card(body,"TU SIGUIENTE ACCIÓN",s.unuploaded.length?"Hay "+s.unuploaded.length+" sectores que requieren revisión o volcado":s.incomplete.length?"Revisa "+s.incomplete.length+" fichas incompletas":s.pending.length?"Tienes "+s.pending.length+" clientes por gestionar":"Trabajo de Oficina al día",
    s.unuploaded.length?"Empieza por las calles ya terminadas y pendientes de volcar. Revisa después los sectores antiguos cuyo trabajo no conste como terminado.":s.incomplete.length?"Completa los datos esenciales antes de gestionar citas.":s.pending.length?"Continúa las llamadas hasta resolver la situación de cada cliente.":"Consulta las obras confirmadas o revisa el cierre.");
   lead.append(btn(s.unuploaded.length?"Volcar hojas pendientes":s.pending.length?"Continuar con clientes":"Ver agenda",()=>{if(s.unuploaded.length){section="volcados";render();}else if(s.pending.length)openCalls();else{section="agenda";render();}},"primary"));
+  const comunidad=card(body,"COMUNIDADES · SISTEMA CAE","Junta y expediente en dos pasos","Contacta con presidencia, prepara la convocatoria y registra el resultado de la junta en una ficha independiente.");
+  comunidad.append(btn("Gestionar comunidades",()=>{root().classList.remove("active");window.openKonsorComunidades?.();},"primary"));
   const steps=card(body,"RECORRIDO DE OFICINA","Cuatro momentos, una sola secuencia");
   [
    ["01 · Volcar hojas",s.streetFinished.length+" calles terminadas · "+s.unuploaded.length+" sectores por revisar","volcados"],
@@ -99,3 +101,6 @@ function render(){
 }
 window.openCnOffice=function(){section="home";render();root().classList.add("active");};
 })();
+
+/* Módulo independiente de Comunidades, sin alterar las fichas individuales. */
+(function(){const js=document.createElement('script');js.src='./comunidades-guiadas-ios.js?v=1';js.defer=true;document.head.append(js);})();
