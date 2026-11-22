@@ -3,7 +3,7 @@
  */
 (function(){
 "use strict";
-const $=(tag,cls,txt,parent)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=String(txt);if(parent)parent.appendChild(n);return n;};
+const $=window.KonsorUI.el;
 const b=(txt,fn,kind)=>{const n=$("button","cnx-btn "+(kind||""),txt);n.type="button";n.addEventListener("click",fn);return n;};
 const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("es").trim();
 const isTeam=z=>typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName);
