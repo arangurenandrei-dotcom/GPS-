@@ -68,6 +68,63 @@ async function main(){
    assert.ok(resultados.opened,label+' no abre Resultados desde la tarjeta de Inicio');
    assert.equal(resultados.heading,'Resultados',label+' título de Resultados ausente');
    assert.ok(resultados.content.length>30,label+' Resultados se abre pero aparece vacío');
+   await page.waitForSelector('#konsorResultsV3 .cn-global-nav .cn-global-back',{timeout:10000});
+   const layout=await page.evaluate(()=>{
+    const head=document.querySelector('#konsorResultsV3 .kr-head');
+    const left=head.querySelector('.cn-global-back').getBoundingClientRect();
+    const middle=head.querySelector('.cn-nav-title').getBoundingClientRect();
+    const right=head.querySelector('.cn-global-close').getBoundingClientRect();
+    return {
+      style:getComputedStyle(head).display,
+      leftWidth:left.width,rightWidth:right.width,
+      separate:left.right+3<=middle.left&&middle.right+3<=right.left,
+      inViewport:left.left>=0&&right.right<=window.innerWidth,
+      title:middle.width
+    };
+   });
+   assert.equal(layout.style,'grid',label+' cabecera no utiliza columnas separadas');
+   assert.equal(layout.leftWidth,44,label+' área táctil de la flecha');
+   assert.equal(layout.rightWidth,44,label+' área táctil de la X');
+   assert.ok(layout.separate&&layout.inViewport,label+' controles se superponen al título: '+JSON.stringify(layout));
+   assert.ok(layout.title>80,label+' sin ancho para el título');
+   await page.click('#konsorResultsV3 .cn-global-back');
+   assert.ok(await page.evaluate(()=>!document.getElementById('konsorResultsV3').classList.contains('active')),
+      label+' flecha no vuelve desde Resultados');
+   await page.evaluate(()=>window.openCnResults());
+   await page.waitForSelector('#konsorResultsV3 .cn-global-close');
+   await page.click('#konsorResultsV3 .cn-global-close');
+   assert.ok(await page.evaluate(()=>!document.getElementById('konsorResultsV3').classList.contains('active')),
+      label+' X no cierra Resultados');
+   await page.evaluate(()=>{
+     window.__navBackCount=0;
+     const overlay=document.createElement('div');
+     overlay.id='nav-internal-test';
+     overlay.className='modal-overlay active';
+     overlay.style.cssText='display:flex;z-index:20000;';
+     overlay.innerHTML='<div class="modal-card"><header class="modal-header"><span>Expediente con un título muy largo para comprobar que nunca se solapa</span><button type="button" onclick="document.getElementById(\'nav-internal-test\').classList.remove(\'active\')">×</button></header><div class="modal-scrollable-content"><button type="button" data-konsor-back="true" onclick="window.__navBackCount++">‹ Volver al paso anterior</button></div></div>';
+     document.body.append(overlay);
+   });
+   await page.waitForSelector('#nav-internal-test .cn-global-back',{timeout:10000});
+   await page.click('#nav-internal-test .cn-global-back');
+   const inner=await page.evaluate(()=>({back:window.__navBackCount,open:document.getElementById('nav-internal-test').classList.contains('active')}));
+   assert.equal(inner.back,1,label+' flecha no volvió al paso interno');
+   assert.equal(inner.open,true,label+' flecha cerró toda la sección');
+   if(width<500){
+     const swiped=await page.evaluate(()=>{
+       const target=document.querySelector('#nav-internal-test .modal-scrollable-content');
+       const touch=(x)=>new Touch({identifier:1,target,clientX:x,clientY:180,pageX:x,pageY:180});
+       const a=touch(6),b=touch(145);
+       target.dispatchEvent(new TouchEvent('touchstart',{touches:[a],changedTouches:[a],bubbles:true,cancelable:true}));
+       target.dispatchEvent(new TouchEvent('touchmove',{touches:[b],changedTouches:[b],bubbles:true,cancelable:true}));
+       target.dispatchEvent(new TouchEvent('touchend',{touches:[],changedTouches:[b],bubbles:true,cancelable:true}));
+       return window.__navBackCount;
+     });
+     assert.equal(swiped,2,'Deslizar desde la izquierda no activó el mismo paso atrás');
+   }
+   await page.click('#nav-internal-test .cn-global-close');
+   assert.ok(await page.evaluate(()=>!document.getElementById('nav-internal-test').classList.contains('active')),
+       label+' la X no cerró el expediente');
+   console.log('OK '+label+': cabecera sin solapes, flecha, X y pasos internos');
    console.log('OK '+label+': Inicio → Resultados abre y muestra contenido');
    console.log('OK '+label+': '+data.next+' · '+data.tiles+' accesos');
    await page.close();
