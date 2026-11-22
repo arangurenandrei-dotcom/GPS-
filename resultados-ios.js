@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 let period="month",date="",tab="mine",metric="captadas",scope="me",request=0;
-const $=(t,cls,txt,p)=>{const x=document.createElement(t);if(cls)x.className=cls;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
+const $=window.KonsorUI.el;
 const btn=(t,fn,cls="")=>{const b=$("button","kr-btn "+cls,t);b.type="button";b.onclick=fn;return b;};
 const fmt=n=>Number(n||0).toLocaleString("es-ES",{maximumFractionDigits:1});
 const cash=n=>Number(n||0).toLocaleString("es-ES",{style:"currency",currency:"EUR",maximumFractionDigits:2});
