@@ -28,7 +28,7 @@ const expenses=[
 const initialCash=845000;
 let scenario=50;
 const f=(c)=> (Number(c)/100).toLocaleString("es-ES",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2});
-const money=(s)=>/^[\d,.]+$/.test(String(s||""))?Math.round(Number(String(s).replace(/\./g,"").replace(",","."))*100):null;
+const money=(s)=>{let raw=String(s||"").trim();if(!/^[\d,.]+$/.test(raw))return null;let normalized=raw.includes(",")?raw.replace(/\./g,"").replace(",","."):raw;let parsed=Number(normalized);return Number.isFinite(parsed)&&parsed>=0?Math.round(parsed*100):null};
 const e=(s)=>String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const sum=(arr,func)=>arr.reduce((n,x)=>n+func(x),0);
 const get=(id)=>C[id];
