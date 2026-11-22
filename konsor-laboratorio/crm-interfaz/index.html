@@ -125,7 +125,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 </div>
 <div class="toast" id="toast" aria-live="polite"></div>
 <script src="./tecnico-demo.js"></script>
-<script src="./operaciones-demo.js"></script>
+<script src="./operaciones-v05.js"></script>
 <script>
 (function(){
 'use strict';
@@ -197,7 +197,7 @@ function canSee(j){var u=user();if(u.id==='ceo'||u.id==='jcom'||u.id==='jtec'||u
 function canFinance(){return ['ceo','jadm','adm'].indexOf(user().id)!==-1}
 function canPersonal(){return ['ceo','jcom','jeq','com','jofi','ofi'].indexOf(user().id)!==-1}
 function assigned(){return jobs.filter(canSee)}
-function defaultNav(){return [{id:'inicio',label:'Inicio',icon:'home'},{id:'trabajo',label:'Mi trabajo',icon:'list'},{id:'expedientes',label:'Expedientes',icon:'folder'},{id:'agenda',label:'Agenda',icon:'calendar'},{id:'herramientas',label:'Herramientas',icon:'tools'}].concat(user().boss?[{id:'equipo',label:'Equipo y estadísticas',icon:'chart'}]:[])}
+function defaultNav(){return [{id:'inicio',label:'Inicio',icon:'home'},{id:'trabajo',label:'Mi trabajo',icon:'list'},{id:'expedientes',label:'Expedientes',icon:'folder'},{id:'agenda',label:'Agenda',icon:'calendar'},{id:'herramientas',label:'Herramientas',icon:'tools'},{id:'remuneracion',label:'Mi remuneración',icon:'coins'}].concat(user().boss?[{id:'equipo',label:'Equipo y estadísticas',icon:'chart'}]:[])}
 function actions(row){return row.map(function(it){return '<button class="tool" data-tool="'+E(it[0])+'">'+icon(it[1])+' '+E(it[0])+'</button>'}).join('')}
 function titleBlock(k,h,p){return '<div class="greet"><div><span class="eyebrow">'+E(k)+'</span><h1>'+E(h)+'</h1><p>'+E(p)+'</p></div><span class="chip green">● DEMOSTRACIÓN</span></div>'}
 
@@ -217,7 +217,7 @@ $('sideNav').innerHTML=items.map(function(t){return '<button data-nav="'+t.id+'"
 $('bottomNav').innerHTML=items.slice(0,5).map(function(t){return '<button data-nav="'+t.id+'" class="'+(state.view===t.id?'active':'')+'">'+icon(t.icon)+'<span>'+t.label+'</span></button>'}).join('');
 $('sideUser').innerHTML='<div class="avatar">'+E(user().person.slice(0,2).toUpperCase())+'</div><div><strong>'+E(user().person)+'</strong><small>'+E(user().name)+'</small></div>'+icon('chevron','sm');
 $('topDept').textContent='KONSOR · '+(rgroup()==='dirección'?'DIRECCIÓN':rgroup().toUpperCase());
-var labels={inicio:'Panel principal',trabajo:'Asistente de trabajo',expedientes:'Expedientes',agenda:'Agenda y planificación',herramientas:'Herramientas',equipo:'Control de equipo'};
+var labels={inicio:'Panel principal',trabajo:'Asistente de trabajo',expedientes:'Expedientes',agenda:'Agenda y planificación',herramientas:'Herramientas',equipo:'Control de equipo',remuneracion:'Mi remuneración'};
 $('topTitle').textContent=labels[state.view]||'Mi espacio';
 }
 function getProgress(){return state.step[state.role]||0}
@@ -313,7 +313,7 @@ state.step[state.role]=n+1;closeModal();render();toast('Paso validado en la demo
 function openTool(name){
 if(/Edificio/.test(name)){openBuilding();return}
 if(rgroup()==='oficina'&&/Expedientes|Bandeja|Documentación|Revisiones|Subsanaciones|Comunidades/.test(name)){setView('trabajo');return}
-if(rgroup()==='administración'&&/Facturas|Cobros|pagos|Tickets|gastos|Flota|peajes|Comisiones|Tesorería/.test(name)){setView('trabajo');return}
+if(rgroup()==='administración'&&/Remuneraciones|Facturas|Cobros|pagos|Tarjetas|Tickets|gastos|Flota|peajes|Desviaciones|Comisiones|Tesorería/.test(name)){setView('trabajo');return}
 if(rgroup()==='técnicos'&&/Órdenes|Materiales|Ruta de instalaciones|Parte técnico|Incidencias|Fotograf|Fotos/.test(name)){setView('trabajo');return}
 if(/Expedientes|Bandeja|Fichas|Captación|Fotograf|Fotos/.test(name)){if(/Fotos|Fotograf/.test(name)){openNote(name,'Para el técnico, aquí aparecería la cámara, las fotos obligatorias y su orden de trabajo. En esta demo puedes abrir la pestaña Documentos de una ficha y elegir un archivo solo para visualizar su nombre.');return}setView('expedientes');return}
 if(/Mapa|Sectores|Catastro|Ruta/.test(name)){openNote(name,'Botón preparado en el diseño. Tal como pediste, el mapa y el cálculo de rutas no necesitan funcionar todavía.');return}
@@ -332,9 +332,9 @@ else if(rgroup()==='comercial'&&shiftStatus()==='off'&&u.id!=='ceo'&&step===0){n
 var opts={
 comercial:[['Mi jornada','Ruta, actividad y fichaje','calendar','jornada'],['Mapa','Satélite, GPS y Catastro','map','Mapa y Catastro'],['Oficina','Volcados, llamadas y citas','home','Llamadas y seguimiento'],['Resultados','Tu progreso y clasificación','chart','equipo']],
 técnicos:[['Mi jornada','Fichaje e instalaciones','calendar','jornada'],['Órdenes','Trabajos de tu cuadrilla','list','Órdenes de trabajo'],['Ruta','Visitas y desplazamientos','map','Ruta de instalaciones'],['Partes y fotos','Evidencias y materiales','camera','expedientes']],
-oficina:[['Mi bandeja','Expedientes pendientes','folder','expedientes'],['Revisión','Firmas, fotos y CAE','shield','trabajo'],['Subsanaciones','Solicitudes de corrección','refresh','Subsanaciones'],['Resultados','Tramitaciones y plazos','chart','equipo']],
-administración:[['Facturas','Emisión y revisión','file','expedientes'],['Cobros','Conciliación de pagos','coins','Cobros y pagos'],['Gastos','Tickets y desplazamientos','truck','Tickets y gastos'],['Resultados','Costes y tesorería','chart','equipo']],
-dirección:[['Departamentos','Equipos y personas','users','equipo'],['Expedientes','Estado global de obras','folder','expedientes'],['Resultados','Costes y rentabilidad','chart','equipo'],['Edificio','Centro de Operaciones','building','edificio']]
+oficina:[['Mi bandeja','Expedientes pendientes','folder','trabajo'],['Documentos','Envío al cliente y seguimiento','file','trabajo'],['Subsanaciones','Fotos y medidas pendientes','refresh','trabajo'],['Llamadas','Firmas y respuestas pendientes','phone','trabajo']],
+administración:[['Remuneraciones','Fijos y comisiones','coins','trabajo'],['Pagos','Confirmación del día 1 al 5','calendar','trabajo'],['Tarjetas y VIA-T','Combustible, peajes y comidas','truck','trabajo'],['Desviaciones','Comparar gasto y trayectos','chart','trabajo']],
+dirección:[['Empresa','Ingresos, gastos y previsiones','chart','trabajo'],['Colaboradores','Importes y cobros confirmados','users','trabajo'],['Gastos','Tarjetas, VIA-T y comidas','coins','trabajo'],['Edificio','Vista general de plantas','building','edificio']]
 };
 var action=shiftStatus()==='lunch'?'jornada':rgroup()==='comercial'&&u.boss&&shiftStatus()==='off'&&step===0?'Llamadas y seguimiento':'trabajo';
 if(rgroup()==='dirección')action='dirección';
@@ -345,6 +345,7 @@ home+='<div class="kn-section"><strong>TU TRABAJO</strong><span>Accesos principa
 if(u.boss)home+='<div class="kn-management"><div><span class="eyebrow">GESTIÓN DEL EQUIPO</span><h3>Dirección</h3><p>Planificación, territorio, supervisión y análisis.</p></div><button class="secondary" data-nav="equipo">Abrir dirección</button></div>';
 home+='<div class="kn-section" style="margin-top:29px"><strong>EDIFICIO KONSOR</strong><span>Consulta visual</span></div><div class="kn-management" style="background:#fff;margin-top:0"><div><h3 style="margin-top:0">Toda la empresa en un edificio</h3><p>Consulta puestos y agentes; vuelve a la aplicación para trabajar.</p></div><button class="secondary" data-building="open">'+icon('building')+' Ver edificio</button></div>';
 if(rgroup()==='comercial'){var cm=window.KonsorDemoOperaciones.commissions(opsContext());home+='<div class="kn-management" style="background:#fff"><div><div class="eyebrow">COMISIONES · HIPÓTESIS</div><h3>'+cm.reduce(function(s,x){return s+x.cents},0).toLocaleString('es-ES',{style:'currency',currency:'EUR'})+'</h3><p>Estimación de '+cm.reduce(function(s,x){return s+x.m2},0)+' m² ejecutados, a 1 €/m² de ejemplo. No es pago confirmado.</p></div><button class="secondary" data-nav="'+(u.boss?'equipo':'expedientes')+'">Ver desglose</button></div>'}
+home+='<div class="kn-management" style="background:#fff"><div><span class="eyebrow">MI REMUNERACIÓN · AVISO MENSUAL</span><h3>¿Has recibido tu pago?</h3><p>Consulta tu honorario fijo o comisión de 1 €/m², y confirma la recepción. Sin bancos ni gestoría dentro de KONSOR.</p></div><button class="secondary" data-nav="remuneracion">Abrir mis pagos</button></div>';
 home+='<footer class="kn-footer"><span>KONSOR · DEMOSTRACIÓN</span><span>Sin datos sincronizados</span></footer>';
 return home;
 }
@@ -405,7 +406,7 @@ function render(){
 if($('auth').style.display!=='none')return;
 document.body.classList.toggle('kn-home',state.view==='inicio');
 renderNav();
-var v=state.view;var h=v==='inicio'?renderHome():v==='trabajo'?renderWork():v==='expedientes'?renderFiles():v==='agenda'?renderAgenda():v==='herramientas'?renderTools():renderTeam();
+var v=state.view;var h=v==='inicio'?renderHome():v==='trabajo'?renderWork():v==='expedientes'?renderFiles():v==='agenda'?renderAgenda():v==='herramientas'?renderTools():v==='remuneracion'?window.KonsorDemoOperaciones.workerHTML(opsContext()):renderTeam();
 $('main').innerHTML=h;
 $('main').querySelectorAll('[data-job]').forEach(function(b){b.onclick=function(){openRecord(b.dataset.job)}});
 $('main').querySelectorAll('[data-step]').forEach(function(b){b.onclick=function(){checkStep(+b.dataset.step)}});
@@ -414,13 +415,13 @@ $('main').querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(
 $('main').querySelectorAll('[data-building]').forEach(function(b){b.onclick=openBuilding});
 if($('fileSearch')){$('fileSearch').oninput=function(e){state.search=e.target.value;var focus=this.selectionStart;var newlist=assigned().filter(function(j){return (j.id+' '+j.name+' '+j.town+' '+j.service).toLocaleLowerCase('es').includes(state.search.toLocaleLowerCase('es'))});$('fileCards').innerHTML=newlist.length?newlist.map(function(j){return '<button class="filecard" data-job="'+j.id+'"><div class="avatar">'+icon('file')+'</div><div style="flex:1;min-width:0"><strong>'+j.id+' · '+E(j.name)+'</strong><small>'+E(j.town)+' · '+E(j.service)+'</small></div><span class="chip">'+E(j.stage)+'</span>'+icon('chevron','sm')+'</button>'}).join(''):'<div class="empty">Sin coincidencias.</div>';$('fileCards').querySelectorAll('[data-job]').forEach(function(b){b.onclick=function(){openRecord(b.dataset.job)}})}} 
 if($('resetFlow'))$('resetFlow').onclick=function(){state.step[state.role]=0;render()};
-if(rgroup()==='técnicos'&&state.view==='trabajo')window.KonsorDemoTecnicos.mount({role:state.role,shift:shiftStatus(),jobs:jobs,openShift:showShiftPanel,rerender:render,toast:toast});
-if(['técnicos','oficina','administración','dirección'].includes(rgroup())&&state.view==='trabajo'||state.view==='equipo'&&user().boss)window.KonsorDemoOperaciones.mount(opsContext());
+if(rgroup()==='técnicos'&&state.view==='trabajo')window.KonsorDemoTecnicos.mount({role:state.role,shift:shiftStatus(),jobs:jobs,openShift:showShiftPanel,rerender:render,toast:toast,onComplete:function(job,detail){window.KonsorDemoOperaciones.techCompleted(job.id,detail)}});
+if((['técnicos','oficina','administración','dirección'].includes(rgroup())&&state.view==='trabajo')||(state.view==='equipo'&&user().boss)||state.view==='remuneracion')window.KonsorDemoOperaciones.mount(opsContext());
 if($('homeActivity'))$('homeActivity').onclick=function(){openActivity('inbox')};
 if($('homeSettings'))$('homeSettings').onclick=returnLogin;
 if($('nextRecommended'))$('nextRecommended').onclick=function(){if(shiftStatus()==='lunch')showShiftPanel();else if(rgroup()==='comercial'&&user().boss&&shiftStatus()==='off'&&getProgress()===0)openTool('Llamadas y seguimiento');else setView('trabajo')};
 $('main').querySelectorAll('[data-jornada]').forEach(function(b){b.onclick=showShiftPanel});
-$('main').querySelectorAll('[data-quick]').forEach(function(b){var t=({comercial:[['jornada'],['Mapa y Catastro'],['Llamadas y seguimiento'],['equipo']],técnicos:[['jornada'],['Órdenes de trabajo'],['Ruta de instalaciones'],['expedientes']],oficina:[['expedientes'],['trabajo'],['Subsanaciones'],['equipo']],administración:[['expedientes'],['Cobros y pagos'],['Tickets y gastos'],['equipo']],dirección:[['equipo'],['expedientes'],['equipo'],['edificio']]})[rgroup()][+b.dataset.quick][0];b.onclick=function(){if(t==='jornada')showShiftPanel();else if(t==='edificio')openBuilding();else if(['equipo','trabajo','expedientes'].includes(t))setView(t);else openTool(t)}});
+$('main').querySelectorAll('[data-quick]').forEach(function(b){var t=({comercial:[['jornada'],['Mapa y Catastro'],['Llamadas y seguimiento'],['equipo']],técnicos:[['jornada'],['Órdenes de trabajo'],['Ruta de instalaciones'],['expedientes']],oficina:[['trabajo'],['trabajo'],['trabajo'],['trabajo']],administración:[['trabajo'],['trabajo'],['trabajo'],['trabajo']],dirección:[['trabajo'],['trabajo'],['trabajo'],['edificio']]})[rgroup()][+b.dataset.quick][0];b.onclick=function(){if(t==='jornada')showShiftPanel();else if(t==='edificio')openBuilding();else if(['equipo','trabajo','expedientes'].includes(t))setView(t);else openTool(t)}});
 }
 function setView(view){if(view==='equipo'&&!user().boss)view='inicio';state.view=view;render();window.scrollTo(0,0)}
 function enter(){state.view='inicio';$('auth').style.display='none';$('app').style.display='block';render();showShiftPrompt()}
@@ -469,7 +470,7 @@ $('modalContent').innerHTML=h;$('overlay').classList.add('active');
 $('modalContent').querySelectorAll('[data-activity-tab]').forEach(function(b){b.onclick=function(){state.activityTab=b.dataset.activityTab;drawActivity()}});
 $('modalContent').querySelectorAll('[data-dismiss]').forEach(function(b){b.onclick=function(){var x=currentNotices().find(function(t){return t.id===b.dataset.dismiss});if(x)x.read=true;drawActivity()}});
 $('modalContent').querySelectorAll('[data-task]').forEach(function(b){b.onclick=function(){var t=currentTasks().find(function(t){return t.id===b.dataset.task});if(!t)return;if(b.dataset.kind==='ack')t.ack=true;if(b.dataset.kind==='resolve')t.done=true;if(b.dataset.kind==='open'){closeModal();setView('expedientes');return}drawActivity()}});
-$('modalContent').querySelectorAll('[data-ops-activity]').forEach(function(b){b.onclick=function(){closeModal();setView('trabajo')}});
+$('modalContent').querySelectorAll('[data-ops-activity]').forEach(function(b){b.onclick=function(){var found=window.KonsorDemoOperaciones.activityTasks(opsContext()).find(function(t){return t.id===b.dataset.opsActivity});closeModal();setView(found&&found.destination||'trabajo')}});
 if($('prefPhone'))$('prefPhone').onchange=function(){state.prefs[state.role]=this.checked;toast('Preferencia cambiada solo en la demo')};
 }
 function openNote(title,detail){$('modalKicker').textContent='HERRAMIENTA · DEMOSTRACIÓN';$('modalTitle').textContent=title;$('modalContent').innerHTML='<div class="note">'+E(detail)+'</div><div style="text-align:right"><button class="secondary" id="noteClose">Volver al trabajo</button></div>';$('overlay').classList.add('active');$('noteClose').onclick=closeModal}
