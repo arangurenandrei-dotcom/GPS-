@@ -140,7 +140,7 @@ function officeCaseHTML(ctx,j){
  }
  if(st.code==='hold')return html+'<div class="ops-note">Esta actuación debe completarse en la plataforma externa o por Técnicos antes de preparar documentos para el cliente.</div>';
  if(!s.reviewed){
- html+='<div class="ops-note">Los archivos/mediciones obligatorios figuran disponibles. Oficina debe comprobar que son correctos y legibles antes de proceder.</div><button class="ops-primary" id="opReview">Revisión documental realizada →</button>';
+ html+='<div class="ops-note">Los archivos/mediciones obligatorios figuran disponibles. Oficina debe comprobar que son correctos y legibles antes de proceder.</div><button class="ops-primary" id="opReview">Revisión documental realizada →</button><button class="ops-secondary" id="opBadPhoto">La foto no es legible · Solicitar otra</button>';
  return html;
  }
  if(!s.sent){
@@ -166,6 +166,7 @@ function officeOpen(ctx,id){
   const get=id=>document.getElementById(id);
   if(get('opAskTech'))get('opAskTech').onclick=()=>{const miss=missing(j.id);if(!miss.length)return;corrections[j.id]={field:miss[0],jobId:id,crew:j.crew,done:false};ctx.closeModal();ctx.rerender();ctx.toast('Tarea ficticia creada en Técnicos, vinculada al expediente')};
   if(get('opReview'))get('opReview').onclick=()=>{if(missing(j.id).length||!docs[j.id].techDone)return ctx.toast('Bloqueo: faltan evidencias o instalación');s.reviewed=true;ctx.closeModal();ctx.rerender();ctx.toast('Revisión completada. Preparar documentos para firma.')};
+  if(get('opBadPhoto'))get('opBadPhoto').onclick=()=>{docs[j.id].despues=false;corrections[j.id]={field:'despues',jobId:id,crew:j.crew,done:false};s.reviewed=false;ctx.closeModal();ctx.rerender();ctx.toast('Nueva foto solicitada al técnico por falta de legibilidad (demo)')};
   if(get('opExternal'))get('opExternal').onclick=()=>ctx.toast('En producción se configurará la URL legal utilizada por Oficina.');
   if(get('opDocument'))get('opDocument').onchange=function(){const file=this.files?.[0];s.filename=file&&/\.pdf$/i.test(file.name)?file.name:'';get('opFileStatus').textContent=s.filename?'PDF seleccionado: '+s.filename+' (solo nombre local)':'Selecciona un PDF válido';};
   if(get('opSend'))get('opSend').onclick=()=>{
