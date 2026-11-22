@@ -32,6 +32,25 @@ const sameTown=(a,b)=>!!(town(a)&&town(a)===town(b));
 /* El nuevo motor no emplea radios arbitrarios de 2, 5 u 8 km.
    Las rutas entre municipios requieren comprobación de carretera. */
 const candidateOf=i=>!!(i&&callable(i));
+/* Agrupación determinista por municipio y calle, sin inventar radios de cercanía.
+   Prioridad: trabajo más antiguo y, a igual fecha, más viviendas de esa calle. */
+function clusters(candidates){
+ const grouped=new Map();
+ for(const item of Array.isArray(candidates)?candidates:[]){
+  if(!item||!item.c||!item.z)continue;
+  const municipality=town(item),road=street(item);
+  if(!municipality||!road)continue;
+  const key=municipality+'\\u0000'+road;
+  if(!grouped.has(key))grouped.set(key,[]);
+  grouped.get(key).push(item);
+ }
+ return [...grouped.values()]
+  .map(rows=>rows.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||
+    a.zi-b.zi||a.ci-b.ci))
+  .sort((a,b)=>String(a[0].date||'').localeCompare(String(b[0].date||''))||
+    b.length-a.length||town(a[0]).localeCompare(town(b[0]),'es')||
+    street(a[0]).localeCompare(street(b[0]),'es'));
+}
 function firstRecommended(){
  const candidates=all().filter(candidateOf),groups=clusters(candidates);
  return groups.length?groups[0][0]:candidates[0]||null;
