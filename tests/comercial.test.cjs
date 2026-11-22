@@ -28,7 +28,8 @@ test('all extracted app scripts parse, including Firebase module',()=>{
    ['app/legacy/limpieza-visual.js','cjs'],
    ['app/core/konsor-modulos.js','cjs'],
    ['app/core/modelo-fichas-v2.js','cjs'],
-   ['app/core/asistente-operativo.js','cjs']
+   ['app/core/asistente-operativo.js','cjs'],
+   ['app/ui/componentes-ios.js','cjs']
   ];
   let i=0;
   for(const [source,ext] of scripts){
