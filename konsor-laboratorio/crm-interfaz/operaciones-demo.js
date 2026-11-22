@@ -192,6 +192,22 @@ function extraRecord(ctx,j,tab){
  }
  return "";
 }
+function activityTasks(ctx){
+ const result=[];
+ if(ctx.group==="técnicos"){
+  Object.values(correction).filter(t=>t.crew==="C1"&&!t.done).forEach(t=>result.push({id:t.id,title:"Subsanación técnica · "+t.jobId,text:labels[t.field]+" pendiente de aportar en el expediente. Tarea creada desde Oficina.",destination:"trabajo"}));
+ }
+ if(ctx.group==="oficina"){
+  const a=officeAnalysis(ctx);
+  a.review.forEach(j=>result.push({id:"R-"+j.id,title:"Revisión preparada · "+j.id,text:"La documentación está disponible. Requiere comprobación y validación de Oficina.",destination:"trabajo"}));
+  a.missing.filter(j=>j.stage==="Documentación").forEach(j=>result.push({id:"D-"+j.id,title:"Documentación incompleta · "+j.id,text:"KONSOR ha detectado "+docMissing(j.id).length+" requisito(s) pendiente(s) y puede preparar la subsanación.",destination:"trabajo"}));
+ }
+ if(ctx.group==="administración"){
+  const a=financeAnalysis(ctx);
+  a.unpaidInvoices.forEach(j=>result.push({id:"C-"+j.id,title:"Cobro pendiente · "+j.id,text:"Saldo facturado pendiente: "+f(get(j.id).finance.invoiced-get(j.id).finance.received)+". No se presume cobrado.",destination:"trabajo"}));
+ }
+ return result;
+}
 function techInbox(ctx){
  const todo=Object.values(correction).filter(x=>x.crew==="C1"&&!x.done);
  if(!todo.length)return "";
@@ -272,5 +288,5 @@ function tests(){
  return {cases:C,correction,payables,expenses,initialCash,scenario,docStatus,officeAnalysis,financeAnalysis,commissions,planMissing:docMissing,labels,
          simulateDocumentUpload(id,field){if(!C[id]||!labels[field])return false;C[id].docs[field]=true;return true}};
 }
-window.KonsorDemoOperaciones={officeHTML,adminHTML,ceoHTML,bossHTML,next,extraRecord,techInbox,mount,commissions,officeAnalysis,financeAnalysis,tests,action};
+window.KonsorDemoOperaciones={officeHTML,adminHTML,ceoHTML,bossHTML,next,extraRecord,techInbox,activityTasks,mount,commissions,officeAnalysis,financeAnalysis,tests,action};
 })();
