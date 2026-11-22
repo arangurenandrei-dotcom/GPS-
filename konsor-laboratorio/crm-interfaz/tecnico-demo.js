@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const stateByRole={};
-const material={bagKg:15,kgPerM2:1.5,marginPct:10};
+const material={bagKg:15,kgPerM2:1.5,marginPct:10,spareBags:2};
 const num=(x)=>Number(x);
 const esc=(x)=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const state=(role)=>stateByRole[role]||(stateByRole[role]={loaded:false,baseBags:0,extraBags:0,index:0,arrived:false,usage:{},evidence:{},finished:false});
@@ -27,7 +27,7 @@ function next(ctx){
   if(ctx.shift==='lunch')return {title:'Pausa de comida activa',detail:'Reanuda tu jornada para continuar con las instalaciones.'};
   if(ctx.shift==='ended')return {title:'Jornada finalizada',detail:'Consulta lo realizado y las incidencias pendientes.'};
   if(!p.valid)return {title:'Configura el material',detail:'Falta el peso del saco o el consumo técnico por m².'};
-  if(!s.loaded)return {title:'Prepara '+p.total+' sacos para '+p.rows.length+' viviendas',detail:p.m2+' m² estimados · '+material.bagKg+' kg/saco · '+material.kgPerM2+' kg/m² · '+material.marginPct+' % de margen. KONSOR ya ha hecho el cálculo.'};
+  if(!s.loaded)return {title:'Prepara '+(p.total+material.spareBags)+' sacos para '+p.rows.length+' viviendas',detail:'Mínimo calculado: '+p.total+' sacos para '+p.m2+' m² aproximados. Añadimos '+material.spareBags+' de reserva para imprevistos. No necesitas saber el precio del material.'};
   if(s.finished)return {title:'Todas las instalaciones revisadas',detail:'Se han registrado las cantidades utilizadas. Comprueba el material sobrante.'};
   return {title:s.arrived?'Instalación '+active.job.id+' · '+active.job.town:'Siguiente destino: '+active.job.town,detail:s.arrived?'Registra la ejecución real y las evidencias de la obra.':'Carga confirmada. Abre la ruta de la primera vivienda y empieza el trabajo.'};
 }
@@ -43,7 +43,7 @@ h+='<div class="kt-phases"><span class="'+(ctx.shift==='working'?'done':'active'
 h+='<section class="kt-card"><div class="eyebrow">SIGUIENTE ACCIÓN RECOMENDADA</div><h2>'+esc(n.title)+'</h2><p>'+esc(n.detail)+'</p>';
 if(ctx.shift==='off'||ctx.shift==='lunch')h+='<button class="kt-primary" id="ktShift">'+(ctx.shift==='off'?'Iniciar jornada':'Reanudar jornada')+' →</button>';
 else if(ctx.shift==='ended')h+='<div class="kt-warning">La jornada está finalizada; las actuaciones pendientes siguen pendientes.</div>';
-else if(!s.loaded)h+='<button class="kt-primary" id="ktLoaded" '+(!p.valid||!p.rows.length?'disabled':'')+'>He cargado los '+p.total+' sacos →</button>';
+else if(!s.loaded)h+='<button class="kt-primary" id="ktLoaded" '+(!p.valid||!p.rows.length?'disabled':'')+'>He cargado '+(p.total+material.spareBags)+' sacos →</button>';
 else if(!s.finished&&!s.arrived)h+='<button class="kt-primary" id="ktMap">Abrir ruta a '+esc(active.job.town)+' ↗</button><button class="kt-secondary" id="ktArrive">He llegado a la vivienda</button>';
 else if(s.finished)h+='<span class="chip green">Todas las instalaciones ficticias registradas</span>';
 else h+='<span class="chip green">Instalación en curso · '+esc(active.job.id)+'</span>';
@@ -51,9 +51,10 @@ h+='</section>'+stats(p);
 if(!s.loaded){
 h+='<section class="kt-card"><span class="eyebrow">ALMACÉN · MATERIAL PREPARADO</span><h2>Carga calculada automáticamente</h2><p>El sistema utiliza las superficies previstas de cada vivienda y las características del producto. La cuadrilla solo comprueba y carga el material.</p>';
 h+='<div class="kt-inputs"><label>Kg por saco<input id="ktBag" type="number" min="0.01" step="0.5" value="'+material.bagKg+'"></label><label>Consumo kg/m²<input id="ktUse" type="number" min="0.01" step="0.1" value="'+material.kgPerM2+'"></label><label>Margen %<input id="ktMargin" type="number" min="0" max="50" step="1" value="'+material.marginPct+'"></label></div>';
-h+='<div class="kt-warning"><b>Valores ficticios.</b> Deben sustituirse por la ficha técnica del producto y el espesor/densidad de cada obra. Fórmula: redondear hacia arriba [m² × consumo kg/m² × (1 + margen) ÷ kg/saco].</div>';
+h+='<label class="kt-spare">Sacos extra recomendados para incidencias<input id="ktSpare" type="number" min="0" max="30" step="1" value="'+material.spareBags+'"></label>';
+h+='<div class="kt-warning"><b>Valores ficticios.</b> El producto real tendrá sus parámetros definidos por responsable técnico. Fórmula: redondear hacia arriba [m² × consumo kg/m² × (1 + margen) ÷ kg/saco]. El técnico solo comprueba la carga física.</div>';
 h+='<div class="kt-subtitle">MATERIAL POR VIVIENDA</div>'+p.rows.map((x,i)=>row(x,i,s)).join('');
-h+='<div class="kt-total"><strong>'+p.total+' sacos</strong><small>Carga total propuesta · '+p.kg.toFixed(1).replace('.',',')+' kg calculados antes del margen</small></div></section>';
+h+='<div class="kt-total"><strong>'+(p.total+material.spareBags)+' sacos recomendados</strong><small>'+p.total+' sacos calculados para las obras + '+material.spareBags+' sacos extra de reserva. '+p.kg.toFixed(1).replace('.',',')+' kg teóricos antes del margen.</small></div></section>';
 }else{
 h+='<section class="kt-card"><span class="eyebrow">INVENTARIO DE LA CUADRILLA</span><h2>'+remaining(s)+' sacos disponibles</h2><p>Cargados: '+(s.baseBags+s.extraBags)+' · Utilizados: '+used+'. El recuento físico prevalece sobre esta estimación.</p>';
 if(!s.finished)h+='<button class="kt-secondary" id="ktExtra">Registrar material adicional</button>';
@@ -82,10 +83,10 @@ const byId=(id)=>document.getElementById(id);
 const rerender=()=>ctx.rerender();
 const ensureActive=()=>ctx.shift==='working';
 if(byId('ktShift'))byId('ktShift').onclick=ctx.openShift;
-for(const [id,key] of [['ktBag','bagKg'],['ktUse','kgPerM2'],['ktMargin','marginPct']]){
-const el=byId(id);if(el)el.onchange=()=>{const v=num(el.value);if(!Number.isFinite(v)||v<0){ctx.toast('Introduce una cantidad válida');return}material[key]=v;rerender()};
+for(const [id,key] of [['ktBag','bagKg'],['ktUse','kgPerM2'],['ktMargin','marginPct'],['ktSpare','spareBags']]){
+const el=byId(id);if(el)el.onchange=()=>{const v=num(el.value);if(!Number.isFinite(v)||v<0||(key==='spareBags'&&(!Number.isInteger(v)||v>30))){ctx.toast('Introduce una cantidad válida');return}material[key]=v;rerender()};
 }
-if(byId('ktLoaded'))byId('ktLoaded').onclick=()=>{const p=plan(ctx);if(!ensureActive()||!p.valid||!p.rows.length)return ctx.toast('Comprueba jornada, órdenes y parámetros del material');s.baseBags=p.total;s.loaded=true;s.index=0;s.arrived=false;rerender();ctx.toast('Carga ficticia registrada, ruta preparada')};
+if(byId('ktLoaded'))byId('ktLoaded').onclick=()=>{const p=plan(ctx);if(!ensureActive()||!p.valid||!p.rows.length)return ctx.toast('Comprueba jornada, órdenes y parámetros del material');s.baseBags=p.total;s.extraBags=material.spareBags;s.loaded=true;s.index=0;s.arrived=false;rerender();ctx.toast('Carga ficticia registrada, ruta preparada')};
 if(byId('ktMap'))byId('ktMap').onclick=()=>{
  if(!s.loaded||!ensureActive())return;
  const j=plan(ctx).rows[s.index]?.job;if(!j)return;
@@ -109,6 +110,7 @@ if(byId('ktFinish'))byId('ktFinish').onclick=()=>{
  if(Number.isInteger(bags)&&bags>remaining(s))errors.push('No quedan tantos sacos cargados. Registra una reposición');
  if(errors.length){byId('ktError').innerHTML='<div class="kt-error">'+errors.map(esc).join(' · ')+'</div>';return}
  s.usage[j.id]={m2,bags};
+ if(typeof ctx.onComplete==='function')ctx.onComplete(j,{m2,bags,before:ev.before,after:ev.after});
  s.index++;
  s.arrived=false;
  s.finished=s.index>=p.rows.length;
