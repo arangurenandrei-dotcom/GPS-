@@ -78,6 +78,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 <link rel="stylesheet" href="./tecnico-demo.css">
 <link rel="stylesheet" href="./operaciones-demo.css">
 <link rel="stylesheet" href="./operaciones-v05.css">
+<link rel="stylesheet" href="./ux-v06.css">
 </head>
 <body>
 <div id="auth">
@@ -111,7 +112,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 </aside>
 <section class="workarea">
 <header class="topbar">
-<div><div class="eyebrow" id="topDept">KONSOR CRM</div><h3 id="topTitle">Mi trabajo</h3></div>
+<div style="display:flex;align-items:center;min-width:0"><button class="kn-page-back" id="mobileBack" aria-label="Volver al inicio">‹</button><div><div class="eyebrow" id="topDept">KONSOR CRM</div><h3 id="topTitle">Mi trabajo</h3></div></div>
 <div class="top-actions"><span class="chip green" id="demoMode">● DEMO</span><button class="building" data-building="open"><span id="buildingIconTop"></span>EDIFICIO</button><button class="iconbtn" id="bellButton" aria-label="Avisos"><span id="bellIcon"></span></button><button class="iconbtn" id="changeRoleTop" aria-label="Cambiar trabajador"><span id="userIcon"></span></button></div>
 </header>
 <main class="content" id="main"></main>
@@ -184,12 +185,12 @@ dirección:{desc:'Visión general de departamentos, personas, rentabilidad y rie
 };
 var floorNames=['Comercial','Técnicos','Oficina','Administración','Dirección'];
 var jobs=[
-{id:'K-0021',name:'María Ejemplo',address:'Calle del Ejemplo 12',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Documentación',state:'Revisión pendiente',m2:86,docs:3,cost:'2.100 €',income:'3.100 €',date:'25/11'},
-{id:'K-0022',name:'Javier Prueba',address:'Calle Ficticia 9',town:'Funes',service:'Aislamiento de desván',team:'B',owner:'otro',crew:'C2',office:'O2',finance:'F2',stage:'Instalación',state:'Instalación agendada',m2:74,docs:1,cost:'1.760 €',income:'2.800 €',date:'26/11'},
-{id:'K-0023',name:'Carmen Demo',address:'Avenida Inventada 3',town:'Noáin',service:'Aerotermia · estudio',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Viabilidad',state:'Estudio previo',m2:110,docs:0,cost:'Por estudiar',income:'Por estudiar',date:'27/11'},
-{id:'K-0024',name:'Pablo Simulado',address:'Plaza Modelo 5',town:'Peralta',service:'Aislamiento de cubierta',team:'C',owner:'otro',crew:'C3',office:'O1',finance:'F1',stage:'Cobro',state:'Cobro pendiente',m2:95,docs:5,cost:'2.300 €',income:'3.700 €',date:'24/11'},
-{id:'K-0025',name:'Marta Ficticia',address:'Calle de Prueba 8',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Instalación',state:'Obra prevista',m2:82,docs:0,cost:'Por determinar',income:'Por determinar',date:'23/11'},
-{id:'K-0026',name:'Jorge de Ejemplo',address:'Calle de Prueba 19',town:'Funes',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Instalación',state:'Obra prevista',m2:66,docs:0,cost:'Por determinar',income:'Por determinar',date:'23/11'}
+{id:'K-0021',name:'María Ejemplo',email:'maria@ejemplo.test',address:'Calle del Ejemplo 12',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Documentación',state:'Revisión pendiente',m2:86,docs:3,cost:'2.100 €',income:'3.100 €',date:'25/11'},
+{id:'K-0022',name:'Javier Prueba',email:'javier@ejemplo.test',address:'Calle Ficticia 9',town:'Funes',service:'Aislamiento de desván',team:'B',owner:'otro',crew:'C2',office:'O2',finance:'F2',stage:'Instalación',state:'Instalación agendada',m2:74,docs:1,cost:'1.760 €',income:'2.800 €',date:'26/11'},
+{id:'K-0023',name:'Carmen Demo',email:'carmen@ejemplo.test',address:'Avenida Inventada 3',town:'Noáin',service:'Aerotermia · estudio',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Viabilidad',state:'Estudio previo',m2:110,docs:0,cost:'Por estudiar',income:'Por estudiar',date:'27/11'},
+{id:'K-0024',name:'Pablo Simulado',email:'pablo@ejemplo.test',address:'Plaza Modelo 5',town:'Peralta',service:'Aislamiento de cubierta',team:'C',owner:'otro',crew:'C3',office:'O1',finance:'F1',stage:'Cobro',state:'Cobro pendiente',m2:95,docs:5,cost:'2.300 €',income:'3.700 €',date:'24/11'},
+{id:'K-0025',name:'Marta Ficticia',email:'marta@ejemplo.test',address:'Calle de Prueba 8',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Instalación',state:'Obra prevista',m2:82,docs:0,cost:'Por determinar',income:'Por determinar',date:'23/11'},
+{id:'K-0026',name:'Jorge de Ejemplo',email:'jorge@ejemplo.test',address:'Calle de Prueba 19',town:'Funes',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Instalación',state:'Obra prevista',m2:66,docs:0,cost:'Por determinar',income:'Por determinar',date:'23/11'}
 ];
 var state={role:'jeq',view:'inicio',step:{},checked:{},shift:{},promptShown:{},notices:{},tasks:{},prefs:{},activityTab:'inbox',record:null,recordTab:'cliente',building:false,floor:null,room:null,search:'',lastNav:'inicio',selectedPhoto:''};
 function user(){return roles.find(function(r){return r.id===state.role})||roles[0]}
@@ -343,10 +344,11 @@ var home='<header class="kn-header"><div class="kn-brand"><div class="logo-mark"
 home+='<div class="kn-welcome"><div class="eyebrow">'+(u.boss?'PANEL DE RESPONSABLE':'MI ESPACIO')+'</div><h1>'+greeting()+'</h1><p>'+E(u.person)+'</p></div>';
 home+='<section class="kn-next"><div class="kn-iconbox">'+icon('home','lg')+'</div><div class="eyebrow">SIGUIENTE PASO RECOMENDADO</div><h2>'+E(next)+'</h2><p>'+E(desc)+'</p><button class="kn-primary" id="nextRecommended">'+(action==='trabajo'?'Abrir mi trabajo':action==='jornada'?'Revisar jornada':action==='dirección'?'Ver situación de la empresa':'Ir a Oficina')+' '+icon('arrow')+'</button></section>';
 home+='<div class="kn-section"><strong>TU TRABAJO</strong><span>Accesos principales</span></div><div class="kn-tiles">'+opts[rgroup()].map(function(t,i){return '<button class="kn-tile" data-quick="'+i+'"><div class="symbol">'+icon(t[2],'lg')+'</div><div><strong>'+E(t[0])+'</strong><small>'+E(t[1])+'</small></div></button>'}).join('')+'</div>';
-if(u.boss)home+='<div class="kn-management"><div><span class="eyebrow">GESTIÓN DEL EQUIPO</span><h3>Dirección</h3><p>Planificación, territorio, supervisión y análisis.</p></div><button class="secondary" data-nav="equipo">Abrir dirección</button></div>';
-home+='<div class="kn-section" style="margin-top:29px"><strong>EDIFICIO KONSOR</strong><span>Consulta visual</span></div><div class="kn-management" style="background:#fff;margin-top:0"><div><h3 style="margin-top:0">Toda la empresa en un edificio</h3><p>Consulta puestos y agentes; vuelve a la aplicación para trabajar.</p></div><button class="secondary" data-building="open">'+icon('building')+' Ver edificio</button></div>';
-if(rgroup()==='comercial'){var cm=window.KonsorDemoOperaciones.commissions(opsContext());home+='<div class="kn-management" style="background:#fff"><div><div class="eyebrow">COMISIONES · HIPÓTESIS</div><h3>'+cm.reduce(function(s,x){return s+x.cents},0).toLocaleString('es-ES',{style:'currency',currency:'EUR'})+'</h3><p>Estimación de '+cm.reduce(function(s,x){return s+x.m2},0)+' m² ejecutados, a 1 €/m² de ejemplo. No es pago confirmado.</p></div><button class="secondary" data-nav="'+(u.boss?'equipo':'expedientes')+'">Ver desglose</button></div>'}
-home+='<div class="kn-management" style="background:#fff"><div><span class="eyebrow">MI REMUNERACIÓN · AVISO MENSUAL</span><h3>¿Has recibido tu pago?</h3><p>Consulta tu honorario fijo o comisión de 1 €/m², y confirma la recepción. Sin bancos ni gestoría dentro de KONSOR.</p></div><button class="secondary" data-nav="remuneracion">Abrir mis pagos</button></div>';
+home+='<div class="kn-shortcuts">'+
+ (u.boss?'<button class="kn-shortcut" data-nav="equipo">'+icon('chart')+' Mi equipo</button>':'')+
+ '<button class="kn-shortcut" data-building="open">'+icon('building')+' Edificio</button>'+
+ '<button class="kn-shortcut" data-nav="remuneracion">'+icon('coins')+' Mi remuneración</button>'+
+ '</div>';
 home+='<footer class="kn-footer"><span>KONSOR · DEMOSTRACIÓN</span><span>Sin datos sincronizados</span></footer>';
 return home;
 }
@@ -418,15 +420,16 @@ if($('fileSearch')){$('fileSearch').oninput=function(e){state.search=e.target.va
 if($('resetFlow'))$('resetFlow').onclick=function(){state.step[state.role]=0;render()};
 if(rgroup()==='técnicos'&&state.view==='trabajo')window.KonsorDemoTecnicos.mount({role:state.role,shift:shiftStatus(),jobs:jobs,openShift:showShiftPanel,rerender:render,toast:toast,onComplete:function(job,detail){window.KonsorDemoOperaciones.techCompleted(job.id,detail)}});
 if((['técnicos','oficina','administración','dirección'].includes(rgroup())&&state.view==='trabajo')||(state.view==='equipo'&&user().boss)||state.view==='remuneracion')window.KonsorDemoOperaciones.mount(opsContext());
+if($('mobileBack'))$('mobileBack').onclick=function(){setView('inicio')};
 if($('homeActivity'))$('homeActivity').onclick=function(){openActivity('inbox')};
 if($('homeSettings'))$('homeSettings').onclick=returnLogin;
 if($('nextRecommended'))$('nextRecommended').onclick=function(){if(shiftStatus()==='lunch')showShiftPanel();else if(rgroup()==='comercial'&&user().boss&&shiftStatus()==='off'&&getProgress()===0)openTool('Llamadas y seguimiento');else setView('trabajo')};
 $('main').querySelectorAll('[data-jornada]').forEach(function(b){b.onclick=showShiftPanel});
 $('main').querySelectorAll('[data-quick]').forEach(function(b){var t=({comercial:[['jornada'],['Mapa y Catastro'],['Llamadas y seguimiento'],['equipo']],técnicos:[['jornada'],['Órdenes de trabajo'],['Ruta de instalaciones'],['expedientes']],oficina:[['trabajo'],['trabajo'],['trabajo'],['trabajo']],administración:[['trabajo'],['trabajo'],['trabajo'],['trabajo']],dirección:[['trabajo'],['trabajo'],['trabajo'],['edificio']]})[rgroup()][+b.dataset.quick][0];b.onclick=function(){if(t==='jornada')showShiftPanel();else if(t==='edificio')openBuilding();else if(['equipo','trabajo','expedientes'].includes(t))setView(t);else openTool(t)}});
 }
-function setView(view){if(view==='equipo'&&!user().boss)view='inicio';state.view=view;render();window.scrollTo(0,0)}
-function enter(){state.view='inicio';$('auth').style.display='none';$('app').style.display='block';render();showShiftPrompt()}
-function returnLogin(){closeBuilding();closeModal();$('app').style.display='none';$('auth').style.display='grid';window.scrollTo(0,0);drawRoles()}
+function setView(view){if(view==='equipo'&&!user().boss)view='inicio';state.view=view;render();if($('main'))$('main').scrollTop=0;}
+function enter(){state.view='inicio';$('auth').style.display='none';$('app').style.display='block';document.body.classList.add('kn-live');render();showShiftPrompt()}
+function returnLogin(){closeBuilding();closeModal();document.body.classList.remove('kn-live');$('app').style.display='none';$('auth').style.display='grid';window.scrollTo(0,0);drawRoles()}
 function drawRoles(){
 $('roleChoices').innerHTML=roles.map(function(r){return '<button class="role-choice '+(r.id===state.role?'active':'')+'" data-role="'+r.id+'"><span class="emblem">'+icon(r.icon)+'</span><span style="min-width:0"><strong>'+E(r.name)+'</strong><small>'+E(floorNames[r.dept])+'</small></span></button>'}).join('');
 $('roleChoices').querySelectorAll('[data-role]').forEach(function(b){b.onclick=function(){state.role=b.dataset.role;drawRoles()}});
@@ -486,7 +489,7 @@ $('modalContent').innerHTML='<div class="tabs">'+tabs.map(function(t){return '<b
 $('modalContent').querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){state.recordTab=b.dataset.tab;renderRecord()}});
 var body='';
 switch(state.recordTab){
-case 'cliente':body='<div class="fieldgrid">'+field('ID de cliente',j.id)+field('Nombre del titular',canPersonal()?j.name:'Dato restringido por puesto')+field('Teléfono','No almacenado en la demo')+field('DNI','No almacenado')+field('Comercial / equipo','Equipo '+j.team)+field('Correo electrónico','No almacenado')+'</div>';break;
+case 'cliente':body='<div class="fieldgrid">'+field('ID de cliente',j.id)+field('Nombre del titular',canPersonal()?j.name:'Dato restringido por puesto')+field('Teléfono','No almacenado en la demo')+field('DNI','No almacenado')+field('Comercial / equipo','Equipo '+j.team)+field('Correo electrónico',canPersonal()?j.email:'Dato restringido por puesto')+'</div>';break;
 case 'vivienda':body='<div class="fieldgrid">'+field('Municipio',j.town)+field('Dirección',j.address)+field('Tipo de inmueble','Vivienda unifamiliar (demo)')+field('Superficie evaluada',j.m2+' m²')+field('Referencia catastral','Pendiente de verificar')+field('Zona climática','Por validar')+'</div>';break;
 case 'actuación':body='<div class="fieldgrid">'+field('Servicio',j.service)+field('Estado actual',j.state)+field('Etapa del expediente',j.stage)+field('Viabilidad previa','Pendiente de revisión autorizada')+field('Equipo comercial',j.team)+field('Fecha prevista',j.date)+'</div><div class="note">Antes de comprometer una instalación, la CRM real deberá exigir los requisitos técnicos, documentales, CAE y económicos aplicables.</div>';break;
 case 'instalación':body='<div class="fieldgrid">'+field('Cuadrilla asignada',j.crew)+field('Superficie estimada',j.m2+' m²')+field('Parte técnico','Pendiente o simulado')+field('Material empleado','Por registrar')+'</div><div class="docslot">Fotos antes y después <span class="chip">No hay archivos reales</span></div>';break;
