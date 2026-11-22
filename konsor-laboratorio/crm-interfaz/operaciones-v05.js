@@ -232,6 +232,7 @@ function ceoHTML(ctx){
  const econ=economic(ctx),pay=salarySummary(ctx),an=anomalies(),officeStatus=officeAnalysis(ctx);
  let html=header('DIRECCIÓN GENERAL · CONTROL','Situación de KONSOR','Solo información para decidir: ingresos, costes, pagos a trabajadores, gastos corporativos y posibles desviaciones. Sin sustituir al contable.');
  html+=tiles([['Ingresos previstos registrados',euro(econ.revenue)],['Costes directos estimados',euro(econ.jobCost)],['Honorarios/Comisiones previstos',euro(econ.salary)],['Gastos de tarjetas y VIA-T',euro(econ.expense)]]);
+ html+='<div class="ops-note"><b>Seguimiento de pagos:</b> día '+simulatedPayDay+' de '+monthPay+'. <button class="ops-secondary" data-ops="payday" data-id="1">Simular día 1</button> <button class="ops-secondary" data-ops="payday" data-id="5">Simular día 5</button></div>';
  html+='<div class="ops-feature"><div class="eyebrow">RESULTADO PROVISIONAL · ESCENARIO DE DEMO</div><h2>'+euro(econ.result)+'</h2><p>Ingresos previstos − costes directos estimados − remuneraciones configuradas − gastos corporativos ilustrativos. No equivale a beneficio neto contable ni a saldo bancario.</p><div class="ops-note">'+econ.missingPrices+' expedientes sin precio/coste cerrado: excluidos del cálculo. El resultado no permite afirmar rentabilidad real de la empresa.</div></div>';
  html+=heading('DE DÓNDE VIENEN LOS INGRESOS','Expedientes con precio registrado');
  html+='<div class="ops-list">'+econ.priced.map(j=>card(j.id+' · '+j.town,j.service,[['Abrir ficha','record',j.id]],euro(money(j.income)))).join('')+'</div>';
@@ -334,5 +335,5 @@ function mount(ctx){
  document.querySelectorAll('[data-ops]').forEach(b=>b.onclick=()=>action(ctx,b.dataset.ops,b.dataset.id));
 }
 function tests(){return {docs,office,corrections,receipt,spend,salaried,get day(){return simulatedPayDay},get expenses(){return anomalies()},salarySummary,economic,officeAnalysis,commissions,missing,paymentEntry,status,officeOpen,action,techCompleted}};
-window.KonsorDemoOperaciones={officeHTML,adminHTML:financeHTML,ceoHTML,bossHTML,workerHTML,next,extraRecord,techInbox,activityTasks,mount,commissions,officeAnalysis,financeAnalysis:()=>null,tests,action,techCompleted};
+window.KonsorDemoOperaciones={officeHTML,adminHTML:financeHTML,ceoHTML,bossHTML,workerHTML,next,extraRecord,techInbox,activityTasks,mount,commissions,officeAnalysis,financeAnalysis:(ctx)=>({expenses:spending(),remunerations:salarySummary(ctx),estimated:economic(ctx)}),tests,action,techCompleted};
 })();
