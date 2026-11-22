@@ -162,7 +162,10 @@ function makeMapBar(){
  mapBar=el("nav","cnv-map-toolbar",undefined,document.body);
  mapBar.id="cnvMapToolbar";mapBar.setAttribute("aria-label","Herramientas del mapa");
  const head=el("div","cnv-map-head",undefined,mapBar);
- head.append(btn("Inicio",()=>showHome(),"cnv-glass"));
+ const backMap=btn("‹",()=>showHome(),"cnv-glass cnv-map-back");
+ backMap.setAttribute("aria-label","Volver a Inicio");
+ backMap.title="Volver a Inicio";
+ head.append(backMap);
  const t=el("div","",undefined,head);el("strong","","Mapa de trabajo",t);el("small","","Catastro · Satélite · Sectores",t);
  const searchRow=el("form","cnv-map-search",undefined,mapBar);
  const townInput=el("input","",undefined,searchRow);townInput.type="search";townInput.placeholder="Buscar pueblo o dirección";

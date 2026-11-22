@@ -1,0 +1,133 @@
+/* KONSOR — cabecera única de navegación (fuente de estilos exclusiva).
+   Flecha / título / X ocupan columnas separadas; nunca se superponen.
+   Mantiene 44×44 px de área táctil también en iPhone. */
+.cn-consistent-header{
+ box-sizing:border-box!important;
+ display:grid!important;
+ grid-template-columns:44px minmax(0,1fr) 44px!important;
+ grid-template-rows:auto!important;
+ align-items:center!important;
+ column-gap:clamp(8px,2.3vw,16px)!important;
+ min-height:76px!important;
+ padding:12px clamp(12px,2.5vw,22px)!important;
+ position:relative!important;
+}
+.cn-consistent-header>.cn-nav-title{
+ grid-column:2!important;
+ grid-row:1!important;
+ min-width:0!important;
+ max-width:100%!important;
+ display:flex!important;
+ flex-direction:column!important;
+ justify-content:center!important;
+ text-align:center!important;
+ overflow-wrap:anywhere!important;
+}
+.cn-consistent-header>.cn-nav-title>div,
+.cn-consistent-header>.cn-nav-title>span,
+.cn-consistent-header>.cn-nav-title>h2,
+.cn-consistent-header>.cn-nav-title>strong{
+ min-width:0!important;
+ max-width:100%!important;
+ text-align:center!important;
+}
+.cn-consistent-header .cn-nav-title h2,
+.cn-consistent-header .cn-nav-title>span,
+.cn-consistent-header .cn-nav-title strong{
+ white-space:normal!important;
+ overflow-wrap:anywhere!important;
+ word-break:normal!important;
+ line-height:1.22!important;
+}
+.cn-consistent-header .cn-nav-title h2{
+ font-size:clamp(16px,4.2vw,24px)!important;
+ margin:3px 0 0!important;
+}
+.cn-consistent-header .cn-nav-title small,
+.cn-consistent-header .cn-nav-title .cn-eyebrow{
+ line-height:1.25!important;
+ font-size:10px!important;
+}
+.cn-consistent-header>.cn-global-nav{display:contents!important}
+.cn-consistent-header .cn-global-nav button,
+.cnv-map-toolbar .cnv-map-head .cnv-map-back{
+ box-sizing:border-box!important;
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ width:44px!important;
+ height:44px!important;
+ min-width:44px!important;
+ min-height:44px!important;
+ max-width:44px!important;
+ flex:none!important;
+ margin:0!important;
+ padding:0!important;
+ border-radius:50%!important;
+ border:1px solid rgba(255,255,255,.86)!important;
+ background:rgba(248,250,253,.82)!important;
+ color:#23394f!important;
+ box-shadow:0 3px 15px rgba(22,40,62,.12),inset 0 1px 0 rgba(255,255,255,.75)!important;
+ font:400 28px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif!important;
+ -webkit-backdrop-filter:blur(20px) saturate(1.5);
+ backdrop-filter:blur(20px) saturate(1.5);
+ cursor:pointer!important;
+ z-index:2!important;
+ touch-action:manipulation!important;
+}
+.cn-consistent-header .cn-global-nav .cn-global-back{
+ grid-column:1!important;grid-row:1!important;
+ justify-self:start!important;
+ font-size:31px!important;
+ padding-bottom:4px!important;
+}
+.cn-consistent-header .cn-global-nav .cn-global-close{
+ grid-column:3!important;grid-row:1!important;
+ justify-self:end!important;
+}
+.cn-consistent-header>.cn-nav-native-back,
+.cn-consistent-header>.cn-nav-native-close,
+.cn-consistent-header>.cn-original-close-hidden{
+ display:none!important;
+}
+.cn-consistent-header .cn-global-nav button:focus-visible,
+.cnv-map-toolbar .cnv-map-head .cnv-map-back:focus-visible{
+ outline:3px solid #5686ba!important;
+ outline-offset:3px!important;
+}
+.cn-consistent-header .cn-global-nav button:active,
+.cnv-map-toolbar .cnv-map-head .cnv-map-back:active{
+ background:rgba(221,235,250,.92)!important;
+ transform:scale(.96);
+}
+/* El Mapa es un nivel principal: flecha a Inicio, sin segunda X redundante. */
+.cnv-map-toolbar .cnv-map-head{
+ display:grid!important;
+ grid-template-columns:44px minmax(0,1fr) 44px!important;
+ align-items:center!important;
+ column-gap:8px!important;
+}
+.cnv-map-toolbar .cnv-map-head>.cnv-map-back{
+ grid-column:1!important;
+ grid-row:1!important;
+ justify-self:start!important;
+ font-size:31px!important;
+ padding-bottom:4px!important;
+}
+.cnv-map-toolbar .cnv-map-head>div{
+ grid-column:2!important;grid-row:1!important;
+ min-width:0!important;max-width:100%!important;
+ text-align:center!important;
+ align-items:center!important;
+}
+@media(max-width:390px){
+ .cn-consistent-header{
+  grid-template-columns:44px minmax(0,1fr) 44px!important;
+  column-gap:6px!important;
+  padding-inline:10px!important;
+ }
+ .cn-consistent-header .cn-nav-title h2{font-size:17px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .cn-consistent-header .cn-global-nav button{transition:none!important}
+}
