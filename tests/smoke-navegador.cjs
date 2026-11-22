@@ -33,7 +33,7 @@ async function main(){
     else req.continue();
    });
    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'domcontentloaded',timeout:45000});
-   await page.waitForFunction('window.KonsorUI && window.KonsorOperativo && window.KonsorModules && window.cnvShowHome',{timeout:30000});
+   await page.waitForFunction('window.KonsorUI && window.KonsorOperativo && window.KonsorModules && window.cnvShowHome && window.openCnResults',{timeout:30000});
    const login=await page.$('#loginScreen .login-card');assert.ok(login,'El login debe existir');
    const data=await page.evaluate(({user,role})=>{
     window.eval("currentUserName="+JSON.stringify(user)+"; currentUserRole="+JSON.stringify(role)+";");
@@ -54,6 +54,21 @@ async function main(){
    assert.equal(data.tiles,4,label+' debe conservar cuatro accesos');
    assert.equal(data.direction,role==='jefe',label+' permisos visuales Dirección');
    assert.ok(data.overflow<12,label+' desbordamiento lateral '+data.overflow);
+   const resultados=await page.evaluate(()=>{
+    const home=document.querySelector('#cnvHome');
+    const cards=home.querySelectorAll('.cnv-home-grid .cnv-tile');
+    cards[3].click(); // Pulsación real del botón Resultados en Inicio
+    const panel=document.getElementById('konsorResultsV3');
+    return {
+      opened:panel?.classList.contains('active')||false,
+      heading:panel?.querySelector('.kr-head h2')?.textContent||'',
+      content:panel?.querySelector('.kr-main')?.textContent?.trim()||''
+    };
+   });
+   assert.ok(resultados.opened,label+' no abre Resultados desde la tarjeta de Inicio');
+   assert.equal(resultados.heading,'Resultados',label+' título de Resultados ausente');
+   assert.ok(resultados.content.length>30,label+' Resultados se abre pero aparece vacío');
+   console.log('OK '+label+': Inicio → Resultados abre y muestra contenido');
    console.log('OK '+label+': '+data.next+' · '+data.tiles+' accesos');
    await page.close();
   }
