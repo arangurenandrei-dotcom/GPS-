@@ -4,7 +4,7 @@
 'use strict';
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const euro=c=>(Number(c)/100).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
-const money=s=>{let a=String(s||'').replace(/[^\d,.]/g,'').trim();if(!a)return null;let n=Number(a.includes(',')?a.replace(/\./g,'').replace(',','.'):a);return Number.isFinite(n)&&n>=0?Math.round(n*100):null};
+const money=s=>{let a=String(s||'').replace(/[^\d,.]/g,'').trim();if(!a)return null;let n=Number(a.includes(',')?a.replace(/\./g,'').replace(',','.'):/^\d{1,3}(\.\d{3})+$/.test(a)?a.replace(/\./g,''):a);return Number.isFinite(n)&&n>=0?Math.round(n*100):null};
 const sum=(arr,fn)=>arr.reduce((n,x)=>n+fn(x),0);
 const names={titular:'Identidad o datos del titular',antes:'Fotografía antes de la obra',despues:'Fotografía después de la obra',mediciones:'Medidas realizadas',parte:'Parte técnico'};
 const docs={
