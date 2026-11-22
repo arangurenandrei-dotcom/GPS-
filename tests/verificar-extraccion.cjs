@@ -26,7 +26,7 @@ function removeUnused(source,name){
  assert.ok(m,'Función histórica no encontrada: '+name);
  assert.equal((source.match(new RegExp('\\b'+name+'\\b','g'))||[]).length,1,'La función todavía tiene referencias: '+name);
  let end=m.index,found=null;
- while((end=source.indexOf('\\n',end+1))>=0){
+ while((end=source.indexOf('\n',end+1))>=0){
   const snippet=source.slice(m.index,end);
   if(snippet.length<60)continue;
   try{new vm.Script(snippet);found=end;break}catch{}
