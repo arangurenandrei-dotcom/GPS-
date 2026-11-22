@@ -181,9 +181,19 @@ async function main(){
          nativeBackHidden:getComputedStyle(head.querySelector('.kd-back')).display==='none'};
      });
      assert.ok(bossHeader.ok&&bossHeader.nativeBackHidden,'Dirección tiene flecha duplicada o se solapa');
+     const clickDebug=await page.evaluate(()=>{
+       const b=document.querySelector('#konsorDirectionHub .cn-global-close'),rect=b.getBoundingClientRect();
+       const hit=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+       const root=document.getElementById('konsorDirectionHub');
+       return {hitTag:hit?.tagName,hitClass:hit?.className,hitId:hit?.id,at:{x:rect.left+rect.width/2,y:rect.top+rect.height/2},
+         current:[...document.querySelectorAll('.modal-overlay,.koc-overlay,.kd-overlay,.km-overlay,.kr-overlay,.cnx-modal')]
+           .filter(e=>getComputedStyle(e).display!=='none'&&e.getClientRects().length>0)
+           .map(e=>({id:e.id,classes:e.className,display:getComputedStyle(e).display,z:getComputedStyle(e).zIndex})),
+         native:!!root.querySelector('.cn-nav-native-close')};
+     });
      await page.click('#konsorDirectionHub .cn-global-close');
      assert.equal(await page.evaluate(()=>document.querySelector('#konsorDirectionHub').classList.contains('active')),false,
-       'La X no cierra Dirección');
+       'La X no cierra Dirección: '+JSON.stringify(clickDebug));
    }
    console.log('OK '+label+': navegación real en Jornada y Dirección');
    console.log('OK '+label+': cabecera sin solapes, flecha, X y pasos internos');
