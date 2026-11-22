@@ -112,8 +112,8 @@
     if (!m2 || !zona)
       return {estado:'pendiente',motivo:'Falta superficie o zona CTE'};
 
-    if (conjunta && cantidad < 8)
-      return {estado:'revisar',motivo:'Urbanización: faltan viviendas para llegar a 8'};
+    if (conjunta && cantidad < 6)
+      return {estado:'revisar',motivo:'Urbanización: faltan viviendas para llegar a 6'};
 
     return {estado:'apto',motivo:'Cumple los criterios registrados'};
   }
@@ -140,7 +140,7 @@
     const resultado = evaluarAptitud({
       ...c,
       urbanizacionId: grupo,
-      viviendasAptasUrbanizacion: 8
+      viviendasAptasUrbanizacion: 6
     });
 
     if (resultado.estado !== 'apto') continue;
@@ -156,10 +156,11 @@
 
   return {
     aptas,
-    minimo: 8,
-    lista: aptas >= 8,
-    bloques: aptas >= 8
-      ? [viviendasGrupo.slice(0, 4), viviendasGrupo.slice(4, 8)]
+    minimo: 6,
+     recomendado: 8,
+    lista: aptas >= 6,
+    bloques: aptas >= 6
+      ? [viviendasGrupo.slice(0, 4), viviendasGrupo.slice(4, Math.min(8, aptas))]
       : []
   };
 }
@@ -200,14 +201,14 @@ function opcionesAgendaUrbanizacion(viviendas = []) {
     const horas=['09:00','11:00','15:00','17:00'];
     if(!opcion || !Array.isArray(opcion.bloques) ||
        opcion.bloques.length!==2 ||
-       opcion.bloques.some(b=>b.viviendas.length!==4 || ![2,3].includes(b.equipo) || ![1,2].includes(b.dia)))
+       opcion.bloques.some(b=>(!Array.isArray(b.viviendas) || b.viviendas.length<2 || b.viviendas.length>4) || ![2,3].includes(b.equipo) || ![1,2].includes(b.dia)))
       throw Error('Plan de urbanización inválido');
 
     const viviendas=opcion.bloques.flatMap(b=>b.viviendas);
     const plan=planUrbanizacion(viviendas);
 
-    if(!plan.lista || plan.aptas!==8)
-      throw Error('El plan requiere 8 viviendas distintas de una misma urbanización');
+    if(!plan.lista || plan.aptas!==viviendas.length || viviendas.length<6 || viviendas.length>8)
+      throw Error('El plan requiere entre 6 y 8 viviendas distintas de una misma urbanización');
 
     const identidad=c=>String(
       c.id ?? c.clientUid ?? c.clientId ??
@@ -218,7 +219,7 @@ function opcionesAgendaUrbanizacion(viviendas = []) {
       norm(c.urbanizacionId || c.urbanizacionNombre || '')+'|'+norm(identidad(c))
     );
 
-    if(new Set(claves).size!==8)
+    if(new Set(claves).size!==viviendas.length)
       throw Error('Hay viviendas duplicadas en el plan');
 
     const ocupaciones=opcion.bloques.map(b=>b.dia+'|'+b.equipo);
@@ -240,7 +241,7 @@ function opcionesAgendaUrbanizacion(viviendas = []) {
       const disponibilidad=await consultas.get(fecha);
       const lista=disponibilidad[String(bloque.equipo)];
       if(!Array.isArray(lista))throw Error('Disponibilidad incompleta');
-      for(let i=0;i<4;i++){
+      for(let i=0;i<bloque.viviendas.length;i++){
         const hora=horas[i];
         const fin=['11:00','13:00','17:00','19:00'][i];
         if(!lista.some(x=>x.horario===hora+'-'+fin && x.libre===true))
