@@ -1,7 +1,7 @@
 /* Panel único de Dirección para el equipo de Andrei. */
 (function(){
 "use strict";
-const el=(tag,cls,txt,parent)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(txt!==undefined)x.textContent=String(txt);if(parent)parent.append(x);return x;};
+const el=window.KonsorUI.el;
 const button=(txt,fn)=>{const x=el("button","kd-btn",txt);x.type="button";x.onclick=fn;return x;};
 const isBoss=()=>typeof currentUserName!=="undefined"&&currentUserName==="Andrei (Jefe)"&&currentUserRole==="jefe";
 function launch(root,fn){root.classList.remove("active");if(typeof fn==="function")fn();}
