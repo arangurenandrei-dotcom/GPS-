@@ -40,7 +40,7 @@ function clusters(candidates){
   if(!item||!item.c||!item.z)continue;
   const municipality=town(item),road=street(item);
   if(!municipality||!road)continue;
-  const key=municipality+'\\u0000'+road;
+  const key=JSON.stringify([municipality,road]);
   if(!grouped.has(key))grouped.set(key,[]);
   grouped.get(key).push(item);
  }
