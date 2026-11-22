@@ -67,12 +67,22 @@ function greeting(){
  return h<13?"Buenos días":h<21?"Buenas tardes":"Buenas noches";
 }
 function nextAction(data){
- if(data.shift?.status==="lunch")return {title:"Tu pausa sigue activa",description:"Cuando vuelvas a trabajar, reanuda la jornada para que el registro sea correcto.",button:"Revisar jornada",icon:"calendar",action:openDay};
- if(data.waitingDump)return {title:data.waitingDump===1?"Tienes 1 sector sin volcar": "Tienes "+data.waitingDump+" sectores sin volcar",description:"Empieza por el más antiguo y continúa el trabajo de Oficina.",button:"Ir a Oficina",icon:"office",action:openOffice};
- if(data.old)return {title:data.old===1?"Tienes 1 sector pendiente":"Tienes "+data.old+" sectores pendientes",description:"Continúa lo pendiente antes de empezar nuevos sectores.",button:"Ver jornada",icon:"calendar",action:openDay};
- if(data.todayCount)return {title:data.todayCount===1?"Tienes 1 sector para hoy":"Tienes "+data.todayCount+" sectores para hoy",description:"Consulta el orden asignado y abre la ruta cuando estés preparado.",button:"Ver jornada",icon:"calendar",action:openDay};
- if(!data.shift)return {title:"Prepara tu jornada",description:"Consulta tu trabajo y confirma el inicio cuando vayas a trabajar.",button:"Ver mi jornada",icon:"calendar",action:openDay};
- return {title:"Todo al día por ahora",description:"Consulta tus resultados o revisa tus próximas asignaciones.",button:"Ver resultados",icon:"results",action:()=>window.openCnResults?.()};
+ const engine=window.KonsorOperativo;
+ if(!engine||typeof engine.recommend!=='function')
+   throw Error('El asistente operativo de KONSOR no se ha cargado correctamente.');
+ const recommendation=engine.recommend('comercial',data);
+ if(!recommendation)throw Error('No se ha podido preparar la siguiente acción.');
+ const actions={
+  'jornada.reanudar':openDay,
+  'jornada.sector':openDay,
+  'jornada.iniciar':openDay,
+  'oficina.volcados':openOffice,
+  'resultados.consultar':()=>window.openCnResults?.()
+ };
+ const action=actions[recommendation.id];
+ if(!action)throw Error('Acción desconocida: '+recommendation.id);
+ return {title:recommendation.title,description:recommendation.description,
+  button:recommendation.button,icon:recommendation.icon,action};
 }
 function showHome(){
  if(!hasSession())return;
