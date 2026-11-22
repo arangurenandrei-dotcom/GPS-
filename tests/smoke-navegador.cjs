@@ -101,7 +101,7 @@ async function main(){
      overlay.id='nav-internal-test';
      overlay.className='modal-overlay active';
      overlay.style.cssText='display:flex;z-index:20000;';
-     overlay.innerHTML='<div class="modal-card"><header class="modal-header"><span>Expediente con un título muy largo para comprobar que nunca se solapa</span><button type="button" onclick="document.getElementById(\'nav-internal-test\').classList.remove(\'active\')">×</button></header><div class="modal-scrollable-content"><button type="button" data-konsor-back="true" onclick="window.__navBackCount++">‹ Volver al paso anterior</button></div></div>';
+     overlay.innerHTML='<div class="modal-card"><header class="modal-header"><span>Expediente con un título muy largo para comprobar que nunca se solapa</span><button type="button" onclick="document.getElementById(\'nav-internal-test\').remove()">×</button></header><div class="modal-scrollable-content"><button type="button" data-konsor-back="true" onclick="window.__navBackCount++">‹ Volver al paso anterior</button></div></div>';
      document.body.append(overlay);
    });
    await page.waitForSelector('#nav-internal-test .cn-global-back',{timeout:10000});
@@ -122,7 +122,7 @@ async function main(){
      assert.equal(swiped,2,'Deslizar desde la izquierda no activó el mismo paso atrás');
    }
    await page.click('#nav-internal-test .cn-global-close');
-   assert.ok(await page.evaluate(()=>!document.getElementById('nav-internal-test').classList.contains('active')),
+   assert.ok(await page.evaluate(()=>!document.getElementById('nav-internal-test')),
        label+' la X no cerró el expediente');
    await page.evaluate(()=>window.konsorMotor.openDay());
    await page.waitForSelector('#km-flow .cn-global-back',{timeout:10000});
@@ -156,36 +156,9 @@ async function main(){
          nativeBackHidden:getComputedStyle(head.querySelector('.kd-back')).display==='none'};
      });
      assert.ok(bossHeader.ok&&bossHeader.nativeBackHidden,'Dirección tiene flecha duplicada o se solapa');
-     await page.evaluate(()=>{
-       window.__navDirectorClicks=0;
-       document.querySelector('#konsorDirectionHub .cn-global-close').addEventListener('click',()=>window.__navDirectorClicks++);
-     });
      await page.click('#konsorDirectionHub .cn-global-close');
-     const directionClose=await page.evaluate(()=>{
-       const root=document.getElementById('konsorDirectionHub');
-       const head=root.querySelector('.kd-head');
-       const screens=[...document.querySelectorAll('.modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kr-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard')]
-         .map(el=>({id:el.id,classes:el.className,display:getComputedStyle(el).display,zIndex:getComputedStyle(el).zIndex}));
-       const xButton=head.querySelector('.cn-global-close');
-       const rect=xButton.getBoundingClientRect();
-       const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-       const hit=document.elementFromPoint(x,y);
-       const hitInfo={tag:hit?.tagName,classes:hit?.className,id:hit?.id,
-          text:hit?.textContent?.slice(0,35),x,y,
-          buttonPointer:getComputedStyle(xButton).pointerEvents,
-          headerPointer:getComputedStyle(head).pointerEvents,
-          xRect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height},
-          hitSame:hit===xButton};
-       const wasOpen=root.classList.contains('active');
-       if(wasOpen)window.konsorCloseTop();
-       const afterDirectClose=root.classList.contains('active');
-       if(afterDirectClose)head.querySelector('.cn-nav-native-close')?.click();
-       return {closed:!wasOpen,clicked:window.__navDirectorClicks,hitInfo,
-         afterDirectClose,afterNativeClick:root.classList.contains('active'),
-         native:!!head.querySelector('.cn-nav-native-close'),
-         hiddenNative:getComputedStyle(head.querySelector('.cn-nav-native-close')).display,screens};
-     });
-     assert.ok(directionClose.closed,'La X no cierra Dirección: '+JSON.stringify(directionClose));
+     assert.equal(await page.evaluate(()=>document.querySelector('#konsorDirectionHub').classList.contains('active')),false,
+       'La X no cierra Dirección');
    }
    console.log('OK '+label+': navegación real en Jornada y Dirección');
    console.log('OK '+label+': cabecera sin solapes, flecha, X y pasos internos');
