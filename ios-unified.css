@@ -393,26 +393,7 @@ body #avisosCenterV2 .av-primary,body #avisosCenterV2 button.av-primary{
  background:#2b3a4d!important;color:white!important;border-color:#2b3a4d!important
 }
 body .modal-overlay.active .modal-card,body .cnx-modal.active .cnx-page{color:#263449}
-body .cn-global-nav{display:flex;align-items:center;gap:7px;flex:0 0 auto;z-index:2}
-body .cn-global-nav button{display:flex!important;align-items:center!important;justify-content:center!important;
- width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;
- padding:0!important;background:#eef1f5!important;color:#283b53!important;border:1px solid #e2e7ee!important;
- border-radius:50%!important;box-shadow:none!important;font-size:23px!important;font-weight:450!important;line-height:1!important}
-body .cn-global-nav button:focus-visible{outline:2px solid #91a4bd!important;outline-offset:2px}
-body .cn-global-nav .cn-global-back{font-size:29px!important}
-body .modal-overlay .modal-header:has(.cn-global-nav)>button:not(.cn-global-back):not(.cn-global-close),
-body .cn-territorio .cn-page-head:has(.cn-global-nav)>.cn-close,
-body .cn-oficina .cn-office-header:has(.cn-global-nav)>.cn-office-exit,
-body .cnx-modal .cnx-head:has(.cn-global-nav)>.cnx-btn{display:none!important}
-body .cn-global-nav-row{margin:0 0 7px!important;display:flex!important;justify-content:flex-end!important}
-body .modal-overlay .modal-header:has(.cn-global-nav){gap:9px}
-body .modal-overlay .modal-header:has(.cn-global-nav)>span{flex:1}
-body .cn-territorio .cn-page-head:has(.cn-global-nav)>div,
-body .cn-oficina .cn-office-header:has(.cn-global-nav)>div,
-body .cnx-modal .cnx-head:has(.cn-global-nav)>div{flex:1;min-width:0}
-
 /* Ajustes de cierre de la migración: evitar botones Cerrar duplicados y botones heredados azules */
-body .koc-overlay .koc-header:has(.cn-global-nav)>.koc-btn{display:none!important}
 body .modal-overlay .modal-card button[style*="background:#0284c7"],
 body .modal-overlay .modal-card button[style*="background:#0369a1"],
 body .modal-overlay .modal-card button[style*="background:#7c3aed"],
@@ -466,10 +447,7 @@ body .modal-overlay .modal-card :is(.input-field,.select-field){
 
 /* KONSOR — liquid glass unificado y controles táctiles de 44px. */
 :root{--cn-glass:rgba(255,255,255,.72);--cn-ink:#1b293a;--cn-stroke:rgba(255,255,255,.78)}
-body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool,
-.cn-global-nav button,
-.kd-head .kd-back,.kd-head .kd-close,
-.km-head .km-back,.km-head .close{
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool{
  min-width:44px!important;min-height:44px!important;width:44px!important;height:44px!important;
  border-radius:50%!important;
  background:rgba(248,250,253,.70)!important;
@@ -480,14 +458,11 @@ body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool,
  backdrop-filter:blur(24px) saturate(1.6)!important;
  transition:background .17s ease,transform .17s ease,box-shadow .17s ease;
 }
-body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool:active,
-.cn-global-nav button:active,.kd-head .kd-back:active,.kd-head .kd-close:active,
-.km-head .km-back:active,.km-head .close:active{transform:scale(.94);background:rgba(221,235,250,.87)!important}
+body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool:active{transform:scale(.94);background:rgba(221,235,250,.87)!important}
 body.cnv-map-active #cnvMapToolbar .cnv-map-controls .cnv-map-tool.is-active{
  background:rgba(53,109,170,.89)!important;color:white!important;border-color:rgba(255,255,255,.65)!important;
  box-shadow:0 5px 18px rgba(30,87,151,.22)!important;
 }
-.cn-global-nav button:focus-visible,.kd-head button:focus-visible,.km-head button:focus-visible,
 body.cnv-map-active #cnvMapToolbar .cnv-map-tool:focus-visible{outline:3px solid #5686ba!important;outline-offset:2px}
 .kd-page,.cn-page,.km-page,.cnx-page,.koc-page{
  border:1px solid rgba(255,255,255,.72)!important;
@@ -499,7 +474,7 @@ body.cnv-map-active #cnvMapToolbar .cnv-map-tool:focus-visible{outline:3px solid
 }
 .cnv-sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(prefers-reduced-motion:reduce){
- .cn-global-nav button,.kd-head button,.km-head button,.cnv-map-tool{transition:none!important}
+ .cnv-map-tool{transition:none!important}
 }
 
 /* KONSOR 2026 · Inicio premium, mismo sistema visual que Dirección. */
