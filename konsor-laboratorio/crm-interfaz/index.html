@@ -74,7 +74,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
  .kn-guidehead{margin-top:4px}
  .modalbody{padding:19px 18px}
 }
-</style>
+@media(max-width:850px){.auth-intro{display:none}#auth{display:flex;min-height:100dvh;align-items:center;justify-content:center;padding:24px 16px}.auth-box{max-width:520px;padding:27px 20px 19px;border-radius:30px;box-shadow:0 20px 70px #1e375c16}.auth-roles{max-height:55dvh}.auth-box h2{font-size:29px}}</style>
 </head>
 <body>
 <div id="auth">
@@ -86,9 +86,11 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 <div class="preview"><div class="eyebrow" style="color:#b8cee1">EDIFICIO KONSOR · 5 PLANTAS</div><div class="floors"><div><span>05 · Dirección</span><span>●</span></div><div><span>04 · Administración</span><span>●</span></div><div><span>03 · Oficina</span><span>●</span></div><div><span>02 · Técnicos</span><span>●</span></div><div><span>01 · Comercial</span><span>●</span></div></div></div>
 </section>
 <section class="card auth-box">
-<div class="eyebrow">KONSOR · ENTORNO DE DEMOSTRACIÓN</div>
-<h2>Acceder a mi espacio</h2>
-<p>Selecciona un puesto ficticio para ver la interfaz que utilizaría ese empleado. En la aplicación real entrarías con tu cuenta y los permisos se asignarían automáticamente.</p>
+<div class="logo" style="margin:4px 0 29px"><div class="logo-mark">K</div>KONSOR</div>
+<div class="eyebrow">ACCESO · ENTORNO DE DEMOSTRACIÓN</div>
+<h2>Iniciar sesión</h2>
+<p>Accede a tu espacio de trabajo. Por ahora, selecciona qué trabajador deseas simular; no se solicitan contraseñas.</p>
+<div style="height:1px;background:#e7ebf2;margin:21px 0 8px"></div>
 <div id="roleChoices" class="auth-roles"></div>
 <div class="auth-foot"><button class="primary" id="enter">Entrar en KONSOR <span aria-hidden="true">→</span></button><p>Prototipo visual, sin cuentas reales, contraseñas, datos personales ni guardado en la nube.</p></div>
 </section>
