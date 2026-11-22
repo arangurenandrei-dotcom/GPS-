@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f7fb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>KONSOR · CRM empresarial · Concepto 01</title>
+<style>
+:root{--bg:#f4f7fb;--white:#fff;--ink:#14233b;--sub:#7a8ba2;--line:#e2e9f1;--blue:#1557c0;--navy:#152c4c;--green:#168468;--amber:#be8434;--red:#c75158;--shadow:0 9px 40px rgba(31,54,87,.055);--radius:22px}
+*{box-sizing:border-box}html{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;-webkit-text-size-adjust:100%}body{margin:0;background:var(--bg);color:var(--ink)}button,input{font:inherit}button{cursor:pointer;-webkit-tap-highlight-color:transparent}button:focus-visible,input:focus-visible{outline:3px solid #7aaeff;outline-offset:2px}
+button:disabled{cursor:not-allowed;opacity:.5}.hide{display:none!important}
+.icon{width:19px;height:19px;display:inline-block;flex:none;vertical-align:middle}.icon.sm{width:15px;height:15px}.icon.lg{width:24px;height:24px}
+.logo{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:900;letter-spacing:.12em}.logo-mark{width:42px;height:42px;border-radius:13px;background:#173657;color:#fff;display:grid;place-items:center;font-size:24px;font-weight:900;letter-spacing:-.09em;box-shadow:0 8px 19px #132f5020}.eyebrow{font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#8093ac;font-weight:850}.muted{color:var(--sub)}.tiny{font-size:11px}.small{font-size:12px}.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #dae5f0;color:#45617a;padding:7px 10px;border-radius:99px;font-weight:750;font-size:11px;background:#f8fbfd}.chip.green{background:#e8f7f0;border-color:#ccebdd;color:#168163}.chip.amber{background:#fff3e4;border-color:#f4dfba;color:#94611e}.chip.red{background:#ffedf0;border-color:#f5d0d6;color:#b24851}
+.primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:#163d70;color:white;border:0;border-radius:13px;padding:13px 16px;font-weight:780;font-size:13px;box-shadow:0 5px 15px #1b3d6421}.secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #dbe5ee;background:#fff;color:#24405a;border-radius:13px;padding:12px 14px;font-weight:750;font-size:12px}.linkbtn{border:0;background:none;color:#1459ac;font-weight:750;padding:8px}
+.card{background:#fff;border:1px solid #e3eaf1;border-radius:var(--radius);box-shadow:var(--shadow)}.card.pad{padding:20px}
+#auth{min-height:100dvh;display:grid;grid-template-columns:minmax(300px,.93fr) minmax(350px,1.07fr);gap:40px;max-width:1140px;padding:58px 28px;margin:0 auto;align-items:center}
+.auth-intro{padding:16px 24px 16px 0}.auth-intro h1{font-size:clamp(34px,4vw,55px);letter-spacing:-.06em;line-height:1.07;margin:35px 0 20px}.auth-intro h1 em{font-style:normal;color:#3b7bc8}.auth-intro>p{line-height:1.7;color:#72869f;max-width:440px}.preview{background:linear-gradient(128deg,#173454,#244d74);color:#fff;margin-top:32px;border-radius:22px;overflow:hidden;padding:20px;min-height:210px;position:relative;box-shadow:0 22px 50px #1e42662c}.preview::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 91% 17%,#79b8dc38,transparent 56%)}.preview .floors{position:relative;display:flex;flex-direction:column;gap:7px;max-width:325px;margin:14px auto 0}.preview .floors div{display:flex;justify-content:space-between;background:#d9eaff19;border:1px solid #b5dbff35;border-radius:7px;padding:7px 10px;font-size:11px;transform:skew(-7deg)}.auth-box{padding:26px;max-width:550px;width:100%}.auth-box h2{font-size:24px;letter-spacing:-.045em;margin:9px 0 8px}.auth-box>p{font-size:12px;color:#8291a5;line-height:1.6}.group-title{font-size:10px;letter-spacing:.13em;color:#91a0b3;font-weight:850;margin:18px 0 8px}.auth-roles{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:54dvh;overflow:auto;padding:2px}.role-choice{border:1px solid #e0e7ef;background:#f8fafc;border-radius:13px;padding:11px 10px;text-align:left;display:flex;gap:9px;align-items:center;min-width:0}.role-choice.active{background:#edf4ff;border:1.5px solid #4a83d0;box-shadow:0 0 0 3px #2770bf0f}.role-choice .emblem{height:33px;width:33px;display:grid;place-items:center;border-radius:10px;background:#e5edf4;color:#31577c}.role-choice.active .emblem{background:#d5e8ff;color:#1557b1}.role-choice strong{font-size:11px;display:block;line-height:1.22}.role-choice small{display:block;font-size:9px;color:#8998ab;margin-top:4px}.auth-foot{margin-top:18px}.auth-foot button{width:100%}.auth-foot p{font-size:10px;line-height:1.5;color:#97a5b3;text-align:center}
+#app{min-height:100dvh;display:none}.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100dvh}.sidebar{background:#fff;border-right:1px solid #e2e9f1;position:sticky;top:0;height:100dvh;padding:25px 16px;display:flex;flex-direction:column;gap:17px}.sidebar .logo{padding:0 10px 13px}.side-kicker{font-size:10px;letter-spacing:.13em;color:#9aa9ba;font-weight:850;margin:17px 12px 4px}.side-link{border:0;display:flex;align-items:center;gap:13px;text-align:left;width:100%;padding:12px 13px;background:none;color:#708098;border-radius:13px;font-weight:730;font-size:13px}.side-link.active{background:#edf4fc;color:#245a9e}.side-link.active .icon{color:#2a6bb6}.side-link:hover{background:#f4f7fb}.side-user{border-top:1px solid #e8edf3;padding:16px 5px 2px;margin-top:auto;display:flex;align-items:center;gap:10px;cursor:pointer}.avatar{background:#dceaf8;color:#32608d;font-weight:850;border-radius:13px;width:38px;height:38px;flex:none;display:grid;place-items:center}.side-user strong{font-size:12px;display:block}.side-user small{font-size:10px;color:#8394ab;display:block;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.workarea{min-width:0;display:flex;flex-direction:column}.topbar{height:77px;border-bottom:1px solid #e2eaf2;background:#ffffffbd;backdrop-filter:blur(18px);display:flex;align-items:center;justify-content:space-between;padding:0 35px;position:sticky;top:0;z-index:4;gap:12px}.topbar h3{font-size:15px;margin:2px 0 0}.top-actions{display:flex;align-items:center;gap:10px}.top-actions .building{background:#163657;color:#fff;border:0;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:9px;font-size:11px;font-weight:850}.iconbtn{border:1px solid #e0e7ef;border-radius:12px;background:#fff;width:41px;height:40px;display:grid;place-items:center;color:#526c85}.content{max-width:1180px;width:100%;padding:32px 35px 116px;margin:0 auto}.greet{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:19px}.greet h1{font-size:clamp(25px,3vw,35px);letter-spacing:-.055em;margin:7px 0}.greet p{margin:0;color:#7d8ba0;font-size:13px}.hero{border-radius:24px;padding:25px 27px;background:linear-gradient(112deg,#183956,#285b8e);color:white;position:relative;overflow:hidden;display:grid;grid-template-columns:1.4fr .6fr;min-height:200px}.hero:before{content:"";position:absolute;width:400px;height:400px;border:1px solid #ffffff1a;border-radius:50%;right:-130px;top:-120px;box-shadow:0 0 0 45px #ffffff08,0 0 0 90px #ffffff06}.hero>div{position:relative}.hero .eyebrow{color:#b6d5f0}.hero h2{font-size:24px;letter-spacing:-.045em;margin:9px 0}.hero p{font-size:12px;color:#c8dbee;max-width:495px;line-height:1.6}.hero .primary{background:#fff;color:#173e66;margin-top:9px}.circle{width:104px;height:104px;border:9px solid #ffffff36;border-top-color:#fff;border-right-color:#fff;border-radius:50%;display:grid;place-items:center;font-weight:850;font-size:25px;transform:rotate(-20deg);margin:auto}.circle b{transform:rotate(20deg)}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:17px 0}.metric{padding:18px;background:#fff;border:1px solid #e2eaf2;border-radius:18px}.metric .lead{color:#6b8bb0;margin-bottom:13px}.metric strong{font-size:26px;letter-spacing:-.05em;display:block}.metric span{color:#8190a4;font-size:11px;display:block;margin:4px 0}.split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.85fr);gap:16px}.sectiontitle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:24px 0 13px}.sectiontitle h2{font-size:17px;margin:0;letter-spacing:-.02em}.queue{padding:19px}.queue-item{display:flex;gap:13px;align-items:center;padding:13px 1px;border-top:1px solid #edf1f6}.queue-item:first-of-type{border-top:0}.num{border-radius:11px;min-width:32px;height:32px;display:grid;place-items:center;background:#eef4fa;color:#3972a4;font-weight:850;font-size:12px}.queue-item strong{font-size:12px}.queue-item p{font-size:11px;margin:5px 0 0;color:#8b9bb0}.queue-item .secondary{margin-left:auto;padding:8px 10px}.status{font-size:10px;font-weight:800;border-radius:100px;padding:5px 8px;background:#eff3f7;color:#70859a}.status.done{background:#e7f5ed;color:#24805c}.status.now{background:#e9f0fd;color:#366db4}.summary{padding:20px}.summary p{font-size:12px;line-height:1.6;color:#7a8da3}.quick{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.tool{border:1px solid #e4eaf2;background:#f8fafc;border-radius:13px;padding:12px;text-align:left;display:flex;align-items:center;gap:10px;color:#3b5570;font-weight:700;font-size:11px}.tool .icon{color:#4079b1}.alert{display:flex;align-items:flex-start;gap:11px;background:#fff8ed;border:1px solid #f4e7d0;border-radius:15px;padding:14px;margin-bottom:11px}.alert p{font-size:11px;line-height:1.55;margin:4px 0 0;color:#957e5b}.alert strong{font-size:12px}.list-row{display:flex;align-items:center;gap:13px;border-top:1px solid #ecf1f5;padding:14px 0}.list-row:first-of-type{border:0}.list-row .label-group{flex:1;min-width:0}.list-row strong{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.list-row small{font-size:10px;display:block;margin-top:5px;color:#8796ab}.stepgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.stepcard{padding:18px;border:1px solid #e3eaf1;border-radius:17px;background:white;display:flex;flex-direction:column;gap:10px}.stepcard.active{border-color:#9bbce6;background:#f8fbff}.stepcard.done{opacity:.75}.stepcard h3{font-size:13px;margin:0}.stepcard p{font-size:11px;color:#8495a9;line-height:1.6;margin:0}.stepcard button{align-self:flex-start;margin-top:auto}.progress{height:6px;border-radius:12px;background:#e3eaf3;overflow:hidden;margin:15px 0}.progress>div{height:100%;background:#387dc8;border-radius:12px;transition:width .25s}.filelist{display:grid;gap:10px}.filecard{border:1px solid #e2e9f2;background:#fff;border-radius:15px;padding:15px;display:flex;align-items:center;gap:12px;text-align:left;width:100%}.filecard strong{font-size:12px;display:block}.filecard small{font-size:11px;color:#8194a9;display:block;margin:5px 0}.filecard .trailing{margin-left:auto}.filterbar{display:flex;align-items:center;gap:10px;margin:15px 0}.search{width:100%;border:1px solid #dce5ef;border-radius:13px;padding:13px 15px;font-size:13px;background:#fff}.empty{padding:24px;text-align:center;color:#8495a9;font-size:12px}.floor-peek{display:grid;gap:8px}.floor-bar{background:#f3f7fb;border:1px solid #dfe8f0;border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:750}.footer-note{font-size:10px;color:#97a7b6;margin:24px 0 0;line-height:1.7}.bottomnav{display:none}
+#overlay,#building{display:none;position:fixed;inset:0;z-index:40;background:#101c2a88;backdrop-filter:blur(7px)}#overlay.active,#building.active{display:flex}.modal{background:#fff;max-width:650px;width:calc(100% - 24px);max-height:88dvh;border-radius:24px;margin:auto;overflow:auto;box-shadow:0 25px 90px #12294144}.modalheader{display:flex;align-items:center;justify-content:space-between;padding:20px 21px;border-bottom:1px solid #e8edf3;gap:12px}.modalheader h2{margin:3px 0;font-size:19px}.modalbody{padding:20px}.modalcloser{border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;display:grid;place-items:center}.tabs{display:flex;gap:7px;overflow:auto;padding:5px 0 14px}.tabs button{border:1px solid #dae5ee;background:#fff;border-radius:10px;color:#8090a6;font-size:11px;padding:9px 12px;white-space:nowrap}.tabs button.active{background:#eaf2fc;border-color:#b8d1ec;color:#235a9e}.fieldgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{background:#f7f9fc;border:1px solid #e9edf3;padding:12px;border-radius:13px;min-width:0}.field small{font-size:10px;color:#8d9bad;display:block;margin-bottom:6px}.field strong{font-size:12px;display:block;overflow-wrap:anywhere}.docslot{background:#f8fafc;border:1px dashed #b7ccdf;padding:15px;border-radius:13px;margin:9px 0;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}.docslot button{border:0;background:#e8f0f8;padding:9px;border-radius:10px;font-size:11px;color:#325d83}.note{border-radius:13px;background:#fff8e9;border:1px solid #f2dfbc;padding:12px;font-size:11px;line-height:1.5;color:#8d6c32;margin:13px 0}
+#building{z-index:30;background:#edf2f8;backdrop-filter:none;flex-direction:column;color:#17314e}.buildingbar{height:70px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 21px;background:#ffffffc7;border-bottom:1px solid #dce7ef;backdrop-filter:blur(14px)}.buildingbar strong{font-size:15px}.buildingbar small{font-size:10px;color:#8b9cb0}.buildingbar button{border:1px solid #e2e7ef;border-radius:11px;padding:10px 12px;background:white;font-weight:800;font-size:11px;color:#244b70}.buildinglayout{min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,1.65fr) minmax(285px,.85fr);gap:14px;padding:14px;overflow:hidden}.viz{min-height:0;position:relative;border-radius:23px;background:radial-gradient(ellipse at center,#304c6a,#101d32 74%);overflow:auto;color:#fff}.viz:before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.1;background:repeating-linear-gradient(30deg,transparent 0 56px,#d5ebff 57px 58px,transparent 59px 113px),repeating-linear-gradient(-30deg,transparent 0 56px,#d5ebff 57px 58px,transparent 59px 113px)}.visuallabel{position:sticky;z-index:5;top:12px;left:12px;background:#162a43bd;color:#e7f0f9;padding:9px 11px;border:1px solid #ffffff2b;border-radius:11px;display:inline-block;font-size:11px;font-weight:750}.tower{width:min(90%,520px);margin:45px auto 125px;position:relative;filter:drop-shadow(0 18px 14px #06122388)}.roof{height:53px;background:#bed2df;clip-path:polygon(0% 75%,35% 0,100% 30%,67% 100%);border-radius:5px}.towerlabel{text-align:center;font-size:17px;font-weight:900;letter-spacing:.13em;color:#edf7ff;margin:-5px 0 9px}.floorlevel{border:1px solid #a3c4d5a8;border-top:7px solid #bdd8e4;background:linear-gradient(100deg,#2b4a65d9,#537b8db2,#253a56cf);height:76px;transform:skewY(-4deg);display:flex;align-items:center;gap:10px;padding:11px;border-radius:3px;cursor:pointer;color:white;width:100%;text-align:left}.floorlevel:nth-child(odd){background:linear-gradient(100deg,#2d5369,#3c586e,#203752)}.floorlevel.locked{background:#1b2533;border-color:#405165;color:#8092a6;cursor:not-allowed}.floorlevel strong{font-size:12px;flex:1;white-space:nowrap}.mini-people{font-size:18px;letter-spacing:6px;white-space:nowrap}.floorlevel .arrow{font-size:16px}.floorinterior{max-width:830px;padding:20px;margin:45px auto 145px}.floorinterior h2{font-size:17px}.rooms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;transform:perspective(850px) rotateX(13deg);margin-top:17px}.room{min-height:150px;background:linear-gradient(145deg,#dbe8e8,#b2d2d0);border:8px solid #9fbec5;border-top:13px solid #d8e8e7;border-radius:5px;box-shadow:8px 11px 0 #0b192b82;color:#153249;padding:12px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer}.room:nth-child(even){background:linear-gradient(145deg,#f4ebd9,#d0d8db)}.room.agent{background:linear-gradient(145deg,#c3eade,#87cdb9)}.room.locked{background:#1b283a!important;border-color:#43566d;color:#8a9eb0;cursor:not-allowed}.room strong{font-size:11px}.room .actors{font-size:21px}.inspector{background:white;border:1px solid #dce6ef;border-radius:21px;padding:20px;overflow:auto;min-height:0;box-shadow:0 5px 25px #0b1c3214}.inspector h2{font-size:19px;margin:7px 0}.inspector p{font-size:12px;color:#7d8ea4;line-height:1.65}.inspectbtn{border:0;background:#173c68;color:#fff;border-radius:12px;width:100%;padding:13px;font-size:12px;font-weight:850;margin-top:8px}.tagrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.tagrow .chip{background:#f5f8fb}.bitem{border:1px solid #e1e8ef;border-radius:12px;padding:10px;margin:9px 0;font-size:12px;background:#f8fafc}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(25px);background:#19334d;color:#fff;border-radius:14px;padding:13px 16px;font-size:12px;z-index:100;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;box-shadow:0 12px 25px #0a24404d;text-align:center}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:1100px){.shell{grid-template-columns:212px 1fr}.topbar{padding:0 22px}.content{padding:27px 23px 105px}.sidebar{padding:20px 10px}.metrics{gap:9px}}
+@media(max-width:850px){#auth{grid-template-columns:1fr;gap:17px;max-width:550px;padding:30px 15px 55px}.auth-intro{padding:4px 6px}.auth-intro h1{font-size:31px;margin:18px 0 12px}.auth-intro>p{font-size:12px;margin:0}.preview{display:none}.auth-box{padding:19px}.auth-roles{max-height:48dvh}.shell{display:block}.sidebar{display:none}.topbar{height:70px;padding:0 16px;top:0}.topbar .eyebrow{font-size:9px}.topbar h3{font-size:12px}.top-actions .building{font-size:10px;padding:11px}.top-actions .building svg{width:15px}.content{padding:21px 15px 120px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{padding:14px}.split{grid-template-columns:1fr}.hero{grid-template-columns:1fr;padding:21px;min-height:0}.hero .circle{display:none}.hero h2{font-size:21px}.hero p{font-size:11px}.bottomnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:10;background:#fffffff2;border-top:1px solid #e0e8ef;box-shadow:0 -8px 25px #19324c0c;backdrop-filter:blur(20px);padding:8px 5px calc(6px + env(safe-area-inset-bottom));justify-content:space-around}.bottomnav button{min-width:60px;display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;font-size:9px;color:#91a0b3;font-weight:800}.bottomnav button.active{color:#225fa9}.bottomnav .icon{width:21px;height:21px}.buildinglayout{display:block;position:relative;padding:9px;height:calc(100dvh - 73px);min-height:0}.viz{height:100%;border-radius:17px}.inspector{position:absolute;bottom:10px;left:10px;right:10px;min-height:0;max-height:36%;border-radius:17px;box-shadow:0 -8px 28px #13223e54;padding:15px}.tower{width:95%;margin:53px auto 200px}.floorlevel{height:clamp(52px,8dvh,72px);padding:8px}.floorlevel strong{font-size:11px}.mini-people{font-size:14px;letter-spacing:2px}.floorinterior{margin:56px auto 190px;padding:7px}.rooms{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room{min-height:121px;padding:8px;border-width:5px;border-top-width:11px}.room strong{font-size:10px}.buildingbar{padding:7px 11px;height:64px}.buildingbar strong{font-size:12px}.buildingbar small{font-size:9px}.buildingbar button{font-size:10px;padding:10px}.modal{max-height:91dvh;border-radius:20px}.modalbody{padding:15px}.fieldgrid{gap:8px}.field{padding:10px}.field strong{font-size:11px}}
+@media(max-width:390px){.auth-roles{gap:6px}.role-choice{padding:8px 6px}.role-choice .emblem{width:29px;height:29px}.role-choice strong{font-size:10px}.role-choice small{font-size:8px}.top-actions .building{gap:5px}.top-actions .iconbtn{width:36px;height:36px}.workarea .content{padding-left:12px;padding-right:12px}.stepgrid{grid-template-columns:1fr}.floorlevel strong{font-size:10px}}
+</style>
+</head>
+<body>
+<div id="auth">
+<section class="auth-intro">
+<div class="logo"><div class="logo-mark">K</div>KONSOR</div>
+<div class="eyebrow" style="margin-top:18px">UN SOLO SISTEMA · TODA LA EMPRESA</div>
+<h1>Tu empresa.<br>Un mismo <em>lugar.</em></h1>
+<p>Una oficina digital donde cada persona trabaja con su propio asistente, y todos los departamentos comparten expedientes sin duplicar información.</p>
+<div class="preview"><div class="eyebrow" style="color:#b8cee1">EDIFICIO KONSOR · 5 PLANTAS</div><div class="floors"><div><span>05 · Dirección</span><span>●</span></div><div><span>04 · Administración</span><span>●</span></div><div><span>03 · Oficina</span><span>●</span></div><div><span>02 · Técnicos</span><span>●</span></div><div><span>01 · Comercial</span><span>●</span></div></div></div>
+</section>
+<section class="card auth-box">
+<div class="eyebrow">KONSOR · ENTORNO DE DEMOSTRACIÓN</div>
+<h2>Acceder a mi espacio</h2>
+<p>Selecciona un puesto ficticio para ver la interfaz que utilizaría ese empleado. En la aplicación real entrarías con tu cuenta y los permisos se asignarían automáticamente.</p>
+<div id="roleChoices" class="auth-roles"></div>
+<div class="auth-foot"><button class="primary" id="enter">Entrar en KONSOR <span aria-hidden="true">→</span></button><p>Prototipo visual, sin cuentas reales, contraseñas, datos personales ni guardado en la nube.</p></div>
+</section>
+</div>
+<div id="app">
+<div class="shell">
+<aside class="sidebar">
+<div class="logo"><div class="logo-mark">K</div>KONSOR</div>
+<div class="side-kicker">MI ESPACIO</div>
+<div id="sideNav"></div>
+<div class="side-kicker">EMPRESA</div>
+<button class="side-link" data-building="open"><span id="buildingIconSide"></span>Edificio KONSOR</button>
+<button class="side-link" id="changeRoleSide"><span id="switchIconSide"></span>Cambiar usuario</button>
+<div class="side-user" id="sideUser"></div>
+</aside>
+<section class="workarea">
+<header class="topbar">
+<div><div class="eyebrow" id="topDept">KONSOR CRM</div><h3 id="topTitle">Mi trabajo</h3></div>
+<div class="top-actions"><span class="chip green" id="demoMode">● DEMO</span><button class="building" data-building="open"><span id="buildingIconTop"></span>EDIFICIO</button><button class="iconbtn" id="bellButton" aria-label="Avisos"><span id="bellIcon"></span></button><button class="iconbtn" id="changeRoleTop" aria-label="Cambiar trabajador"><span id="userIcon"></span></button></div>
+</header>
+<main class="content" id="main"></main>
+</section>
+</div>
+<nav class="bottomnav" id="bottomNav" aria-label="Navegación principal"></nav>
+</div>
+<div id="overlay" role="dialog" aria-modal="true" aria-label="Expediente o herramienta"><div class="modal"><div class="modalheader"><div><div class="eyebrow" id="modalKicker">FICHA CENTRAL</div><h2 id="modalTitle">Expediente</h2></div><button class="modalcloser" id="closeModal" aria-label="Cerrar"><span id="closeModalIcon"></span></button></div><div class="modalbody" id="modalContent"></div></div></div>
+<div id="building" role="dialog" aria-modal="true" aria-label="Edificio KONSOR">
+<header class="buildingbar"><button id="closeBuilding">✕ Cerrar</button><div style="text-align:center"><strong>EDIFICIO KONSOR</strong><small style="display:block">La empresa, vista desde dentro</small></div><button id="backBuilding">↶ Exterior</button></header>
+<div class="buildinglayout"><section class="viz"><div class="visuallabel" id="vizlabel">VISTA GENERAL · CINCO PLANTAS</div><div id="vizbody"></div></section><aside class="inspector" id="inspector"></aside></div>
+</div>
+<div class="toast" id="toast" aria-live="polite"></div>
+<script>
+(function(){
+'use strict';
+var I={
+home:'<path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10z"/><path d="M9 22v-8h6v8"/>',
+list:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h9M8 13h9M8 17h6"/>',
+folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
+tools:'<path d="m14 7-7 7m-1-9 4 4m8 6 3 3-3 3-3-3m-8-7 3 3-5 5-3-3z"/><path d="M16 3a5 5 0 0 0-5 5l5 5a5 5 0 0 0 5-5l-3 2-4-4z"/>',
+users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+building:'<rect x="4" y="3" width="16" height="19" rx="2"/><path d="M9 22v-4h6v4M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2"/>',
+bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+user:'<circle cx="12" cy="8" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',
+logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',
+check:'<path d="m5 12 4 4L19 6"/>',
+circle:'<circle cx="12" cy="12" r="9"/>',
+map:'<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/>',
+phone:'<path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.64-3.07 19.52 19.52 0 0 1-6-6A19.79 19.79 0 0 1 2.11 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.5 3a2 2 0 0 1-.57 1.7L7.5 9.9a16 16 0 0 0 6.6 6.6l1.5-1.5a2 2 0 0 1 1.7-.57l3 .5a2 2 0 0 1 1.7 2z"/>',
+camera:'<path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/>',
+truck:'<rect x="2" y="6" width="12" height="12" rx="1"/><path d="M14 10h4l4 4v4h-8M5 18v2m13-2v2"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>',
+chart:'<path d="M3 3v18h18M7 15l4-5 4 3 5-8"/>',
+coins:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 9h.01M17 15h.01"/>',
+file:'<path d="M6 2h8l5 5v15H6zM14 2v5h5M9 12h7m-7 4h7"/>',
+shield:'<path d="M12 22c5-2.5 8-6 8-11V5l-8-3-8 3v6c0 5 3 8.5 8 11z"/><path d="m8 12 3 3 5-6"/>',
+clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+layers:'<path d="m2 9 10-6 10 6-10 6zM2 14l10 6 10-6"/>',
+x:'<path d="M5 5l14 14M19 5 5 19"/>',
+spark:'<path d="m12 2 1.5 7.5L21 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>',
+chevron:'<path d="m9 18 6-6-6-6"/>',
+refresh:'<path d="M3 12a9 9 0 0 1 15-6l3 3M21 3v6h-6M21 12a9 9 0 0 1-15 6l-3-3M3 21v-6h6"/>'
+};
+function icon(name,cls){return '<svg class="icon '+(cls||'')+'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(I[name]||I.circle)+'</svg>'}
+function E(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var $=function(id){return document.getElementById(id)};
+var roles=[
+{id:'ceo',name:'Dirección general',short:'CEO',group:'dirección',dept:4,scope:'Toda la empresa',boss:true,team:'TODOS',person:'Dirección',icon:'chart'},
+{id:'jcom',name:'Jefe de planta Comercial',short:'Jefe Comercial',group:'comercial',dept:0,scope:'Todos los equipos comerciales',boss:true,team:'TODOS',person:'Jefatura Comercial',icon:'users'},
+{id:'jeq',name:'Jefe de equipo Comercial A',short:'Jefe equipo A',group:'comercial',dept:0,scope:'Equipo comercial A',boss:true,team:'A',person:'Responsable A',icon:'users'},
+{id:'com',name:'Comercial · Equipo A',short:'Comercial',group:'comercial',dept:0,scope:'Clientes y zonas asignados',boss:false,team:'A',person:'Comercial 01',icon:'map'},
+{id:'jtec',name:'Jefe de Técnicos',short:'Jefe técnicos',group:'técnicos',dept:1,scope:'Todas las cuadrillas',boss:true,team:'TODOS',person:'Jefatura Técnica',icon:'truck'},
+{id:'tec',name:'Técnico · Cuadrilla 1',short:'Técnico',group:'técnicos',dept:1,scope:'Órdenes de la cuadrilla 1',boss:false,team:'C1',person:'Técnico 01',icon:'tools'},
+{id:'jofi',name:'Jefe de Oficina',short:'Jefe oficina',group:'oficina',dept:2,scope:'Todos los expedientes de Oficina',boss:true,team:'TODOS',person:'Jefatura Oficina',icon:'folder'},
+{id:'ofi',name:'Administrativo de Oficina',short:'Oficina',group:'oficina',dept:2,scope:'Expedientes asignados',boss:false,team:'O1',person:'Oficina 01',icon:'file'},
+{id:'jadm',name:'Jefe de Administración',short:'Jefe administración',group:'administración',dept:3,scope:'Facturación y gastos globales',boss:true,team:'TODOS',person:'Jefatura Administración',icon:'coins'},
+{id:'adm',name:'Administrativo de Finanzas',short:'Administración',group:'administración',dept:3,scope:'Movimientos asignados',boss:false,team:'F1',person:'Administración 01',icon:'coins'}
+];
+var cfg={
+comercial:{desc:'Captación, territorios, llamadas, seguimiento y cierre de jornada.',steps:['Revisar jornada y asignaciones','Consultar mapa y sectores','Captar y completar fichas','Gestionar llamadas y citas','Volcar hojas y cerrar jornada'],tools:[['Mapa y Catastro','map'],['Sectores y pueblos','layers'],['Captación guiada · 4 pasos','users'],['Llamadas y seguimiento','phone'],['Agenda de instalaciones','calendar'],['Hojas pendientes','file']],notice:'Hay fichas comerciales pendientes de revisar. Los números son ejemplos.'},
+técnicos:{desc:'Instalaciones guiadas, materiales, rutas, pruebas fotográficas y partes.',steps:['Revisar órdenes del día','Comprobar materiales y ruta','Abrir orden de instalación','Subir fotos y completar parte','Revisar incidencias y cerrar jornada'],tools:[['Órdenes de trabajo','list'],['Ruta de instalaciones','map'],['Materiales','tools'],['Fotos de obra','camera'],['Parte técnico','file'],['Incidencias','shield']],notice:'Una orden necesita evidencias de instalación. Datos ficticios.'},
+oficina:{desc:'Expedientes, validaciones, documentación, CAE y subsanaciones.',steps:['Recibir expedientes del día','Comprobar viabilidad y datos','Revisar firmas y fotografías','Pedir documentación pendiente','Tramitar y cerrar revisión'],tools:[['Bandeja de expedientes','folder'],['Documentación CAE','file'],['Revisiones guiadas','shield'],['Subsanaciones','refresh'],['Agenda y llamadas','calendar'],['Comunidades','users']],notice:'Dos expedientes de ejemplo necesitan revisión documental.'},
+administración:{desc:'Facturación, cobros, gastos, comisiones y conciliaciones.',steps:['Revisar movimientos pendientes','Conciliar gastos y tickets','Preparar facturación','Registrar y comprobar cobros','Verificar costes y cerrar'],tools:[['Facturas','file'],['Cobros y pagos','coins'],['Tickets y gastos','camera'],['Flota y peajes','truck'],['Comisiones','users'],['Tesorería','chart']],notice:'Hay cobros sin confirmar en la simulación.'},
+dirección:{desc:'Visión general de departamentos, personas, rentabilidad y riesgos.',steps:['Revisar estado de las plantas','Analizar alertas empresariales','Comprobar obras y rentabilidad','Revisar equipos y desempeño','Validar decisiones pendientes'],tools:[['Indicadores globales','chart'],['Equipos y personas','users'],['Costes y rentabilidad','coins'],['Expedientes globales','folder'],['Edificio de operaciones','building'],['Configuración','tools']],notice:'El panel muestra una simulación, sin indicadores de producción.'}
+};
+var floorNames=['Comercial','Técnicos','Oficina','Administración','Dirección'];
+var jobs=[
+{id:'K-0021',name:'María Ejemplo',address:'Calle del Ejemplo 12',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Documentación',state:'Revisión pendiente',m2:86,docs:3,cost:'2.100 €',income:'3.100 €',date:'25/11'},
+{id:'K-0022',name:'Javier Prueba',address:'Calle Ficticia 9',town:'Funes',service:'Aislamiento de desván',team:'B',owner:'otro',crew:'C2',office:'O2',finance:'F2',stage:'Instalación',state:'Instalación agendada',m2:74,docs:1,cost:'1.760 €',income:'2.800 €',date:'26/11'},
+{id:'K-0023',name:'Carmen Demo',address:'Avenida Inventada 3',town:'Noáin',service:'Aerotermia · estudio',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Viabilidad',state:'Estudio previo',m2:110,docs:0,cost:'Por estudiar',income:'Por estudiar',date:'27/11'},
+{id:'K-0024',name:'Pablo Simulado',address:'Plaza Modelo 5',town:'Peralta',service:'Aislamiento de cubierta',team:'C',owner:'otro',crew:'C3',office:'O1',finance:'F1',stage:'Cobro',state:'Cobro pendiente',m2:95,docs:5,cost:'2.300 €',income:'3.700 €',date:'24/11'}
+];
+var state={role:'jeq',view:'inicio',step:{},checked:{},record:null,recordTab:'cliente',building:false,floor:null,room:null,search:'',lastNav:'inicio',selectedPhoto:''};
+function user(){return roles.find(function(r){return r.id===state.role})||roles[0]}
+function rgroup(){return user().group}
+function canSee(j){var u=user();if(u.id==='ceo'||u.id==='jcom'||u.id==='jtec'||u.id==='jofi'||u.id==='jadm')return true;if(u.id==='jeq')return j.team==='A';if(u.id==='com')return j.owner==='com';if(u.id==='tec')return j.crew==='C1';if(u.id==='ofi')return j.office==='O1';if(u.id==='adm')return j.finance==='F1';return false}
+function canFinance(){return ['ceo','jadm','adm'].indexOf(user().id)!==-1}
+function canPersonal(){return ['ceo','jcom','jeq','com','jofi','ofi'].indexOf(user().id)!==-1}
+function assigned(){return jobs.filter(canSee)}
+function defaultNav(){return [{id:'inicio',label:'Inicio',icon:'home'},{id:'trabajo',label:'Mi trabajo',icon:'list'},{id:'expedientes',label:'Expedientes',icon:'folder'},{id:'agenda',label:'Agenda',icon:'calendar'},{id:'herramientas',label:'Herramientas',icon:'tools'}].concat(user().boss?[{id:'equipo',label:'Equipo y estadísticas',icon:'chart'}]:[])}
+function actions(row){return row.map(function(it){return '<button class="tool" data-tool="'+E(it[0])+'">'+icon(it[1])+' '+E(it[0])+'</button>'}).join('')}
+function titleBlock(k,h,p){return '<div class="greet"><div><span class="eyebrow">'+E(k)+'</span><h1>'+E(h)+'</h1><p>'+E(p)+'</p></div><span class="chip green">● DEMOSTRACIÓN</span></div>'}
+function renderNav(){
+var items=defaultNav();
+$('sideNav').innerHTML=items.map(function(t){return '<button data-nav="'+t.id+'" class="side-link '+(state.view===t.id?'active':'')+'">'+icon(t.icon)+' '+t.label+'</button>'}).join('');
+$('bottomNav').innerHTML=items.slice(0,5).map(function(t){return '<button data-nav="'+t.id+'" class="'+(state.view===t.id?'active':'')+'">'+icon(t.icon)+'<span>'+t.label+'</span></button>'}).join('');
+$('sideUser').innerHTML='<div class="avatar">'+E(user().person.slice(0,2).toUpperCase())+'</div><div><strong>'+E(user().person)+'</strong><small>'+E(user().name)+'</small></div>'+icon('chevron','sm');
+$('topDept').textContent='KONSOR · '+(rgroup()==='dirección'?'DIRECCIÓN':rgroup().toUpperCase());
+var labels={inicio:'Panel principal',trabajo:'Asistente de trabajo',expedientes:'Expedientes',agenda:'Agenda y planificación',herramientas:'Herramientas',equipo:'Control de equipo'};
+$('topTitle').textContent=labels[state.view]||'Mi espacio';
+}
+function getProgress(){return state.step[state.role]||0}
+function checkStep(n){state.step[state.role]=Math.max(getProgress(),n+1);if(state.step[state.role]>=cfg[rgroup()].steps.length)toast('Recorrido de demostración completado. No se ha guardado ninguna jornada.');render();}
+function openTool(name){
+if(/Edificio/.test(name)){openBuilding();return}
+if(/Expedientes|Bandeja|Fichas|Captación|Fotograf|Fotos/.test(name)){if(/Fotos|Fotograf/.test(name)){openNote(name,'Para el técnico, aquí aparecería la cámara, las fotos obligatorias y su orden de trabajo. En esta demo puedes abrir la pestaña Documentos de una ficha y elegir un archivo solo para visualizar su nombre.');return}setView('expedientes');return}
+if(/Mapa|Sectores|Catastro|Ruta/.test(name)){openNote(name,'Botón preparado en el diseño. Tal como pediste, el mapa y el cálculo de rutas no necesitan funcionar todavía.');return}
+if(/Estadísticas|Indicadores|Equipos|personas|Comisiones|rentabilidad/i.test(name)&&user().boss){setView('equipo');return}
+openNote(name,'Módulo diseñado visualmente para este puesto. Se conectará con datos reales y un asistente guiado durante el desarrollo de la CRM.');
+}
+function renderHome(){
+var u=user(),c=cfg[rgroup()],step=getProgress(),num=c.steps.length,records=assigned(),pct=Math.round(100*step/num);
+var metrics=[
+{value:records.length,label:rgroup()==='técnicos'?'Órdenes visibles':'Expedientes visibles',icon:'folder'},
+{value:num-step,label:'Pasos pendientes',icon:'list'},
+{value:u.boss?(u.id==='ceo'?'5':u.id==='jeq'?'3':'4'):'1',label:u.boss?'Áreas / equipo (demo)':'Puesto asignado',icon:'users'},
+{value:'0',label:'Alertas reales',icon:'shield'}];
+var s=titleBlock('MI ESPACIO · '+u.scope,'Hola, '+u.person,c.desc);
+s+='<div class="hero"><div><div class="eyebrow">ASISTENTE OPERATIVO · '+E(u.short)+'</div><h2>'+(step<num?E(c.steps[step]):'Recorrido completado')+'</h2><p>La app organiza tu jornada y señala el siguiente paso. En esta demostración puedes completar etapas sin guardar datos.</p><button class="primary" data-nav="trabajo">'+(step<num?'Continuar recorrido':'Revisar recorrido')+' '+icon('arrow')+'</button></div><div class="circle"><b>'+pct+'%</b></div></div>';
+s+='<div class="metrics">'+metrics.map(function(m){return '<div class="metric"><div class="lead">'+icon(m.icon)+'</div><strong>'+E(m.value)+'</strong><span>'+E(m.label)+'</span></div>'}).join('')+'</div>';
+s+='<div class="split"><div><div class="sectiontitle"><h2>Tu secuencia de trabajo</h2><button class="linkbtn" data-nav="trabajo">Ver recorrido →</button></div><div class="card queue">'+c.steps.slice(0,4).map(function(t,i){return '<div class="queue-item"><span class="num">'+String(i+1).padStart(2,'0')+'</span><div style="flex:1"><strong>'+E(t)+'</strong><p>'+(i<step?'Completado en la demo':i===step?'Siguiente paso recomendado':'Aún pendiente')+'</p></div><span class="status '+(i<step?'done':i===step?'now':'')+'">'+(i<step?'Hecho':i===step?'Ahora':'Después')+'</span></div>'}).join('')+'</div></div><div><div class="sectiontitle"><h2>Avisos y herramientas</h2></div><div class="alert">'+icon('bell')+'<div><strong>Información operativa</strong><p>'+E(c.notice)+'</p></div></div><div class="card summary"><div class="eyebrow">ACCESOS RÁPIDOS</div><div class="quick" style="margin-top:14px">'+actions(c.tools.slice(0,4))+'</div></div></div></div>';
+s+='<div class="sectiontitle"><h2>Edificio KONSOR</h2></div><div class="card pad" style="display:flex;align-items:center;justify-content:space-between;gap:20px"><div><strong style="font-size:14px">Visualiza tu departamento</strong><p class="small muted" style="max-width:530px">Consulta despachos, equipos, trabajadores y agentes. Desde cada puesto podrás volver a la función real correspondiente de la CRM.</p></div><button class="primary" data-building="open">'+icon('building')+' Entrar</button></div>';
+return s;
+}
+function renderWork(){
+var c=cfg[rgroup()],step=getProgress(),num=c.steps.length;
+var h=titleBlock('ASISTENTE GUIADO','Mi recorrido de trabajo','Los pasos y controles cambian según el puesto que seleccionaste.');
+h+='<div class="card pad" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>Progreso de demostración</strong><span class="chip">'+Math.min(step,num)+' de '+num+' pasos</span></div><div class="progress"><div style="width:'+Math.round(100*step/num)+'%"></div></div><p class="small muted">Completar estos pasos solo cambia esta demostración. No se registran horas ni actividades reales.</p></div>';
+h+='<div class="stepgrid">'+c.steps.map(function(t,i){return '<div class="stepcard '+(i<step?'done':i===step?'active':'')+'"><div style="display:flex;justify-content:space-between;align-items:center"><span class="num">'+String(i+1).padStart(2,'0')+'</span><span class="status '+(i<step?'done':i===step?'now':'')+'">'+(i<step?'Finalizado':i===step?'Paso actual':'Pendiente')+'</span></div><h3>'+E(t)+'</h3><p>'+E(stepDescription(rgroup(),i))+'</p>'+(i===step?'<button class="primary" data-step="'+i+'">Marcar completado '+icon('check','sm')+'</button>':i<step?'<span class="chip green">'+icon('check','sm')+' Hecho en la demo</span>':'<button class="secondary" disabled>Se habilitará después</button>')+'</div>'}).join('')+'</div>';
+if(step===num)h+='<button class="secondary" id="resetFlow" style="margin-top:17px">'+icon('refresh')+' Reiniciar demostración</button>';
+return h;
+}
+function stepDescription(group,i){
+var hints={
+comercial:['Comienza por las asignaciones y revisa si hay avisos.','Mapa, pueblos, sectores y GPS.','Recoge cliente, vivienda y requisitos esenciales mediante fichas guiadas.','Realiza seguimientos y prepara reservas verificadas.','Comprueba el volcado, las llamadas y el cierre de jornada.'],
+técnicos:['Comprueba la fecha, vivienda y responsable de la orden.','Prepara el material y la ruta asignada.','Sigue la secuencia de instalación del servicio concreto.','Adjunta fotografías, medidas, firma y posibles incidencias.','Revisa los trabajos pendientes y termina el parte.'],
+oficina:['Ordena por fecha y urgencia las fichas nuevas.','Comprueba documentación y autorización previa.','Valida evidencias y detecta ausencias.','Genera tareas de corrección para técnicos o comerciales.','Completa el expediente antes de tramitar.'],
+administración:['Consulta los movimientos del día.','Compara tickets con transacciones y rutas.','Genera las facturas pendientes de emitir.','Distingue facturado, aceptado y efectivamente cobrado.','Revisa desviaciones y prepara el cierre contable.'],
+dirección:['Estado comercial, técnico, Oficina y Administración.','Identifica bloqueos, no simples números.','Analiza ingresos previstos, reales y gastos.','Estudia resultados de cada equipo autorizado.','Revisa decisiones y confirma los siguientes objetivos.']
+};
+return (hints[group]||[])[i]||'Acción del flujo guiado.';
+}
+function renderFiles(){
+var all=assigned(), q=state.search.toLocaleLowerCase('es'),list=all.filter(function(j){return (j.id+' '+j.name+' '+j.town+' '+j.service).toLocaleLowerCase('es').includes(q)});
+var h=titleBlock('FICHA CENTRAL · UNA SOLA FUENTE','Clientes y expedientes','Un cliente, sus viviendas y cada actuación; acceso limitado por el puesto.');
+h+='<div class="card pad"><div class="filterbar">'+icon('search')+'<input class="search" id="fileSearch" placeholder="Buscar expediente, cliente o municipio" value="'+E(state.search)+'" aria-label="Buscar expedientes"></div><div class="filelist" id="fileCards">';
+h+=list.length?list.map(function(j){return '<button class="filecard" data-job="'+j.id+'"><div class="avatar">'+icon('file')+'</div><div style="flex:1;min-width:0"><strong>'+j.id+' · '+E(j.name)+'</strong><small>'+E(j.town)+' · '+E(j.service)+'</small></div><span class="chip '+(j.stage==='Cobro'?'amber':'')+'">'+E(j.stage)+'</span>'+icon('chevron','sm')+'</button>'}).join(''):'<div class="empty">No hay expedientes en este ámbito que coincidan con la búsqueda.</div>';
+h+='</div></div><p class="footer-note">En producción, el servidor filtrará los expedientes antes de enviarlos al dispositivo. El selector de puestos de esta demo no es autenticación ni seguridad real.</p>';
+return h;
+}
+function renderAgenda(){
+var rows=assigned();var h=titleBlock('PLANIFICACIÓN','Agenda del departamento','Visitas, órdenes, revisiones y fechas de ejemplo, según el perfil.');
+h+='<div class="card pad"><div class="eyebrow">PRÓXIMOS EVENTOS · DEMOSTRACIÓN</div>'+rows.map(function(j,i){return '<div class="list-row"><div class="num">'+E(j.date.slice(0,2))+'</div><div class="label-group"><strong>'+E(j.stage)+' · '+j.id+'</strong><small>'+E(j.town)+' · '+E(j.service)+'</small></div><button class="secondary" data-job="'+j.id+'">Ver</button></div>'}).join('')+'</div>';
+h+='<div class="card pad" style="margin-top:13px"><h2>Planificación guiada</h2><p class="small muted">La agenda definitiva tendrá validaciones antes de reservar, asignación de responsables y avisos de conflictos. En esta demo los eventos son ficticios.</p><button class="secondary" data-tool="Planificar calendario">Consultar opciones de planificación</button></div>';
+return h;
+}
+function renderTools(){
+var c=cfg[rgroup()];var h=titleBlock('HERRAMIENTAS DEL DEPARTAMENTO','Todo lo necesario para trabajar','Cada herramienta tendrá un recorrido guiado como el de tu aplicación comercial.');
+h+='<div class="stepgrid">'+c.tools.map(function(t){return '<button class="stepcard" data-tool="'+E(t[0])+'" style="text-align:left;min-height:122px;cursor:pointer"><span class="num" style="height:40px;width:40px">'+icon(t[1],'lg')+'</span><h3>'+E(t[0])+'</h3><p>Acceder al módulo de '+E(rgroup())+' →</p></button>'}).join('')+'</div>';return h;
+}
+function renderTeam(){
+var u=user();if(!u.boss)return renderHome();
+var h=titleBlock('RESPONSABLE · ESTADÍSTICAS','Control de '+(u.id==='ceo'?'KONSOR':rgroup()),'Indicadores, equipo y pendientes. En este prototipo todos los valores son de ejemplo.');
+h+='<div class="metrics"><div class="metric">'+icon('users')+'<strong>'+(u.id==='ceo'?'5':'3')+'</strong><span>Áreas representadas</span></div><div class="metric">'+icon('folder')+'<strong>'+assigned().length+'</strong><span>Expedientes ficticios visibles</span></div><div class="metric">'+icon('bell')+'<strong>2</strong><span>Avisos de ejemplo</span></div><div class="metric">'+icon('chart')+'<strong>—</strong><span>Rentabilidad no conectada</span></div></div>';
+h+='<div class="split"><div class="card pad"><h2>Ámbito supervisado</h2>'+[1,2,3].map(function(i){return '<div class="list-row"><div class="avatar">'+icon('users')+'</div><div class="label-group"><strong>'+(u.id==='ceo'?'Departamento':'Equipo')+' '+i+'</strong><small>Asignaciones y estadísticas ficticias</small></div><span class="chip">Sincronización pendiente</span></div>'}).join('')+'</div><div class="card pad"><h2>Revisión del responsable</h2><p class="small muted">El jefe podrá analizar rendimientos, asignar trabajo, detectar retrasos y validar la planificación sin acceder a datos fuera de su ámbito.</p><button class="primary" data-nav="trabajo">Abrir asistente de planificación '+icon('arrow','sm')+'</button></div></div>';return h;
+}
+function render(){
+if($('auth').style.display!=='none')return;
+renderNav();
+var v=state.view;var h=v==='inicio'?renderHome():v==='trabajo'?renderWork():v==='expedientes'?renderFiles():v==='agenda'?renderAgenda():v==='herramientas'?renderTools():renderTeam();
+$('main').innerHTML=h;
+$('main').querySelectorAll('[data-job]').forEach(function(b){b.onclick=function(){openRecord(b.dataset.job)}});
+$('main').querySelectorAll('[data-step]').forEach(function(b){b.onclick=function(){checkStep(+b.dataset.step)}});
+$('main').querySelectorAll('[data-tool]').forEach(function(b){b.onclick=function(){openTool(b.dataset.tool)}});
+$('main').querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){setView(b.dataset.nav)}});
+$('main').querySelectorAll('[data-building]').forEach(function(b){b.onclick=openBuilding});
+if($('fileSearch')){$('fileSearch').oninput=function(e){state.search=e.target.value;var focus=this.selectionStart;var newlist=assigned().filter(function(j){return (j.id+' '+j.name+' '+j.town+' '+j.service).toLocaleLowerCase('es').includes(state.search.toLocaleLowerCase('es'))});$('fileCards').innerHTML=newlist.length?newlist.map(function(j){return '<button class="filecard" data-job="'+j.id+'"><div class="avatar">'+icon('file')+'</div><div style="flex:1;min-width:0"><strong>'+j.id+' · '+E(j.name)+'</strong><small>'+E(j.town)+' · '+E(j.service)+'</small></div><span class="chip">'+E(j.stage)+'</span>'+icon('chevron','sm')+'</button>'}).join(''):'<div class="empty">Sin coincidencias.</div>';$('fileCards').querySelectorAll('[data-job]').forEach(function(b){b.onclick=function(){openRecord(b.dataset.job)}})}} 
+if($('resetFlow'))$('resetFlow').onclick=function(){state.step[state.role]=0;render()};
+}
+function setView(view){if(view==='equipo'&&!user().boss)view='inicio';state.view=view;render();window.scrollTo(0,0)}
+function enter(){state.view='inicio';$('auth').style.display='none';$('app').style.display='block';render()}
+function returnLogin(){closeBuilding();closeModal();$('app').style.display='none';$('auth').style.display='grid';window.scrollTo(0,0);drawRoles()}
+function drawRoles(){
+$('roleChoices').innerHTML=roles.map(function(r){return '<button class="role-choice '+(r.id===state.role?'active':'')+'" data-role="'+r.id+'"><span class="emblem">'+icon(r.icon)+'</span><span style="min-width:0"><strong>'+E(r.name)+'</strong><small>'+E(floorNames[r.dept])+'</small></span></button>'}).join('');
+$('roleChoices').querySelectorAll('[data-role]').forEach(function(b){b.onclick=function(){state.role=b.dataset.role;drawRoles()}});
+}
+function toast(txt){var t=$('toast');t.textContent=txt;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove('show')},3300)}
+function openNote(title,detail){$('modalKicker').textContent='HERRAMIENTA · DEMOSTRACIÓN';$('modalTitle').textContent=title;$('modalContent').innerHTML='<div class="note">'+E(detail)+'</div><div style="text-align:right"><button class="secondary" id="noteClose">Volver al trabajo</button></div>';$('overlay').classList.add('active');$('noteClose').onclick=closeModal}
+function closeModal(){ $('overlay').classList.remove('active');state.record=null;state.selectedPhoto=''}
+function openRecord(id){var j=jobs.find(function(x){return x.id===id});if(!j||!canSee(j))return toast('Expediente fuera del ámbito autorizado en la demo');state.record=j.id;state.recordTab='cliente';renderRecord()}
+function field(label,value){return '<div class="field"><small>'+E(label)+'</small><strong>'+E(value)+'</strong></div>'}
+function renderRecord(){
+var j=jobs.find(function(x){return x.id===state.record});if(!j||!canSee(j))return closeModal();
+$('modalKicker').textContent='FICHA CENTRAL · '+j.id;$('modalTitle').textContent=j.name;
+var tabs=['cliente','vivienda','actuación','instalación','documentos','economía'].filter(function(t){return t!=='economía'||canFinance()});
+$('modalContent').innerHTML='<div class="tabs">'+tabs.map(function(t){return '<button data-tab="'+t+'" class="'+(state.recordTab===t?'active':'')+'">'+t[0].toUpperCase()+t.slice(1)+'</button>'}).join('')+'</div><div id="recordPanel"></div>';
+$('modalContent').querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){state.recordTab=b.dataset.tab;renderRecord()}});
+var body='';
+switch(state.recordTab){
+case 'cliente':body='<div class="fieldgrid">'+field('ID de cliente',j.id)+field('Nombre del titular',canPersonal()?j.name:'Dato restringido por puesto')+field('Teléfono','No almacenado en la demo')+field('DNI','No almacenado')+field('Comercial / equipo','Equipo '+j.team)+field('Correo electrónico','No almacenado')+'</div>';break;
+case 'vivienda':body='<div class="fieldgrid">'+field('Municipio',j.town)+field('Dirección',j.address)+field('Tipo de inmueble','Vivienda unifamiliar (demo)')+field('Superficie evaluada',j.m2+' m²')+field('Referencia catastral','Pendiente de verificar')+field('Zona climática','Por validar')+'</div>';break;
+case 'actuación':body='<div class="fieldgrid">'+field('Servicio',j.service)+field('Estado actual',j.state)+field('Etapa del expediente',j.stage)+field('Viabilidad previa','Pendiente de revisión autorizada')+field('Equipo comercial',j.team)+field('Fecha prevista',j.date)+'</div><div class="note">Antes de comprometer una instalación, la CRM real deberá exigir los requisitos técnicos, documentales, CAE y económicos aplicables.</div>';break;
+case 'instalación':body='<div class="fieldgrid">'+field('Cuadrilla asignada',j.crew)+field('Superficie estimada',j.m2+' m²')+field('Parte técnico','Pendiente o simulado')+field('Material empleado','Por registrar')+'</div><div class="docslot">Fotos antes y después <span class="chip">No hay archivos reales</span></div>';break;
+case 'documentos':body='<div class="docslot">'+icon('file')+' Documentación del expediente <span class="chip">'+j.docs+' referencias demo</span></div><div class="docslot">'+icon('camera')+' Fotografías del técnico <span class="chip amber">Por revisar</span></div><div class="docslot">'+icon('shield')+' Firmas y validación CAE <span class="chip">Pendiente</span></div><div class="card pad" style="margin-top:12px"><strong>Vista previa de archivo local</strong><p class="small muted">Puedes elegir una foto para comprobar cómo se mostraría el nombre. No se sube a ningún servidor ni se guarda.</p><input id="demoFile" type="file" accept="image/*,.pdf" style="max-width:100%;font-size:11px"><div id="filename" class="small muted" style="margin-top:9px"></div></div>';break;
+case 'economía':body='<div class="fieldgrid">'+field('Ingreso previsto',j.income)+field('Coste estimado',j.cost)+field('Factura','No emitida en demo')+field('Cobro confirmado','No')+field('Rentabilidad real','Sin datos contables')+field('Comisiones','Sin liquidación')+'</div>';break;
+}
+$('recordPanel').innerHTML=body;
+if($('demoFile'))$('demoFile').onchange=function(e){var f=e.target.files&&e.target.files[0];$('filename').textContent=f?'Archivo seleccionado: '+f.name+' · Solo visible en tu dispositivo.':''};
+$('overlay').classList.add('active');
+}
+function openBuilding(){closeModal();state.building=true;state.floor=null;state.room=null;$('building').classList.add('active');document.body.style.overflow='hidden';renderBuilding()}
+function closeBuilding(){state.building=false;state.floor=null;state.room=null;$('building').classList.remove('active');document.body.style.overflow=''}
+function canFloor(n){return user().id==='ceo'||user().dept===n}
+function roomsFor(n){if(n===0)return [{name:'Jefatura de planta',type:'jefe',team:null,count:1},{name:'Equipo A · Comerciales',type:'equipo',team:'A',count:4},{name:'Equipo B · Comerciales',type:'equipo',team:'B',count:4},{name:'Equipo C · Comerciales',type:'equipo',team:'C',count:4},{name:'Agentes de seguimiento',type:'agente',team:null,count:3}];return [{name:'Despacho del responsable',type:'jefe',team:null,count:1},{name:'Área de trabajo A',type:'equipo',team:'A',count:3},{name:'Área de trabajo B',type:'equipo',team:'B',count:3},{name:'Agentes automatizados',type:'agente',team:null,count:3}]}
+function canRoom(r){if(!canFloor(state.floor))return false;var u=user();if(u.id==='jeq'||u.id==='com'){if(r.type==='jefe')return u.id==='jeq';if(r.type==='equipo'&&r.team!=='A')return false;}return true}
+function renderBuilding(){
+$('backBuilding').style.visibility=state.floor===null?'hidden':'visible';$('vizlabel').textContent=state.floor===null?'VISTA GENERAL · 5 PLANTAS':'PLANTA '+(state.floor+1)+' · '+floorNames[state.floor].toUpperCase();
+if(state.floor===null){
+$('vizbody').innerHTML='<div class="tower"><div class="roof"></div><div class="towerlabel">KONSOR</div>'+[4,3,2,1,0].map(function(n){return '<button class="floorlevel '+(!canFloor(n)?'locked':'')+'" data-floor="'+n+'"><strong>'+String(n+1).padStart(2,'0')+' · '+floorNames[n].toUpperCase()+'</strong><span class="mini-people">'+(canFloor(n)?'♟ ♟ ♟':'◼ ◼ ◼')+'</span><span class="arrow">'+(canFloor(n)?'›':'🔒')+'</span></button>'}).join('')+'</div>';
+$('inspector').innerHTML='<div class="eyebrow">EDIFICIO EMPRESARIAL</div><h2>Tu organización, de un vistazo</h2><p>Selecciona la planta a la que perteneces. Las demás quedan oscuras. Dentro puedes ver toda la distribución, pero solo consultar los puestos autorizados.</p><div class="tagrow"><span class="chip">'+icon('building','sm')+' 5 plantas</span><span class="chip">'+icon('users','sm')+' Trabajadores ficticios</span><span class="chip">'+icon('spark','sm')+' IA no conectada</span></div><div class="note">El edificio es una herramienta de consulta. El trabajo se realiza en la CRM.</div>';
+$('vizbody').querySelectorAll('[data-floor]').forEach(function(b){b.onclick=function(){var n=+b.dataset.floor;if(!canFloor(n))return;state.floor=n;state.room=null;renderBuilding()}});
+return;
+}
+var rooms=roomsFor(state.floor);
+$('vizbody').innerHTML='<div class="floorinterior"><div class="eyebrow" style="color:#c3d6e8">INTERIOR DE LA PLANTA</div><h2>'+floorNames[state.floor]+'</h2><div class="rooms">'+rooms.map(function(r,i){var allowed=canRoom(r);return '<button class="room '+(r.type==='agente'?'agent ':'')+(!allowed?'locked':'')+'" data-room="'+i+'"><strong>'+(allowed?E(r.name):'🔒 '+E(r.name))+'</strong><span class="actors">'+(allowed?(r.type==='agente'?'◇ ◇ ◇':'♟ ♟ ♟'):'◼ ◼ ◼')+'</span><span style="font-size:10px">'+(allowed?'Ver información ↗':'Restringido')+'</span></button>'}).join('')+'</div></div>';
+$('vizbody').querySelectorAll('[data-room]').forEach(function(b){b.onclick=function(){var room=rooms[+b.dataset.room];if(!canRoom(room))return;state.room=room;renderInspector()}});
+renderInspector();
+}
+function renderInspector(){
+var r=state.room;
+if(!r){$('inspector').innerHTML='<div class="eyebrow">PLANTA '+(state.floor+1)+'</div><h2>'+floorNames[state.floor]+'</h2><p>Vista completa de la planta. Selecciona una sala, despacho o grupo de agentes para consultar sus funciones.</p><div class="bitem">Los espacios restringidos permanecen visibles, sin datos.</div><div class="bitem">Todos los personajes son representaciones ficticias.</div>';return}
+var agent=r.type==='agente';
+$('inspector').innerHTML='<div class="eyebrow">'+(agent?'AGENTES AUTOMÁTICOS':'PUESTOS HUMANOS')+'</div><h2>'+E(r.name)+'</h2><span class="chip '+(agent?'amber':'green')+'">'+(agent?'Simulación · IA desconectada':'Personal de ejemplo')+'</span><p>'+(agent?'Aquí aparecerán los procesos programados y sus resultados, con ejecuciones comprobables.':'Aquí aparecerán las tareas, avisos y estadísticas autorizadas para tu puesto.')+'</p><div class="bitem">'+(agent?'Procesos de control · Sin ejecuciones reales':'Puestos de trabajo · '+r.count+' representados')+'</div><div class="bitem">Ámbito: '+E(user().scope)+'</div><button class="inspectbtn" id="openFromBuilding">Abrir en la CRM →</button><button class="secondary" id="backRoom" style="width:100%;margin-top:8px">Volver a la planta</button>';
+$('openFromBuilding').onclick=function(){var goal=agent?'herramientas':r.type==='jefe'?'equipo':state.floor===0?'expedientes':'trabajo';if(goal==='equipo'&&!user().boss)goal='inicio';closeBuilding();setView(goal);toast('Has vuelto a la función de trabajo vinculada a '+r.name)};
+$('backRoom').onclick=function(){state.room=null;renderInspector()};
+}
+function wire(){
+$('enter').onclick=enter;
+$('changeRoleSide').onclick=returnLogin;$('changeRoleTop').onclick=returnLogin;
+$('closeModal').onclick=closeModal;$('overlay').onclick=function(e){if(e.target===$('overlay'))closeModal()};
+$('closeBuilding').onclick=closeBuilding;$('backBuilding').onclick=function(){if(state.floor!==null){state.floor=null;state.room=null;renderBuilding()}else closeBuilding()};
+$('bellButton').onclick=function(){toast('Centro de avisos de demostración: los avisos reales se conectarán a la CRM.')};
+$('app').addEventListener('click',function(e){var b=e.target.closest('[data-nav],[data-building]');if(!b)return;if(b.dataset.nav)setView(b.dataset.nav);else if(b.dataset.building)openBuilding()});
+window.addEventListener('keydown',function(e){if(e.key==='Escape'){if(state.building)closeBuilding();else if($('overlay').classList.contains('active'))closeModal()}});
+$('buildingIconSide').innerHTML=icon('building');$('buildingIconTop').innerHTML=icon('building');$('switchIconSide').innerHTML=icon('logout');$('bellIcon').innerHTML=icon('bell');$('userIcon').innerHTML=icon('user');$('closeModalIcon').innerHTML=icon('x');
+}
+drawRoles();wire();
+})();
+</script>
+</body>
+</html>
