@@ -29,3 +29,12 @@ test('el HTML no contiene motor ni estilos comerciales antiguos duplicados',()=>
  assert.ok(!html.includes('const CANONICAL_USER_NAMES = {'));
  assert.ok(!/<style\b/i.test(html));
 });
+
+test('los componentes iOS se inicializan antes de cualquier pantalla dependiente',()=>{
+ const shared=html.indexOf('app/ui/componentes-ios.js');
+ assert.ok(shared>=0,'Faltan componentes comunes');
+ for(const script of ['oficina-ios.js','operaciones-ios.js','resultados-ios.js','inicio-ios.js','direccion-hub-ios.js']){
+  const pos=html.indexOf('<script src="./'+script);
+  assert.ok(pos>shared,'Carga incorrecta: '+script+' necesita componentes iOS antes de inicializarse');
+ }
+});
