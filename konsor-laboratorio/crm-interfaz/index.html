@@ -455,8 +455,12 @@ h+='<p class="small muted">'+a.filter(function(n){return !n.read}).length+' avis
 if(!a.some(function(n){return !n.read}))h+='<div class="kn-callout">No tienes avisos informativos pendientes.</div>';
 }else if(state.activityTab==='tasks'){
 h+='<div class="kn-callout"><b>Pendiente de hacer</b><p>Los encargos permanecen aquí hasta que se resuelven; confirmar recepción no los elimina.</p></div>';
-h+=currentTasks().filter(function(t){return !t.done}).map(function(t){return '<article class="kn-activity-card task"><h3>'+E(t.title)+'</h3><p>'+E(t.text)+'</p><span class="kn-tag">'+(t.ack?'Recepción confirmada · Pendiente':'Pendiente de confirmar recepción')+'</span><button data-task="'+t.id+'" data-kind="'+(t.ack?'resolve':'ack')+'">'+(t.ack?'Marcar resuelta':'He recibido esta tarea')+'</button><button data-task="'+t.id+'" data-kind="open">Abrir expediente / trabajo</button></article>'}).join('');
-if(currentTasks().every(function(t){return t.done}))h+='<div class="kn-callout">Todas las tareas de ejemplo están resueltas.</div>';
+var liveTasks=window.KonsorDemoOperaciones.activityTasks(opsContext());
+h+=liveTasks.map(function(t){return '<article class="kn-activity-card task"><h3>'+E(t.title)+'</h3><p>'+E(t.text)+'</p><span class="kn-tag">Derivada del estado del expediente</span><button data-ops-activity="'+E(t.id)+'">Abrir y resolver desde la CRM →</button></article>'}).join('');
+if(rgroup()==='comercial'){
+ h+=currentTasks().filter(function(t){return !t.done}).map(function(t){return '<article class="kn-activity-card task"><h3>'+E(t.title)+'</h3><p>'+E(t.text)+'</p><span class="kn-tag">'+(t.ack?'Recepción confirmada · Pendiente':'Pendiente de confirmar recepción')+'</span><button data-task="'+t.id+'" data-kind="'+(t.ack?'resolve':'ack')+'">'+(t.ack?'Marcar resuelta':'He recibido esta tarea')+'</button><button data-task="'+t.id+'" data-kind="open">Abrir expediente / trabajo</button></article>'}).join('');
+}
+if(!liveTasks.length && (rgroup()!=='comercial'||currentTasks().every(function(t){return t.done})))h+='<div class="kn-callout">No hay nuevas tareas operativas pendientes para este perfil en la demostración.</div>';
 }else{
 h+='<div class="kn-callout"><b>Preferencias de avisos</b><p>En la aplicación definitiva se configurarán notificaciones móviles, horas de descanso y categorías. Aquí solo se representa su organización.</p></div>';
 h+='<label class="kn-choice"><input type="checkbox" id="prefPhone" '+(state.prefs[state.role]===false?'':'checked')+'> Recibir avisos en el móvil</label><div class="kn-callout">Horario de silencio de ejemplo: 22:00–08:00. Los avisos informativos se pueden descartar; las tareas conservan su estado.</div>';
@@ -465,6 +469,7 @@ $('modalContent').innerHTML=h;$('overlay').classList.add('active');
 $('modalContent').querySelectorAll('[data-activity-tab]').forEach(function(b){b.onclick=function(){state.activityTab=b.dataset.activityTab;drawActivity()}});
 $('modalContent').querySelectorAll('[data-dismiss]').forEach(function(b){b.onclick=function(){var x=currentNotices().find(function(t){return t.id===b.dataset.dismiss});if(x)x.read=true;drawActivity()}});
 $('modalContent').querySelectorAll('[data-task]').forEach(function(b){b.onclick=function(){var t=currentTasks().find(function(t){return t.id===b.dataset.task});if(!t)return;if(b.dataset.kind==='ack')t.ack=true;if(b.dataset.kind==='resolve')t.done=true;if(b.dataset.kind==='open'){closeModal();setView('expedientes');return}drawActivity()}});
+$('modalContent').querySelectorAll('[data-ops-activity]').forEach(function(b){b.onclick=function(){closeModal();setView('trabajo')}});
 if($('prefPhone'))$('prefPhone').onchange=function(){state.prefs[state.role]=this.checked;toast('Preferencia cambiada solo en la demo')};
 }
 function openNote(title,detail){$('modalKicker').textContent='HERRAMIENTA · DEMOSTRACIÓN';$('modalTitle').textContent=title;$('modalContent').innerHTML='<div class="note">'+E(detail)+'</div><div style="text-align:right"><button class="secondary" id="noteClose">Volver al trabajo</button></div>';$('overlay').classList.add('active');$('noteClose').onclick=closeModal}
