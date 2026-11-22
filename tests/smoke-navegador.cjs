@@ -95,6 +95,29 @@ async function main(){
    await page.click('#konsorResultsV3 .cn-global-close');
    assert.ok(await page.evaluate(()=>!document.getElementById('konsorResultsV3').classList.contains('active')),
       label+' X no cierra Resultados');
+   await page.evaluate(()=>window.cnvShowMap(false));
+   await page.waitForSelector('#cnvMapToolbar .cnv-map-back',{timeout:10000});
+   const mapBack=await page.evaluate(()=>{
+     const b=document.querySelector('#cnvMapToolbar .cnv-map-back');
+     return {width:b.getBoundingClientRect().width,active:document.body.classList.contains('cnv-map-active')};
+   });
+   assert.ok(mapBack.active&&mapBack.width===44,label+' Mapa sin flecha táctil homogénea');
+   await page.click('#cnvMapToolbar .cnv-map-back');
+   assert.ok(await page.evaluate(()=>document.body.classList.contains('cnv-home-active')),
+     label+' flecha de Mapa no vuelve a Inicio');
+   if(width<500){
+     await page.evaluate(()=>window.cnvShowMap(false));
+     const mapSwipe=await page.evaluate(()=>{
+       const target=document.body;
+       const t=x=>new Touch({identifier:8,target,clientX:x,clientY:250,pageX:x,pageY:250});
+       const a=t(7),b=t(155);
+       target.dispatchEvent(new TouchEvent('touchstart',{touches:[a],changedTouches:[a],bubbles:true,cancelable:true}));
+       target.dispatchEvent(new TouchEvent('touchmove',{touches:[b],changedTouches:[b],bubbles:true,cancelable:true}));
+       target.dispatchEvent(new TouchEvent('touchend',{touches:[],changedTouches:[b],bubbles:true,cancelable:true}));
+       return document.body.classList.contains('cnv-home-active');
+     });
+     assert.ok(mapSwipe,'Gesto desde borde izquierdo de Mapa no vuelve a Inicio');
+   }
    await page.evaluate(()=>{
      window.__navBackCount=0;
      const overlay=document.createElement('div');
