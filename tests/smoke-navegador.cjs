@@ -156,13 +156,23 @@ async function main(){
          nativeBackHidden:getComputedStyle(head.querySelector('.kd-back')).display==='none'};
      });
      assert.ok(bossHeader.ok&&bossHeader.nativeBackHidden,'Dirección tiene flecha duplicada o se solapa');
+     await page.evaluate(()=>{
+       window.__navDirectorClicks=0;
+       document.querySelector('#konsorDirectionHub .cn-global-close').addEventListener('click',()=>window.__navDirectorClicks++);
+     });
      await page.click('#konsorDirectionHub .cn-global-close');
      const directionClose=await page.evaluate(()=>{
        const root=document.getElementById('konsorDirectionHub');
        const head=root.querySelector('.kd-head');
        const screens=[...document.querySelectorAll('.modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kr-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard')]
          .map(el=>({id:el.id,classes:el.className,display:getComputedStyle(el).display,zIndex:getComputedStyle(el).zIndex}));
-       return {closed:!root.classList.contains('active'),native:!!head.querySelector('.cn-nav-native-close'),
+       const wasOpen=root.classList.contains('active');
+       if(wasOpen)window.konsorCloseTop();
+       const afterDirectClose=root.classList.contains('active');
+       if(afterDirectClose)head.querySelector('.cn-nav-native-close')?.click();
+       return {closed:!wasOpen,clicked:window.__navDirectorClicks,
+         afterDirectClose,afterNativeClick:root.classList.contains('active'),
+         native:!!head.querySelector('.cn-nav-native-close'),
          hiddenNative:getComputedStyle(head.querySelector('.cn-nav-native-close')).display,screens};
      });
      assert.ok(directionClose.closed,'La X no cierra Dirección: '+JSON.stringify(directionClose));
