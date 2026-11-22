@@ -12,15 +12,19 @@ Comercial, Técnicos, Oficina, Administración y Dirección trabajarán sobre fi
 
 ## Lo realizado en la Fase 1
 
-**Refactor mecánico, sin modificación intencionada de funcionalidad comercial:**
+**Refactor controlado, con retirada de código muerto y migración inicial a módulos universales:**
 
 - `index.html`: de **787.845 caracteres a 25.571**, conservando el DOM y los scripts en el mismo orden.
-- `app/legacy/comercial-app.js`: **658.180 caracteres**, extracción exacta del gran script clásico original.
+- `app/legacy/comercial-app.js`: motor clásico extraído, posteriormente reducido mediante eliminación comprobada de cuatro funciones antiguas sin referencias. La prueba compara el resultado exacto con la versión original menos las funciones retiradas.
 - `app/legacy/firebase-init.js`: **6.269 caracteres**, inicialización Firebase original, sigue siendo `type=module`.
 - `app/legacy/limpieza-visual.js`: **2.020 caracteres**, mismo observador DOM de limpieza decorativa.
 - `app/legacy/estilos-comercial.css`: consolidación de **22 bloques** CSS inline en **orden original**, con separadores documentales; se ha comprobado que no contienen `url(...)` con rutas relativas que cambien de significado.
 - `app/core/konsor-modulos.js`: manifiesto inicial de herramientas y roles. **No concede permisos**. Los módulos visibles se calculan como intersección de roles permitidos y concesiones explícitas procedentes del backend; sin concesiones, no muestra herramientas.
 - `app/core/modelo-fichas-v2.js`: lectura y diagnóstico **sin escrituras** para documentos de `zonas` y `fichas`; conserva el ID y la referencia original, detecta fichas sin zona, revisiones inválidas e IDs duplicados sin registrar datos personales en el informe.
+- `app/core/asistente-operativo.js`: reglas únicas de siguiente acción para Comercial, Técnicos, Oficina, Administración y Dirección. Inicio comercial ya usa este módulo y deja de duplicar sus condiciones locales.
+- `app/ui/componentes-ios.js`: extrae los constructores de elementos e iconos de Inicio sin cambiar su HTML. Ya se reutiliza en Inicio, Oficina, Dirección, Operaciones y Resultados.
+- Se retiraron definitivamente cuatro funciones antiguas sin referencias: `updateClientCallStatusOld`, `renderGlobalClientSearchResultsOld`, `exportOfficialCrmJsonPackageOld` y `requestMobileNotificationsOld`. La alternativa aún usada por Mikel `openCommercialStatsModalLegacy` **se conserva**.
+- GitHub Actions ejecuta regresiones y una prueba de Chromium real con tamaños de iPhone y PC, aislando las peticiones de Firebase.
 
 **No se ha borrado ni editado ninguna ficha, sector, colección, Cloud Function, regla de Firestore o dato real.** La rama `main` continúa inalterada.
 
@@ -53,7 +57,7 @@ node tests/verificar-arquitectura.cjs
 
 El primer test reconstruye el HTML de la rama a partir del HTML original anclado al commit de base y comprueba que el contenido de los scripts y estilos extraídos coincide exactamente.
 
-**Las pruebas de código no sustituyen a pruebas reales en Safari iOS, Android, navegadores de escritorio y Firebase.** Si se detecta una diferencia de renderizado o carga por tratarse ahora de recursos externos, se debe corregir **antes** de fusionar.
+**La prueba de Chromium automatizada ha pasado para Inicio comercial en tamaños móvil y escritorio; no sustituye la comprobación en Safari iOS, pruebas completas de flujos ni Firebase real.** Si se detecta una diferencia de renderizado o carga por tratarse ahora de recursos externos, se debe corregir **antes** de fusionar.
 
 ## Fichas: conservar, no recrear
 
@@ -87,3 +91,16 @@ No se ejecuta ninguna migración de Firestore en esta fase. No asumir que un `S�
 5. La nueva rama no está desplegada en GitHub Pages como vista previa; `main` sigue siendo la aplicación publicada.
 
 **Regla de calidad:** si una fase no es demostrablemente equivalente o mejor en guardado, permisos y usabilidad, no se fusiona.
+
+## Estado de pruebas de esta revisión
+
+GitHub Actions del pull request ejecuta:
+
+```bash
+node tests/verificar-extraccion.cjs
+node tests/verificar-arquitectura.cjs
+node --test tests/*.test.cjs
+node tests/smoke-navegador.cjs # requiere puppeteer-core y Chrome
+```
+
+El resultado del navegador en CI prueba que el script comercial y la pantalla Inicio cargan con los componentes comunes sin enviar tráfico real a Firebase. La comprobación de Safari y de permisos efectivos continúa pendiente. **No se debe confundir esta publicación de limpieza comercial con el CRM completo de cinco plantas**.
