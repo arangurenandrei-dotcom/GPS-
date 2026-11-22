@@ -263,13 +263,13 @@ test('criterios de aptitud por superficie y CTE', () => {
   assert.equal(f({m2:70,cteZone:'E1',buildYear:2010}).estado,'no_apto');
 });
 
-test('urbanización conjunta: 8 viviendas y bloques 4+4', () => {
+test('urbanización conjunta: mínimo 6 y opción preferida 8 viviendas', () => {
   const casa = {m2:55,cteZone:'D2',urbanizacionId:'urb-1'};
   assert.equal(core.evaluarAptitud({
-    ...casa,viviendasAptasUrbanizacion:7
+    ...casa,viviendasAptasUrbanizacion:5
   }).estado,'revisar');
   assert.equal(core.evaluarAptitud({
-    ...casa,viviendasAptasUrbanizacion:8
+    ...casa,viviendasAptasUrbanizacion:6
   }).estado,'apto');
 
   const grupo = core.planUrbanizacion(
@@ -278,6 +278,24 @@ test('urbanización conjunta: 8 viviendas y bloques 4+4', () => {
   assert.equal(grupo.lista,true);
   assert.equal(grupo.bloques[0].length,4);
   assert.equal(grupo.bloques[1].length,4);
+});
+
+test('urbanización: 6 viviendas permiten plan y agenda 4+2', async () => {
+  const casas=Array.from({length:6},(_,i)=>({
+    id:i+1,m2:55,cteZone:'D2',urbanizacionId:'urb-1'
+  }));
+  const plan=core.planUrbanizacion(casas);
+  assert.equal(plan.lista,true);
+  assert.equal(plan.minimo,6);
+  assert.equal(plan.recomendado,8);
+  assert.deepEqual(plan.bloques.map(b=>b.length),[4,2]);
+  const opcion=core.opcionesAgendaUrbanizacion(casas)[0];
+  const result=await core.validarAgendaUrbanizacion(opcion,'2026-11-23',async()=>({
+    2:[['09:00','11:00'],['11:00','13:00'],['15:00','17:00'],['17:00','19:00']].map(([a,b])=>({horario:a+'-'+b,libre:true})),
+    3:[['09:00','11:00'],['11:00','13:00'],['15:00','17:00'],['17:00','19:00']].map(([a,b])=>({horario:a+'-'+b,libre:true}))
+  }));
+  assert.equal(result.disponible,true);
+  assert.equal(result.reservas.length,6);
 });
 
 test('urbanización: tres modalidades de agenda 4+4', () => {
