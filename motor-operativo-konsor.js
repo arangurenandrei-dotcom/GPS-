@@ -173,7 +173,7 @@ function openOfficeGuide(){
   const row=actions(c);
   B(row,"Volcado manual",()=>leaveOffice(()=>{const idx=zones().findIndex(x=>String(x.id)===String(z.id));if(idx>=0&&typeof openDumpModal==="function")openDumpModal(idx);}),"primary");
   B(row,"Fotos → CSV",()=>leaveOffice(()=>window.abrirImportadorTerritorialKonsor?.()),"");
-  B(row,"Instrucciones para fotos",()=>window.open("https://github.com/arangurenandrei-dotcom/GPS-/blob/main/PROMPT-CHAT-FICHAS-KONSOR.md","_blank","noopener,noreferrer"));
+  B(row,"Abrir chat de fotos · Gemini",()=>window.open("https://share.gemini.google/S2jfiuk0c3m2","_blank","noopener,noreferrer"));
   B(row,"Ver todos los pendientes",()=>leaveOffice(openOffice),"");
  }else if(step===1){
   const first=s.needFix[0],c=card(body,"REVISIÓN",s.needFix.length+" fichas para revisar","Después de volcar, corrige nombre, calle, teléfono u otros datos señalados antes de gestionar citas.");
