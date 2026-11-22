@@ -7,7 +7,7 @@ if(window.__konsorNavigationFinal)return;
 window.__konsorNavigationFinal=true;
 
 const surfaces='.modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kr-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard';
-const headers='.modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kr-head,.cn-call-head,.kd-head,.km-head';
+const headers='.modal-header,.cn-page-head,.cn-office-header,.cnx-head,.koc-header,.kr-head,.cn-call-head,.cnv-help-head,.kd-head,.km-head';
 const headerClose=/^(cerrar(?:\s+(?:sección|ventana|dirección|asistente|guía))?|salir|x|×|✕|ahora no)$/i;
 const headerBack=/^(‹|←|volver(?:\s+(?:a|al)\b.*)?)$/i;
 let trail=[],topSeen=null,scheduled=false,gesture=null,locked=false;
