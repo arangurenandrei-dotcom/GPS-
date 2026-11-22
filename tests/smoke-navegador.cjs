@@ -124,6 +124,43 @@ async function main(){
    await page.click('#nav-internal-test .cn-global-close');
    assert.ok(await page.evaluate(()=>!document.getElementById('nav-internal-test').classList.contains('active')),
        label+' la X no cerró el expediente');
+   await page.evaluate(()=>window.konsorMotor.openDay());
+   await page.waitForSelector('#km-flow .cn-global-back',{timeout:10000});
+   const kmLayout=await page.evaluate(()=>{
+    const h=document.querySelector('#km-flow .km-head');
+    const l=h.querySelector('.cn-global-back').getBoundingClientRect();
+    const m=h.querySelector('.cn-nav-title').getBoundingClientRect();
+    const r=h.querySelector('.cn-global-close').getBoundingClientRect();
+    return {back:!!h.querySelector('.cn-global-back'),close:!!h.querySelector('.cn-global-close'),
+      overlap:l.right>m.left||m.right>r.left,hiddenOld:getComputedStyle(h.querySelector('.km-back')).display==='none'};
+   });
+   assert.ok(kmLayout.back&&kmLayout.close&&!kmLayout.overlap&&kmLayout.hiddenOld,
+      label+' cabecera del asistente de jornada sin unificar: '+JSON.stringify(kmLayout));
+   await page.click('#km-flow .cn-global-back');
+   assert.equal(await page.evaluate(()=>!!document.querySelector('#km-flow')),false,
+      label+' la flecha del asistente no vuelve un nivel');
+   await page.evaluate(()=>window.konsorMotor.openDay());
+   await page.waitForSelector('#km-flow .cn-global-close');
+   await page.click('#km-flow .cn-global-close');
+   assert.equal(await page.evaluate(()=>!!document.querySelector('#km-flow')),false,
+      label+' la X del asistente no lo cierra');
+   if(role==='jefe'){
+     await page.evaluate(()=>window.openKonsorDirection());
+     await page.waitForSelector('#konsorDirectionHub .cn-global-back',{timeout:10000});
+     const bossHeader=await page.evaluate(()=>{
+       const head=document.querySelector('#konsorDirectionHub .kd-head');
+       const a=head.querySelector('.cn-global-back').getBoundingClientRect();
+       const t=head.querySelector('.cn-nav-title').getBoundingClientRect();
+       const b=head.querySelector('.cn-global-close').getBoundingClientRect();
+       return {ok:a.right<t.left&&t.right<b.left,
+         nativeBackHidden:getComputedStyle(head.querySelector('.kd-back')).display==='none'};
+     });
+     assert.ok(bossHeader.ok&&bossHeader.nativeBackHidden,'Dirección tiene flecha duplicada o se solapa');
+     await page.click('#konsorDirectionHub .cn-global-close');
+     assert.equal(await page.evaluate(()=>document.querySelector('#konsorDirectionHub').classList.contains('active')),false,
+       'La X no cierra Dirección');
+   }
+   console.log('OK '+label+': navegación real en Jornada y Dirección');
    console.log('OK '+label+': cabecera sin solapes, flecha, X y pasos internos');
    console.log('OK '+label+': Inicio → Resultados abre y muestra contenido');
    console.log('OK '+label+': '+data.next+' · '+data.tiles+' accesos');
