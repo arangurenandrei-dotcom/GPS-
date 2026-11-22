@@ -17,6 +17,18 @@ const docs={
 };
 const office={};
 const corrections={};
+const section={oficina:'pending',administración:'payments',dirección:'overview'};
+const officePhone='[Teléfono de Oficina por configurar]';
+function emailSubject(j){return 'KONSOR · Documentos para firma · Expediente '+j.id}
+function emailBody(j){
+ return 'Estimado/a '+j.name+':\n\nLe enviamos la documentación relativa a su expediente '+j.id+
+ '. Para continuar con la tramitación, revise los documentos adjuntos, fírmelos donde se indique y devuélvalos respondiendo a este mismo correo.\n\nSi tiene cualquier duda o necesita ayuda con la firma, puede contactar con nuestra oficina en el '+officePhone+
+ '.\n\nMuchas gracias.\nOficina KONSOR';
+}
+function sectionTabs(group,items){
+ const selected=section[group];
+ return '<div class="ops-segments" role="tablist" aria-label="Apartados">'+items.map(([key,label])=>'<button type="button" data-ops-view="'+E(group)+':'+E(key)+'" class="'+(key===selected?'active':'')+'" aria-selected="'+(key===selected?'true':'false')+'">'+E(label)+'</button>').join('')+'</div>';
+}
 let count=0;
 const signedRemindDays=3;
 const salaryPeriod='Noviembre 2026';
@@ -119,44 +131,50 @@ function card(text,sub,buttons,statusText){
 }
 function officeHTML(ctx){
  const a=officeAnalysis(ctx);
- const priority=[...a.urgent,...a.missing,...a.review,...a.send,...a.waiting,...a.hold,...a.done];const j=priority[0];
- let html=header('OFICINA · SEGUIMIENTO Y DOCUMENTOS','Mi trabajo','Técnicos prepara las evidencias; Oficina tramita en plataformas externas, envía los documentos para firma y gestiona únicamente las excepciones.');
- html+=tiles([['Expedientes',a.list.length],['Evidencias incompletas',a.missing.length],['Para enviar al cliente',a.send.length],['Avisos de llamada',a.urgent.length]]);
- if(j){let st=status(j);html+=block({title:j.id+' · '+j.town,desc:st.title+'. '+(st.code==='missing'?'El sistema indica exactamente qué evidencia falta.':'La CRM ha preparado la siguiente gestión según el estado del expediente.')},'Abrir gestión',j.id,'officeCase')}
- else html+=block({title:'Todo organizado',desc:'No hay gestiones asignadas en esta simulación.'});
- html+=heading('EXPEDIENTES POR PRIORIDAD','Automático');
- html+='<div class="ops-list">'+priority.map(j=>card(j.id+' · '+j.town,j.service,[['Gestionar','officeCase',j.id],['Abrir ficha','record',j.id]],status(j).title)).join('')+'</div>';
- html+='<div class="ops-note">El procedimiento detallado de tramitación externa queda configurable: todavía no lo hemos definido con la empresa. Esta demo no firma documentos ni realiza envíos reales.</div>';
+ const pending=[...a.urgent,...a.missing,...a.review],sending=a.send,waiting=[...a.waiting,...a.hold],completed=a.done;
+ const top=pending[0]||sending[0]||waiting[0],current=section.oficina;
+ let html=header('OFICINA · TAREAS PRIORIZADAS','Mi trabajo','Evidencias verificadas, envíos preparados y llamadas por documentos firmados. KONSOR busca las excepciones y evita repetir datos.');
+ html+=tiles([['Pendientes',pending.length],['Listos para enviar',sending.length],['En espera',waiting.length],['Resueltos',completed.length]]);
+ if(top){
+  const st=status(top);
+  html+=block({title:top.id+' · '+st.title,desc:st.code==='missing'?'Faltan '+missing(top.id).map(k=>names[k]).join(', ')+'. KONSOR puede pedirlo al técnico.':st.code==='urgent'?'No se recibió una firma válida en plazo. Conviene llamar al cliente.':'La siguiente gestión está preparada desde la ficha del expediente.'},'Abrir siguiente gestión',top.id,'officeCase');
+ }else html+=block({title:'Sin trabajos activos',desc:'No hay nuevas tareas prioritarias en esta demostración.'});
+ html+=sectionTabs('oficina',[['pending','Por hacer · '+pending.length],['send','Enviar · '+sending.length],['waiting','En espera · '+waiting.length],['done','Finalizados · '+completed.length]]);
+ const rows=current==='send'?sending:current==='waiting'?waiting:current==='done'?completed:pending;
+ html+='<div class="ops-queue ops-list">'+(rows.length?rows.map(j=>card(j.id+' · '+j.town,j.service,[['Gestionar','officeCase',j.id],['Abrir ficha','record',j.id]],status(j).title)).join(''):'<div class="ops-empty">Nada pendiente en este apartado.</div>')+'</div>';
+ html+='<details class="ops-explain"><summary>¿Cómo organiza KONSOR este trabajo?</summary><p>Si falta una medida o fotografía, la tarea se asigna a Técnicos. Oficina verifica la calidad, tramita con las plataformas externas y utiliza el correo de la ficha central para solicitar la devolución de documentos firmados. Los trámites exactos se configurarán al conocer el procedimiento de la empresa.</p></details>';
  return html;
 }
 function officeCaseHTML(ctx,j){
  const st=status(j),s=assoc(j.id),miss=missing(j.id);
  let html='<div class="ops-casehead"><strong>'+E(j.id)+' · '+E(j.town)+'</strong><p>'+E(j.service)+' · '+E(j.name)+'</p><span class="ops-pill">'+E(st.title)+'</span></div>';
  if(st.code==='missing'||st.code==='waiting'&&miss.length){
- html+='<div class="ops-note">Faltan evidencias obligatorias para esta fase: '+E(miss.map(k=>names[k]).join(', '))+'. La CRM no permitirá enviar el paquete incompleto.</div>';
- if(st.code==='missing')html+='<button class="ops-primary" id="opAskTech">Solicitar a Técnicos lo que falta →</button>';
- if(st.code==='waiting')html+='<div class="ops-note">La subsanación ya está pendiente en el espacio del técnico. No hace falta volver a solicitarla.</div>';
- return html;
+  html+='<div class="ops-note">No se puede preparar el envío: falta '+E(miss.map(k=>names[k]).join(', '))+'.</div>';
+  if(st.code==='missing')html+='<button class="ops-primary" id="opAskTech">Pedir automáticamente a Técnicos →</button>';
+  if(st.code==='waiting')html+='<div class="ops-note">Ya existe una subsanación en la bandeja técnica. No hace falta repetir la solicitud.</div>';
+  return html;
  }
- if(st.code==='hold')return html+'<div class="ops-note">Esta actuación debe completarse en la plataforma externa o por Técnicos antes de preparar documentos para el cliente.</div>';
+ if(st.code==='hold')return html+'<div class="ops-note">Esta actuación todavía depende de una etapa anterior. Se podrá continuar cuando esté verificada.</div>';
  if(!s.reviewed){
- html+='<div class="ops-note">Los archivos/mediciones obligatorios figuran disponibles. Oficina debe comprobar que son correctos y legibles antes de proceder.</div><button class="ops-primary" id="opReview">Revisión documental realizada →</button><button class="ops-secondary" id="opBadPhoto">La foto no es legible · Solicitar otra</button>';
- return html;
+  html+='<div class="ops-note">KONSOR ha comprobado la presencia de evidencias. Oficina solo debe verificar que se ven bien y corresponden a la vivienda.</div><button class="ops-primary" id="opReview">Evidencias correctas · Continuar →</button><button class="ops-secondary" id="opBadPhoto">Hay una foto ilegible · Solicitar otra</button>';
+  return html;
  }
  if(!s.sent){
- html+='<div class="ops-note">En la empresa real, los documentos se obtienen de la plataforma especializada. Sube aquí el documento preparado y KONSOR podrá enviarlo al email verificado del cliente.</div>';
- html+='<button class="ops-secondary" id="opExternal">Abrir plataforma especializada (configurar enlace)</button>';
- html+='<label class="ops-input">Email del cliente <input type="email" id="opClientEmail" placeholder="cliente@ejemplo.es" value="'+E(s.email)+'"></label>';
- html+='<label class="ops-input">Documento que debe firmar el cliente <input type="file" id="opDocument" accept=".pdf"></label>';
- html+='<div id="opFileStatus" class="ops-note">Documento PDF: '+(s.filename?E(s.filename):'pendiente')+'</div><div id="opCaseError"></div>';
- html+='<button class="ops-primary" id="opSend">Simular envío al correo del cliente →</button><div class="ops-note">En esta demo NO se envía correo, ni se guarda el PDF. El envío real deberá conectarse a un servicio de email con autorización y registro de entrega.</div>';
- return html;
+  const addr=j.email||'';
+  html+='<div class="ops-metadata"><b>Destinatario de la ficha:</b> '+E(addr||'SIN CORREO')+' <span>· '+E(j.name)+'</span></div>';
+  html+='<div class="ops-file-check"><div>✓ Texto común de instrucciones y devolución generado automáticamente</div><div>✓ Asunto y nombre del cliente completados desde la ficha central</div><div>✓ Teléfono de Oficina: '+E(officePhone)+'</div></div>';
+  html+='<label class="ops-input">Adjuntar PDF específico del expediente <input type="file" id="opDocument" accept=".pdf,application/pdf" multiple></label>';
+  html+='<div id="opFileStatus" class="ops-note">PDF específico: '+(s.filename?E(s.filename):'pendiente de seleccionar')+'</div>';
+  html+='<details class="ops-explain"><summary>Ver correo que recibirá el cliente</summary><p><b>Para:</b> '+E(addr)+'</p><p><b>Asunto:</b> '+E(emailSubject(j))+'</p><div class="ops-preview">'+E(emailBody(j))+'</div></details>';
+  html+='<div class="ops-caseactions"><button class="ops-secondary" id="opExternal">Abrir plataforma legal</button><button class="ops-primary" id="opSend">Simular envío preparado →</button></div>';
+  html+='<div id="opCaseError"></div>';
+  html+='<div class="ops-note">No se realiza ningún envío real. Los PDF seleccionados no se guardan. El servicio de correo autorizado y los documentos legales seguirán siendo externos.</div>';
+  return html;
  }
- if(st.code==='ready')return html+'<div class="ops-note">Documentos firmados recibidos y comprobados. El trámite exterior posterior queda abierto a configurar cuando definamos el trabajo concreto de Oficina.</div>';
- html+='<div class="ops-note">Envío simulado al correo: '+E(s.email)+' · Documento: '+E(s.filename)+'. Han pasado '+s.daysPassed+' días simulados. Al superar '+signedRemindDays+' días sin documentos correctos se genera una tarea de llamada.</div>';
- html+='<button class="ops-secondary" id="opAdvance">Simular paso de 4 días →</button>';
- html+='<div class="ops-caseactions"><button class="ops-secondary" id="opSigGood">Firmados correctamente</button><button class="ops-secondary" id="opSigWrong">Firma incorrecta</button><button class="ops-secondary" id="opCalled">He llamado al cliente</button></div>';
- if(st.code==='urgent')html+='<div class="ops-error">Acción necesaria: contactar al cliente. '+(s.signature==='wrong'?'La firma recibida es incorrecta.':'No se han recibido los documentos firmados en plazo.')+'</div>';
+ if(st.code==='ready')return html+'<div class="ops-note">La devolución firmada consta como recibida y correcta en la simulación. El siguiente trámite se realizará en la plataforma especializada correspondiente.</div>';
+ html+='<div class="ops-note"><b>Correo de destino:</b> '+E(j.email)+' · PDF: '+E(s.filename)+'. Días simulados desde el envío: '+s.daysPassed+'.</div>';
+ if(st.code==='urgent')html+='<div class="ops-alert">Llamada necesaria: '+(s.signature==='wrong'?'firma incorrecta':'no han regresado los documentos firmados')+'.</div>';
+ html+='<div class="ops-caseactions"><button class="ops-secondary" id="opAdvance">Simular 4 días sin respuesta</button><button class="ops-secondary" id="opSigGood">Recibidos correctos</button><button class="ops-secondary" id="opSigWrong">Firma incorrecta</button><button class="ops-secondary" id="opCalled">Llamada registrada</button></div>';
  return html;
 }
 function officeOpen(ctx,id){
@@ -168,13 +186,20 @@ function officeOpen(ctx,id){
   if(get('opReview'))get('opReview').onclick=()=>{if(missing(j.id).length||!docs[j.id].techDone)return ctx.toast('Bloqueo: faltan evidencias o instalación');s.reviewed=true;ctx.closeModal();ctx.rerender();ctx.toast('Revisión completada. Preparar documentos para firma.')};
   if(get('opBadPhoto'))get('opBadPhoto').onclick=()=>{docs[j.id].despues=false;corrections[j.id]={field:'despues',jobId:id,crew:j.crew,done:false};s.reviewed=false;ctx.closeModal();ctx.rerender();ctx.toast('Nueva foto solicitada al técnico por falta de legibilidad (demo)')};
   if(get('opExternal'))get('opExternal').onclick=()=>ctx.toast('En producción se configurará la URL legal utilizada por Oficina.');
-  if(get('opDocument'))get('opDocument').onchange=function(){const file=this.files?.[0];s.filename=file&&/\.pdf$/i.test(file.name)?file.name:'';get('opFileStatus').textContent=s.filename?'PDF seleccionado: '+s.filename+' (solo nombre local)':'Selecciona un PDF válido';};
-  if(get('opSend'))get('opSend').onclick=()=>{
-   const email=(get('opClientEmail').value||'').trim();const valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-   if(!valid||!s.filename){get('opCaseError').innerHTML='<div class="ops-error">Bloqueado: indica un email válido y selecciona un PDF. No se permite preparar un envío incompleto.</div>';return}
+  if(get('opDocument'))get('opDocument').onchange=function(){
+   const files=Array.from(this.files||[]);
+   const valid=files.length>0&&files.every(file=>/\.pdf$/i.test(file.name)&&(!file.size||file.size<=10*1024*1024));
+   s.fileNames=valid?files.map(file=>file.name):[];
+   s.filename=s.fileNames.join(', ');
+   get('opFileStatus').textContent=valid?files.length+' PDF seleccionados: '+s.filename+' (sin cargar ni guardar)':'Selecciona uno o más PDF válidos de hasta 10 MB cada uno';
+ };
+ if(get('opSend'))get('opSend').onclick=()=>{
+   const email=j.email||'';
+   const valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+   if(!valid||!s.fileNames?.length){get('opCaseError').innerHTML='<div class="ops-error">Bloqueado: falta un correo válido en la ficha central o no se ha seleccionado ningún PDF. Actualiza la ficha si el destinatario es incorrecto.</div>';return}
    if(missing(j.id).length||!s.reviewed)return ctx.toast('Documentación pendiente de revisión');
-   s.email=email;s.sent=true;s.daysPassed=0;s.signature='waiting';ctx.closeModal();ctx.rerender();ctx.toast('Envío SIMULADO; no se ha enviado ningún correo.');
-  };
+   s.email=email;s.sent=true;s.daysPassed=0;s.signature='waiting';ctx.closeModal();ctx.rerender();ctx.toast('Envío SIMULADO al email de la ficha. No se ha enviado correo ni almacenado ningún archivo.');
+ };
   if(get('opAdvance'))get('opAdvance').onclick=()=>{s.daysPassed+=4;officeOpen(ctx,id);ctx.rerender()};
   if(get('opSigGood'))get('opSigGood').onclick=()=>{s.signature='good';ctx.closeModal();ctx.rerender();ctx.toast('Documento firmado correcto según registro simulado')};
   if(get('opSigWrong'))get('opSigWrong').onclick=()=>{s.signature='wrong';ctx.closeModal();ctx.rerender();ctx.toast('Generada alerta para llamar por firma incorrecta')};
