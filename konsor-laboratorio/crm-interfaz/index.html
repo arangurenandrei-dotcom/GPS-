@@ -264,7 +264,7 @@ function openBuilding(){closeModal();state.building=true;state.floor=null;state.
 function closeBuilding(){state.building=false;state.floor=null;state.room=null;$('building').classList.remove('active');document.body.style.overflow=''}
 function canFloor(n){return user().id==='ceo'||user().dept===n}
 function roomsFor(n){if(n===0)return [{name:'Jefatura de planta',type:'jefe',team:null,count:1},{name:'Equipo A · Comerciales',type:'equipo',team:'A',count:4},{name:'Equipo B · Comerciales',type:'equipo',team:'B',count:4},{name:'Equipo C · Comerciales',type:'equipo',team:'C',count:4},{name:'Agentes de seguimiento',type:'agente',team:null,count:3}];return [{name:'Despacho del responsable',type:'jefe',team:null,count:1},{name:'Área de trabajo A',type:'equipo',team:'A',count:3},{name:'Área de trabajo B',type:'equipo',team:'B',count:3},{name:'Agentes automatizados',type:'agente',team:null,count:3}]}
-function canRoom(r){if(!canFloor(state.floor))return false;var u=user();if(u.id==='jeq'||u.id==='com'){if(r.type==='jefe')return u.id==='jeq';if(r.type==='equipo'&&r.team!=='A')return false;}return true}
+function canRoom(r){if(!canFloor(state.floor))return false;var u=user();if(u.id==='ceo')return true;if((u.id==='jeq'||!u.boss)&&r.type==='jefe')return false;if((u.id==='jeq'||!u.boss)&&r.type==='equipo'&&r.team!=='A')return false;return true}
 function renderBuilding(){
 $('backBuilding').style.visibility=state.floor===null?'hidden':'visible';$('vizlabel').textContent=state.floor===null?'VISTA GENERAL · 5 PLANTAS':'PLANTA '+(state.floor+1)+' · '+floorNames[state.floor].toUpperCase();
 if(state.floor===null){
