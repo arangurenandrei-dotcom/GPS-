@@ -1,7 +1,7 @@
 /* KONSOR · Oficina. Un recorrido operativo con los datos sincronizados existentes. */
 (function(){
 "use strict";
-const el=(tag,cls,txt,parent)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(txt!==undefined)x.textContent=String(txt);if(parent)parent.append(x);return x;};
+const el=window.KonsorUI.el;
 const btn=(title,fn,cls)=>{const x=el("button","cn-office-btn "+(cls||""),title);x.type="button";x.onclick=fn;return x;};
 const today=()=>typeof getTodayISO==="function"?getTodayISO():new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Madrid",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 let section="home";

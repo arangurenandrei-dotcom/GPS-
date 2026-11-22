@@ -1,0 +1,17305 @@
+
+
+    const CANONICAL_USER_NAMES = {
+      jefe: 'Andrei (Jefe)',
+      comercial1: 'Comercial 1',
+      comercial2: 'Comercial 2',
+      comercial3: 'Comercial 3',
+      comercial4: 'Comercial 4',
+      comercial5: 'Comercial 5',
+      jefe_mikel: 'Mikel (Jefe)',
+      mikel_com1: 'Mikel Com. 1',
+      mikel_com2: 'Mikel Com. 2',
+      mikel_com3: 'Mikel Com. 3',
+      mikel_com4: 'Mikel Com. 4',
+      mikel_com5: 'Mikel Com. 5'
+    };
+
+    let customUserProfiles = {};
+    if (Array.isArray(customUserProfiles)) customUserProfiles = {};
+
+
+    function getDisplayAlias(canonicalOrKey) {
+      if (!canonicalOrKey) return '';
+      const entryByKey = customUserProfiles[canonicalOrKey];
+      if (entryByKey && entryByKey.alias) return entryByKey.alias;
+
+      const foundKey = Object.keys(CANONICAL_USER_NAMES).find(k => CANONICAL_USER_NAMES[k] === canonicalOrKey);
+      if (foundKey && customUserProfiles[foundKey] && customUserProfiles[foundKey].alias) {
+        return customUserProfiles[foundKey].alias;
+      }
+      const canonical = CANONICAL_USER_NAMES[canonicalOrKey] || canonicalOrKey;
+      return canonical.replace(/ \(Jefe\)$/, '');
+    }
+
+    /* ===== NOMBRE (ALIAS) EN TODA LA APP · solo equipo de Andrei: Comercial 1 a 5 ===== */
+    const ALIAS_TEST_RE = /\bComercial [1-5]\b/;
+    const ALIAS_RE = /\bComercial ([1-5])\b/g;
+    let aliasObs = null, aliasTimer = null, aliasSig = '';
+    const aliasPending = new Set();
+
+    function aliasText(orig) {
+      return orig.replace(ALIAS_RE, (m, n) => getDisplayAlias('Comercial ' + n) || m);
+    }
+
+    function aliasProcessNode(root) {
+      if (!root) return;
+      const base = root.nodeType === 3 ? root.parentNode : root;
+      if (!base || base.nodeType !== 1 && base.nodeType !== 9 && base.nodeType !== 11) return;
+      const walker = document.createTreeWalker(base, NodeFilter.SHOW_TEXT, {
+        acceptNode(n) {
+          const p = n.parentNode;
+          if (!p || /^(SCRIPT|STYLE|TEXTAREA|NOSCRIPT)$/.test(p.nodeName)) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      let n;
+      while ((n = walker.nextNode())) {
+        let orig = n.__aliasOrig;
+        if (orig !== undefined && n.nodeValue !== n.__aliasOut) orig = undefined; // la app cambió ese texto
+        if (orig === undefined) {
+          if (!ALIAS_TEST_RE.test(n.nodeValue)) continue;
+          orig = n.nodeValue;
+        }
+        const out = aliasText(orig);
+        n.__aliasOrig = orig;
+        n.__aliasOut = out;
+        if (n.nodeValue !== out) n.nodeValue = out;
+      }
+    }
+
+    function aliasObserveOn() {
+      if (aliasObs && document.body) aliasObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+
+    function aliasRefreshAll() {
+      if (!aliasObs) return;
+      aliasObs.disconnect();
+      aliasProcessNode(document.body);
+      aliasObserveOn();
+    }
+
+    function startAliasObserver() {
+      if (aliasObs || !document.body) return;
+      aliasObs = new MutationObserver(muts => {
+        muts.forEach(m => {
+          if (m.type === 'characterData') aliasPending.add(m.target);
+          else m.addedNodes.forEach(nd => aliasPending.add(nd));
+        });
+        if (aliasTimer) return;
+        aliasTimer = setTimeout(() => {
+          aliasTimer = null;
+          aliasObs.disconnect();
+          aliasPending.forEach(nd => { if (nd.isConnected) aliasProcessNode(nd); });
+          aliasPending.clear();
+          aliasObserveOn();
+        }, 60);
+      });
+      aliasSig = [1, 2, 3, 4, 5].map(i => getDisplayAlias('Comercial ' + i)).join('|');
+      aliasRefreshAll();
+      // Si alguien cambia su nombre (aquí o desde otro móvil), se actualiza todo
+      setInterval(() => {
+        const sig = [1, 2, 3, 4, 5].map(i => getDisplayAlias('Comercial ' + i)).join('|');
+        if (sig !== aliasSig) { aliasSig = sig; aliasRefreshAll(); }
+      }, 1500);
+    }
+    setTimeout(startAliasObserver, 0);
+
+
+    let appPrefs = Object.assign(
+      { theme: 'zafiro', motion: 'spring', uiSize: 'normal', batterySaver: false, sound: true, vibrate: true, navApp: 'auto' },
+      safeLoadStorage('konsor_app_prefs')
+    );
+
+    function applyAppVisualSettings() {
+      document.body.classList.remove(
+        'theme-esmeralda', 'theme-oro', 'theme-racing', 'theme-sol',
+        'motion-turbo', 'motion-cinema', 'ui-large', 'battery-saver'
+      );
+      if (appPrefs.theme && appPrefs.theme !== 'zafiro') {
+        document.body.classList.add(`theme-${appPrefs.theme}`);
+      }
+      if (appPrefs.motion === 'turbo') document.body.classList.add('motion-turbo');
+      if (appPrefs.motion === 'cinema') document.body.classList.add('motion-cinema');
+      if (appPrefs.uiSize === 'large') document.body.classList.add('ui-large');
+      if (appPrefs.batterySaver) document.body.classList.add('battery-saver');
+    }
+
+    function updateAppPref(key, value) {
+      appPrefs[key] = value;
+      localStorage.setItem('konsor_app_prefs', JSON.stringify(appPrefs));
+      applyAppVisualSettings();
+      if (key === 'sound' && value) triggerHapticAndSound('tap');
+      if (key === 'vibrate' && value) triggerNativeHapticPulse('success');
+    }
+
+    function installUnifiedStyle() {
+  if (document.getElementById('unifiedWorkStyle')) return;
+
+  const style = document.createElement('style');
+  style.id = 'unifiedWorkStyle';
+
+  style.textContent = `
+    .modern-map-dock {
+      padding:8px!important;
+      background:var(--bg-panel);
+      border:1px solid var(--border-panel);
+      border-radius:18px;
+      box-shadow:0 10px 28px #0006;
+      backdrop-filter:blur(16px);
+    }
+    .modern-map-dock>:not(.modern-dock-row) {
+      display:none!important;
+    }
+    .modern-dock-row {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:6px;
+      width:100%;
+    }
+    .modern-dock-row button {
+      min-width:0;
+      min-height:46px;
+      padding:8px 4px;
+      border:1px solid var(--border-panel);
+      border-radius:11px;
+      background:#ffffff0d;
+      color:#fff;
+      font-size:11px;
+      font-weight:800;
+    }
+    .modern-dock-row button:first-child {
+      background:var(--primary);
+    }
+    .hud-header .btn-global-crm { display:none; }
+    .hud-header .user-pill { flex:1;overflow:hidden; }
+    .hud-header .user-name-text { flex:1;min-width:0; }
+    .hud-header .hud-utility-group { gap:3px!important; }
+    .live-salary-pill { font-size:9px;padding:3px 5px; }
+
+    body.motion-cinema .hud-header {
+      position:fixed!important;
+    }
+    #btnMapCompass {
+      bottom:calc(90px + env(safe-area-inset-bottom,0px))!important;
+    }
+    .settings-section {
+      margin-bottom:9px;
+      border:1px solid var(--border-panel);
+      border-radius:13px;
+      background:#ffffff05;
+      padding:12px;
+    }
+    .settings-section summary {
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+      padding:3px 0;
+    }
+    .settings-section label {
+      display:block;
+      font-size:12px;
+      color:#cbd5e1;
+      margin:12px 0 5px;
+    }
+    .settings-section select,
+    .settings-section input:not([type=checkbox]) {
+      width:100%;
+      min-width:0;
+      font-size:16px;
+      padding:10px;
+      border:1px solid var(--border-panel);
+      border-radius:9px;
+      color:#fff;
+      background:var(--bg-dark);
+    }
+    .settings-section button,
+    .settings-section a {
+      min-height:42px;
+      font-size:12px!important;
+      white-space:normal;
+    }
+    .settings-section p {
+      font-size:11px;
+      color:#94a3b8;
+      line-height:1.5;
+      margin:8px 0;
+    }
+    body.ui-large .modern-dock-row button {
+      min-height:50px;
+      font-size:12px;
+    }
+    body.ui-large .modal-card { font-size:15px; }
+    body.ui-large .modal-card input,
+    body.ui-large .modal-card select,
+    body.ui-large .modal-card textarea {
+      font-size:16px!important;
+    }
+    body.ui-large .modal-card button {
+      font-size:13px!important;
+      min-height:42px;
+    }
+    body.battery-saver .modern-map-dock {
+      backdrop-filter:none!important;
+    }
+    .modal-card {
+      background:var(--bg-dark)!important;
+    }
+    @media(prefers-reduced-motion:reduce) {
+      .modal-overlay.active .modal-card {
+        animation:none!important;
+      }
+      .user-gps-pulse { animation:none!important; }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function refreshMapDock(area) {
+  if (isMikelTeamMember(currentUserName)) return;
+
+  installUnifiedStyle();
+
+  const panel = document.querySelector('.bottom-action-panel');
+  if (!panel) return;
+
+  panel.classList.add('modern-map-dock');
+
+  let row = panel.querySelector('.modern-dock-row');
+
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'modern-dock-row';
+    panel.appendChild(row);
+  }
+
+  row.replaceChildren();
+
+  const direction =
+    currentUserName === 'Andrei (Jefe)' &&
+    area === 'management';
+
+  [
+    [
+      direction ? '➕ Asignar zona' : '🏠 Nueva ficha',
+      direction ? startSectorDrawing : startSingleHouseDirect
+    ],
+    ['📝 Registrar trabajo', openSelectZoneToDumpModal],
+    ['🛠 Herramientas', openMapToolsMenu]
+  ].forEach(([label, action]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.onclick = action;
+    row.appendChild(b);
+  });
+
+  const adjust = () => {
+    const header = document.querySelector('.hud-header');
+    const banner = document.getElementById('drawingBanner');
+
+    if (header && banner) {
+      banner.style.top =
+        (header.getBoundingClientRect().bottom + 8) + 'px';
+    }
+  };
+
+  adjust();
+
+  if (!window.workHeaderObserver && window.ResizeObserver) {
+    window.workHeaderObserver = new ResizeObserver(adjust);
+    window.workHeaderObserver.observe(
+      document.querySelector('.hud-header')
+    );
+  }
+}
+
+function setMapDisplay(mode) {
+  // La capa catastral es una consulta pública: disponible a los dos jefes.
+  if (
+    !map ||
+    !ignSatelliteLayer ||
+    !catastroNavarraLayer
+  ) return;
+
+  const satellite = mode !== 'catastro';
+  const cadastre = mode !== 'satellite';
+
+  if (satellite && !map.hasLayer(ignSatelliteLayer)) {
+    ignSatelliteLayer.addTo(map);
+  }
+
+  if (!satellite && map.hasLayer(ignSatelliteLayer)) {
+    map.removeLayer(ignSatelliteLayer);
+  }
+
+  if (cadastre && !map.hasLayer(catastroNavarraLayer)) {
+    catastroNavarraLayer.addTo(map);
+  }
+
+  if (!cadastre && map.hasLayer(catastroNavarraLayer)) {
+    map.removeLayer(catastroNavarraLayer);
+  }
+
+  isSatelliteActive = satellite;
+  isCatastroActive = cadastre;
+  window.cnvRefreshMapControls?.();
+
+  if (cadastre && map.getZoom() < 13) {
+    map.setZoom(16);
+  }
+
+  const button = document.getElementById('btnToggleCatastro');
+
+  if (button) {
+    button.classList.toggle('active', cadastre);
+  }
+}
+
+
+// Historial CRM: revisión previa y guardado confirmado mediante el bridge.
+// Solo accesible desde Herramientas para la cuenta Andrei (Jefe).
+function openHistoricalImportModal() {
+  if (currentUserName !== 'Andrei (Jefe)' ||
+      sessionStorage.getItem('auth_user_key') !== 'jefe') return;
+
+  const existing = document.getElementById('historicalImportModal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'historicalImportModal';
+  overlay.className = 'modal-overlay active';
+  overlay.style.zIndex = '11000';
+  const card = document.createElement('div');
+  card.className = 'modal-card';
+  card.style.cssText = 'max-width:820px;width:calc(100% - 24px);max-height:88dvh;overflow:auto;padding:16px;';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  function el(tag, content, parent, css='') {
+    const node = document.createElement(tag);
+    if (content !== null) node.textContent = content;
+    if (css) node.style.cssText = css;
+    (parent || card).appendChild(node);
+    return node;
+  }
+  const heading = el('div', null, card, 'display:flex;align-items:center;justify-content:space-between;gap:8px;');
+  el('h2', '📥 Importar clientes antiguos', heading, 'margin:0;color:#e2e8f0;font-size:18px;');
+  const close = el('button', '✕', heading, 'padding:6px 12px;border-radius:8px;background:#334155;color:#fff;border:0;');
+  close.onclick=()=>overlay.remove();
+
+  const fields=[
+    ['id','ID Euro Aisla'], ['nombre','Nombre'], ['telefono','Teléfono'],
+    ['municipio','Municipio'], ['direccion','Calle y número'],
+    ['m2','m² (opcional)'], ['comercial','Comercial'], ['estado','Estado original'], ['fecha','Fecha (opcional)'], ['hora','Hora (si agendada)'], ['equipo','Equipo 2/3 (si agendada)']
+  ];
+  const actionStyle='padding:10px 12px;border:1px solid #64748b;border-radius:8px;background:#1e293b;color:#fff;font-size:12px;cursor:pointer;';
+  el('h3','Pegar tabla de clientes',card,'font-size:14px;margin:12px 0 7px;');
+  el('p','Columnas: nombre, telefono, municipio, direccion y estado. Puedes añadir m². El comercial se asigna automáticamente si no viene en la tabla.',card,'font-size:12px;color:#94a3b8;');
+  const paste=el('textarea',null,card,'flex-shrink:0;box-sizing:border-box;width:100%;min-height:100px;background:#0f172a;color:#fff;border:1px solid #64748b;border-radius:8px;padding:9px;font-size:12px;');
+  paste.setAttribute('aria-label','Tabla de clientes antiguos');
+  paste.placeholder='nombre;telefono;municipio;direccion;estado';
+  const file=el('input',null,card,'display:block;margin:12px 0;color:#cbd5e1;font-size:12px;');
+  file.type='file';file.accept='.csv,.tsv,.txt,text/csv,text/plain';
+  const btnParse=el('button','📋 Revisar tabla',card,actionStyle);
+  const manualToggle=el('button','Meter cliente manual de antigua CRM',card,actionStyle+'margin-top:10px;');
+  manualToggle.setAttribute('aria-expanded','false');
+  const manualBox=el('div',null,card,'flex-shrink:0;margin:10px 0;');
+  manualBox.hidden=true;
+  manualToggle.onclick=()=>{
+    manualBox.hidden=!manualBox.hidden;
+    manualToggle.setAttribute('aria-expanded',String(!manualBox.hidden));
+    if(!manualBox.hidden)inputs.nombre.focus();
+  };
+  const inputGrid=el('div',null,manualBox,'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;');
+  const inputs={};
+  const manualFields=fields.filter(([key])=>['nombre','telefono','municipio','direccion','m2','estado'].includes(key));
+  for(const [key,label] of manualFields){
+    const labelNode=el('label',label,inputGrid,'font-size:12px;color:#cbd5e1;min-width:0;');
+    const input=el(key==='estado'?'select':'input',null,labelNode,'display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:3px;background:#0f172a;border:1px solid #64748b;border-radius:7px;color:white;font-size:14px;');
+    inputs[key]=input;
+    if(key==='estado'){
+      for(const [value,title] of [['Por llamar','Por llamar'],['Contactado','Contactado'],['Obra Agendada','Obra agendada · histórico sin reservar'],['Obra Realizada','Obra realizada'],['No apto','No apto']]){
+        const option=el('option',title,input);option.value=value;
+      }
+      input.value='Por llamar';
+    }else{
+      input.type=key==='telefono'?'tel':'text';
+      input.placeholder=label;
+    }
+  }
+  el('p','Comercial asignado: '+currentUserName,manualBox,'font-size:12px;color:#94a3b8;');
+  const btnAdd=el('button','➕ Añadir a revisión',manualBox,actionStyle);
+  const status=el('p','Todavía no hay fichas en la revisión.',card,'font-size:12px;color:#93c5fd;line-height:1.6;');
+  const tableHolder=el('div',null,card,'flex-shrink:0;overflow-x:auto;margin:12px 0;');
+  const btnSave=el('button','💾 Guardar fichas preparadas en Firestore',card,actionStyle+'margin:8px 8px 8px 0;background:#075985;');
+  const btnExport=el('button','⬇ Exportar revisión CSV',card,actionStyle);
+  btnExport.disabled=true;btnExport.style.opacity='.5';
+  const btnClear=el('button','Vaciar revisión',card,actionStyle+'margin-left:8px;');
+
+  const rows=[];
+  const verifiedKonsor=new Map();
+  const btnVerify=el('button','Verificar citas antiguas en KONSOR',card,actionStyle+'margin:8px 0;');
+  const nrm=v=>String(v??'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const aliases={
+    id:['id','codigo','referencia','ref','leadid','idcrm','id euro aisla'],
+    nombre:['nombre','cliente','name','nombre cliente'],
+    telefono:['telefono','movil','phone','tel','numero telefono'],
+    municipio:['municipio','pueblo','localidad','town','ciudad'],
+    direccion:['direccion','calle','domicilio','street','calle y numero'],
+    comercial:['comercial','responsable','asignado','owner','agente'],
+    estado:['estado','status','estado original','situacion'],
+    m2:['m2','superficie','superficie_m2'],
+    fecha:['fecha','fecha alta','date'],
+    hora:['hora','horario','franja','obratime','hora cita'],
+    equipo:['equipo','equipo instalador','equipo instalacion','cuadrilla','obrateam']
+  };
+  const normKey=v=>nrm(v).replace(/[^a-z0-9]/g,'');
+  function stateOf(raw){
+    const st=nrm(raw);
+    if(st==='pendiente verificacion'||st==='por llamar')return 'por_llamar';
+    if(st==='no apto'||st==='no_apto'||st==='no apta')return 'no_apto';
+    if(st==='agendada'||st==='obra agendada'||st==='cita agendada'||st==='cita confirmada'||st==='obra asignada'||st==='cita')return 'agendada';
+    if(st==='realizada'||st==='obra realizada'||st==='terminada')return 'realizada';
+    if(st==='contactado'||st==='llamado')return 'contactado';
+    return 'revisar';
+  }
+  function existingKeys(){
+    const ids=new Set(), places=new Set();
+    (savedZones||[]).forEach(z=>(z.clients||[]).forEach(c=>{
+      const id=nrm(c.crmOrigenId||c.euroAislaId||c.externalId||'');
+      if(id)ids.add(id);
+      const phone=ComercialCore.phone(c.phone);
+      const loc=nrm(z.town)+'|'+nrm(c.street);
+      if(phone.length>=9&&nrm(c.street))places.add(phone+'|'+loc);
+    }));
+    return {ids,places};
+  }
+  function assess(){
+    const seenId=new Set(), seenAddress=new Set(), original=existingKeys();
+    return rows.map(r=>{
+      const id=nrm(r.id), phone=ComercialCore.phone(r.telefono);
+      const fingerprint=phone.length>=9&&r.direccion ? phone+'|'+nrm(r.municipio)+'|'+nrm(r.direccion) : '';
+      const duplicate=Boolean((id&&(seenId.has(id)||original.ids.has(id)))||(fingerprint&&(seenAddress.has(fingerprint)||original.places.has(fingerprint))));
+      if(id)seenId.add(id);if(fingerprint)seenAddress.add(fingerprint);
+      const missing=!r.nombre||!r.municipio||!r.direccion||phone.length!==9;
+      const originalState=stateOf(r.estado);
+      const state=originalState==='agendada' && !r.fecha ? 'agendada_historica' : originalState;
+      const pending=state==='revisar';
+      const fullSlot=['09:00','11:00','15:00','17:00'].includes((r.hora||'').slice(0,5));
+      const fullDate=ComercialCore.date(r.fecha);
+      const teamOK=['2','3'].includes(String(r.equipo||'').trim());
+      const bookingIncomplete=state==='agendada'&&!(fullSlot&&fullDate&&teamOK);
+      const link=state==='agendada' && ComercialCore.linkable(r,savedZones);
+      const repeatedInBatch=rows.slice(0,rows.indexOf(r)).some(other=>(id && nrm(other.id)===id) || (fingerprint && ComercialCore.phone(other.telefono)+'|'+nrm(other.municipio)+'|'+nrm(other.direccion)===fingerprint));
+      const invalidDate=r.fecha && !fullDate;
+      const invalidArea=r.m2 && !(ComercialCore.area(r.m2)>0);
+      const invalidOwner=r.comercial && !getActiveTeamUsers(false).includes(r.comercial);
+      return {...r,sourceRow:r,konsor:verifiedKonsor.get(r),estadoDestino:state,
+        revision:repeatedInBatch?'ID repetido en el lote':missing?'Faltan nombre, municipio, dirección o teléfono válido':pending?'Revisar estado':invalidDate?'Fecha inválida':invalidArea?'m² inválidos':invalidOwner?'Revisar comercial':bookingIncomplete?'Cita: falta fecha, hora o equipo':state==='agendada'&&!link&&!verifiedKonsor.has(r)?'Cita KONSOR sin vínculo verificado':duplicate&&!link?'Duplicado posible':'Preparado'};
+    });
+  }
+  function render(){
+    const data=assess();
+    const review=data.filter(r=>r.revision!=='Preparado').length;
+    const reasons=[...new Set(data.filter(r=>r.revision!=='Preparado').map(r=>r.revision))];
+    status.textContent=`${rows.length} ficha(s) pendientes de guardar · ${review} requieren revisión.`;
+    if(reasons.length)status.textContent+=' '+reasons.join(' · ')+'.';
+    btnExport.disabled=!rows.length;btnExport.style.opacity=rows.length?'1':'.5';
+    btnSave.disabled=!data.length || review>0;
+    btnSave.style.opacity=btnSave.disabled?'.5':'1';
+    tableHolder.replaceChildren();
+    if(!data.length)return;
+    const table=el('table',null,tableHolder,'min-width:850px;width:100%;border-collapse:collapse;font-size:11px;color:#e2e8f0;');
+    const thead=el('thead',null,table);const tr=el('tr',null,thead);
+    for(const title of ['Nombre','Teléfono','Pueblo','Dirección','Comercial','Estado CRM','Destino','Revisión']){
+      el('th',title,tr,'border-bottom:1px solid #64748b;padding:8px;text-align:left;');
+    }
+    const tbody=el('tbody',null,table);
+    data.slice(0,100).forEach(r=>{
+      const row=el('tr',null,tbody);
+      for(const v of [r.nombre,r.telefono,r.municipio,r.direccion,r.comercial,r.estado,r.estadoDestino==='agendada_historica'?'Agendada · histórico sin reservar':r.estadoDestino,r.revision]){
+        el('td',String(v||''),row,'padding:7px;border-bottom:1px solid #334155;vertical-align:top;');
+      }
+    });
+    if(data.length>100)el('p','Mostrando las primeras 100 fichas. La exportación incluye todas.',tableHolder,'font-size:11px;color:#fbbf24;');
+  }
+  function add(raw){
+    const obj={};for(const [key] of fields)obj[key]=String(raw[key]??'').trim();
+    if(!Object.values(obj).some(Boolean))return;
+    if(rows.length>=2000)throw new Error('Límite de 2000 fichas por lote.');
+    obj.comercial ||= currentUserName;
+    obj.estado ||= 'Por llamar';
+    rows.push(obj);
+  }
+  function parseCSV(text,delimiter){
+    const result=[];let item='',row=[],quoted=false;
+    for(let i=0;i<text.length;i++){
+      const ch=text[i];
+      if(ch==='"'){
+        if(quoted&&text[i+1]==='"'){item+='"';i++;}else quoted=!quoted;
+      }else if(ch===delimiter&&!quoted){row.push(item);item='';}
+      else if((ch==='\n'||ch==='\r')&&!quoted){
+        if(ch==='\r'&&text[i+1]==='\n')i++;
+        row.push(item);if(row.some(v=>v.trim()))result.push(row);
+        row=[];item='';
+      }else item+=ch;
+    }
+    if(quoted)throw new Error('Comillas sin cerrar en CSV.');
+    row.push(item);if(row.some(v=>v.trim()))result.push(row);
+    return result;
+  }
+  btnAdd.onclick=()=>{
+    try{
+      if(!['nombre','telefono','municipio','direccion'].every(k=>inputs[k].value.trim())){
+        alert('Completa nombre, teléfono, municipio y dirección.');return;
+      }
+      add(Object.fromEntries(manualFields.map(([k])=>[k,inputs[k].value])));
+      for(const [k] of manualFields)if(k!=='estado')inputs[k].value='';
+      inputs.estado.value='Por llamar';
+      render();
+    }catch(err){alert(err.message);}
+  };
+  btnParse.onclick=()=>{
+    try{
+      const raw=paste.value.replace(/^\uFEFF/,'');
+      if(!raw.trim())throw new Error('Pega primero la tabla.');
+      const head=raw.split(/\r?\n/,1)[0];
+      const delimiter=['\t',';',','].sort((a,b)=>head.split(b).length-head.split(a).length)[0];
+      const table=parseCSV(raw,delimiter);
+      if(table.length<2)throw new Error('La tabla necesita encabezados y al menos una ficha.');
+      const headers=table.shift().map(normKey);
+      const positions={};
+      for(const [key,names] of Object.entries(aliases))positions[key]=headers.findIndex(h=>names.some(n=>normKey(n)===h));
+      if(['nombre','telefono','municipio','direccion'].some(k=>positions[k]<0))
+        throw new Error('Faltan columnas: nombre, telefono, municipio y direccion.');
+      if(table.length+rows.length>2000)throw new Error('Demasiadas fichas para un único lote.');
+      for(const line of table){
+        const obj={};for(const [key] of fields)obj[key]=positions[key]>=0?(line[positions[key]]||''):'';
+        add(obj);
+      }
+      paste.value='';render();
+    }catch(err){alert('No se pudo leer la tabla: '+err.message);}
+  };
+  file.onchange=async()=>{
+    if(!file.files?.[0])return;
+    if(file.files[0].size>5_000_000){alert('Archivo demasiado grande (máximo 5 MB).');return;}
+    try{paste.value=await file.files[0].text();}catch(err){alert('No se pudo leer el archivo: '+err.message);}
+  };
+  btnClear.onclick=()=>{if(rows.length&& !confirm('¿Vaciar la revisión? No se ha guardado en Firestore.'))return;rows.length=0;verifiedKonsor.clear();render();};
+  btnVerify.onclick=async()=>{
+    if(currentUserName!=='Andrei (Jefe)' || sessionStorage.getItem('auth_user_key')!=='jefe')return;
+    if(typeof window.verificarHistoricoKonsor!=='function'){alert('Espera a que cargue Firebase.');return;}
+    for(const control of [btnAdd,btnParse,btnClear,btnSave,btnVerify,file])control.disabled=true;
+    const errors=[];
+    let attempted=0;
+    try{
+      for(const r of rows){
+        if(stateOf(r.estado)!=='agendada'||!r.fecha||ComercialCore.linkable(r,savedZones))continue;
+        attempted++;
+        const reference=r.id || verifiedKonsor.get(r)?.reference || 'local_'+crypto.randomUUID();
+        verifiedKonsor.delete(r);
+        status.textContent='Consultando KONSOR…';
+        try{
+          const result=await window.verificarHistoricoKonsor({crmOrigenId:reference,name:r.nombre,phone:r.telefono,street:r.direccion,crmKonsorTown:r.municipio,obraDate:r.fecha,obraTime:r.hora.slice(0,5),obraEquipoInstalacion:Number(r.equipo)});
+          if(result.data?.ok!==true||!result.data.eventId)throw Error('Respuesta incompleta de KONSOR.');
+          verifiedKonsor.set(r,{eventId:result.data.eventId,reference});
+        }catch(e){errors.push((r.id||r.nombre)+': '+(e.message||'No se pudo verificar.'));}
+      }
+    }finally{
+      for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=false;
+      render();
+    }
+    if(errors.length)alert('Citas pendientes de revisión:\n'+errors.join('\n'));
+    else if(attempted)alert('Verificación terminada. Revisa el resultado antes de guardar.');
+    else alert('No hay citas nuevas con fecha para verificar. Las citas históricas sin fecha se pueden guardar sin reservar.');
+  };
+  btnExport.onclick=()=>{
+    const cols=[...fields.map(f=>f[0]),'estadoDestino','revision'];
+    const csv=[cols,...assess().map(r=>cols.map(k=>r[k]||''))].map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');link.href=url;
+    link.download='revision-clientes-comercial-navarra.csv';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+  };
+  // HIST_IMPORT_SAVE_V1: registro de las fichas mediante el MISMO bridge de la CRM.
+  // No se escriben calendarios ni se sobrescriben fichas existentes.
+  btnSave.onclick=async()=>{
+    if(currentUserName!=='Andrei (Jefe)' ||
+       sessionStorage.getItem('auth_user_key')!=='jefe' ||
+       window.auth?.currentUser?.uid==null){
+      alert('Solo Andrei (Jefe) con sesión activa puede importar.');return;
+    }
+    if(window.KonsorBridge?.busy || typeof window.KonsorBridge?.save!=='function'){
+      alert('Hay un guardado en curso o pendiente. Actualiza la página antes de importar.');return;
+    }
+    // Resolver direcciones históricas antes de guardar.
+    const postalByRow = new Map();
+    if (typeof queryCartoCiudadNavarra === 'function') {
+      status.textContent = 'Comprobando direcciones en CartoCiudad…';
+      const cache = new Map();
+
+      async function resolveAddress(r) {
+        const address = r.direccion.trim();
+        const town = r.municipio.trim();
+        if (!ComercialCore.postalAddress(address)) return null;
+
+        const key = JSON.stringify([address, town]);
+        if (!cache.has(key)) {
+          cache.set(key, (async () => {
+            try {
+              const candidates = await queryCartoCiudadNavarra(
+                [address, town, 'Navarra'].filter(Boolean).join(', '),
+                true
+              );
+              const matches = ComercialCore.postalMatches(
+                candidates, address, town
+              );
+              const unique = [...new Map(
+                matches.map(m => [
+                  JSON.stringify([m.cp, m.localities]),
+                  m
+                ])
+              ).values()];
+
+              return unique.length === 1 ? unique[0] : null;
+            } catch (_) {
+              return null;
+            }
+          })());
+        }
+        return cache.get(key);
+      }
+
+      // Cinco consultas simultáneas como máximo.
+      for (let i = 0; i < rows.length; i += 5) {
+        const group = rows.slice(i, i + 5);
+        const results = await Promise.all(group.map(resolveAddress));
+        group.forEach((r, j) => postalByRow.set(r, results[j]));
+      }
+    }
+
+    const checked=assess();
+    if(!checked.length || checked.some(r=>r.revision!=='Preparado')){
+      alert('Corrige duplicados, estados y datos incompletos antes de guardar.');return;
+    }
+    if(!confirm(`¿Importar o vincular ${checked.length} fichas históricas? Las citas históricas sin fecha se guardarán sin reservar.`))return;
+    btnSave.disabled=true;
+    const currentIds=new Set();
+    const currentPlaces=new Set();
+    const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+    const placeKey=(phone,town,address)=>ComercialCore.phone(phone)+'|'+norm(town)+'|'+norm(address);
+    (savedZones||[]).forEach(z=>(z.clients||[]).forEach(c=>{
+      if(c.crmOrigenId)currentIds.add(norm(c.crmOrigenId));
+      if(c.phone && c.street)currentPlaces.add(placeKey(c.phone,z.town,c.street));
+    }));
+    const additions=[];
+    const addedRows=[];
+    const linked=[];
+    const already=new Set();
+    let done=0;
+    for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=true;
+    try{
+      for(const r of checked){
+        const id=norm(r.id), place=placeKey(r.telefono,r.municipio,r.direccion);
+        const link=r.estadoDestino==='agendada' && ComercialCore.linkable(r,savedZones);
+        if(link){linked.push({row:r,uid:link.c.clientUid});if(id)already.add(id);continue;}
+        if((id && (currentIds.has(id)||already.has(id)))||currentPlaces.has(place)){
+          status.textContent='Importación cancelada: se detectó un duplicado. Recarga y revisa.';
+          btnSave.disabled=false;return;
+        }
+        if(id)already.add(id);
+        const state=r.estadoDestino;
+        const now=Date.now();
+        // Nunca se crea una cita nueva en Calendar. Una cita ya importada
+        // necesita fecha, franja y equipo, y el servidor valida la reserva.
+        const receiptKey=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(place));
+        const key=Array.from(new Uint8Array(receiptKey),byte=>byte.toString(16).padStart(2,'0')).join('');
+        const client={
+          clientUid:'f_hist_'+key,type:'vivienda',
+          name:r.nombre.trim(),street:r.direccion.trim(),phone:ComercialCore.phone(r.telefono),m2:ComercialCore.area(r.m2),
+          obraStatus:['agendada','agendada_historica','realizada','no_apto'].includes(state)?state:'a_poner',
+          obraDate:state==='agendada'||state==='realizada'?r.fecha||'':'',
+          obraTime:state==='agendada'||state==='realizada'?(r.hora||'').slice(0,5):'',
+          callStatus:state==='por_llamar'?'pendiente':'ya_llamado',
+          // CP y localidad solo cuando coincide un portal inequívoco.
+          locality: postalByRow.get(r.sourceRow)?.localities?.[0] || r.municipio.trim(),
+          postalCode: postalByRow.get(r.sourceRow)?.cp || '',
+          cteZone: postalByRow.get(r.sourceRow)
+            ? detectCteZoneFromCpAndTown(postalByRow.get(r.sourceRow).cp).cteZone
+            : '',
+          postalVerification: postalByRow.get(r.sourceRow)
+            ? 'portal_verificado'
+            : 'pendiente_verificacion',
+          crmOrigenEstado:r.estado.trim(),
+          ...(r.id ? {crmOrigenId:r.id} : {}),
+          importadoHistorico:true,createdAt:r.fecha?Date.parse(r.fecha+'T12:00:00'):now,statusChangedAt:now
+        };
+        if(state==='agendada'){
+          client.obraEquipoInstalacion=Number(r.equipo);
+          client.crmKonsorEventId=r.konsor.eventId;
+          client.crmOrigenId=r.konsor.reference;
+          client.crmKonsorTown=r.municipio.trim();
+        }
+        const zid='hist_'+key;
+        addedRows.push(r.sourceRow);
+        additions.push({
+          id:zid,isSingleHouse:true,singlePoint:null,
+          date:r.fecha||getTodayISO(),dumpDate:r.fecha||getTodayISO(),
+          town:r.municipio.trim(),sectorName:'🏠 '+r.direccion.trim(),
+          comercial:r.comercial||'Andrei (Jefe)',bossNote:'',pendingNote:'',
+          status:'completada',points:[],
+          stats:{no:0,ausente:0,papelito:0,si:state==='no_apto'?0:1},
+          clients:[client]
+        });
+      }
+      for(const {row,uid} of linked){
+        const candidate=JSON.parse(JSON.stringify(savedZones));
+        const target=candidate.flatMap(z=>z.clients||[]).find(c=>c.clientUid===uid);
+        if(!target)throw Error('La cita ha cambiado. Recarga y revisa.');
+        if(row.id)target.crmOrigenId=row.id;
+        target.crmOrigenEstado=row.estado;target.importadoHistorico=true;
+        await window.KonsorBridge.save('comercial_custom_zones',candidate);
+        savedZones=candidate;done++;
+        const i=rows.indexOf(row.sourceRow);if(i>=0)rows.splice(i,1);
+      }
+      // Máximo 20 zonas por operación (40 documentos nuevos). Conserva
+      // el límite de 180 cambios del servidor y los recibos transaccionales.
+      for(let n=0;n<additions.length;n+=20){
+        if(window.KonsorBridge.busy)throw Error('Hay otro guardado en curso.');
+        const group=additions.slice(n,n+20);
+        const candidate=[...savedZones,...group];
+        status.textContent=`Guardando ${done+1} a ${done+group.length} de ${checked.length}…`;
+        await window.KonsorBridge.save('comercial_custom_zones',candidate);
+        savedZones=candidate;
+        done+=group.length;
+        // Retirar del lote las filas que ya se han confirmado para evitar
+        // que un reintento vuelva a escribirlas si una franja futura falla.
+        for(const sourceRow of addedRows.slice(n,n+group.length)){
+          const i=rows.indexOf(sourceRow);if(i>=0)rows.splice(i,1);
+          verifiedKonsor.delete(sourceRow);
+        }
+      }
+      status.textContent=`✅ ${done} fichas confirmadas por Firestore. Ya cuentan en tu equipo.`;
+      if(typeof renderAllSavedZones==='function')renderAllSavedZones();
+      render();
+      alert('Importación completa: '+done+' fichas confirmadas en Firestore.');
+    }catch(error){
+      status.textContent=`Confirmadas ${done} de ${checked.length}. Recarga para comprobar las restantes antes de reintentar. ${error.message}`;
+      alert(`Importación detenida. Confirmadas: ${done}. No repitas el lote sin recargar y revisar los duplicados.\n${error.message}`);
+    }finally{for(const control of [btnAdd,btnParse,btnClear,btnVerify,file])control.disabled=false;render();}
+  };
+  overlay.addEventListener('click',ev=>{if(ev.target===overlay)overlay.remove();});
+  render();
+}
+
+function openMapToolsMenu() {
+  openWorkMenu(
+    'Herramientas del mapa',
+    'Elige la vista o una herramienta.',
+    [
+      ...(['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName) ? [[
+        'Dibujar pueblo',
+        'Marca el contorno del pueblo en el mapa y guárdalo como territorio principal.',
+        iniciarDibujoPueblo
+      ]] : []),
+
+      [
+        'Satélite',
+        'Fotografía aérea.',
+        () => setMapDisplay('satellite')
+      ],
+      ...(!isMikelTeamMember(currentUserName) ? [
+      [
+        'Catastro',
+        'Parcelas y edificaciones.',
+        () => setMapDisplay('catastro')
+      ],
+      [
+        'Satélite + catastro',
+        'Superponer parcelas sobre la fotografía.',
+        () => setMapDisplay('both')
+      ],
+      [
+        'Medir superficie aproximada',
+        'Medición orientativa; pendiente de corregir su precisión.',
+        startRoofMeasureMode
+      ],
+      ] : []),
+      [
+        'Marcar zona no apta',
+        'Dibujar una zona descartada y anotar el motivo.',
+        startNoAptoZoneDrawing
+      ],
+      ...(currentUserRole === 'jefe' ? [[
+        'Importar fichas CSV',
+        'Revisar localidades, dibujar pueblos y vincular fichas a sectores antes de guardar.',
+        abrirImportadorTerritorialKonsor
+      ]] : []),
+      ...(currentUserName === 'Andrei (Jefe)' ? [[
+        'Importar clientes históricos',
+        'Preparar fichas históricas, revisar estados y duplicados antes de importarlas.',
+        openHistoricalImportModal
+      ]] : []),
+      [
+        'Orientar al norte',
+        'Restablecer la orientación del mapa.',
+        resetMapNorth
+      ]
+    ]
+  );
+}
+
+function openUserProfileModal() {
+  const key=sessionStorage.getItem('auth_user_key');
+  if(!key || isMikelTeamMember(currentUserName))return;
+  const root=document.getElementById('userProfileModalBody');
+  if(!root)return;
+  root.replaceChildren();
+  const wrap=(tag,cl,txt,p)=>{const e=document.createElement(tag);if(cl)e.className=cl;if(txt!==undefined)e.textContent=txt;if(p)p.append(e);return e;};
+  const btn=(p,label,fn)=>{const b=wrap('button','cn-settings-button',label,p);b.type='button';b.onclick=fn;return b;};
+  const title=document.querySelector('#userProfileModal .modal-header span');
+  if(title)title.textContent='Ajustes';
+  root.classList.add('cn-settings-clean');
+  const profile=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Mi cuenta',profile);
+  wrap('p','', 'Perfil: '+(CANONICAL_USER_NAMES[key]||currentUserName),profile);
+  const label=wrap('label','', 'Nombre visible',profile);
+  const alias=wrap('input','',undefined,profile);alias.id='profileAliasInput';alias.maxLength=22;alias.value=getDisplayAlias(key);alias.setAttribute('aria-label','Nombre visible');
+  btn(profile,'Guardar nombre',saveUserProfileSettings);
+  const help=wrap('div','cn-settings-card cn-help-modern',undefined,root);
+  wrap('h3','', 'Ayuda y contacto',help);
+  wrap('p','', 'Consulta la guía, informa de un problema o contacta con el responsable.',help);
+  const box=wrap('div','cn-help-actions',undefined,help);box.innerHTML=helpSectionHtml();
+  if(key==='jefe'){
+    const team=wrap('div','cn-settings-card',undefined,root);
+    wrap('h3','', 'Equipo y accesos',team);
+    wrap('p','', 'Gestiona comerciales, credenciales y permisos.',team);
+    btn(team,'Administrar cuentas',()=>{closeModal('userProfileModal');openAccessAdminModal();});
+    btn(team,'Comerciales · Supervisión',()=>{closeModal('userProfileModal');if(typeof openPeopleManagement==='function')openPeopleManagement();});
+  }
+  const work=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Trabajo y navegación',work);
+  wrap('p','', 'Tu mapa y tu agenda permanecen sincronizados.',work);
+  const row=wrap('label','cn-settings-label','Aplicación de rutas',work);
+  const nav=wrap('select','',undefined,work);nav.setAttribute('aria-label','Aplicación de rutas');
+  [['auto','Automática'],['apple','Apple Maps'],['google','Google Maps']].forEach(([v,t])=>{const op=wrap('option','',t,nav);op.value=v;});
+  nav.value=appPrefs.navApp||'auto';nav.onchange=()=>updateAppPref('navApp',nav.value);
+  const access=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Accesibilidad',access);
+  const size=wrap('label','cn-settings-label','Tamaño de los controles',access);
+  const sel=wrap('select','',undefined,access);[['normal','Normal'],['large','Grande']].forEach(([v,t])=>{const op=wrap('option','',t,sel);op.value=v;});
+  sel.value=appPrefs.uiSize||'normal';sel.onchange=()=>updateAppPref('uiSize',sel.value);
+  const notif=wrap('div','cn-settings-card',undefined,root);
+  wrap('h3','', 'Notificaciones',notif);
+  wrap('p','', 'Permiso del dispositivo: '+('Notification' in window?Notification.permission:'No disponible'),notif);
+  btn(notif,'Configurar avisos',requestMobileNotifications);
+  const modal=document.getElementById('userProfileModal');if(modal)modal.classList.add('active');
+}
+
+    const BOSS_WHATSAPP = '34648231318';
+
+    function helpWaLink(text) {
+      return `https://wa.me/${BOSS_WHATSAPP}?text=${encodeURIComponent(text)}`;
+    }
+
+    function helpSectionHtml() {
+      const key = sessionStorage.getItem('auth_user_key');
+      const alias = getDisplayAlias(key || currentUserName);
+      const hoy = new Date().toLocaleDateString('es-ES');
+      const ios = (navigator.userAgent.match(/OS (\d+[_\d]*)/) || [])[1];
+      const movil = ios ? 'iPhone iOS ' + ios.replace(/_/g, '.') : 'No detectado';
+
+      const msgMejora =
+`💡 *SUGERENCIA DE MEJORA* — App Konsor Navarra
+👤 De: ${alias}
+📅 ${hoy}
+
+*¿Qué te gustaría que hiciera la app?*
+(escribe aquí)
+
+*¿Para qué te serviría en tu día a día?*
+(escribe aquí)`;
+
+      const msgFallo =
+`🐞 *FALLO EN LA APP* — Konsor Navarra
+👤 De: ${alias}
+📅 ${hoy}
+📱 ${movil}
+
+*¿En qué pantalla estabas?*
+(escribe aquí)
+
+*¿Qué hiciste justo antes?*
+(escribe aquí)
+
+*¿Qué pasó? ¿Y qué esperabas que pasara?*
+(escribe aquí)
+
+(Si puedes, manda también una captura de pantalla)`;
+
+      const msgDuda =
+`❓ *NO ENTIENDO ALGO* — Konsor Navarra
+👤 De: ${alias}
+📅 ${hoy}
+
+*¿De qué parte de la app se trata?*
+(escribe aquí)
+
+*¿Qué es lo que no entiendes?*
+(escribe aquí)`;
+
+      return `
+        <button type="button" class="cn-help-link" onclick="openHelpGuide()">Guía de uso <span aria-hidden="true">›</span></button>
+        <a class="cn-help-link" href="${helpWaLink(msgMejora)}" target="_blank" rel="noopener noreferrer">Sugerir una mejora <span aria-hidden="true">›</span></a>
+        <a class="cn-help-link" href="${helpWaLink(msgFallo)}" target="_blank" rel="noopener noreferrer">Informar de un fallo <span aria-hidden="true">›</span></a>
+        <a class="cn-help-link" href="${helpWaLink(msgDuda)}" target="_blank" rel="noopener noreferrer">Resolver una duda <span aria-hidden="true">›</span></a>
+      `;
+    }
+
+    function openHelpGuide() {
+      let modal = document.getElementById('helpGuideModal');
+      if (!modal) {
+        modal = document.createElement('div');
+                modal.id = 'helpGuideModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '10060';
+        document.body.appendChild(modal);
+      }
+      const sec = 'background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:8px 10px; margin-bottom:7px; font-size:11.5px; color:#e2e8f0; line-height:1.5;';
+      const sum = 'font-weight:900; cursor:pointer; font-size:12px;';
+      modal.innerHTML = `
+        <div class="modal-card">
+          <div class="modal-header-sticky">
+            <div class="modal-header">
+              <span>📖 Cómo usar la app</span>
+              <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('helpGuideModal')">✕</button>
+            </div>
+          </div>
+          <div class="modal-scrollable-content">
+            <details style="${sec}" open><summary style="${sum}">1. Tu día de trabajo, paso a paso</summary>
+              <br>① Abre la app y entra con tu nombre y tu PIN.<br>
+              ② Pulsa para empezar tu jornada.<br>
+              ③ Abre el mapa y mira la zona que te ha asignado Andrei.<br>
+              ④ Trabaja la zona puerta a puerta y apunta cada casa donde te digan SÍ.<br>
+              ⑤ Al terminar, guarda las fichas de ese mismo día y cierra la jornada.
+            </details>
+            <details style="${sec}"><summary style="${sum}">2. El mapa y las zonas</summary>
+              <br>El mapa es una vista de satélite. Las zonas son los trozos de pueblo que te asigna el jefe. Tócalas para ver su estado: por hacer, incompleta o terminada. Si no terminas una zona, queda para el día siguiente.
+            </details>
+            <details style="${sec}"><summary style="${sum}">3. Las fichas de cliente</summary>
+              <br>Cada SÍ lleva su ficha: nombre, calle, teléfono, metros aproximados, tipo de acceso al desván y foto de la trampilla. Indica también <strong>cómo lo captaste</strong>: puerta a puerta, te llamó el cliente, o exterior/cartel. Sube las fichas <strong>el mismo día</strong>. Tu jefe ve quién las sube a tiempo.
+            </details>
+            <details style="${sec}"><summary style="${sum}">4. Llamar a los clientes (Seguimiento)</summary>
+              <br>Todos los SÍ hay que llamarlos <strong>el mismo día</strong>. Dentro de Seguimiento de Llamadas:<br>
+              🔴 <strong>Por llamar</strong>: aún no le has llamado.<br>
+              🟡 <strong>Ya llamado</strong>: no contestó. Mándale el WhatsApp ya preparado. Se te recordará a las 48 h.<br>
+              🟣 <strong>Esperando</strong>: lo tiene que pensar o hablar. Es obligatorio escribir el motivo y elegir si toca volver a llamar o basta un WhatsApp. También a las 48 h.<br>
+              📅 <strong>Citar obra</strong>: si consigues cita, pon día y hora.
+            </details>
+            <details style="${sec}"><summary style="${sum}">5. Cita de obra y subida a la CRM</summary>
+              <br>Cuando una ficha pasa a <strong>Cita Agendada</strong>, la app genera un archivo de esa cita. Súbelo a la CRM oficial y confirma que ya está subida. <strong>Sin ese paso no se puede guardar la cita.</strong> Así la cita llega a la CRM con su fecha y hora para que se programe la obra.
+            </details>
+            <details style="${sec}"><summary style="${sum}">6. Jornada y ranking</summary>
+              <br>Marca el inicio, la comida y el final de tu jornada. El ranking compara los resultados de todo el equipo.
+            </details>
+            <details style="${sec}"><summary style="${sum}">7. Ajustes y tu PIN</summary>
+              <br>En tu perfil puedes cambiar tu nombre visible y tu PIN de 4 dígitos, activar o quitar sonidos y vibración, y activar los avisos del móvil. <strong>Cambia el PIN de inicio por uno tuyo.</strong>
+            </details>
+            <details style="${sec}"><summary style="${sum}">8. ¿Algo no funciona o no lo entiendes?</summary>
+              <br>En Ajustes, sección "Ayuda y Contacto", tienes tres botones para escribir directamente a Andrei por WhatsApp: sugerir una mejora, informar de un fallo, o preguntar si no entiendes algo.
+            </details>
+          </div>
+        </div>`;
+      modal.classList.add('active');
+    }
+
+    async function saveUserProfileSettings() {
+      const userKey = sessionStorage.getItem('auth_user_key');
+      if (!userKey) return;
+      const newAlias = document.getElementById('profileAliasInput').value.trim();
+            const newPin = '0000';
+
+      if (!newAlias) {
+        alert("⚠️ Escribe un nombre válido.");
+        return;
+      }
+      if (!/^\d{4}$/.test(newPin)) {
+        alert("⚠️ El PIN debe tener exactamente 4 números (ej. 4580).");
+        return;
+      }
+
+      customUserProfiles[userKey] = { alias: newAlias, updatedAt: Date.now() };
+      if (!await saveAndSync('comercial_user_profiles', customUserProfiles)) return;
+
+      document.getElementById('displayUserName').innerText = newAlias;
+      triggerHapticAndSound('success');
+      closeModal('userProfileModal');
+      showCelebrationToast(`✅ Nombre guardado: ${newAlias}`);
+    }
+
+    const COMMERCIAL_COLORS = {
+      'Andrei (Jefe)': '#7c3aed',
+      'Comercial 1': '#2563eb',
+      'Comercial 2': '#059669',
+      'Comercial 3': '#d97706',
+      'Comercial 4': '#0891b2',
+      'Comercial 5': '#e11d48',
+      'Mikel (Jefe)': '#0d9488',
+      'Mikel Com. 1': '#0284c7',
+      'Mikel Com. 2': '#16a34a',
+      'Mikel Com. 3': '#ca8a04',
+      'Mikel Com. 4': '#9333ea',
+      'Mikel Com. 5': '#db2777'
+    };
+
+    function applyTeamToolRestrictions() {
+      const restricted=isMikelTeamMember(currentUserName);
+      const mikelChief=currentUserName==='Mikel (Jefe)';
+      document.documentElement.dataset.activeTeam=restricted?'mikel':'andrei';
+      for(const id of ['btnToggleCatastro','btnMeasureRoof','btnEnableNotifs']){
+        const el=document.getElementById(id);
+        if(el)el.style.display=restricted&&!(mikelChief&&id==='btnToggleCatastro')?'none':'';
+      }
+    }
+    function isMikelTeamMember(name) {
+      return Boolean(name && name.startsWith('Mikel'));
+    }
+
+    function getActiveTeamUsers(forMikelTeam = false) {
+      return forMikelTeam
+        ? ['Mikel (Jefe)', 'Mikel Com. 1', 'Mikel Com. 2', 'Mikel Com. 3', 'Mikel Com. 4', 'Mikel Com. 5']
+        : ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+    }
+
+    const COMUNIDAD_DOCS_SCHEMA = [
+      { key: 'docActaPresi', label: '1. Acta de nombramiento de presidente (o mandar nuestro acta si no es presidente oficial)' },
+      { key: 'docActaVecinos', label: '2. Acta de estar de acuerdo todos los vecinos' },
+      { key: 'docCifComunidad', label: '3. CIF de la comunidad' },
+      { key: 'docEscrituras', label: '4. Escrituras de Comunidad' },
+      { key: 'docDniPresi', label: '5. DNI presidente' }
+    ];
+
+   let map;
+    let ignSatelliteLayer = null;
+    let catastroNavarraLayer = null;
+    let isCatastroActive = false;
+    let isSatelliteActive = true;
+
+    let userLocationMarker = null;
+    let userAccuracyCircle = null;
+    let currentUserRole = null;
+    let currentUserName = null;
+
+    let savedZones = [];
+    let sectoresMikelSupervision = [];
+
+    async function cargarSectoresMikelSupervision() {
+      if (currentUserName !== 'Andrei (Jefe)' ||
+          typeof window.consultarSectoresMikel !== 'function') return;
+
+      try {
+        const respuesta = await window.consultarSectoresMikel({});
+        if (currentUserName !== 'Andrei (Jefe)') return;
+
+        sectoresMikelSupervision =
+          Array.isArray(respuesta.data?.sectores)
+            ? respuesta.data.sectores : [];
+
+        if (map) renderAllSavedZones();
+        console.info(
+          'Sectores de Mikel visibles:',
+          sectoresMikelSupervision.length
+        );
+      } catch (error) {
+        console.error('Supervisión de Mikel:', error);
+      }
+    }
+
+    function dibujarSectoresMikelSupervision() {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+
+      for (const sector of sectoresMikelSupervision) {
+        const puntos = sector.points;
+        if (!Array.isArray(puntos) || puntos.length < 3) continue;
+
+        const valido = puntos.every(p =>
+          Array.isArray(p) && p.length === 2 &&
+          Number.isFinite(p[0]) && Number.isFinite(p[1]) &&
+          Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180
+        );
+        if (!valido) continue;
+
+        const colores = {
+          completada: '#22c55e',
+          en_proceso: '#f59e0b',
+          sin_comprobar: '#94a3b8',
+          por_hacer: '#94a3b8'
+        };
+        const color = colores[sector.status] || '#94a3b8';
+
+        const poligono = L.polygon(puntos, {
+          color,
+          weight: 3,
+          dashArray: '6,6',
+          fillColor: color,
+          fillOpacity: 0.12
+        }).addTo(map);
+
+        const panel = document.createElement('div');
+        panel.style.cssText =
+          'min-width:190px;color:#0f172a;font-size:12px';
+
+        const titulo = document.createElement('strong');
+        titulo.textContent = sector.sectorName || 'Sector de Mikel';
+        panel.appendChild(titulo);
+
+        const detalles = [
+          ['Pueblo', sector.town],
+          ['Responsable', sector.comercial],
+          ['Estado', sector.status],
+          ['Interesados', sector.stats?.si || 0],
+          ['Rechazos', sector.stats?.no || 0],
+          ['Ausentes', sector.stats?.ausente || 0],
+          ['Papelitos', sector.stats?.papelito || 0]
+        ];
+
+        for (const [etiqueta, valor] of detalles) {
+          const fila = document.createElement('div');
+          fila.textContent = etiqueta + ': ' + (valor ?? '');
+          panel.appendChild(fila);
+        }
+
+        const nota = document.createElement('small');
+        nota.textContent = 'Supervisión · Solo lectura';
+        panel.appendChild(nota);
+        poligono.on('click',e=>{
+          if(isDrawingMode){handleMapClick(e);return;}
+          L.DomEvent.stopPropagation(e);
+          panel.querySelector('.konsor-map-cadastre-trigger')?.remove();
+          const action=document.createElement('button');
+          action.type='button';action.className='konsor-map-cadastre-trigger';
+          action.textContent='Consultar Catastro de este punto';
+          action.onclick=()=>inspectNavarraCadastreAtPoint(e.latlng);
+          panel.append(action);
+          poligono.bindPopup(panel,{maxWidth:290}).openPopup(e.latlng);
+        });
+        poligono.bindPopup(panel);
+        poligono.bringToBack();
+        loadedMapLayers.push(poligono);
+        capasSectoresAgrupables.push({
+          capa:poligono, zona:sector
+        });
+      }
+    }
+
+
+    let savedShifts = [];
+    let perimetrosPueblos = [];
+    let isPuebloDrawingMode = false;
+
+    async function cargarPerimetrosPueblos() {
+      if (!['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName)) return;
+      try {
+        const r = await window.leerPerimetrosPueblo({});
+        perimetrosPueblos = r.data.perimetros || [];
+        if (map) actualizarAgrupacionTerritorial();
+        window.refreshCnTerritory?.();
+      } catch(e) { console.error('Pueblos:', e); }
+    }
+
+    function iniciarDibujoPueblo() {
+      if (!['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName)) return;
+      cancelDrawing();
+      isDrawingMode = true;
+      isPuebloDrawingMode = true;
+      window.cnvShowMap?.();
+      window.cnvMapDrawingState?.({mode:'town',points:0});
+      document.getElementById('drawingBanner').classList.add('active');
+      document.getElementById('drawingBannerActionsRow').style.display='flex';
+      const single=document.getElementById('btnToggleSingleHouseMode');
+      if(single)single.style.display='none';
+      document.getElementById('drawingBannerText').textContent =
+        'Marca al menos 3 puntos para delimitar el pueblo.';
+      const b=document.getElementById('btnConfirmSectorPoly');
+      b.style.display='inline-block';
+      b.textContent='Guardar perímetro';
+    }
+
+    async function guardarPuebloDibujado() {
+      const nombre=await window.konsorConfirmarNombrePueblo(tempPoints.map(p=>[...p]));
+      if (!nombre) return;
+      const anterior=perimetrosPueblos.find(p =>
+        ComercialCore.norm(p.nombre)===ComercialCore.norm(nombre));
+      if (anterior && !confirm('¿Sustituir el perímetro existente?')) return;
+      try {
+        if(typeof window.guardarPerimetroPueblo!=='function')throw Error('El servicio de pueblos no está disponible. Recarga KONSOR y vuelve a comprobar la conexión.');
+        await window.guardarPerimetroPueblo({
+          nombre,points:tempPoints.map(p=>[...p]),
+          rev:anterior?.rev || 0
+        });
+        cancelDrawing();
+        await cargarPerimetrosPueblos();
+        if (map) actualizarAgrupacionTerritorial();
+        window.refreshCnTerritory?.();
+        if(!konsorRetomarImportacionSiExiste())window.openCnTerritory?.();
+      } catch(e) { alert('Sin guardar: '+e.message); }
+    }
+
+
+    // Relación geográfica pueblo → sector. Las coordenadas Leaflet son [lat,lng].
+    let konsorSectorParentTown = '';
+    function puntoEnPoligonoKonsor(point, polygon) {
+      if(!Array.isArray(point)||!Array.isArray(polygon)||polygon.length<3)return false;
+      const y=Number(point[0]),x=Number(point[1]);
+      let inside=false;
+      for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+        const yi=Number(polygon[i][0]),xi=Number(polygon[i][1]);
+        const yj=Number(polygon[j][0]),xj=Number(polygon[j][1]);
+        if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+      }
+      return inside;
+    }
+    function puebloParaSectorKonsor(points) {
+      if(!Array.isArray(points)||!points.length)return null;
+      const centro=[
+        points.reduce((n,p)=>n+Number(p[0]),0)/points.length,
+        points.reduce((n,p)=>n+Number(p[1]),0)/points.length
+      ];
+      return perimetrosPueblos.find(p=>puntoEnPoligonoKonsor(centro,p.points))||null;
+    }
+    window.konsorStartSectorInTown=function(name){
+      const p=perimetrosPueblos.find(p=>ComercialCore.norm(p.nombre)===ComercialCore.norm(name));
+      if(!p){alert('Este pueblo ya no está disponible. Actualiza territorios.');return;}
+      startSectorDrawing();
+      konsorSectorParentTown=p.nombre;
+      if(map&&p.points?.length>=3)map.fitBounds(L.latLngBounds(p.points),{padding:[30,30]});
+      const banner=document.getElementById('drawingBannerText');
+      if(banner)banner.textContent='Sector dentro de '+p.nombre+' · marca las esquinas.';
+    };
+
+    let completedTowns = [];
+    let hotLeadMissions = [];
+
+    let loadedMapLayers = [];
+    let tempPoints = [];
+    let tempMarkers = [];
+    let isDrawingMode = false;
+    let isCropMode = false;
+    let isSingleHouseMode = false;
+    let isRoofMeasureMode = false;
+    let isNoAptoDrawingMode = false;
+    let measurePolygonLayer = null;
+    let pendingSingleHouseCoords = null;
+    let editingSingleHouseIndex = null;
+    let selectedZoneIndexToDump = null;
+    let selectedZoneIndexForNote = null;
+    let activeAuditTab = 'kpis';
+    let activeRankingFilter = 'si';
+    let activeObrasSubFilter = 'agendadas';
+    let activeFollowUpFilter = 'all';
+    let weekOffset = 0;
+
+    function safeLoadStorage(key) {
+      try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : [];
+      } catch (e) { return []; }
+    }
+
+   async function saveAndSync(key,data) {
+     try { await window.KonsorBridge.save(key,data); return true; }
+     catch (error) { alert('No se ha confirmado el guardado. ' + error.message); return false; }
+   }
+
+
+
+
+    // Asistente CSV: responsables para su equipo y comerciales solo para los sectores propios.
+    function abrirImportadorTerritorialKonsor(){
+      if(typeof window.konsorImportCsvWizard !== 'function'){
+        alert('No se ha cargado el asistente. Actualiza KONSOR y vuelve a intentarlo.');return;
+      }
+      const isChief=currentUserRole==='jefe' &&
+        ['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName);
+      const normalizeImport=s=>String(s||'').trim().normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+      const allowedImportZone=z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&
+        isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName)&&
+        (isChief||z.comercial===currentUserName);
+      window.konsorImportCsvWizard({
+        requireTownBoundary:isChief,
+        sessionKey:sessionStorage.getItem('auth_user_key')||currentUserName||'guest',
+        snapshot:()=>({towns:isChief?perimetrosPueblos.slice():[],
+          zones:savedZones.filter(allowedImportZone),
+          canCommit:!!window.KonsorBridge?.save&&savedZones.some(allowedImportZone)}),
+        drawTown:()=>{if(!isChief)return alert('Solo un responsable puede delimitar pueblos.');
+          iniciarDibujoPueblo();},
+        drawSector:name=>{if(!isChief)return alert('Solo un responsable puede delimitar sectores.');
+          window.konsorStartSectorInTown(name);},
+        commit:async(rows,groups,assign,options={})=>{
+          if(!currentUserName||!currentUserRole)throw Error('Inicia sesión para importar fichas.');
+          if(!window.KonsorBridge?.save||window.KonsorBridge.busy)
+            throw Error('El servidor no está disponible o existe un guardado pendiente.');
+          const response=v=>{
+            const x=normalizeImport(v);
+            if(['si','sí','interesado','positivo'].includes(x))return 'si';
+            if(['no','negativo','no interesado'].includes(x))return 'no';
+            if(['ausente','no estaba','no contesta'].includes(x))return 'ausente';
+            if(['papelito','aviso','nota dejada'].includes(x))return 'papelito';
+            throw Error('Respuesta sin validar: '+v);
+          };
+          const checksum=async r=>{
+            const data=[r.localidad,r.sector,r.calle,r.numero,r.nombre,r.telefono,r.origen_hoja]
+              .map(normalizeImport).join('|');
+            const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(data));
+            return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+          };
+          const preflight=[];
+          const used=new Set();
+          for(const group of groups){
+            const id=String(assign[group.id]||'');
+            if(!id||used.has(id))throw Error('Cada ficha/sector debe vincularse a un sector distinto.');
+            used.add(id);
+            const zone=savedZones.find(z=>String(z.id)===id &&
+              allowedImportZone(z) &&
+              normalizeImport(z.parentTown||z.town)===normalizeImport(group.town));
+            if(!zone)throw Error('Sector no encontrado en '+group.town+': '+group.sector);
+            if(isChief){
+              const town=perimetrosPueblos.find(p=>
+                normalizeImport(p.nombre)===normalizeImport(group.town) &&
+                Array.isArray(p.points)&&p.points.length>=3);
+              if(!town)throw Error('Falta confirmar el perímetro de '+group.town);
+            }
+            for(const r of group.rows){
+              if(!r.calle||!r.localidad||!r.sector)throw Error('Datos incompletos, fila '+r.line);
+              const resp=response(r.respuesta);
+              const hash=await checksum(r);
+              preflight.push({zoneId:id,r,resp,hash});
+            }
+          }
+          // El bridge de persistencia trabaja con el conjunto de zonas.
+          // Lotes pequeños + clave idempotente para recuperar reintentos parciales.
+          let added=0,skipped=0;
+          for(let i=0;i<preflight.length;i+=20){
+            if(window.KonsorBridge.busy)throw Error('Existe un guardado simultáneo.');
+            const candidate=structuredClone(savedZones);
+            for(const item of preflight.slice(i,i+20)){
+              const z=candidate.find(z=>String(z.id)===item.zoneId);
+              if(!z||!allowedImportZone(z))throw Error('Ha cambiado un sector o sus permisos durante la importación.');
+              z.clients=Array.isArray(z.clients)?z.clients:[];
+              const same=z.clients.some(c=>c.konsorImportKey===item.hash);
+              if(same){skipped++;continue;}
+              const address=(item.r.calle+' '+(item.r.numero||'')).trim();
+              if(z.clients.some(c=>normalizeImport(c.street)===normalizeImport(address) &&
+                normalizeImport(c.phone)===normalizeImport(item.r.telefono) &&
+                (c.street||c.phone)))throw Error('Posible duplicado en '+z.sectorName+': '+address+'. Revisa antes de continuar.');
+              z.clients.push({
+                clientUid:'imp_'+item.hash,type:'vivienda',
+                name:item.r.nombre||'',street:address,phone:item.r.telefono||'',
+                locality:item.r.localidad,obraStatus:'a_poner',
+                callStatus:item.resp==='no'?'no_interesado':item.resp==='si'?'pendiente':'pendiente_visita',
+                captacionRespuesta:item.resp,observaciones:item.r.observaciones||'',
+                comercialOrigen:item.r.comercial||z.comercial,
+                origenHoja:item.r.origen_hoja||'',konsorImportKey:item.hash,
+                importedCsv:true,createdAt:Date.now(),statusChangedAt:Date.now()
+              });
+              z.stats=z.stats||{si:0,no:0,ausente:0,papelito:0};
+              z.stats[item.resp]=(Number(z.stats[item.resp])||0)+1;
+              added++;
+            }
+            await window.KonsorBridge.save('comercial_custom_zones',candidate);
+            savedZones=candidate;
+          }
+          if(options.complete){
+            // Solo después de completar TODOS los lotes confirmados:
+            // no se inventa una hora de trabajo de calle.
+            const completed=structuredClone(savedZones);
+            for(const group of groups){
+              const z=completed.find(z=>String(z.id)===String(assign[group.id]));
+              if(!z||!allowedImportZone(z))throw Error('El sector ha cambiado antes de cerrar el volcado.');
+              z.status='completada';
+              z.dumpDate=getTodayISO();
+              z.dumpSource='csv';
+              z.dumpConfirmedAt=Date.now();
+              z.dumpConfirmedBy=currentUserName;
+            }
+            await window.KonsorBridge.save('comercial_custom_zones',completed);
+            savedZones=completed;
+          }
+          if(map)renderAllSavedZones();
+          window.refreshCnTerritory?.();
+          window.cnvRefreshHome?.();
+          return added+' nuevos; '+skipped+' repetidos omitidos'+(options.complete?' · volcado confirmado':' · pendientes de cierre de volcado');
+        }
+      });
+    }
+    window.abrirImportadorTerritorialKonsor=abrirImportadorTerritorialKonsor;
+    function konsorRetomarImportacionSiExiste(){
+      const userKey=String(sessionStorage.getItem('auth_user_key')||currentUserName||'guest')
+        .replace(/[^a-zA-Z0-9_-]/g,'_');
+      if(!sessionStorage.getItem('konsor_import_csv_draft_v1_'+userKey))return false;
+      setTimeout(()=>abrirImportadorTerritorialKonsor(),200);
+      return true;
+    }
+
+    function getLocalDateISO(dateObj = new Date()) {
+      const offsetMs = dateObj.getTimezoneOffset() * 60000;
+      return new Date(dateObj.getTime() - offsetMs).toISOString().split('T')[0];
+    }
+
+    function getTodayISO() {
+      return getLocalDateISO(new Date());
+    }
+
+    function getTomorrowISO() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return getLocalDateISO(d);
+    }
+
+    function isClientValidFilled(client) {
+      if (!client) return false;
+      const hasName = (client.name || '').trim().length > 0;
+      const hasStreet = (client.street || '').trim().length > 0;
+      const hasPhone = (client.phone || '').trim().length > 0;
+      return hasName || hasStreet || hasPhone;
+    }
+
+    function normalizeStreetClusterKey(streetStr) {
+      if (!streetStr) return 'calle sin nombre';
+      return streetStr
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/^(c\/|cl\.|calle|avda\.|avenida|plaza|pl\.|paseo|ps\.|travesia|trav\.)\s+/i, '')
+        .replace(/\b(nº|num\.|numero|portal|piso|pta\.|puerta)\b.*$/i, '')
+        .replace(/[0-9]+.*$/, '')
+        .replace(/[^a-z\s]/g, '')
+        .trim() || streetStr.toLowerCase().trim();
+    }
+
+   function getShiftEffectiveHours(shift) {
+      if (!shift || !shift.startTime) return 0;
+      const [sh, sm] = shift.startTime.split(':').map(Number);
+      if (isNaN(sh) || isNaN(sm)) return 0;
+      const startMins = sh * 60 + sm;
+
+      const todayIso = getTodayISO();
+      const shiftDateIso = shift.localDate || getLocalDateISO(new Date(shift.date));
+
+      let endMins;
+      if (shift.endTime) {
+        const [eh, em] = shift.endTime.split(':').map(Number);
+        endMins = eh * 60 + em;
+      } else if (shiftDateIso === todayIso) {
+        const now = new Date();
+        endMins = now.getHours() * 60 + now.getMinutes();
+      } else {
+        endMins = 20 * 60;
+      }
+
+      const lunchMins = shift.lunchMinutes || 0;
+      const netMins = Math.max(30, Math.min(12 * 60, endMins - startMins - lunchMins));
+      return netMins / 60;
+    }
+
+    function getM2NumericValue(m2Str) {
+      return ComercialCore.area(m2Str);
+    }
+
+    function getComercialColor(comercialName) {
+      return COMMERCIAL_COLORS[comercialName] || '#2563eb';
+    }
+
+    function countComunidadDocs(docsObj) {
+      if (!docsObj) return 0;
+      return COMUNIDAD_DOCS_SCHEMA.reduce((acc, d) => acc + (docsObj[d.key] ? 1 : 0), 0);
+    }
+
+    function formatAccessDisplay(client) {
+      const acc = client.accessType || 'Trampilla';
+      if (acc === 'Otro' && client.accessOther) {
+        return `Otro (${client.accessOther})`;
+      }
+      return acc;
+    }
+
+
+        function executeLogout() {
+   if (window.KonsorBridge?.busy) { alert('Hay cambios pendientes. Mantén la sesión abierta y recarga para recuperarlos.'); return; }
+   sessionStorage.clear();
+   [
+     'comercial_custom_zones',
+     'comercial_shifts',
+     'comercial_completed_towns',
+     'comercial_hot_lead_missions',
+     'comercial_user_profiles',
+     'comercial_activity',
+     'comercial_boss_tasks',
+     'comercial_deleted_ids'
+   ].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+   const done = () => location.reload();
+   try {
+     if (window.authApi) { window.authApi.logout().then(done, done); return; }
+   } catch (e) {}
+   done();
+ }
+
+    /* ===== CUENTAS CON CORREO Y CONTRASEÑA ===== */
+    let authBusy = false;
+    let authRegisterMode = false;
+
+    function authSetMsg(text, kind) {
+      const el = document.getElementById('authMsg');
+      if (!el) return;
+      const c = {
+        err:  ['rgba(220,38,38,0.2)', '#ef4444', '#fca5a5'],
+        warn: ['rgba(245,158,11,0.2)', '#f59e0b', '#fde047'],
+        ok:   ['rgba(16,185,129,0.2)', '#10b981', '#6ee7b7'],
+        info: ['rgba(56,189,248,0.15)', '#38bdf8', '#bae6fd']
+      }[kind || 'info'];
+      el.style.background = c[0];
+      el.style.border = '1px solid ' + c[1];
+      el.style.color = c[2];
+      el.style.display = text ? 'block' : 'none';
+      el.innerText = text || '';
+    }
+
+    function authFriendlyError(e) {
+      const code = (e && e.code) || '';
+      if (code.includes('email-already-in-use')) return '⚠️ Ese correo ya tiene cuenta. Pulsa Entrar.';
+      if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) return '⚠️ Correo o contraseña incorrectos.';
+      if (code.includes('weak-password')) return '⚠️ La contraseña es muy corta (mínimo 6 caracteres).';
+      if (code.includes('invalid-email')) return '⚠️ El correo no está bien escrito.';
+      if (code.includes('too-many-requests')) return '⚠️ Demasiados intentos. Espera unos minutos.';
+      if (code.includes('network')) return '⚠️ Sin conexión. Revisa internet.';
+      if (code.includes('unauthorized-domain')) return '⚠️ Esta dirección web no está autorizada en Firebase (Authentication > Configuración > Dominios autorizados).';
+      return '⚠️ No se pudo completar: ' + ((e && e.message) || code || 'error desconocido');
+    }
+
+    function authSubmitIOS() {
+      if (authBusy) return;
+      if (authRegisterMode) return authDoRegister();
+      return authDoLogin();
+    }
+
+    function authToggleRegister() {
+      if (authBusy) return;
+      authRegisterMode = !authRegisterMode;
+      const name = document.getElementById('authName');
+      const wrap = document.getElementById('authNameWrap');
+      const primary = document.getElementById('iosAuthPrimary');
+      const swap = document.getElementById('btnAuthRegister');
+      const lead = document.getElementById('iosRegisterLead');
+      wrap.style.display = authRegisterMode ? 'flex' : 'none';
+      name.disabled = !authRegisterMode;
+      name.required = authRegisterMode;
+      document.getElementById('authHeading').textContent = authRegisterMode ? 'Crear cuenta' : 'Iniciar sesión';
+      document.getElementById('authDescription').textContent = authRegisterMode ? 'Solicita acceso con tu correo de trabajo.' : 'Accede a tu espacio de trabajo.';
+      document.querySelector('.ios-login-forgot').hidden = authRegisterMode;
+      document.getElementById('authPass').autocomplete =
+        authRegisterMode ? 'new-password' : 'current-password';
+      primary.textContent = authRegisterMode ? 'Crear cuenta' : 'Entrar';
+      swap.textContent = authRegisterMode ? 'Iniciar sesión' : 'Crear cuenta';
+      lead.textContent = authRegisterMode ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?';
+      const msg = document.getElementById('authMsg');
+      msg.style.display = 'none';
+      msg.textContent = '';
+    }
+
+    function authResetRegisterUI() {
+      if (authRegisterMode) authToggleRegister();
+    }
+
+        async function authDoRegister() {
+      if (!window.authApi) { authSetMsg('⏳ La app aún está cargando. Espera unos segundos.', 'warn'); return; }
+      const name = (document.getElementById('authName').value || '').trim();
+      const email = (document.getElementById('authEmail').value || '').trim();
+      const pass = document.getElementById('authPass').value || '';
+      if (name.length < 2) { authSetMsg('⚠️ Escribe tu nombre.', 'err'); return; }
+      if (!email) { authSetMsg('⚠️ Escribe tu correo.', 'err'); return; }
+      if (pass.length < 6) { authSetMsg('⚠️ La contraseña debe tener al menos 6 caracteres.', 'err'); return; }
+      authSetMsg('⏳ Creando tu cuenta...', 'info');
+      authBusy = true;
+      try {
+        await window.authApi.register(email, pass, name);
+        await window.authApi.logout();
+        authBusy = false;
+        authResetRegisterUI();
+        authSetMsg('Cuenta creada. Podrás entrar cuando se apruebe tu acceso.', 'ok');
+      } catch (e) {
+        authBusy = false;
+        authSetMsg(authFriendlyError(e), 'err');
+      }
+    }
+
+    function authWithDeadline(promise, label, ms = 18000) {
+      let timeoutId;
+      const deadline = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(label + ': la respuesta está tardando demasiado. Revisa tu conexión y vuelve a intentarlo.')), ms);
+      });
+      return Promise.race([promise, deadline]).finally(() => clearTimeout(timeoutId));
+    }
+
+    async function authDoLogin() {
+      if (!window.authApi) { authSetMsg('⏳ La app aún está cargando. Espera unos segundos.', 'warn'); return; }
+      const email = (document.getElementById('authEmail').value || '').trim();
+      const pass = document.getElementById('authPass').value || '';
+      if (!email || !pass) { authSetMsg('⚠️ Escribe tu correo y tu contraseña.', 'err'); return; }
+      authSetMsg('Comprobando acceso…', 'info');
+      authBusy = true;
+      try {
+        const user = await authWithDeadline(window.authApi.login(email, pass), 'Inicio de sesión');
+        await authWithDeadline(authFinishLogin(user), 'Carga de cuenta', 25000);
+        authBusy = false;
+      } catch (e) {
+        authBusy = false;
+        authSetMsg(authFriendlyError(e), 'err');
+      }
+    }
+
+    async function authDoReset() {
+      if (!window.authApi) return;
+      const email = (document.getElementById('authEmail').value || '').trim();
+      if (!email) { authSetMsg('⚠️ Escribe tu correo arriba y vuelve a pulsar.', 'err'); return; }
+      try {
+        await window.authApi.reset(email);
+        authSetMsg('✅ Te hemos enviado un correo para crear una contraseña nueva. Mira también el spam.', 'ok');
+      } catch (e) {
+        authSetMsg(authFriendlyError(e), 'err');
+      }
+    }
+
+    async function authFinishLogin(user) {
+      let prof = null;
+      try {
+        prof = await authWithDeadline(window.authApi.getProfile(user.uid), 'Lectura del perfil');
+      } catch (e) {
+        authSetMsg('⚠️ No se pudo leer tu ficha. Revisa la conexión.', 'err');
+        return;
+      }
+           if (!prof) {
+        const nm = (user.email || '').split('@')[0];
+        try {
+          await window.authApi.setProfile(user.uid, {
+            email: user.email,
+            nombre: nm,
+            estado: 'pendiente',
+            userKey: '',
+            createdAt: Date.now()
+          });
+          prof = await authWithDeadline(window.authApi.getProfile(user.uid), 'Lectura del perfil');
+        } catch (e) {
+          authSetMsg('⚠️ No se pudo crear tu ficha: ' + ((e && e.message) || e), 'err');
+          try { await window.authApi.logout(); } catch (e2) {}
+          return;
+        }
+        if (!prof) {
+          authSetMsg('⚠️ Tu cuenta no tiene ficha. Pide acceso a Andrei.', 'err');
+          try { await window.authApi.logout(); } catch (e) {}
+          return;
+        }
+      }
+      if (prof.estado === 'pendiente') {
+        authSetMsg('⏳ Tu cuenta está pendiente de aprobación por Andrei.', 'warn');
+        try { await window.authApi.logout(); } catch (e) {}
+        return;
+      }
+      if (prof.estado === 'bloqueado') {
+        authSetMsg('⛔ Tu acceso está desactivado. Habla con Andrei.', 'err');
+        try { await window.authApi.logout(); } catch (e) {}
+        return;
+      }
+      if (prof.estado !== 'aprobado') {
+        authSetMsg('⚠️ Tu cuenta necesita aprobación antes de entrar.', 'warn');
+        try { await window.authApi.logout(); } catch (e) {}
+        return;
+      }
+      if (!prof.userKey || !CANONICAL_USER_NAMES[prof.userKey]) {
+        authSetMsg('⚠️ Andrei todavía no te ha asignado un perfil.', 'warn');
+        try { await window.authApi.logout(); } catch (e) {}
+        return;
+      }
+      try {
+        await authWithDeadline(window.KonsorBridge.open(user.uid, prof.userKey), 'Carga de datos', 25000);
+        if (!currentUserName && window.auth.currentUser?.uid === user.uid) startSessionForUserKey(prof.userKey);
+      } catch (e) { authSetMsg('No se pudo cargar tu trabajo. ' + e.message, 'err'); }
+    }
+
+    window.onAuthUserReady = function(user) {
+      if (authBusy || currentUserName) return;
+      authBusy = true;
+      authWithDeadline(authFinishLogin(user), 'Recuperación de sesión', 25000)
+        .catch(e => authSetMsg(authFriendlyError(e), 'err'))
+        .finally(() => { authBusy = false; });
+    };
+
+    async function completarPostalesExistentes() {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+
+      const pendientes = savedZones.flatMap((z, zi) =>
+        isMikelTeamMember(z.comercial) ? [] :
+        (z.clients || []).map((c, ci) => ({z, zi, c, ci}))
+          .filter(x => x.c.street && !x.c.postalCode &&
+            ComercialCore.postalAddress(x.c.street))
+      );
+
+      let completadas = 0;
+      for (let i = 0; i < pendientes.length; i += 5) {
+        if (currentUserName !== 'Andrei (Jefe)' ||
+            window.KonsorBridge?.busy) break;
+
+        const grupo = pendientes.slice(i, i + 5);
+        const cambios = await Promise.all(grupo.map(async ({z, c}) => {
+          try {
+            const town = (c.locality || z.town || '').trim();
+            if (!town) return null;
+            const results = await queryCartoCiudadNavarra(
+              c.street.trim() + ', ' + town, true
+            );
+            const matches = ComercialCore.postalMatches(
+              results, c.street, town
+            );
+            const cps = [...new Set(matches.map(m => m.cp))];
+            if (cps.length !== 1) return null;
+            return {cp: cps[0], locality: town};
+          } catch (_) {
+            return null;
+          }
+        }));
+
+        if (!cambios.some(Boolean)) continue;
+
+        const propuesta = structuredClone(savedZones);
+        grupo.forEach(({zi, ci}, j) => {
+          const r = cambios[j];
+          const c = propuesta[zi]?.clients?.[ci];
+          if (!r || !c || c.postalCode) return;
+          c.postalCode = r.cp;
+          if (!c.locality) c.locality = r.locality;
+          const zona = detectCteZoneFromCpAndTown(r.cp);
+          if (!c.cteZone && zona.cteZone) c.cteZone = zona.cteZone;
+          completadas++;
+        });
+
+        await window.KonsorBridge.save('comercial_custom_zones', propuesta);
+        savedZones = propuesta;
+      }
+
+      console.log('Fichas completadas:', completadas);
+    }
+
+    function startSessionForUserKey(userVal) {
+
+      sessionStorage.setItem('auth_user_key', userVal);
+      if (userVal === 'jefe') {
+        currentUserRole = 'jefe';
+        currentUserName = 'Andrei (Jefe)';
+      } else if (userVal === 'jefe_mikel') {
+        currentUserRole = 'jefe';
+        currentUserName = 'Mikel (Jefe)';
+      } else if (userVal.startsWith('mikel_com')) {
+        currentUserRole = 'comercial';
+        currentUserName = userVal.replace('mikel_com', 'Mikel Com. ');
+      } else {
+        currentUserRole = 'comercial';
+        currentUserName = userVal.replace('comercial', 'Comercial ');
+      }
+      applyTeamToolRestrictions();
+      sessionStorage.setItem('auth_role', currentUserRole);
+      sessionStorage.setItem('auth_name', currentUserName);
+
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appContainer').style.display = 'block';
+
+      setupRoleInterface();
+      updateShiftUI();
+      initMap();
+      window.cnvStart?.();
+      setTimeout(()=>window.konsorMotor?.checkLunch?.(),1700);
+      if (currentUserName === 'Andrei (Jefe)') {
+        void cargarSectoresMikelSupervision();
+      }
+      if (currentUserName === 'Andrei (Jefe)') {
+        completarPostalesExistentes().catch(e =>
+          console.error('Autocompletado postal:', e)
+        );
+      }
+
+      // El usuario empieza en Inicio; las tareas y los avisos siguen accesibles
+      // desde Jornada y Dirección, sin modales invasivos al entrar.
+    }
+
+    /* ===== PANEL DE ACCESOS (SOLO ANDREI) ===== */
+    let accessProfiles = [];
+    let profilesWatchStarted = false;
+
+    function accessPendingCount() {
+      return accessProfiles.filter(p => p.estado === 'pendiente').length;
+    }
+
+    function updateAccessBadge() {
+      const b = document.getElementById('btnUserProfileConfig');
+      if (!b || currentUserName !== 'Andrei (Jefe)') return;
+      const n = accessPendingCount();
+      b.innerHTML = n > 0
+        ? `⚙️ <span style="background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:9px; margin-left:2px;">${n}</span>`
+        : '⚙️';
+    }
+
+    function startProfilesWatch() {
+      if (profilesWatchStarted) return;
+      if (currentUserName !== 'Andrei (Jefe)') return;
+      if (!window.authApi) return;
+      profilesWatchStarted = true;
+      let first = true;
+      window.authApi.watchProfiles(list => {
+        const prevPending = new Set(accessProfiles.filter(p => p.estado === 'pendiente').map(p => p.uid));
+        accessProfiles = list;
+        refreshSectorAssignees();
+        const fresh = list.filter(p => p.estado === 'pendiente' && !prevPending.has(p.uid));
+        if (!first && fresh.length > 0) {
+          triggerHapticAndSound('alert');
+          showCelebrationToast(`👤 Cuenta nueva pendiente: ${fresh[0].nombre || fresh[0].email}`);
+        }
+        first = false;
+        updateAccessBadge();
+        if (document.getElementById('accessAdminModal')?.classList.contains('active')) renderAccessAdmin();
+      });
+    }
+
+    function openAccessAdminModal() {
+      let modal = document.getElementById('accessAdminModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'accessAdminModal';
+        modal.className = 'modal-overlay';
+        modal.style.zIndex = '10070';
+        modal.innerHTML = `
+          <div class="modal-card">
+            <div class="modal-header-sticky">
+              <div class="modal-header">
+                <span>👥 Accesos y cuentas</span>
+                <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('accessAdminModal')">✕</button>
+              </div>
+            </div>
+            <div class="modal-scrollable-content" id="accessAdminBody"></div>
+          </div>`;
+        document.body.appendChild(modal);
+      }
+      modal.classList.add('active');
+      startProfilesWatch();
+      renderAccessAdmin();
+    }
+
+    function renderAccessAdmin() {
+      const body = document.getElementById('accessAdminBody');
+      if (!body) return;
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const keys = Object.keys(CANONICAL_USER_NAMES);
+      const optionsFor = (sel) => `<option value="">— Elegir perfil —</option>` +
+        keys.map(k => `<option value="${k}" ${sel === k ? 'selected' : ''}>${esc(CANONICAL_USER_NAMES[k])}</option>`).join('');
+      const order = { pendiente: 0, aprobado: 1, bloqueado: 2 };
+      const list = accessProfiles.slice().sort((a, b) => (order[a.estado] ?? 3) - (order[b.estado] ?? 3));
+
+      let html = `<div style="font-size:11px; color:#94a3b8; margin-bottom:8px; line-height:1.4;">Cuando alguien crea su cuenta sale aquí como <strong>pendiente</strong>. Elige su perfil y pulsa <strong>Aprobar</strong>.</div>`;
+      if (list.length === 0) {
+        html += `<div style="text-align:center; padding:18px; color:#94a3b8; font-size:12px;">Todavía no hay cuentas registradas.</div>`;
+        body.innerHTML = html;
+        return;
+      }
+      list.forEach(p => {
+        const st = p.estado === 'aprobado' ? ['#34d399', '✅ Aprobada'] : (p.estado === 'bloqueado' ? ['#fca5a5', '⛔ Bloqueada'] : ['#fde047', '⏳ Pendiente']);
+        const bt = 'flex:1; border:none; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:900; cursor:pointer;';
+        html += `
+          <div style="background:rgba(255,255,255,0.05); border:1px solid ${p.estado === 'pendiente' ? '#f59e0b' : 'rgba(255,255,255,0.12)'}; border-radius:11px; padding:9px 10px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; gap:6px; align-items:center;">
+              <strong style="font-size:12.5px; color:#fff;">${esc(p.nombre) || 'Sin nombre'}</strong>
+              <span style="font-size:10px; font-weight:900; color:${st[0]};">${st[1]}</span>
+            </div>
+            <div style="font-size:10.5px; color:#94a3b8; margin:2px 0 6px 0;">✉️ ${esc(p.email)}</div>
+            <select id="acc_sel_${p.uid}" class="select-field" style="margin-bottom:6px;">${optionsFor(p.userKey)}</select>
+            <div style="display:flex; gap:5px;">
+              <button onclick="accessApprove('${p.uid}')" style="${bt} background:#059669;">✅ ${p.estado === 'aprobado' ? 'Guardar perfil' : 'Aprobar'}</button>
+              ${p.estado !== 'bloqueado' ? `<button onclick="accessSetState('${p.uid}', 'bloqueado')" style="${bt} background:#dc2626;">⛔ Bloquear</button>` : `<button onclick="accessSetState('${p.uid}', 'pendiente')" style="${bt} background:#d97706;">↩️ Pasar a pendiente</button>`}
+            </div>
+          </div>`;
+      });
+      body.innerHTML = html;
+    }
+
+    async function accessApprove(uid) {
+      const sel = document.getElementById('acc_sel_' + uid);
+      const key = sel ? sel.value : '';
+      if (!key) { alert('⚠️ Elige primero el perfil de esta persona.'); return; }
+      const dup = accessProfiles.find(p => p.uid !== uid && p.userKey === key && p.estado === 'aprobado');
+      if (dup && !confirm(`${CANONICAL_USER_NAMES[key]} ya está asignado a ${dup.email}.\n\n¿Quieres asignarlo también a esta cuenta?`)) return;
+      try {
+        await window.authApi.setProfile(uid, { estado: 'aprobado', userKey: key });
+        triggerHapticAndSound('success');
+      } catch (e) {
+        alert('⚠️ No se pudo guardar: ' + ((e && e.message) || e));
+      }
+    }
+
+    async function accessSetState(uid, estado) {
+      if (estado === 'bloqueado' && !confirm('¿Seguro que quieres bloquear esta cuenta?')) return;
+      try {
+        await window.authApi.setProfile(uid, { estado });
+      } catch (e) {
+        alert('⚠️ No se pudo guardar: ' + ((e && e.message) || e));
+      }
+    }
+
+    /* ORGANIZACIÓN DE TRABAJO Y DIRECCIÓN */
+
+function refreshSectorAssignees() {
+  const select = document.getElementById('assignComercial');
+  if (!select || currentUserRole !== 'jefe') return;
+  const previous = select.value;
+  const isMikel = isMikelTeamMember(currentUserName);
+  const names = isMikel ? getActiveTeamUsers(true) : [currentUserName, ...accessProfiles
+    .filter(profile => profile.estado === 'aprobado' && /^comercial[1-5]$/.test(profile.userKey))
+    .map(profile => CANONICAL_USER_NAMES[profile.userKey])];
+  select.replaceChildren(...Array.from(new Set(names), name => new Option(getDisplayAlias(name), name)));
+  select.value = names.includes(previous) ? previous : currentUserName;
+  select.closest('.input-group').style.display = names.length === 1 ? 'none' : '';
+}
+
+function setupRoleInterface() {
+  const isMikel = isMikelTeamMember(currentUserName);
+  const isBoss = currentUserRole === 'jefe';
+  const isAndrei = currentUserName === 'Andrei (Jefe)';
+  // Cada jefe asigna sectores exclusivamente a su equipo.
+  if (isBoss) refreshSectorAssignees();
+
+  const authKey = sessionStorage.getItem('auth_user_key');
+
+  const roleBadge = document.getElementById('displayRoleBadge');
+  roleBadge.className = 'role-badge ' + (isBoss ? 'jefe' : 'comercial');
+  roleBadge.textContent = isBoss ? '👑 JEFE' : '🏃 COMERCIAL';
+
+  document.getElementById('displayUserName').textContent = isMikel
+    ? (isBoss ? 'Mikel' : currentUserName)
+    : getDisplayAlias(authKey || currentUserName);
+
+  document.getElementById('btnUserProfileConfig').style.display =
+    isMikel ? 'none' : 'flex';
+
+  document.getElementById('btnBossAssignMode').style.display =
+    isBoss ? 'flex' : 'none';
+
+  document.getElementById('btnMarkNoAptoZone').style.display =
+    isMikel ? 'none' : 'flex';
+
+  document.getElementById('mapToolsRow').style.display =
+    isMikel ? 'none' : 'grid';
+
+  [
+    'tabBtnComerciales',
+    'tabBtnSemana',
+    'tabBtnObras',
+    'tabBtnPueblos'
+  ].forEach(id => {
+    document.getElementById(id).style.display =
+      isMikel ? 'none' : 'block';
+  });
+
+  document.getElementById('tabBtnKpis').textContent =
+    isMikel ? '📊 Resumen Equipo' : '💰 Beneficio';
+
+  let switcher = document.getElementById('workAreaSwitcher');
+
+  if (!switcher) {
+    switcher = document.createElement('div');
+    switcher.id = 'workAreaSwitcher';
+    switcher.style.cssText =
+      'display:none;grid-template-columns:1fr 1fr;gap:5px;';
+
+    const nav = document.getElementById('hudNavGrid');
+    nav.parentNode.insertBefore(switcher, nav);
+  }
+
+  switcher.replaceChildren();
+
+  if (isAndrei) {
+    switcher.style.display = 'grid';
+
+    [
+      ['commercial', '🏃 Mi trabajo comercial'],
+      ['management', '👑 Dirección del equipo']
+    ].forEach(([area, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'areaButton_' + area;
+      button.className = 'btn-hud';
+      button.textContent = label;
+      button.style.padding = '9px 4px';
+      button.onclick = () => renderWorkNavigation(area);
+      switcher.appendChild(button);
+    });
+  } else {
+    switcher.style.display = 'none';
+  }
+
+  renderWorkNavigation('commercial');
+  updateHudLiveSalaryPill();
+}
+
+
+/* Centro operativo: usa los sectores y formularios existentes sin alterar datos. */
+function abrirCentroJornadaCN(vista='jornada') {
+  const hoy=getTodayISO();
+  const mios=savedZones.map((z,idx)=>({z,idx})).filter(x=>
+    x.z.comercial===currentUserName && !x.z.isSingleHouse &&
+    !x.z.isNoAptoZone && !x.z.isHotMission);
+  const abiertos=mios.filter(x=>x.z.status!=='completada');
+  const antiguos=abiertos.filter(x=>x.z.date && x.z.date<hoy);
+  const deHoy=abiertos.filter(x=>x.z.date===hoy);
+  const proximos=abiertos.filter(x=>!x.z.date || x.z.date>hoy);
+  let modal=document.getElementById('centroJornadaCN');
+  if (!modal) {
+    modal=document.createElement('div');
+    modal.id='centroJornadaCN';
+    modal.className='modal-overlay';
+    modal.style.zIndex='10065';
+    const carta=document.createElement('div');
+    carta.className='modal-card';
+    carta.style.cssText='max-width:630px;max-height:90dvh;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:20px';
+    const cab=document.createElement('div');
+    cab.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:6px 0 13px';
+    const titulo=document.createElement('strong');
+    titulo.id='centroJornadaTitulo';
+    titulo.style.cssText='font-size:19px;color:#f8fafc';
+    const cerrar=document.createElement('button');
+    cerrar.type='button';cerrar.textContent='✕';
+    cerrar.style.cssText='color:#cbd5e1;background:transparent;border:0;font-size:22px;padding:5px';
+    cerrar.onclick=()=>modal.classList.remove('active');
+    cab.append(titulo,cerrar);
+    const cuerpo=document.createElement('div');cuerpo.id='centroJornadaContenido';
+    carta.append(cab,cuerpo);modal.append(carta);document.body.appendChild(modal);
+  }
+  modal.querySelector('#centroJornadaTitulo').textContent=
+    vista==='oficina'?'🏠 Oficina · pendientes':'☀️ Mi jornada';
+  const cuerpo=modal.querySelector('#centroJornadaContenido');
+  cuerpo.replaceChildren();
+  const nodo=(padre,tag,texto,estilo='')=>{
+    const n=document.createElement(tag);
+    if(texto!==null)n.textContent=texto;
+    if(estilo)n.style.cssText=estilo;
+    padre.appendChild(n);return n;
+  };
+  const card=()=>nodo(cuerpo,'div',null,
+    'padding:14px;margin:9px 0;border-radius:15px;background:#1e293b;border:1px solid #334155');
+  const boton=(padre,texto,accion,principal=false)=>{
+    const b=nodo(padre,'button',texto,'width:100%;text-align:left;padding:11px;margin-top:8px;border-radius:10px;color:#fff;font-size:12px;font-weight:700;border:1px solid '+
+      (principal?'#60a5fa':'#475569')+';background:'+(principal?'#1d4ed8':'#334155'));
+    b.type='button';b.onclick=()=>{modal.classList.remove('active');accion();};
+    return b;
+  };
+  const cabecera=texto=>nodo(cuerpo,'h3',texto,
+    'font-size:13px;color:#f8fafc;margin:17px 0 8px');
+  const resumen=nodo(cuerpo,'div',null,'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px');
+  const indicador=(titulo,numero)=>{
+    const c=nodo(resumen,'div',null,'background:#1e293b;border:1px solid #334155;padding:10px;border-radius:13px');
+    nodo(c,'div',titulo,'font-size:10px;color:#94a3b8');
+    nodo(c,'strong',String(numero),'display:block;font-size:23px;color:#fff;margin-top:4px');
+  };
+  indicador('Atrasados',antiguos.length);
+  indicador('Hoy',deHoy.length);
+  indicador('Próximos',proximos.length);
+  const accesoSector=({z,idx},oficina=false)=>{
+    const c=card();
+    nodo(c,'strong',z.sectorName||'Sector','display:block;color:#fff;font-size:14px');
+    nodo(c,'div',(z.town||'Pueblo sin asignar')+' · '+(z.date||'Sin fecha')+
+      ' · '+(z.status==='en_proceso'?'En curso':'Por hacer'),
+      'font-size:11px;color:#cbd5e1;margin-top:5px');
+    const contactos=(z.clients||[]).filter(c=>c && (c.name||c.phone||c.street)).length;
+    if(contactos)nodo(c,'div',contactos+' fichas registradas','font-size:11px;color:#94a3b8;margin-top:5px');
+    boton(c,oficina?'📝 Abrir hoja del sector':'🗺️ Ver sector',()=>{
+      if(oficina)openDumpModal(idx);else focusMapOnTownOrZone(z.town,idx);
+    },true);
+    if(!oficina)boton(c,'📝 Registrar resultados',()=>openDumpModal(idx));
+  };
+  if(vista==='oficina'){
+    const aviso=card();
+    nodo(aviso,'strong','1. Volcar resultados y fichas','display:block;color:#f8fafc;font-size:14px');
+    nodo(aviso,'p','Abre el sector más antiguo. Comprueba su hoja y registra las viviendas, comunidades o urbanizaciones. La app no presume que una hoja esté sin volcar solo por tener cero fichas.',
+      'font-size:11px;color:#cbd5e1;line-height:1.5');
+    boton(aviso,'📋 Elegir sector para volcar',openSelectZoneToDumpModal,true);
+    cabecera('Sectores abiertos · orden de antigüedad');
+    const lista=[...abiertos].sort((a,b)=>String(a.z.date||'9999').localeCompare(String(b.z.date||'9999')));
+    lista.slice(0,12).forEach(x=>accesoSector(x,true));
+    if(lista.length>12)nodo(cuerpo,'p','Hay más sectores. Consulta Gestión de clientes y zonas.','font-size:11px;color:#94a3b8');
+    cabecera('2. Llamadas y citas');
+    const calls=card();
+    nodo(calls,'p','Cuando acabes de volcar, continúa con llamadas pendientes, seguimientos y disponibilidad real para citas.',
+      'font-size:11px;color:#cbd5e1;line-height:1.5');
+    boton(calls,'📞 Abrir llamadas pendientes',openFollowUpsModal,true);
+    boton(calls,'📅 Organizar citas por jornadas',openGroupedAppointments);
+    boton(calls,'🔎 Buscar una ficha',openGlobalClientSearchModal);
+    const cierre=card();
+    nodo(cierre,'strong','3. Revisión final','display:block;color:#fff');
+    nodo(cierre,'p','Revisa que no falten hojas ni llamadas. Los pendientes permanecen registrados; cerrar esta pantalla no marca tareas como terminadas.',
+      'font-size:11px;color:#cbd5e1;line-height:1.5');
+    boton(cierre,'✅ Finalizar revisión de oficina',()=>alert('Revisión finalizada. Los sectores y llamadas pendientes se conservan.'));
+  } else {
+    const finalizados=mios.filter(x=>x.z.status==='completada').length;
+    const pct=mios.length?Math.round(100*finalizados/mios.length):0;
+    const progreso=card();
+    nodo(progreso,'strong','Progreso de mis sectores · '+pct+'%','font-size:13px;color:#fff');
+    const track=nodo(progreso,'div',null,'height:8px;background:#334155;border-radius:20px;overflow:hidden;margin-top:10px');
+    nodo(track,'div',null,'height:100%;background:#22c55e;width:'+pct+'%');
+    nodo(progreso,'small',finalizados+' de '+mios.length+' sectores terminados',
+      'display:block;margin-top:7px;color:#94a3b8');
+    for(const [titulo,lista] of [
+      ['⚠️ Pendientes de días anteriores',antiguos],
+      ['📍 Programados para hoy',deHoy],
+      ['🗓️ Próximos o sin fecha',proximos]
+    ]){
+      cabecera(titulo);
+      if(!lista.length)nodo(cuerpo,'p','Sin sectores en este grupo.','font-size:11px;color:#94a3b8');
+      lista.slice(0,12).forEach(x=>accesoSector(x));
+    }
+    const acciones=card();
+    boton(acciones,'🏠 Volver a casa · abrir Oficina',()=>abrirCentroJornadaCN('oficina'),true);
+    boton(acciones,'📅 Ver mi planificación completa',showCommercialBriefing);
+  }
+  modal.classList.add('active');
+}
+
+
+/* Navegación principal v1: representación independiente, acciones ya existentes. */
+function renderIosPrimaryNavigation(area='commercial'){
+ const header=document.querySelector('#appContainer .hud-header');
+ if(!header)return;
+ let shell=document.getElementById('iosPrimaryNavigation');
+ if(!shell){
+   shell=document.createElement('section');
+   shell.id='iosPrimaryNavigation';
+   shell.setAttribute('aria-label','Navegación principal');
+   const shift=header.querySelector('.shift-bar');
+   if(shift)header.insertBefore(shell,shift);
+   else header.appendChild(shell);
+ }
+ const isAndrei=currentUserName==='Andrei (Jefe)';
+ const isMikel=isMikelTeamMember(currentUserName);
+ const direction=isAndrei&&area==='management';
+ shell.replaceChildren();
+ const top=document.createElement('div');
+ top.className='ios-main-heading';
+ const heading=document.createElement('div');
+ const eyebrow=document.createElement('span');eyebrow.className='ios-eyebrow';eyebrow.textContent='COMERCIAL NAVARRA';
+ const title=document.createElement('strong');title.textContent=direction?'Dirección':'Mi espacio de trabajo';
+ heading.append(eyebrow,title);
+ const toggle=document.createElement('button');toggle.type='button';toggle.className='ios-menu-toggle';
+ toggle.setAttribute('aria-expanded','true');toggle.textContent='Ocultar';
+ top.append(heading,toggle);shell.append(top);
+ if(isAndrei){
+  const seg=document.createElement('div');seg.className='ios-work-segment';seg.setAttribute('role','group');seg.setAttribute('aria-label','Cambiar espacio de trabajo');
+  [['commercial','Mi trabajo'],['management','Dirección']].forEach(([key,label])=>{
+    const b=document.createElement('button');b.type='button';b.textContent=label;
+    if(area===key){b.className='selected';b.setAttribute('aria-current','page');}
+    b.onclick=()=>renderWorkNavigation(key);
+    seg.appendChild(b);
+  });
+  shell.appendChild(seg);
+ }
+ const grid=document.createElement('div');grid.className='ios-main-grid';
+ const choices=isMikel?[
+  ['Mi equipo','users',openAuditModal,currentUserRole==='jefe'],
+  ['Pueblos','building',()=>window.openCnTerritory?.(),currentUserRole==='jefe'],
+  ['Crear sector','map',()=>{window.cnvShowMap?.();startSectorDrawing();},currentUserRole==='jefe'],
+  ['Importar fichas','contact',abrirImportadorTerritorialKonsor,currentUserRole==='jefe'],
+  ['Llamadas','phone',()=>window.openCnCalls?.(),true],
+  ['Fichas','contact',()=>window.openCnClients?.(),true],
+  ['Resultados','chart',()=>window.openCnResults?.(),true]
+ ]:direction?[
+  ['Territorio','building',()=>window.openCnTerritory?.(),true],
+  ['Importar fichas','contact',abrirImportadorTerritorialKonsor,true],
+  ['Mi equipo','users',openTeamManagementMenu,true],
+  ['Comerciales','contact',openPeopleManagement,true],
+  ['Resultados','chart',openMikelRadarModal,true],
+  ['Planificar','calendar',openBossWorkMenu,true]
+ ]:[
+  ['Mi jornada','calendar',()=>window.openCnDay?.(),true],
+  ['Oficina','building',()=>window.openCnOffice?.(),true],
+  ['Clientes','contact',()=>window.openCnClients?.(),true],
+  ['Resultados','chart',()=>window.openCnResults?.(),true],
+  ['Liga','trophy',openLeagueRankingModal,true],
+  ['Llamadas','phone',()=>window.openCnCalls?.(),true]
+ ];
+ const paths={
+ calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18M8 15h3"/>',
+ building:'<path d="M3 21V7l9-4 9 4v14M9 21v-6h6v6M3 11h18"/>',
+ contact:'<circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2M4 3h16"/>',
+ chart:'<path d="M4 20V4M4 20h17M8 16v-4M13 16V8M18 16V5"/>',
+ trophy:'<path d="M8 3h8v8a4 4 0 0 1-8 0V3ZM8 5H4v3a4 4 0 0 0 4 4M16 5h4v3a4 4 0 0 1-4 4M12 15v4M8 21h8"/>',
+ phone:'<path d="M6 3h4l1 5-2 2a15 15 0 0 0 5 5l2-2 5 1v4a3 3 0 0 1-3 3C9 21 3 15 3 6a3 3 0 0 1 3-3Z"/>',
+ users:'<circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2M17 5a3 3 0 0 1 0 6M18 15c2 1 4 3 4 6"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'
+ };
+ choices.filter(x=>x[3]).forEach(([label,icon,action])=>{
+   const btn=document.createElement('button');btn.type='button';btn.className='ios-nav-card';
+   const glyph=document.createElement('span');glyph.className='ios-nav-icon';
+   glyph.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[icon]+'</svg>';
+   const t=document.createElement('span');t.textContent=label;
+   btn.append(glyph,t);btn.onclick=action;grid.appendChild(btn);
+ });
+ shell.append(grid);
+ toggle.onclick=()=>{
+   const hidden=grid.hidden;
+   grid.hidden=!hidden;
+   toggle.textContent=hidden?'Ocultar':'Mostrar';
+   toggle.setAttribute('aria-expanded',String(hidden));
+ };
+}
+
+function renderWorkNavigation(area) {
+  setTimeout(() => refreshMapDock(area), 0);
+  const nav = document.getElementById('hudNavGrid');
+  const isMikel = isMikelTeamMember(currentUserName);
+  const isAndrei = currentUserName === 'Andrei (Jefe)';
+
+  if (!isAndrei) area = 'commercial';
+
+  ['commercial', 'management'].forEach(key => {
+    const button = document.getElementById('areaButton_' + key);
+    if (!button) return;
+
+    button.style.background = area === key
+      ? '#2b3a4d'
+      : 'rgba(255,255,255,0.06)';
+
+    button.style.borderColor = area === key
+      ? '#dce3eb'
+      : 'rgba(255,255,255,0.15)';
+  });
+
+  nav.replaceChildren();
+  nav.className = 'hud-nav-grid cols-3';
+
+  function add(id, label, action, color) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = id;
+    button.className = 'btn-hud';
+    button.textContent = label;
+    button.style.cssText =
+      'min-height:36px;white-space:normal;line-height:1.25;';
+
+    if (color) button.style.background = color;
+    button.onclick = action;
+    nav.appendChild(button);
+  }
+
+  if (isMikel) {
+    if (currentUserRole === 'jefe') {
+      add('btnBossAudit', '📊 Mi equipo', openAuditModal, '#0f766e');
+    }
+
+    add('btnFollowUps', '📞 Llamadas', openFollowUpsModal);
+    add('btnCommercialStats', '📈 Estadísticas', openCommercialStatsModal);
+    add('btnClientManagement', '📂 Fichas', openGlobalClientSearchModal);
+    renderIosPrimaryNavigation(area);
+    return;
+  }
+
+  if (area === 'management') {
+    add(
+      'btnTeamManagement',
+      '📊 Gestión del equipo',
+      openTeamManagementMenu,
+      '#6d28d9'
+    );
+
+        add(
+      'btnIndividualManagement',
+      '👥 Comerciales',
+      openPeopleManagement,
+      '#6d28d9'
+    );
+
+    add(
+      'btnMikelRadarHud',
+      '⚔️ Comparar equipos',
+      openMikelRadarModal,
+      '#0f766e'
+    );
+
+    add(
+      'btnManagementTools',
+      '🛠 Herramientas',
+      openMapToolsMenu,
+      '#475569'
+    );
+
+    add(
+      'btnBossPlan',
+      '📋 Plan de jefe',
+      openBossWorkMenu,
+      '#6d28d9'
+    );
+
+    renderIosPrimaryNavigation(area);
+    return;
+  }
+
+  add('btnCommercialPlan','☀️ Mi jornada',()=>abrirCentroJornadaCN('jornada'),'#1d4ed8');
+  add('btnOfficeCN','🏠 Oficina',()=>abrirCentroJornadaCN('oficina'),'#0f766e');
+  add('btnClientManagement','🔎 Clientes',openGlobalClientSearchModal,'#334155');
+  add('btnCommercialStats','📈 Mis resultados',openCommercialStatsModal,'#1d4ed8');
+  add('btnLeagueRanking','🏆 Liga',openLeagueRankingModal,'#b45309');
+
+  renderIosPrimaryNavigation(area);
+  try {
+    updateMiPlanBadge();
+  } catch (e) {
+    console.error('No se pudo actualizar Mi Plan:', e);
+  }
+}
+
+/* MENÚ REUTILIZABLE */
+
+function openWorkMenu(title, description, actions) {
+  let modal = document.getElementById('workNavigationModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'workNavigationModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span id="workNavigationTitle"></span>
+            <button type="button"
+              onclick="closeModal('workNavigationModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:20px;padding:5px;cursor:pointer;">✕</button>
+          </div>
+        </div>
+        <div class="modal-scrollable-content">
+          <p id="workNavigationDescription"
+            style="font-size:12px;color:#cbd5e1;
+            line-height:1.5;margin-bottom:12px;"></p>
+          <div id="workNavigationActions"
+            style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    `;
+
+    modal.style.zIndex='11080';
+    document.body.appendChild(modal);
+  }
+  // Mantener los menús por encima de Inicio, buscador y herramientas del mapa.
+  if(modal.parentElement!==document.body)document.body.appendChild(modal);
+  modal.style.zIndex='11080';
+
+  document.getElementById('workNavigationTitle').textContent = title;
+  document.getElementById('workNavigationDescription').textContent =
+    description;
+
+  const container = document.getElementById('workNavigationActions');
+  container.replaceChildren();
+
+  actions.forEach(([label, explanation, action]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+
+    button.style.cssText =
+      'width:100%;text-align:left;padding:15px;border-radius:16px;' +
+      'border:1px solid #e4e8ee;' +
+      'background:#fff;color:#1f2937;cursor:pointer;box-shadow:none;';
+
+    const heading = document.createElement('strong');
+    heading.textContent = label;
+    heading.style.cssText = 'display:block;font-size:13px;';
+
+    const detail = document.createElement('span');
+    detail.textContent = explanation;
+    detail.style.cssText =
+      'display:block;font-size:12px;color:#64748b;' +
+      'line-height:1.4;margin-top:5px;';
+
+    button.append(heading, detail);
+
+    button.onclick = () => {
+      closeModal('workNavigationModal');
+      action();
+    };
+
+    container.appendChild(button);
+  });
+
+  modal.classList.add('active');
+}
+
+function openCaptureWorkMenu() {
+  if(typeof window.openCnOffice==='function') window.openCnOffice();
+}
+
+let groupedScope = 'mine';
+let groupedTown = '';
+let groupedPlan = null;
+const groupedEdits = new Map();
+
+function groupedKey(z, c) {
+  return JSON.stringify([z.id, routeFingerprint(c)]);
+}
+
+function groupedResolve(key) {
+  const matches = [];
+
+  savedZones.forEach(z => {
+    (z.clients || []).forEach(c => {
+      if (groupedKey(z, c) === key) {
+        matches.push({ z, c });
+      }
+    });
+  });
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function groupedPending(c) {
+  return !c.obraStatus || c.obraStatus === 'a_poner';
+}
+
+function groupedStreet(c) {
+  return normalizeStreetClusterKey(c.street || '');
+}
+
+function groupedCandidates() {
+  const rows = [];
+
+  savedZones.forEach(z => {
+    if (isMikelTeamMember(z.comercial)) return;
+
+    if (
+      currentUserRole !== 'jefe' ||
+      groupedScope !== 'team'
+    ) {
+      if (z.comercial !== currentUserName) return;
+    }
+
+    (z.clients || []).forEach(c => {
+      if (groupedPending(c) && isClientValidFilled(c)) {
+        rows.push({
+          z,
+          c,
+          key: groupedKey(z, c),
+          town: routeTown(z.town)
+        });
+      }
+    });
+  });
+
+  return rows;
+}
+
+function groupedNearest(pool, previous) {
+  return pool.slice().sort((a, b) => {
+    if (previous) {
+      const sameA =
+        groupedStreet(a.c) === groupedStreet(previous.c);
+
+      const sameB =
+        groupedStreet(b.c) === groupedStreet(previous.c);
+
+      if (sameA !== sameB) return sameA ? -1 : 1;
+
+      const p = routePoint(previous.z, previous.c);
+      const ap = routePoint(a.z, a.c);
+      const bp = routePoint(b.z, b.c);
+
+      if (p && ap && bp) {
+        const diff =
+          routeDistance(p, ap) - routeDistance(p, bp);
+
+        if (Math.abs(diff) > 0.001) return diff;
+      }
+    }
+
+    return groupedStreet(a.c).localeCompare(
+      groupedStreet(b.c),
+      'es'
+    ) || String(a.c.street || '').localeCompare(
+      String(b.c.street || ''),
+      'es',
+      { numeric: true }
+    );
+  })[0];
+}
+
+function buildGroupedAppointments() {
+  const proposals = [];
+  const unplaced = [];
+  const towns = new Map();
+  const all = groupedCandidates();
+  const counts = new Map();
+
+  all.forEach(it => {
+    counts.set(it.key, (counts.get(it.key) || 0) + 1);
+  });
+
+  all.forEach(it => {
+    let reason = '';
+
+    if (counts.get(it.key) > 1) {
+      reason =
+        'Ficha con identificación duplicada: revisa su zona.';
+    } else if (
+      !it.town ||
+      ![it.c.name, it.c.street, it.c.phone].every(
+        v => String(v || '').trim()
+      )
+    ) {
+      reason =
+        'Completa municipio, nombre, dirección y teléfono.';
+    }
+
+    if (!towns.has(it.town)) {
+      towns.set(it.town, {
+        label: it.z.town || 'Sin municipio',
+        rows: []
+      });
+    }
+
+    if (reason) {
+      unplaced.push({ ...it, reason });
+    } else {
+      towns.get(it.town).rows.push(it);
+    }
+  });
+
+  const ordered = [...towns.entries()].sort(
+    (a, b) => b[1].rows.length - a[1].rows.length
+  );
+
+  const first = new Date(
+    getTomorrowISO() + 'T12:00:00'
+  );
+
+  ordered.forEach(([town, group]) => {
+    const pool = group.rows.slice();
+
+    while (pool.length) {
+      const seed = groupedNearest(pool, null);
+      const options = [];
+
+      for (let day = 0; day < 14; day++) {
+        const d = new Date(first);
+        d.setDate(first.getDate() + day);
+
+        const date = getLocalDateISO(d);
+
+        OBRA_SLOTS.forEach(slot => {
+          const plan = routeSlotPlan(
+            date,
+            slot.start,
+            seed.z,
+            seed.c,
+            seed.c,
+            proposals
+          );
+
+          if (!plan.ok) return;
+
+          let category = plan.category;
+
+          if (pool.length >= 4) {
+            category = plan.category === 0
+              ? 0
+              : (
+                  plan.category === 2
+                    ? 1
+                    : (plan.category === 1 ? 2 : 3)
+                );
+          }
+
+          options.push({
+            date,
+            time: slot.start,
+            category,
+            score: plan.score,
+            day
+          });
+        });
+      }
+
+      options.sort((a, b) =>
+        a.category - b.category ||
+        a.score - b.score ||
+        a.day - b.day ||
+        a.time.localeCompare(b.time)
+      );
+
+      const best = options[0];
+
+      if (!best) {
+        pool.forEach(it => {
+          unplaced.push({
+            ...it,
+            reason:
+              'Sin hueco compatible en los próximos 14 días.'
+          });
+        });
+        break;
+      }
+
+      let previous = null;
+      let placed = 0;
+
+      while (pool.length) {
+        const item = groupedNearest(pool, previous);
+
+        const slots = OBRA_SLOTS.map(slot => ({
+          time: slot.start,
+          ...routeSlotPlan(
+            best.date,
+            slot.start,
+            item.z,
+            item.c,
+            item.c,
+            proposals
+          )
+        }))
+          .filter(p => p.ok)
+          .sort((a, b) =>
+            a.score - b.score ||
+            a.time.localeCompare(b.time)
+          );
+
+        if (!slots.length) break;
+
+        const chosen = slots[0];
+
+        proposals.push({
+          ...item,
+          date: best.date,
+          time: chosen.time,
+          reason: chosen.reason
+        });
+
+        pool.splice(pool.indexOf(item), 1);
+        previous = item;
+        placed++;
+      }
+
+      if (!placed) {
+        unplaced.push({
+          ...seed,
+          reason:
+            'No se pudo completar una propuesta compatible.'
+        });
+        pool.splice(pool.indexOf(seed), 1);
+      }
+    }
+  });
+
+  return {
+    proposals,
+    unplaced,
+    agenda,
+    towns: [...towns.entries()].map(([key, info]) => ({
+      key,
+      label: info.label
+    }))
+  };
+}
+
+function openGroupedAppointments() {
+  if (isMikelTeamMember(currentUserName)) return;
+
+  let modal = document.getElementById(
+    'groupedAppointmentsModal'
+  );
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'groupedAppointmentsModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '9998';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:760px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>🧩 Jornadas por grupos de fichas · KONSOR V3</span>
+            <button type="button"
+              onclick="closeModal('groupedAppointmentsModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="groupedAppointmentsBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  renderGroupedAppointments();
+  modal.classList.add('active');
+}
+
+function groupedNode(tag, text, parent, css = '') {
+  const node = document.createElement(tag);
+
+  if (text !== null) node.textContent = text;
+  if (css) node.style.cssText = css;
+  if (parent) parent.appendChild(node);
+
+  return node;
+}
+
+function groupedButton(parent, text, action) {
+  const b = groupedNode(
+    'button',
+    text,
+    parent,
+    'padding:9px;border-radius:9px;border:1px solid #475569;' +
+    'background:#1e293b;color:#fff;font-size:11px;' +
+    'font-weight:800;cursor:pointer;'
+  );
+
+  b.type = 'button';
+  b.onclick = action;
+
+  return b;
+}
+
+
+async function consultarKonsorFecha(fecha) {
+  if (typeof window.consultarDisponibilidadObras !== 'function') {
+    throw new Error('La conexión con KONSOR no está disponible.');
+  }
+
+  const respuesta = await window.consultarDisponibilidadObras({ fecha });
+  const equipos = respuesta.data?.equipos;
+
+  if (!equipos || !Array.isArray(equipos['2']) ||
+      !Array.isArray(equipos['3'])) {
+    throw new Error('KONSOR devolvió una disponibilidad incompleta.');
+  }
+
+  return equipos;
+}
+
+function equiposLibresKonsor(equipos, hora) {
+  const franja = {
+    '09:00': '09:00-11:00',
+    '11:00': '11:00-13:00',
+    '15:00': '15:00-17:00',
+    '17:00': '17:00-19:00'
+  }[hora] || hora;
+
+  return [2, 3].filter(numero => {
+    const slot = equipos[String(numero)].find(
+      item => item.horario === franja
+    );
+    return slot?.libre === true;
+  });
+}
+
+
+// Planificador con disponibilidad real de KONSOR.
+// Conserva las fichas, grupos y criterios de proximidad existentes.
+async function buildKonsorGroupedAppointments() {
+  const all = groupedCandidates();
+  const proposals = [];
+  const unplaced = [];
+  const towns = new Map();
+  const counts = new Map();
+
+  all.forEach(item => {
+    counts.set(item.key, (counts.get(item.key) || 0) + 1);
+  });
+
+  for (const item of all) {
+    let reason = '';
+
+    if (counts.get(item.key) > 1) {
+      reason = 'Ficha duplicada: revisa su zona.';
+    } else if (
+      !item.town ||
+      ![item.c.name, item.c.street, item.c.phone].every(
+        value => String(value || '').trim()
+      )
+    ) {
+      reason = 'Completa municipio, nombre, dirección y teléfono.';
+    }
+
+    if (reason) {
+      unplaced.push({ ...item, reason });
+      continue;
+    }
+
+    if (!towns.has(item.town)) {
+      towns.set(item.town, {
+        label: item.z.town || 'Sin municipio',
+        rows: []
+      });
+    }
+
+    towns.get(item.town).rows.push(item);
+  }
+
+  const first = new Date(getTomorrowISO() + 'T12:00:00');
+  const agenda = [];
+
+  // Consultar una sola vez cada fecha.
+  for (let day = 0; day < 14; day++) {
+    const d = new Date(first);
+    d.setDate(first.getDate() + day);
+
+    if (d.getDay() === 0) continue;
+
+    const fecha = getLocalDateISO(d);
+    const equipos = await consultarKonsorFecha(fecha);
+    const confirmadas = routeRecords(fecha);
+
+    agenda.push({
+      fecha,
+      day,
+      equipos,
+      confirmadas
+    });
+  }
+
+  const inicioFranja = time => {
+    const index = OBRA_SLOTS.findIndex(slot => slot.start === time);
+    return index;
+  };
+
+  const lugaresKonsor = (equipo, datos) =>
+    (datos.equipos[String(equipo)] || []).flatMap(slot =>
+      Array.isArray(slot.ubicaciones) ? slot.ubicaciones : []
+    ).map(value =>
+      typeof value === 'string'
+        ? value.toLowerCase()
+        : JSON.stringify(value).toLowerCase()
+    );
+
+  const propuestasDelEquipo = (fecha, equipo) =>
+    proposals.filter(p =>
+      p.date === fecha && p.equipoInstalador === equipo
+    );
+
+  const confirmadasDelEquipo = (datos, equipo) =>
+    datos.confirmadas.filter(row => {
+      const numero = Number(row.c?.obraEquipoInstalacion);
+      // Las citas antiguas sin equipo asignado se consideran
+      // ocupadas para ambos, por seguridad.
+      return ![2,3].includes(numero) || numero === equipo;
+    });
+
+  const ordered = [...towns.entries()].sort(
+    (a, b) => b[1].rows.length - a[1].rows.length
+  );
+
+  for (const [town, group] of ordered) {
+    const pool = group.rows.slice();
+    let previous = null;
+
+    while (pool.length) {
+      const item = groupedNearest(pool, previous);
+      const options = [];
+
+      for (const datos of agenda) {
+        for (const equipo of [2, 3]) {
+          const slotsKonsor = datos.equipos[String(equipo)];
+          const colocadas = propuestasDelEquipo(datos.fecha, equipo);
+          const confirmadas = confirmadasDelEquipo(datos, equipo);
+
+          const ocupadas = new Set([
+            ...colocadas.map(p => inicioFranja(p.time)),
+            ...confirmadas.map(p => p.slot)
+          ]);
+
+          const lugares = lugaresKonsor(equipo, datos);
+          const municipio = String(item.z.town || '').toLowerCase();
+
+          const mismaZonaKonsor = lugares.some(l =>
+            municipio && l.includes(municipio)
+          );
+
+          const mismaZonaPropia = colocadas.some(p =>
+            p.town === town
+          ) || confirmadas.some(r =>
+            r.town === town
+          );
+          const calle = groupedStreet(item.c);
+          const mismaCalle = calle && colocadas.some(p =>
+            p.town === town && groupedStreet(p.c) === calle
+          );
+          // Aproximación geográfica cuando ambas fichas tienen coordenadas.
+          const punto = routePoint(item.z, item.c);
+          const distancias = colocadas.concat(confirmadas.map(r => ({z:r.z,c:r.c})))
+            .map(p => {
+              const otro = routePoint(p.z, p.c);
+              return punto && otro ? routeDistance(punto, otro) : null;
+            }).filter(Number.isFinite);
+          const cercana = distancias.length && Math.min(...distancias) <= 5;
+
+          const franjasOcupadas = [...ocupadas].filter(n => n >= 0);
+
+          for (const slot of OBRA_SLOTS) {
+            const indice = inicioFranja(slot.start);
+
+            const entrada = slotsKonsor.find(x =>
+              x.horario?.startsWith(slot.start)
+            );
+
+            if (!entrada || entrada.libre !== true ||
+                ocupadas.has(indice)) continue;
+
+            const distanciaEnFranjas = franjasOcupadas.length
+              ? Math.min(...franjasOcupadas.map(n =>
+                  Math.abs(n - indice)
+                ))
+              : 0;
+
+            const score =
+              datos.day * 4 +
+              distanciaEnFranjas * 30 +
+              indice * 2 -
+              (mismaZonaKonsor ? 250 : 0) -
+              (mismaZonaPropia ? 350 : 0) -
+              (mismaCalle ? 160 : 0) -
+              (cercana ? 120 : 0) -
+              (colocadas.length ? 100 : 0);
+
+            options.push({
+              date: datos.fecha,
+              time: slot.start,
+              equipoInstalador: equipo,
+              score,
+              reason: mismaZonaKonsor
+                ? 'Cerca de una obra existente en KONSOR.'
+                : mismaZonaPropia
+                  ? 'Agrupada con otras obras del mismo pueblo.'
+                  : 'Franja libre comprobada en KONSOR.'
+            });
+          }
+        }
+      }
+
+      options.sort((a, b) =>
+        a.score - b.score ||
+        a.date.localeCompare(b.date) ||
+        a.time.localeCompare(b.time) ||
+        a.equipoInstalador - b.equipoInstalador
+      );
+
+      const best = options[0];
+
+      if (!best) {
+        unplaced.push({
+          ...item,
+          reason: 'Sin franja disponible en KONSOR durante 14 días.'
+        });
+      } else {
+        proposals.push({
+          ...item,
+          ...best
+        });
+        previous = item;
+      }
+
+      pool.splice(pool.indexOf(item), 1);
+    }
+  }
+
+  return {
+    proposals,
+    unplaced,
+    agenda,
+    towns: [...towns.entries()].map(([key, info]) => ({
+      key,
+      label: info.label
+    }))
+  };
+}
+
+async function generateGroupedAppointments() {
+  if (
+    groupedPlan &&
+    !confirm(
+      'Se recalcularán las propuestas sin confirmar. ' +
+      'Las citas confirmadas se conservan. ¿Continuar?'
+    )
+  ) return;
+
+  try {
+    const nuevoPlan = await buildKonsorGroupedAppointments();
+
+    groupedPlan = nuevoPlan;
+    groupedTown = groupedPlan.towns[0]?.key ?? '';
+    groupedEdits.clear();
+    renderGroupedAppointments();
+  } catch (error) {
+    console.error('Error planificando con KONSOR:', error);
+    alert(
+      'No se pudo consultar la disponibilidad de KONSOR. ' +
+      'No se han generado propuestas nuevas.'
+    );
+  }
+}
+
+function groupedViewSource(key) {
+  const found = groupedResolve(key);
+
+  if (!found) {
+    alert(
+      'La ficha ha cambiado. Vuelve a generar las propuestas.'
+    );
+    return;
+  }
+
+  const index = savedZones.indexOf(found.z);
+  openDumpModal(index);
+}
+
+
+// Verifica KONSOR y las citas locales antes de confirmar.
+// El servidor volverá a comprobar la reserva al guardarla.
+async function elegirEquipoInstaladorKonsor(fecha, hora, preferido = null, cliente = null) {
+  const equipos = await consultarKonsorFecha(fecha);
+  const libres = equiposLibresKonsor(equipos, hora);
+
+  const indice = OBRA_SLOTS.findIndex(slot => slot.start === hora);
+  if (indice < 0) {
+    throw new Error('La franja seleccionada no es válida.');
+  }
+
+  const ocupados = new Set();
+
+  for (const row of routeRecords(fecha)) {
+    if (row.c === cliente || row.slot !== indice) continue;
+
+    const equipo = Number(row.c?.obraEquipoInstalacion);
+
+    if ([2, 3].includes(equipo)) {
+      ocupados.add(equipo);
+    } else {
+      // Una cita antigua sin equipo identificado no se
+      // considera automáticamente segura para ninguno.
+      ocupados.add(2);
+      ocupados.add(3);
+    }
+  }
+
+  const disponibles = libres.filter(equipo => !ocupados.has(equipo));
+
+  if (preferido !== null && preferido !== undefined) {
+    if (!disponibles.includes(Number(preferido))) {
+      throw new Error(
+        'El equipo propuesto ya no está disponible. Regenera las propuestas.'
+      );
+    }
+    return Number(preferido);
+  }
+
+  if (!disponibles.length) {
+    throw new Error('Los equipos 2 y 3 están ocupados en esa franja.');
+  }
+
+  return disponibles[0];
+}
+
+async function confirmGroupedAppointment(proposal) {
+  const found = groupedResolve(proposal.key);
+
+  if (!found || !groupedPending(found.c)) {
+    alert(
+      'Esta ficha ha cambiado o ya tiene cita. ' +
+      'Actualiza el estado de los grupos.'
+    );
+    renderGroupedAppointments();
+    return;
+  }
+
+  const { z, c } = found;
+
+  if (
+    isMikelTeamMember(z.comercial) ||
+    (
+      currentUserRole !== 'jefe' &&
+      z.comercial !== currentUserName
+    )
+  ) return;
+
+  let equipoInstalador;
+
+  try {
+    equipoInstalador = await elegirEquipoInstaladorKonsor(
+      proposal.date,
+      proposal.time,
+      proposal.equipoInstalador,
+      c
+    );
+  } catch (error) {
+    alert(error.message || 'No se pudo comprobar KONSOR.');
+    return;
+  }
+
+  if (!confirm(
+    `¿El cliente ha aceptado el ${formatDate(proposal.date)} ` +
+    `de ${obraSlotLabel(proposal.time)}?`
+  )) return;
+
+  const draft = {
+    ...c,
+    ...(groupedEdits.get(proposal.key) || {}),
+    obraStatus: 'agendada',
+    obraDate: proposal.date,
+    obraTime: proposal.time,
+    obraEquipoInstalacion: equipoInstalador
+  };
+
+  if (draft.dni && !isValidDni(draft.dni)) {
+    alert('Revisa el DNI/NIE antes de confirmar.');
+    return;
+  }
+
+  const nuevaConfirmacion = needsCrmUpload(draft) && !isMikelTeamMember(z.comercial);
+  if (!ensureCrmUpload(draft, {
+    date: z.dumpDate || z.date,
+    town: z.town,
+    comercial: z.comercial
+  })) return;
+
+  const previousClient = {...c};
+  const previousUpdated = z._updatedAt;
+  Object.assign(c, draft, {statusChangedAt: Date.now()});
+  z._updatedAt = Date.now();
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) {
+    Object.keys(c).forEach(k => {if (!(k in previousClient)) delete c[k];});
+    Object.assign(c, previousClient);
+    z._updatedAt = previousUpdated;
+    return;
+  }
+
+  if (nuevaConfirmacion) showCitaSavedModal(c, z);
+  logActivity(
+    'cita',
+    `📅 Cita de grupo: ${c.name} · ${z.town} · ` +
+    `${formatDate(c.obraDate)} ${obraSlotLabel(c.obraTime)}`,
+    z.comercial
+  );
+
+  groupedEdits.delete(proposal.key);
+  renderGroupedAppointments();
+}
+
+function moveGroupedProposal(proposal) {
+  const found = groupedResolve(proposal.key);
+  if (!found || !groupedPending(found.c)) return;
+
+  let modal = document.getElementById('moveGroupedModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'moveGroupedModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '10060';
+    document.body.appendChild(modal);
+  }
+  modal.replaceChildren();
+  const body = groupedNode('div', null, modal,
+    'width:100%;max-width:420px;padding:16px;background:#0f172a;' +
+    'border:1px solid #475569;border-radius:15px;');
+  groupedNode('strong', 'Cambiar propuesta · ' + found.c.name, body);
+  const date = groupedNode('input', null, body,
+    'display:block;width:100%;padding:10px;margin:12px 0;' +
+    'background:#1e293b;color:#fff;border:1px solid #475569;border-radius:8px;');
+  date.type = 'date';
+  date.min = getTomorrowISO();
+  date.value = proposal.date;
+  const select = groupedNode('select', null, body,
+    'width:100%;padding:10px;background:#1e293b;color:#fff;' +
+    'border:1px solid #475569;border-radius:8px;');
+  const info = groupedNode('p', '', body, 'font-size:11px;color:#cbd5e1;margin:9px 0;');
+  const save = groupedButton(body, 'Guardar propuesta', async () => {
+    const current = groupedResolve(proposal.key);
+    if (!current || !groupedPending(current.c)) {
+      alert('La ficha ha cambiado. Regenera las propuestas.');
+      return;
+    }
+    const [time, teamText] = select.value.split('|');
+    const equipo = Number(teamText);
+    save.disabled = true;
+    try {
+      await elegirEquipoInstaladorKonsor(date.value, time, equipo, current.c);
+      const otro = groupedPlan.proposals.some(p => p !== proposal &&
+        p.date === date.value && p.time === time && p.equipoInstalador === equipo &&
+        groupedPending(groupedResolve(p.key)?.c || {}));
+      if (otro) throw new Error('El equipo ya tiene otra propuesta en esa franja.');
+      proposal.date = date.value;
+      proposal.time = time;
+      proposal.equipoInstalador = equipo;
+      proposal.reason = 'Horario del equipo ' + equipo + ' comprobado en KONSOR.';
+      closeModal('moveGroupedModal');
+      renderGroupedAppointments();
+    } catch(error) {
+      alert(error.message || 'No se pudo comprobar KONSOR.');
+      save.disabled = false;
+      await update();
+    }
+  });
+  groupedButton(body, 'Cancelar', () => closeModal('moveGroupedModal'));
+
+  let sequence = 0;
+  async function update() {
+    const seq = ++sequence;
+    select.replaceChildren();
+    save.disabled = true;
+    info.textContent = 'Consultando equipos instaladores 2 y 3…';
+    if (!date.value) return;
+    try {
+      const fecha = new Date(date.value + 'T12:00:00');
+      if (fecha.getDay() === 0 || date.value <= getTodayISO())
+        throw new Error('Selecciona un día de lunes a sábado, desde mañana.');
+      const equipos = await consultarKonsorFecha(date.value);
+      if (seq !== sequence) return;
+      for (const slot of OBRA_SLOTS) {
+        const libres = equiposLibresKonsor(equipos, slot.start);
+        for (const equipo of libres) {
+          const indice = OBRA_SLOTS.findIndex(x => x.start === slot.start);
+          const reservas = routeRecords(date.value).filter(r => r.slot === indice);
+          if (reservas.some(r => ![2,3].includes(Number(r.c.obraEquipoInstalacion)) ||
+            Number(r.c.obraEquipoInstalacion) === equipo)) continue;
+          if (groupedPlan.proposals.some(p => p !== proposal &&
+            p.date === date.value && p.time === slot.start &&
+            p.equipoInstalador === equipo && groupedPending(groupedResolve(p.key)?.c || {}))) continue;
+          const option = groupedNode('option',
+            `${slot.start}–${slot.end} · Equipo ${equipo}`, select);
+          option.value = `${slot.start}|${equipo}`;
+        }
+      }
+      const preferred = `${proposal.time}|${proposal.equipoInstalador}`;
+      if ([...select.options].some(o => o.value === preferred)) select.value = preferred;
+      info.textContent = select.options.length
+        ? 'Solo modifica la propuesta; la reserva se confirmará después.'
+        : 'No quedan huecos libres para los equipos 2 y 3 en esa fecha.';
+      save.disabled = !select.options.length;
+    } catch(error) {
+      if (seq !== sequence) return;
+      info.textContent = error.message || 'No se pudo consultar KONSOR.';
+    }
+  }
+  date.onchange = update;
+  update();
+  modal.classList.add('active');
+}
+
+async function groupedSaveNotes(key) {
+  const found = groupedResolve(key);
+
+  if (
+    !found ||
+    (
+      currentUserRole !== 'jefe' &&
+      found.z.comercial !== currentUserName
+    )
+  ) return;
+
+  const edit = groupedEdits.get(key) || {};
+
+  if (edit.dni && !isValidDni(edit.dni)) {
+    alert('Revisa el DNI/NIE antes de guardar.');
+    return;
+  }
+
+  ['email', 'dni', 'callNotes'].forEach(field => {
+    if (field in edit) {
+      found.c[field] = String(edit[field]).trim();
+    }
+  });
+
+  found.z._updatedAt = Date.now();
+
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+  groupedEdits.delete(key);
+  renderGroupedAppointments();
+}
+
+function renderGroupedAppointments() {
+  const root = document.getElementById(
+    'groupedAppointmentsBody'
+  );
+
+  if (!root) return;
+  root.replaceChildren();
+
+  groupedNode(
+    'p',
+    'Organiza las fichas pendientes en jornadas. ' +
+    'Cada cuadrícula muestra las cuatro franjas para los equipos 2 y 3: ' +
+    'propuestas, citas confirmadas y disponibilidad de KONSOR.',
+    root,
+    'font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:10px;'
+  );
+
+  if (currentUserRole === 'jefe') {
+    const select = groupedNode(
+      'select',
+      null,
+      root,
+      'width:100%;padding:10px;background:#1e293b;color:#fff;' +
+      'border:1px solid #475569;border-radius:9px;margin-bottom:8px;'
+    );
+
+    [
+      ['mine', 'Mis fichas'],
+      ['team', 'Mi equipo, yo incluido']
+    ].forEach(([value, label]) => {
+      const option = groupedNode('option', label, select);
+      option.value = value;
+      option.selected = value === groupedScope;
+    });
+
+    select.onchange = () => {
+      groupedScope = select.value;
+      groupedPlan = null;
+      groupedEdits.clear();
+      renderGroupedAppointments();
+    };
+  }
+
+  const tools = groupedNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;'
+  );
+
+  groupedButton(
+    tools,
+    groupedPlan
+      ? '🧩 Regenerar propuestas'
+      : '🧩 Organizar fichas pendientes',
+    generateGroupedAppointments
+  );
+
+  groupedButton(
+    tools,
+    '↻ Actualizar estado',
+    renderGroupedAppointments
+  );
+
+  if (!groupedPlan) {
+    groupedNode(
+      'p',
+      'Pulsa Organizar para generar los grupos por pueblo ' +
+      'y calle. No se reserva ninguna cita hasta ' +
+      'confirmarla con el cliente.',
+      root,
+      'font-size:12px;color:#94a3b8;line-height:1.5;'
+    );
+    return;
+  }
+
+  if (!groupedPlan.towns.length) {
+    groupedNode(
+      'p',
+      'No hay fichas pendientes de cita en este ámbito.',
+      root
+    );
+    return;
+  }
+
+  const tabs = groupedNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;'
+  );
+
+  groupedPlan.towns.forEach(town => {
+    const total = groupedPlan.proposals.filter(
+      p => p.town === town.key
+    ).length;
+
+    const b = groupedButton(
+      tabs,
+      `${town.label} (${total})`,
+      () => {
+        groupedTown = town.key;
+        renderGroupedAppointments();
+      }
+    );
+
+    b.style.whiteSpace = 'nowrap';
+
+    if (town.key === groupedTown) {
+      b.style.background = '#0369a1';
+      b.setAttribute('aria-pressed', 'true');
+    }
+  });
+
+  const dates = [
+    ...new Set(
+      groupedPlan.proposals
+        .filter(p => p.town === groupedTown)
+        .map(p => p.date)
+    )
+  ].sort();
+
+  dates.forEach((date, index) => {
+    const confirmed = routeRecords(date);
+
+    const proposed = groupedPlan.proposals.filter(
+      p => p.date === date
+    );
+
+    groupedNode(
+      'h3',
+      `Grupo ${index + 1} · ${citaDateLong(date)}`,
+      root,
+      'font-size:13px;color:#7dd3fc;margin:16px 0 7px;'
+    );
+
+    const occupied = confirmed.length;
+
+    const pending = proposed.filter(p => {
+      const f = groupedResolve(p.key);
+      return f && groupedPending(f.c);
+    }).length;
+
+    groupedNode(
+      'p',
+      `${occupied} confirmada(s) · ${pending} propuesta(s). ` +
+      'Las jornadas compartidas aparecen también en ' +
+      'la pestaña del otro pueblo.',
+      root,
+      'font-size:10px;color:#94a3b8;margin-bottom:7px;'
+    );
+
+    const grid = groupedNode(
+      'div',
+      null,
+      root,
+      'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' +
+      'gap:8px;margin-bottom:16px;'
+    );
+
+    // Cada una de las cuatro franjas tiene dos casillas: equipo 2 y equipo 3.
+    for (const [slotIndex, slot] of OBRA_SLOTS.entries()) {
+      for (const equipo of [2, 3]) {
+        const cell = groupedNode('div', null, grid,
+          'min-width:0;padding:10px;border-radius:12px;' +
+          'border:1px solid #475569;background:#1e293b;overflow-wrap:anywhere;');
+        groupedNode('strong', `${slot.start}–${slot.end} · Equipo ${equipo}`,
+          cell, 'display:block;font-size:12px;color:#fde047;margin-bottom:7px;');
+        const real = confirmed.filter(r => r.slot === slotIndex &&
+          (![2,3].includes(Number(r.c.obraEquipoInstalacion)) ||
+           Number(r.c.obraEquipoInstalacion) === equipo));
+        const calendarDay = groupedPlan.agenda?.find(a => a.fecha === date);
+        const calendarSlot = calendarDay?.equipos?.[String(equipo)]?.find(x =>
+          x.horario === `${slot.start}-${slot.end}`);
+        if (real.length) {
+          cell.style.borderColor = '#34d399';
+          real.forEach(r => {
+            const visible = currentUserRole === 'jefe' || r.z.comercial === currentUserName;
+            groupedNode('strong', '✅ ' + (visible ? r.c.name || 'Cliente' : 'Obra confirmada'),
+              cell, 'font-size:12px;color:#6ee7b7;');
+            groupedNode('p', `${r.z.town || ''}` +
+              (visible ? '\n' + (r.c.street || '') : ''), cell,
+              'white-space:pre-line;font-size:11px;margin-top:5px;');
+          });
+          continue;
+        }
+        const proposal = proposed.find(p => p.time === slot.start && p.equipoInstalador === equipo);
+        if (!proposal) {
+          groupedNode('p', calendarSlot?.libre === false
+               ? '🗓️ Ocupado en KONSOR'
+               : calendarSlot?.libre === true
+                 ? 'Hueco libre'
+                 : '⚠️ Disponibilidad sin verificar',
+            cell, 'font-size:12px;color:#94a3b8;');
+          continue;
+        }
+        const found = groupedResolve(proposal.key);
+        if (!found || !groupedPending(found.c)) {
+          groupedNode('p', 'Ficha modificada. Regenera las propuestas.',
+            cell, 'font-size:11px;color:#fca5a5;');
+          continue;
+        }
+        const {z,c} = found;
+        groupedNode('strong', `📝 ${c.name}`, cell, 'font-size:12px;');
+        groupedNode('p', `${c.street}\n${z.town}\n${getDisplayAlias(z.comercial)}`,
+          cell, 'white-space:pre-line;font-size:11px;color:#cbd5e1;line-height:1.5;margin:6px 0;');
+        const phone = String(c.phone || '').replace(/[^\d+]/g, '');
+        if (/^\+?\d{7,15}$/.test(phone)) {
+          const a = groupedNode('a', '📞 Llamar', cell,
+            'display:block;text-align:center;padding:9px;background:#2563eb;color:#fff;' +
+            'text-decoration:none;border-radius:8px;font-size:11px;font-weight:800;margin-bottom:6px;');
+          a.href = 'tel:' + phone;
+        }
+        const details = groupedNode('details', null, cell, 'margin:7px 0;font-size:11px;');
+        groupedNode('summary', 'Datos y notas', details, 'cursor:pointer;color:#7dd3fc;');
+        for (const [key,label] of [['email','Correo electrónico'],['dni','DNI / NIE'],['callNotes','Notas de llamada']]) {
+          const input = groupedNode(key === 'callNotes' ? 'textarea' : 'input', null, details,
+            'width:100%;box-sizing:border-box;margin-top:6px;padding:8px;background:#0f172a;' +
+            'color:#fff;border:1px solid #475569;border-radius:7px;font-size:12px;');
+          if (key !== 'callNotes') input.type = key === 'email' ? 'email' : 'text';
+          input.placeholder = label;
+          input.value = (groupedEdits.get(proposal.key) || {})[key] ?? c[key] ?? '';
+          input.oninput = () => {
+            const edit = groupedEdits.get(proposal.key) || {};
+            edit[key] = input.value;
+            groupedEdits.set(proposal.key, edit);
+          };
+        }
+        groupedButton(details, '💾 Guardar datos de llamada', () => groupedSaveNotes(proposal.key));
+        groupedButton(details, '📂 Ver ficha / zona', () => groupedViewSource(proposal.key));
+        groupedButton(cell, '↔️ Cambiar día / hora', () => moveGroupedProposal(proposal));
+        const confirm = groupedButton(cell, '✅ Cliente acepta · reservar',
+          () => confirmGroupedAppointment(proposal));
+        confirm.disabled = calendarSlot?.libre !== true;
+        confirm.style.cssText += 'width:100%;margin-top:5px;background:#047857;';
+      }
+    }
+  });
+
+  const displaced = groupedPlan.proposals.filter(p => {
+    const current = groupedResolve(p.key);
+
+    return p.town === groupedTown &&
+      current &&
+      groupedPending(current.c) &&
+      routeRecords(p.date).some(r =>
+        OBRA_SLOTS[r.slot]?.start === p.time &&
+        (![2,3].includes(Number(r.c?.obraEquipoInstalacion)) ||
+          Number(r.c.obraEquipoInstalacion) === p.equipoInstalador)
+      );
+  });
+
+  if (displaced.length) {
+    groupedNode(
+      'h3',
+      'Propuestas cuyo hueco se ha ocupado',
+      root,
+      'font-size:13px;color:#fca5a5;margin-top:12px;'
+    );
+
+    displaced.forEach(p => {
+      const box = groupedNode(
+        'div',
+        null,
+        root,
+        'padding:10px;border:1px solid #ef4444;' +
+        'border-radius:10px;margin-top:7px;'
+      );
+
+      groupedNode(
+        'p',
+        `${p.c.name} · ${p.z.town} · ` +
+        `${formatDate(p.date)} ${p.time}`,
+        box,
+        'font-size:12px;'
+      );
+
+      groupedButton(
+        box,
+        'Buscar otro día / hora',
+        () => moveGroupedProposal(p)
+      );
+    });
+  }
+
+  const unplaced = groupedPlan.unplaced.filter(
+    p => p.town === groupedTown
+  );
+
+  if (unplaced.length) {
+    groupedNode(
+      'h3',
+      'Fichas sin propuesta',
+      root,
+      'font-size:13px;color:#fde047;margin-top:12px;'
+    );
+
+    unplaced.forEach(p => {
+      const box = groupedNode(
+        'div',
+        null,
+        root,
+        'padding:10px;border:1px solid #b45309;' +
+        'border-radius:10px;margin-top:7px;'
+      );
+
+      groupedNode(
+        'strong',
+        `${p.c.name || 'Sin nombre'} · ${p.c.street || ''}`,
+        box,
+        'font-size:12px;'
+      );
+
+      groupedNode(
+        'p',
+        p.reason,
+        box,
+        'font-size:11px;color:#cbd5e1;margin:6px 0;'
+      );
+
+      groupedButton(
+        box,
+        'Completar / revisar ficha',
+        () => groupedViewSource(p.key)
+      );
+    });
+  }
+
+  groupedNode(
+    'p',
+    'Las propuestas solo ocupan huecos dentro de esta ' +
+    'planificación. Las reservas reales se comprueban ' +
+    'otra vez al confirmar. Cercanía por coordenadas ' +
+    'guardadas: no calcula tiempos de carretera.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:14px;'
+  );
+}
+let peoplePeriod = 'month';
+let peopleDate = '';
+let peopleSelected = 'Andrei (Jefe)';
+let peopleTab = 'summary';
+let peopleClientScope = 'period';
+let peopleClientLimit = 40;
+
+function peopleCurrentBacklog(user) {
+  const result = {
+    pending: 0,
+    overdue: 0,
+    missingReason: 0,
+    incomplete: 0,
+    unfinished: 0
+  };
+
+  savedZones.forEach(z => {
+    if (
+      z.comercial !== user ||
+      z.isNoAptoZone
+    ) return;
+
+    if (
+      !z.isSingleHouse &&
+      !z.isHotMission &&
+      z.status !== 'completada' &&
+      z.date &&
+      z.date <= getTodayISO()
+    ) {
+      result.unfinished++;
+    }
+
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      if (
+        ![c.name, c.street, c.phone].every(
+          v => String(v || '').trim()
+        )
+      ) {
+        result.incomplete++;
+      }
+
+      if (
+        c.obraStatus &&
+        c.obraStatus !== 'a_poner'
+      ) return;
+
+      result.pending++;
+
+      if (
+        c.callStatus === 'esperando_confirmacion' &&
+        !String(c.waitReason || '').trim()
+      ) {
+        result.missingReason++;
+      }
+
+      const next = Number(c.nextContactAt);
+
+      const ref = Number(
+        c.callStatus && c.callStatus !== 'pendiente'
+          ? (
+              c.statusChangedAt ||
+              c.createdAt ||
+              z.id
+            )
+          : (c.createdAt || z.id)
+      );
+
+      if (
+        (
+          Number.isFinite(next) &&
+          next > 0 &&
+          Date.now() >= next
+        ) ||
+        (
+          (!Number.isFinite(next) || next <= 0) &&
+          Number.isFinite(ref) &&
+          ref > 0 &&
+          Date.now() - ref >= 48 * 3600000
+        )
+      ) {
+        result.overdue++;
+      }
+    });
+  });
+
+  return result;
+}
+
+function peopleReview(m, previous) {
+  const notes = [];
+
+  const contacts = m.si + m.no + m.papelito;
+
+  const oldContacts =
+    previous.si +
+    previous.no +
+    previous.papelito;
+
+  const conversion = contacts
+    ? m.si / contacts
+    : 0;
+
+  const oldConversion = oldContacts
+    ? previous.si / oldContacts
+    : 0;
+
+  if (contacts >= 30 && conversion < 0.05) {
+    notes.push({
+      title: 'Revisar la conversación en puerta',
+      evidence:
+        `${m.si} SÍ de ${contacts} contactos registrados ` +
+        `(${(100 * conversion).toFixed(1)}%).`,
+      action:
+        'Acompáñalo en varias visitas y revisad cómo presenta ' +
+        'la propuesta, filtra la vivienda y pide el contacto.'
+    });
+  }
+
+  if (
+    contacts >= 30 &&
+    m.papelito / contacts >= 0.4
+  ) {
+    notes.push({
+      title: 'Revisar el paso de información a contacto',
+      evidence:
+        `${m.papelito} visitas quedaron en información, ` +
+        `de ${contacts} contactos.`,
+      action:
+        'Comprobad si faltaba interés, si la vivienda era apta ' +
+        'o si conviene practicar cómo acordar una llamada posterior.'
+    });
+  }
+
+  if (
+    m.fichas >= 8 &&
+    m.noAptas / m.fichas >= 0.25
+  ) {
+    notes.push({
+      title: 'Revisar el filtro técnico y la zona',
+      evidence:
+        `${m.noAptas} de ${m.fichas} fichas creadas ` +
+        'están actualmente descartadas.',
+      action:
+        'Revisad los motivos antes de atribuirlo al discurso: ' +
+        'año, acceso, aislamiento previo y características del pueblo.'
+    });
+  }
+
+  if (
+    m.horas >= 6 &&
+    previous.horas >= 6 &&
+    previous.puertas > 0 &&
+    m.puertas / m.horas <
+      previous.puertas / previous.horas * 0.75
+  ) {
+    notes.push({
+      title: 'Investigar la bajada del ritmo registrado',
+      evidence:
+        `${(m.puertas / m.horas).toFixed(1)} visitas/h ` +
+        `frente a ${(previous.puertas / previous.horas).toFixed(1)} antes.`,
+      action:
+        'Comprobad desplazamientos, densidad de viviendas, ' +
+        'tareas de seguimiento y fichajes antes de sacar conclusiones.'
+    });
+  }
+
+  if (
+    contacts >= 30 &&
+    oldContacts >= 30 &&
+    conversion <= oldConversion - 0.05
+  ) {
+    notes.push({
+      title: 'Revisar el cambio de conversión',
+      evidence:
+        `${(100 * conversion).toFixed(1)}% frente a ` +
+        `${(100 * oldConversion).toFixed(1)}% de los contactos ` +
+        'del periodo anterior.',
+      action:
+        'Comparad pueblos y tipo de vivienda; después revisad ' +
+        'juntos las visitas si las condiciones eran similares.'
+    });
+  }
+
+  return {
+    notes,
+    contacts,
+    conversion,
+    oldConversion,
+    enough: contacts >= 30
+  };
+}
+
+function openPeopleManagement() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  let modal = document.getElementById(
+    'peopleManagementModal'
+  );
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'peopleManagementModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>👥 Comerciales · seguimiento individual</span>
+            <button type="button"
+              onclick="closeModal('peopleManagementModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="peopleManagementBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  peoplePeriod = 'month';
+  peopleDate = getTodayISO();
+  peopleSelected = 'Andrei (Jefe)';
+  peopleTab = 'summary';
+  peopleClientScope = 'period';
+  peopleClientLimit = 40;
+
+  renderPeopleManagement();
+  modal.classList.add('active');
+}
+
+function peopleOpenZone(id, onMap = false) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const index = savedZones.findIndex(z =>
+    z.id === id &&
+    z.comercial === peopleSelected
+  );
+
+  if (index < 0) {
+    alert('La zona ha cambiado. Actualiza el perfil.');
+    return;
+  }
+
+  closeModal('peopleManagementModal');
+
+  if (onMap) {
+    focusMapOnTownOrZone(
+      savedZones[index].town,
+      index
+    );
+  } else {
+    openDumpModal(index);
+  }
+}
+
+function renderPeopleManagement() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById(
+    'peopleManagementBody'
+  );
+
+  if (!root) return;
+
+  const range = personalStatsRange(
+    peoplePeriod,
+    peopleDate || getTodayISO()
+  );
+
+  const previousRange = personalStatsRange(
+    peoplePeriod,
+    peopleDate || getTodayISO(),
+    true
+  );
+
+  const m = personalStatsMetrics(
+    peopleSelected,
+    ...range
+  );
+
+  const previous = personalStatsMetrics(
+    peopleSelected,
+    ...previousRange
+  );
+
+  const backlog = peopleCurrentBacklog(peopleSelected);
+  const review = peopleReview(m, previous);
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  const inside = date =>
+    Boolean(date && date >= range[0] && date <= range[1]);
+
+  root.replaceChildren();
+
+  function node(tag, text, parent = root, css = '') {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function button(parent, label, action, active = false) {
+    const b = node(
+      'button',
+      label,
+      parent,
+      'padding:9px 6px;border:1px solid #475569;' +
+      'border-radius:9px;color:#fff;font-size:11px;font-weight:800;'
+    );
+
+    b.type = 'button';
+    b.style.background = active ? '#6d28d9' : '#1e293b';
+    b.onclick = action;
+
+    return b;
+  }
+
+  function tabs(items, selected, action) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      const b = button(
+        row,
+        label,
+        () => {
+          action(key);
+          renderPeopleManagement();
+        },
+        selected === key
+      );
+
+      b.style.flex = '1';
+    });
+  }
+
+  tabs(
+    [['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']],
+    peoplePeriod,
+    key => {
+      peoplePeriod = key;
+    }
+  );
+
+  const date = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;'
+  );
+
+  date.type = 'date';
+  date.value = peopleDate || getTodayISO();
+  date.max = getTodayISO();
+
+  date.setAttribute(
+    'aria-label',
+    'Fecha del seguimiento individual'
+  );
+
+  date.onchange = () => {
+    const d = new Date(date.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      date.value > getTodayISO()
+    ) return;
+
+    peopleDate = date.value;
+    renderPeopleManagement();
+  };
+
+  const roster = node(
+    'div',
+    null,
+    root,
+    'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' +
+    'gap:5px;margin:10px 0;'
+  );
+
+  getActiveTeamUsers(false).forEach(user => {
+    button(
+      roster,
+      getDisplayAlias(user),
+      () => {
+        peopleSelected = user;
+        peopleTab = 'summary';
+        peopleClientLimit = 40;
+        renderPeopleManagement();
+      },
+      user === peopleSelected
+    );
+  });
+
+  node(
+    'h3',
+    getDisplayAlias(peopleSelected),
+    root,
+    'font-size:16px;color:#c4b5fd;margin:12px 0 5px;'
+  );
+
+  node(
+    'p',
+    `${formatDate(range[0])} a ${formatDate(range[1])}`,
+    root,
+    'font-size:11px;color:#94a3b8;margin-bottom:9px;'
+  );
+
+  tabs(
+    [
+      ['summary', '📊 Perfil'],
+      ['zones', '🗺️ Zonas'],
+      ['clients', '📂 Fichas']
+    ],
+    peopleTab,
+    key => {
+      peopleTab = key;
+    }
+  );
+
+  button(root, '↻ Actualizar perfil', renderPeopleManagement);
+
+  function card(title, detail, color = '#475569') {
+    const box = node(
+      'div',
+      null,
+      root,
+      `padding:12px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;margin-top:9px;'
+    );
+
+    node(
+      'strong',
+      title,
+      box,
+      'display:block;font-size:13px;color:#fff;'
+    );
+
+    node(
+      'p',
+      detail,
+      box,
+      'white-space:pre-line;font-size:12px;color:#cbd5e1;' +
+      'line-height:1.6;margin-top:6px;'
+    );
+
+    return box;
+  }
+
+  const zones = savedZones.filter(z =>
+    z.comercial === peopleSelected &&
+    !z.isNoAptoZone
+  );
+
+  if (peopleTab === 'zones') {
+    node(
+      'p',
+      'Sectores asignados o volcados en el periodo, y sectores ' +
+      'pendientes actualmente de hoy o días anteriores.',
+      root,
+      'font-size:11px;color:#94a3b8;line-height:1.5;margin-top:9px;'
+    );
+
+    const list = zones.filter(z =>
+      !z.isSingleHouse &&
+      (
+        inside(z.date) ||
+        inside(z.dumpDate) ||
+        (
+          z.status !== 'completada' &&
+          z.date &&
+          z.date <= getTodayISO()
+        )
+      )
+    ).sort((a, b) =>
+      Number(a.status === 'completada') -
+      Number(b.status === 'completada') ||
+      String(a.date || '').localeCompare(
+        String(b.date || '')
+      )
+    );
+
+    list.forEach(z => {
+      const state = z.status === 'completada'
+        ? '✅ Terminada'
+        : (
+            z.status === 'en_proceso'
+              ? '🟡 Sin terminar'
+              : '🔵 Por hacer'
+          );
+
+      const box = card(
+        z.sectorName || 'Sector',
+        [
+          `${z.town || 'Sin municipio'} · ` +
+          `${formatDate(z.date)} · ${state}`,
+          z.bossNote
+            ? 'Instrucción: ' + z.bossNote
+            : '',
+          z.pendingNote
+            ? 'Falta: ' + z.pendingNote
+            : ''
+        ].filter(Boolean).join('\n')
+      );
+
+      button(
+        box,
+        '📂 Supervisar hoja / añadir indicación',
+        () => peopleOpenZone(z.id)
+      );
+
+      button(
+        box,
+        '📍 Ver mapa',
+        () => peopleOpenZone(z.id, true)
+      );
+    });
+
+    if (!list.length) {
+      card(
+        'Sin sectores en este filtro',
+        'No hay sectores que cumplan estas condiciones.'
+      );
+    }
+
+    return;
+  }
+
+  if (peopleTab === 'clients') {
+    tabs(
+      [
+        ['period', 'Del periodo'],
+        ['all', 'Todo el histórico']
+      ],
+      peopleClientScope,
+      key => {
+        peopleClientScope = key;
+        peopleClientLimit = 40;
+      }
+    );
+
+    const all = [];
+
+    zones.forEach(z => {
+      (z.clients || []).forEach(c => {
+        if (!isClientValidFilled(c)) return;
+
+        const created = new Date(c.createdAt);
+
+        const capture =
+          c.createdAt && Number.isFinite(created.getTime())
+            ? getLocalDateISO(created)
+            : (z.dumpDate || z.date);
+
+        const doneAt = new Date(c.obraRealizadaAt);
+
+        const done = c.obraRealizadaDate || (
+          c.obraRealizadaAt &&
+          Number.isFinite(doneAt.getTime())
+            ? getLocalDateISO(doneAt)
+            : ''
+        );
+
+        const relevant =
+          inside(capture) ||
+          (
+            c.obraStatus === 'agendada' &&
+            inside(c.obraDate)
+          ) ||
+          (
+            c.obraStatus === 'realizada' &&
+            inside(done)
+          );
+
+        if (peopleClientScope === 'all' || relevant) {
+          all.push({ z, c });
+        }
+      });
+    });
+
+    all.sort((a, b) =>
+      (Number(b.c.createdAt) || 0) -
+      (Number(a.c.createdAt) || 0)
+    );
+
+    node(
+      'p',
+      `${all.length} ficha(s). Se incluyen captaciones, citas ` +
+      'u obras con fecha dentro del periodo; el estado ' +
+      'mostrado es el actual.',
+      root,
+      'font-size:11px;color:#94a3b8;line-height:1.5;margin-top:9px;'
+    );
+
+    all.slice(0, peopleClientLimit).forEach(({ z, c }) => {
+      const labels = {
+        pendiente: '🔴 Sin llamar',
+        llamado: '🟡 Ya llamado',
+        esperando: '🟣 Esperando',
+        agendada: '📅 Con cita',
+        realizada: '✅ Realizada',
+        no_apto: '🚫 No apta'
+      };
+
+      const state = managementClientState(c);
+
+      const box = card(
+        c.name || 'Sin nombre',
+        `${labels[state] || state}\n` +
+        `${c.street || 'Sin dirección'} · ${z.town || ''}\n` +
+        `${c.phone || 'Sin teléfono'}`
+      );
+
+      button(
+        box,
+        '📂 Abrir zona / ficha',
+        () => peopleOpenZone(z.id)
+      );
+    });
+
+    if (all.length > peopleClientLimit) {
+      button(
+        root,
+        'Mostrar más fichas',
+        () => {
+          peopleClientLimit += 40;
+          renderPeopleManagement();
+        }
+      );
+    }
+
+    return;
+  }
+
+  card(
+    'Producción personal del periodo',
+    `Potencial: ${money(m.potencial)} · ` +
+    `${m.validas} fichas no descartadas\n` +
+    `Previsto en citas: ${money(m.previsto)} · ${m.citas} citas\n` +
+    `Generado por obras: ${money(m.generado)} · ${m.hechas} obras\n` +
+    'Importes estimados, no cobros. Las fases no se suman.',
+    '#60a5fa'
+  );
+
+  card(
+    'Actividad y horas registradas',
+    `${m.puertas} visitas · ${m.fichas} fichas creadas · ` +
+    `${m.noAptas} actualmente descartadas\n` +
+    `${m.horas.toFixed(1)} h · ${m.jornadas} días con fichaje\n` +
+    `${review.contacts} contactos registrados; ${m.si} SÍ ` +
+    `(${(100 * review.conversion).toFixed(1)}% de contactos).\n` +
+    'Ritmo: ' +
+    (
+      m.horas
+        ? (m.puertas / m.horas).toFixed(1) + ' visitas/h'
+        : 'sin horas suficientes'
+    ) +
+    '.'
+  );
+
+  const tableWrap = node(
+    'div',
+    null,
+    root,
+    'overflow-x:auto;margin-top:12px;'
+  );
+
+  const table = node(
+    'table',
+    null,
+    tableWrap,
+    'width:100%;border-collapse:collapse;font-size:11px;'
+  );
+
+  const row = (values, header = false) => {
+    const tr = node('tr', null, table);
+
+    values.forEach(value => {
+      node(
+        header ? 'th' : 'td',
+        String(value),
+        tr,
+        'padding:9px 5px;text-align:left;' +
+        'border-bottom:1px solid #334155;'
+      );
+    });
+  };
+
+  row(
+    ['Indicador', 'Actual', 'Anterior', 'Cambio'],
+    true
+  );
+
+  [
+    ['Visitas', 'puertas'],
+    ['Fichas', 'fichas'],
+    ['Citas', 'citas'],
+    ['Obras', 'hechas'],
+    ['Horas', 'horas'],
+    ['Potencial', 'potencial']
+  ].forEach(([label, key]) => {
+    const fmt = n => key === 'potencial'
+      ? money(n)
+      : (key === 'horas' ? n.toFixed(1) : String(n));
+
+    const diff = m[key] - previous[key];
+
+    row([
+      label,
+      fmt(m[key]),
+      fmt(previous[key]),
+      (diff > 0 ? '+' : '') + fmt(diff)
+    ]);
+  });
+
+  node(
+    'p',
+    `Anterior: ${formatDate(previousRange[0])} a ` +
+    `${formatDate(previousRange[1])}.`,
+    root,
+    'font-size:10px;color:#94a3b8;margin-top:6px;'
+  );
+
+  card(
+    'Pendientes actuales · independientes del periodo',
+    `${backlog.unfinished} sectores pendientes\n` +
+    `${backlog.pending} fichas pendientes de cita\n` +
+    `${backlog.overdue} seguimientos vencidos\n` +
+    `${backlog.missingReason} esperas sin motivo escrito\n` +
+    `${backlog.incomplete} fichas incompletas`,
+    backlog.overdue || backlog.missingReason
+      ? '#f59e0b'
+      : '#475569'
+  );
+
+  node(
+    'h3',
+    'Qué revisar o trabajar juntos',
+    root,
+    'font-size:14px;color:#c4b5fd;margin:16px 0 7px;'
+  );
+
+  review.notes.forEach(note => {
+    card(
+      note.title,
+      `Datos: ${note.evidence}\nPropuesta: ${note.action}`,
+      '#f59e0b'
+    );
+  });
+
+  if (!review.notes.length) {
+    card(
+      review.enough
+        ? 'Sin señales destacadas con estas reglas'
+        : 'Muestra todavía limitada',
+      review.enough
+        ? 'No se han activado los criterios de revisión. ' +
+          'Contrasta los datos con el contexto del trabajo.'
+        : 'Hay menos de 30 contactos registrados. Evita valorar ' +
+          'el discurso o la conversión con tan pocos datos.'
+    );
+  }
+
+  const quality = [];
+
+  if (m.jornadasSinHoras) {
+    quality.push(
+      `${m.jornadasSinHoras} jornada(s) sin horas determinables.`
+    );
+  }
+
+  if (m.antiguasSinFecha) {
+    quality.push(
+      `${m.antiguasSinFecha} obra(s) antiguas sin fecha de ejecución.`
+    );
+  }
+
+  if (quality.length) {
+    card(
+      'Datos pendientes de revisar',
+      quality.join('\n'),
+      '#f59e0b'
+    );
+  }
+
+  node(
+    'p',
+    'Contactos = SÍ + NO + información; excluye ausentes ' +
+    'y ya aisladas. Las señales son orientativas, usan ' +
+    'umbrales fijos y no sustituyen una revisión del ' +
+    'pueblo, la ruta y el trabajo real.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+  );
+}
+
+function openManagementAudit(tab) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  if (tab === 'comerciales') {
+    document.getElementById('auditDateSelect').value = getTodayISO();
+  }
+
+  switchAuditTab(tab);
+  openAuditModal();
+}
+
+let teamOverviewPeriod = 'month';
+let teamOverviewDate = '';
+let teamOverviewPhase = 'captadas';
+let teamOverviewTab = 'summary';
+
+function openTeamManagementMenu() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+  window.openKonsorDirection?.();
+  return;
+
+  let modal = document.getElementById('teamOverviewModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'teamOverviewModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>📊 Gestión del equipo Andrei</span>
+            <button type="button"
+              onclick="closeModal('teamOverviewModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="teamOverviewBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  teamOverviewPeriod = 'month';
+  teamOverviewDate = getTodayISO();
+  teamOverviewPhase = 'captadas';
+  teamOverviewTab = 'summary';
+
+  renderTeamOverview();
+  modal.classList.add('active');
+}
+
+function teamOverviewMetrics(
+  period,
+  date,
+  phase,
+  previous = false
+) {
+  const range = personalStatsRange(period, date, previous);
+
+  const fields = {
+    captadas: ['m2Captado', 'validas'],
+    citas: ['m2Citas', 'citas'],
+    realizadas: ['m2Hechas', 'hechas']
+  };
+
+  const [areaField, countField] =
+    fields[phase] || fields.captadas;
+
+  const rows = getActiveTeamUsers(false).map(name => {
+    const metrics = personalStatsMetrics(name, ...range);
+    const area = metrics[areaField];
+
+    return {
+      name,
+      metrics,
+      area,
+      count: metrics[countField],
+      boss: area * (
+        name === 'Andrei (Jefe)' ? 1 : 0.15
+      )
+    };
+  });
+
+  const sums = {
+    visitas: 0, fichas: 0, citas: 0, hechas: 0,
+    horas: 0, jornadas: 0, no: 0, si: 0,
+    ausente: 0, papelito: 0, yaAislado: 0,
+    noAptas: 0, sinHoras: 0, sinFecha: 0
+  };
+
+  rows.forEach(r => {
+    const m = r.metrics;
+
+    sums.visitas += m.puertas;
+    sums.fichas += m.fichas;
+    sums.citas += m.citas;
+    sums.hechas += m.hechas;
+    sums.horas += m.horas;
+    sums.jornadas += m.jornadas;
+    sums.noAptas += m.noAptas;
+    sums.sinHoras += m.jornadasSinHoras;
+    sums.sinFecha += m.antiguasSinFecha;
+
+    ['no', 'si', 'ausente', 'papelito', 'yaAislado']
+      .forEach(key => {
+        sums[key] += m[key];
+      });
+  });
+
+  const own = rows.find(
+    r => r.name === 'Andrei (Jefe)'
+  ).area;
+
+  const teamArea = rows
+    .filter(r => r.name !== 'Andrei (Jefe)')
+    .reduce((sum, r) => sum + r.area, 0);
+
+  return {
+    range,
+    rows,
+    sums,
+    own,
+    teamArea,
+    area: own + teamArea,
+    boss: own + teamArea * 0.15,
+    commission: teamArea * 0.15,
+    commercialShare: teamArea * 0.85
+  };
+}
+
+function teamOverviewTowns(range, phase) {
+  const users = new Set(getActiveTeamUsers(false));
+  const towns = new Map();
+
+  const inside = date =>
+    Boolean(date && date >= range[0] && date <= range[1]);
+
+  const getTown = z => {
+    const key = routeTown(z.town) || 'sin municipio';
+
+    if (!towns.has(key)) {
+      towns.set(key, {
+        key,
+        name: z.town || 'Sin municipio',
+        area: 0,
+        boss: 0,
+        count: 0,
+        visitas: 0,
+        si: 0,
+        yaAislado: 0,
+        sectors: 0,
+        finishedSectors: 0
+      });
+    }
+
+    return towns.get(key);
+  };
+
+  savedZones.forEach(z => {
+    if (
+      !users.has(z.comercial) ||
+      z.isNoAptoZone
+    ) return;
+
+    if (inside(z.dumpDate || z.date)) {
+      const t = getTown(z);
+      const st = z.stats || {};
+
+      const external =
+        z.isSingleHouse &&
+        z.clients?.[0]?.origen &&
+        z.clients[0].origen !== 'puerta';
+
+      if (!external) {
+        const count = key => Math.max(
+          0,
+          Math.floor(Number(st[key]) || 0)
+        );
+
+        t.si += count('si');
+        t.yaAislado += count('yaAislado');
+
+        t.visitas += [
+          'si', 'no', 'ausente', 'papelito', 'yaAislado'
+        ].reduce((n, key) => n + count(key), 0);
+      }
+    }
+
+    if (
+      !z.isSingleHouse &&
+      !z.isHotMission &&
+      inside(z.date)
+    ) {
+      const t = getTown(z);
+      t.sectors++;
+
+      if (z.status === 'completada') {
+        t.finishedSectors++;
+      }
+    }
+
+    (z.clients || []).forEach(c => {
+      if (
+        !isClientValidFilled(c) ||
+        c.obraStatus === 'no_apto'
+      ) return;
+
+      let date = '';
+
+      if (phase === 'captadas') {
+        const d = new Date(c.createdAt);
+
+        date = c.createdAt && Number.isFinite(d.getTime())
+          ? getLocalDateISO(d)
+          : (z.dumpDate || z.date);
+      } else if (
+        phase === 'citas' &&
+        c.obraStatus === 'agendada'
+      ) {
+        date = c.obraDate;
+      } else if (
+        phase === 'realizadas' &&
+        c.obraStatus === 'realizada'
+      ) {
+        const d = new Date(c.obraRealizadaAt);
+
+        date = c.obraRealizadaDate || (
+          c.obraRealizadaAt &&
+          Number.isFinite(d.getTime())
+            ? getLocalDateISO(d)
+            : ''
+        );
+      }
+
+      if (!inside(date)) return;
+
+      const t = getTown(z);
+      const area = personalStatsM2(c.m2);
+
+      t.count++;
+      t.area += area;
+
+      t.boss += area * (
+        z.comercial === 'Andrei (Jefe)' ? 1 : 0.15
+      );
+    });
+  });
+
+  const finished = new Set(
+    (
+      Array.isArray(completedTowns)
+        ? completedTowns
+        : []
+    ).map(routeTown)
+  );
+
+  return [...towns.values()]
+    .map(t => ({
+      ...t,
+      completed: finished.has(t.key)
+    }))
+    .sort((a, b) =>
+      b.area - a.area ||
+      a.name.localeCompare(b.name, 'es')
+    );
+}
+
+function renderTeamOverview() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById('teamOverviewBody');
+  if (!root) return;
+
+  const date = teamOverviewDate || getTodayISO();
+
+  const data = teamOverviewMetrics(
+    teamOverviewPeriod,
+    date,
+    teamOverviewPhase
+  );
+
+  const prev = teamOverviewMetrics(
+    teamOverviewPeriod,
+    date,
+    teamOverviewPhase,
+    true
+  );
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  const phaseLabels = {
+    captadas: 'Captaciones no descartadas',
+    citas: 'Citas pendientes',
+    realizadas: 'Obras realizadas'
+  };
+
+  root.replaceChildren();
+
+  function node(tag, text, parent = root, css = '') {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function button(parent, label, action, active = false) {
+    const b = node(
+      'button',
+      label,
+      parent,
+      'flex:1;min-width:0;padding:9px 6px;' +
+      'border:1px solid #475569;border-radius:9px;' +
+      'color:#fff;font-size:11px;font-weight:800;'
+    );
+
+    b.type = 'button';
+    b.style.background = active ? '#6d28d9' : '#1e293b';
+    b.onclick = action;
+
+    return b;
+  }
+
+  function tabs(items, selected, action) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      button(
+        row,
+        label,
+        () => {
+          action(key);
+          renderTeamOverview();
+        },
+        selected === key
+      );
+    });
+  }
+
+  tabs(
+    [['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']],
+    teamOverviewPeriod,
+    key => {
+      teamOverviewPeriod = key;
+    }
+  );
+
+  tabs(
+    [
+      ['captadas', '📝 Captaciones'],
+      ['citas', '📅 Citas'],
+      ['realizadas', '✅ Hechas']
+    ],
+    teamOverviewPhase,
+    key => {
+      teamOverviewPhase = key;
+    }
+  );
+
+  const input = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;'
+  );
+
+  input.type = 'date';
+  input.max = getTodayISO();
+  input.value = date;
+
+  input.setAttribute(
+    'aria-label',
+    'Fecha hasta la que consultar el equipo'
+  );
+
+  input.onchange = () => {
+    const d = new Date(input.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      input.value > getTodayISO()
+    ) return;
+
+    teamOverviewDate = input.value;
+    renderTeamOverview();
+  };
+
+  node(
+    'p',
+    `${formatDate(data.range[0])} a ` +
+    `${formatDate(data.range[1])} · ` +
+    phaseLabels[teamOverviewPhase],
+    root,
+    'font-size:11px;color:#cbd5e1;' +
+    'line-height:1.5;margin:9px 0;'
+  );
+
+  tabs(
+    [['summary', '📊 Resumen'], ['towns', '🏘️ Pueblos']],
+    teamOverviewTab,
+    key => {
+      teamOverviewTab = key;
+    }
+  );
+
+  const links = node(
+    'div',
+    null,
+    root,
+    'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;'
+  );
+
+  [
+    ['↻ Actualizar', renderTeamOverview],
+    ['📆 Calendario', () => jump('semana')],
+    ['🏗️ Obras', () => jump('obras')],
+    ['📍 Sectores', () => jump('pueblos')]
+  ].forEach(([label, action]) => {
+    button(links, label, action);
+  });
+
+  function jump(tab) {
+    closeModal('teamOverviewModal');
+    openManagementAudit(tab);
+  }
+
+  if (teamOverviewTab === 'towns') {
+    const towns = teamOverviewTowns(
+      data.range,
+      teamOverviewPhase
+    );
+
+    node(
+      'p',
+      `${towns.length} pueblos con registros en el periodo · ` +
+      `${towns.filter(t => t.completed).length} ` +
+      'marcados finalizados actualmente.',
+      root,
+      'font-size:12px;color:#cbd5e1;line-height:1.5;margin:8px 0;'
+    );
+
+    towns.forEach(t => {
+      const card = node(
+        'div',
+        null,
+        root,
+        'padding:12px;border:1px solid #475569;' +
+        'border-radius:12px;background:#1e293b;margin-bottom:9px;'
+      );
+
+      node(
+        'strong',
+        `${t.completed ? '✅' : '🏘️'} ${t.name}`,
+        card,
+        'font-size:14px;color:#7dd3fc;'
+      );
+
+      node(
+        'p',
+        `${t.count} fichas en la fase seleccionada · ` +
+        `${t.area} m² · Base: ${money(t.area)}\n` +
+        `Tu parte estimada: ${money(t.boss)}`,
+        card,
+        'white-space:pre-line;font-size:12px;color:#e2e8f0;' +
+        'line-height:1.6;margin:7px 0;'
+      );
+
+      node(
+        'p',
+        `${t.visitas} visitas · ${t.si} SÍ · ` +
+        `${t.visitas ? (100 * t.si / t.visitas).toFixed(1) : '0.0'}% SÍ · ` +
+        `${t.yaAislado} ya aisladas\n` +
+        `${t.sectors} sectores asignados en el periodo; ` +
+        `${t.finishedSectors} terminados actualmente.`,
+        card,
+        'white-space:pre-line;font-size:11px;' +
+        'color:#94a3b8;line-height:1.5;'
+      );
+
+      button(
+        card,
+        '📍 Localizar pueblo',
+        () => {
+          closeModal('teamOverviewModal');
+          focusMapOnTownOrZone(t.name, null);
+        }
+      );
+    });
+
+    if (!towns.length) {
+      node(
+        'p',
+        'No hay actividad registrada para estas fechas.',
+        root
+      );
+    }
+
+    node(
+      'p',
+      'El estado de pueblo y sector es el actual; ' +
+      'los importes y visitas corresponden al periodo seleccionado.',
+      root,
+      'font-size:10px;color:#94a3b8;' +
+      'line-height:1.5;margin-top:10px;'
+    );
+
+    return;
+  }
+
+  const grid = node(
+    'div',
+    null,
+    root,
+    'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;'
+  );
+
+  function tile(label, amount, detail, color) {
+    const box = node(
+      'div',
+      null,
+      grid,
+      `padding:12px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;min-width:0;'
+    );
+
+    node(
+      'strong',
+      label,
+      box,
+      'display:block;font-size:11px;color:#cbd5e1;'
+    );
+
+    node(
+      'strong',
+      money(amount),
+      box,
+      `display:block;font-size:21px;color:${color};margin:6px 0;`
+    );
+
+    node(
+      'p',
+      detail,
+      box,
+      'font-size:10px;color:#94a3b8;line-height:1.5;'
+    );
+  }
+
+  tile(
+    '👑 Tu parte total',
+    data.boss,
+    'Tu producción propia + 15% de los comerciales.',
+    '#c4b5fd'
+  );
+
+  tile(
+    '🏃 Tu producción propia',
+    data.own,
+    `${data.own} m² · Tu 100%.`,
+    '#60a5fa'
+  );
+
+  tile(
+    '👥 Tu 15% del equipo',
+    data.commission,
+    `${data.teamArea} m² producidos por los comerciales.`,
+    '#34d399'
+  );
+
+  tile(
+    '📊 Producción base conjunta',
+    data.area,
+    `${data.area} m² · Incluye a todo el equipo y a ti.`,
+    '#fbbf24'
+  );
+
+  node(
+    'p',
+    `Parte estimada de los comerciales (85%): ` +
+    `${money(data.commercialShare)}. Importes a 1 €/m² de base. ` +
+    'Cada fase se consulta por separado; no se suman entre sí. ' +
+    'No son cobros ni liquidaciones.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin:10px 0;'
+  );
+
+  const summary = data.sums;
+
+  node(
+    'p',
+    `${summary.visitas} visitas · ` +
+    `${summary.fichas} fichas creadas · ` +
+    `${summary.citas} citas · ${summary.hechas} obras\n` +
+    `${summary.horas.toFixed(1)} h registradas · ` +
+    `${summary.jornadas} jornadas-persona con fichaje`,
+    root,
+    'white-space:pre-line;font-size:12px;' +
+    'color:#e2e8f0;line-height:1.7;margin:10px 0;'
+  );
+
+  function table(headers) {
+    const wrap = node(
+      'div',
+      null,
+      root,
+      'width:100%;overflow-x:auto;margin-bottom:12px;'
+    );
+
+    const t = node(
+      'table',
+      null,
+      wrap,
+      'width:100%;border-collapse:collapse;font-size:11px;'
+    );
+
+    row(t, headers, true);
+    return t;
+  }
+
+  function row(t, values, header = false) {
+    const tr = node('tr', null, t);
+
+    values.forEach(value => {
+      node(
+        header ? 'th' : 'td',
+        String(value),
+        tr,
+        'padding:9px 5px;text-align:left;' +
+        'border-bottom:1px solid #334155;'
+      );
+    });
+  }
+
+  node(
+    'h3',
+    'Resultado de las visitas',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  const outcomes = table([
+    'Resultado', 'Cantidad', '% visitas'
+  ]);
+
+  [
+    ['SÍ', 'si'],
+    ['NO', 'no'],
+    ['Información', 'papelito'],
+    ['Ausentes', 'ausente'],
+    ['Ya aisladas', 'yaAislado']
+  ].forEach(([label, key]) => {
+    row(outcomes, [
+      label,
+      summary[key],
+      summary.visitas
+        ? (100 * summary[key] / summary.visitas).toFixed(1) + '%'
+        : '—'
+    ]);
+  });
+
+  node(
+    'h3',
+    'Aportación de cada persona',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  const people = table([
+    'Persona', 'Fichas', 'm²', 'Tu parte'
+  ]);
+
+  data.rows.slice()
+    .sort((a, b) => b.area - a.area)
+    .forEach(r => {
+      row(people, [
+        getDisplayAlias(r.name),
+        r.count,
+        r.area,
+        money(r.boss)
+      ]);
+    });
+
+  node(
+    'h3',
+    'Comparación con el periodo anterior',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  node(
+    'p',
+    `${formatDate(prev.range[0])} a ${formatDate(prev.range[1])}`,
+    root,
+    'font-size:11px;color:#94a3b8;margin-bottom:7px;'
+  );
+
+  const comparison = table([
+    'Indicador', 'Actual', 'Anterior', 'Cambio'
+  ]);
+
+  [
+    ['Tu parte', data.boss, prev.boss, true],
+    ['Tu producción', data.own, prev.own, true],
+    ['Tu 15%', data.commission, prev.commission, true],
+    ['Base conjunta', data.area, prev.area, true],
+    ['Visitas', summary.visitas, prev.sums.visitas],
+    ['Fichas', summary.fichas, prev.sums.fichas],
+    ['Obras', summary.hechas, prev.sums.hechas]
+  ].forEach(([label, now, before, euro]) => {
+    const diff = now - before;
+
+    row(comparison, [
+      label,
+      euro ? money(now) : now,
+      euro ? money(before) : before,
+      (diff > 0 ? '+' : '') + (
+        euro ? money(diff) : diff
+      )
+    ]);
+  });
+
+  const issues = [];
+
+  if (summary.sinHoras) {
+    issues.push(
+      `${summary.sinHoras} jornada(s) con horas sin determinar.`
+    );
+  }
+
+  if (summary.sinFecha) {
+    issues.push(
+      `${summary.sinFecha} obra(s) antiguas sin fecha ` +
+      'de ejecución, fuera de los totales por periodo.'
+    );
+  }
+
+  if (issues.length) {
+    node(
+      'p',
+      issues.join('\n'),
+      root,
+      'white-space:pre-line;font-size:11px;color:#fde047;' +
+      'line-height:1.5;margin-top:10px;'
+    );
+  }
+
+  node(
+    'p',
+    'Los periodos usan las mismas fechas y criterios que ' +
+    'Estadísticas y Liga. Las jornadas-persona suman los ' +
+    'días fichados de cada integrante; no son días de ' +
+    'calendario distintos.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:10px;'
+  );
+}
+
+let bossPlanItems = [];
+let bossPlanWatch = null;
+let bossPlanFilter = 'today';
+let bossPlanStatus = 'Conectando con las tareas…';
+let bossPlanSaving = false;
+
+function bossPlanStartWatch() {
+  if (
+    bossPlanWatch ||
+    currentUserName !== 'Andrei (Jefe)'
+  ) return;
+
+  if (!window.bossTasksApi) {
+    bossPlanStatus =
+      'Espera a que termine de cargar Firebase y pulsa Actualizar.';
+    return;
+  }
+
+  bossPlanWatch = window.bossTasksApi.watch(
+    (rows, fromCache) => {
+      bossPlanItems = rows;
+
+      bossPlanStatus = fromCache
+        ? 'Copia en caché; comprobando conexión…'
+        : 'Tareas sincronizadas.';
+
+      try {
+        localStorage.setItem(
+          'comercial_boss_tasks',
+          JSON.stringify(rows)
+        );
+      } catch (e) {}
+
+      if (
+        document.getElementById('bossPlanModal')
+          ?.classList.contains('active')
+      ) renderBossPlan();
+    },
+    error => {
+      bossPlanStatus =
+        'No se pudieron leer las tareas: ' +
+        (error.message || error);
+
+      if (bossPlanWatch) bossPlanWatch();
+      bossPlanWatch = null;
+
+      if (
+        document.getElementById('bossPlanModal')
+          ?.classList.contains('active')
+      ) renderBossPlan();
+    }
+  );
+}
+
+function openBossWorkMenu() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+  window.openKonsorDirectorPlan?.();
+  return;
+
+  const cache = bossPlanItems;
+
+  if (!bossPlanWatch && Array.isArray(cache)) {
+    bossPlanItems = cache;
+  }
+
+  let modal = document.getElementById('bossPlanModal');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bossPlanModal';
+    modal.className = 'modal-overlay';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:700px;">
+        <div class="modal-header-sticky">
+          <div class="modal-header">
+            <span>📋 Mi plan de jefe</span>
+            <button type="button"
+              onclick="closeModal('bossPlanModal')"
+              style="background:none;border:none;color:#94a3b8;
+              font-size:22px;padding:5px;">✕</button>
+          </div>
+        </div>
+        <div id="bossPlanBody"
+          class="modal-scrollable-content"></div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+
+  bossPlanFilter = 'today';
+  bossPlanStartWatch();
+  renderBossPlan();
+  modal.classList.add('active');
+}
+
+function bossPlanNode(tag, text, parent, css = '') {
+  const el = document.createElement(tag);
+
+  if (text !== null) el.textContent = text;
+  if (css) el.style.cssText = css;
+  if (parent) parent.appendChild(el);
+
+  return el;
+}
+
+function bossPlanButton(parent, label, action) {
+  const b = bossPlanNode(
+    'button',
+    label,
+    parent,
+    'padding:9px 7px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;' +
+    'font-size:11px;font-weight:800;'
+  );
+
+  b.type = 'button';
+  b.onclick = action;
+
+  return b;
+}
+
+async function bossPlanSave(patch, onSuccess) {
+  if (
+    currentUserName !== 'Andrei (Jefe)' ||
+    bossPlanSaving
+  ) return;
+
+  if (!window.bossTasksApi) {
+    alert('Espera a que cargue Firebase y vuelve a guardar.');
+    return;
+  }
+
+  bossPlanSaving = true;
+  bossPlanStatus = 'Guardando tarea…';
+  renderBossPlan();
+
+  try {
+    bossPlanItems = await window.bossTasksApi.save(patch);
+
+    try {
+      localStorage.setItem(
+        'comercial_boss_tasks',
+        JSON.stringify(bossPlanItems)
+      );
+    } catch (e) {}
+
+    bossPlanStatus = 'Tarea guardada en Firebase.';
+
+    if (onSuccess) onSuccess();
+  } catch (error) {
+    bossPlanStatus = 'No se guardó la tarea.';
+
+    alert(
+      'No se pudo guardar. Conserva lo escrito y vuelve a intentarlo.\n\n' +
+      (error.message || error)
+    );
+  } finally {
+    bossPlanSaving = false;
+    renderBossPlan();
+  }
+}
+
+function bossPlanOpenContext(task) {
+  if (task.person) {
+    closeModal('bossPlanModal');
+    openPeopleManagement();
+
+    peopleSelected = task.person;
+    peopleTab = task.sourceAction === 'clients'
+      ? 'clients'
+      : 'summary';
+
+    peopleClientScope = 'all';
+    renderPeopleManagement();
+    return;
+  }
+
+  if (task.sourceAction === 'accounts') {
+    closeModal('bossPlanModal');
+    openAccessAdminModal();
+    return;
+  }
+
+  if (task.sourceAction === 'obras') {
+    closeModal('bossPlanModal');
+    openManagementAudit('obras');
+    return;
+  }
+
+  if (task.town) {
+    closeModal('bossPlanModal');
+    focusMapOnTownOrZone(task.town, null);
+  }
+}
+
+function bossPlanSuggestions() {
+  const out = [];
+  const today = getTodayISO();
+
+  const range = personalStatsRange('month', today);
+  const previous = personalStatsRange('month', today, true);
+
+  getActiveTeamUsers(false).forEach(user => {
+    const alias = getDisplayAlias(user);
+    const b = peopleCurrentBacklog(user);
+
+    if (b.overdue) {
+      out.push({
+        sourceId: 'calls:' + user,
+        title: 'Revisar seguimientos · ' + alias,
+        detail:
+          `${b.overdue} seguimientos vencidos. ` +
+          'Revisar las fichas y acordar el siguiente contacto.',
+        person: user,
+        priority: 'high',
+        sourceAction: 'clients',
+        type: 'supervision'
+      });
+    }
+
+    if (b.missingReason || b.incomplete) {
+      out.push({
+        sourceId: 'quality:' + user,
+        title: 'Completar registros · ' + alias,
+        detail:
+          `${b.incomplete} fichas incompletas y ` +
+          `${b.missingReason} esperas sin motivo.`,
+        person: user,
+        priority: 'medium',
+        sourceAction: 'clients',
+        type: 'supervision'
+      });
+    }
+
+    const m = personalStatsMetrics(user, ...range);
+    const p = personalStatsMetrics(user, ...previous);
+
+    peopleReview(m, p).notes.slice(0, 2).forEach(note => {
+      out.push({
+        sourceId: 'review:' + user + ':' + note.title,
+        title: note.title + ' · ' + alias,
+        detail:
+          'Datos: ' + note.evidence +
+          '\nPropuesta: ' + note.action,
+        person: user,
+        priority: 'medium',
+        type: 'supervision'
+      });
+    });
+
+    const shift = getTodayShift(user);
+
+    if (
+      shift &&
+      ['working', 'lunch'].includes(shift.status) &&
+      !b.unfinished
+    ) {
+      out.push({
+        sourceId: 'zone:' + user,
+        title: 'Revisar asignación de zona · ' + alias,
+        detail:
+          'Tiene jornada abierta y no aparece un sector pendiente ' +
+          'para hoy o días anteriores. Comprobar si necesita zona ' +
+          'o está en otra tarea.',
+        person: user,
+        priority: 'medium',
+        type: 'territory'
+      });
+    }
+  });
+
+  let overdueObras = 0;
+  let missingCrm = 0;
+
+  savedZones.forEach(z => {
+    if (isMikelTeamMember(z.comercial)) return;
+
+    (z.clients || []).forEach(c => {
+      if (
+        c.obraStatus === 'agendada' &&
+        c.obraDate &&
+        c.obraDate < today
+      ) {
+        overdueObras++;
+      }
+
+      if (needsCrmUpload(c)) missingCrm++;
+    });
+  });
+
+  if (overdueObras || missingCrm) {
+    out.push({
+      sourceId: 'obras:review',
+      title: 'Revisar citas y cierre de obras',
+      detail:
+        `${overdueObras} citas con fecha pasada aún agendadas y ` +
+        `${missingCrm} sin confirmación de CRM. Comprobar cada caso.`,
+      priority: 'high',
+      type: 'obras',
+      sourceAction: 'obras'
+    });
+  }
+
+  if (accessPendingCount()) {
+    out.push({
+      sourceId: 'accounts:pending',
+      title: 'Revisar solicitudes de acceso',
+      detail:
+        `${accessPendingCount()} cuentas pendientes de aprobación.`,
+      priority: 'medium',
+      type: 'management',
+      sourceAction: 'accounts'
+    });
+  }
+
+  teamOverviewTowns(range, 'captadas').forEach(t => {
+    if (
+      t.visitas >= 30 &&
+      t.yaAislado / t.visitas >= 0.4
+    ) {
+      out.push({
+        sourceId: 'town:' + t.key,
+        title: 'Revisar respuesta del pueblo · ' + t.name,
+        detail:
+          `${t.yaAislado} viviendas ya aisladas de ` +
+          `${t.visitas} visitas registradas este mes. ` +
+          'Valorar las calles restantes antes de enviar más personas.',
+        town: t.name,
+        priority: 'medium',
+        type: 'territory'
+      });
+    }
+  });
+
+  return out.sort((a, b) =>
+    Number(b.priority === 'high') -
+    Number(a.priority === 'high')
+  );
+}
+
+function editBossPlanTask(task = {}) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  let modal = document.getElementById('bossTaskEditor');
+
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bossTaskEditor';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '10060';
+    document.body.appendChild(modal);
+  }
+
+  modal.replaceChildren();
+
+  const body = bossPlanNode(
+    'div',
+    null,
+    modal,
+    'width:100%;max-width:480px;max-height:100%;' +
+    'overflow-y:auto;padding:15px;background:#0f172a;' +
+    'border:1px solid #475569;border-radius:15px;'
+  );
+
+  bossPlanNode(
+    'strong',
+    task.id ? 'Editar tarea' : 'Añadir tarea a mi plan',
+    body,
+    'display:block;font-size:15px;margin-bottom:10px;'
+  );
+
+  function field(label, tag, value) {
+    bossPlanNode(
+      'label',
+      label,
+      body,
+      'display:block;font-size:11px;color:#cbd5e1;margin:8px 0 4px;'
+    );
+
+    const input = bossPlanNode(
+      tag,
+      null,
+      body,
+      'width:100%;padding:10px;border:1px solid #475569;' +
+      'border-radius:9px;background:#1e293b;color:#fff;font-size:13px;'
+    );
+
+    input.setAttribute('aria-label', label);
+    if (value !== undefined) input.value = value;
+
+    return input;
+  }
+
+  const title = field(
+    'Qué tengo que hacer',
+    'input',
+    task.title || ''
+  );
+  title.maxLength = 120;
+
+  const detail = field(
+    'Detalles',
+    'textarea',
+    task.detail || ''
+  );
+  detail.rows = 3;
+  detail.maxLength = 2000;
+
+  const due = field(
+    'Fecha límite',
+    'input',
+    task.dueDate || getTodayISO()
+  );
+  due.type = 'date';
+  due.value = task.dueDate || getTodayISO();
+
+  function select(label, options, current) {
+    const input = field(label, 'select');
+
+    options.forEach(([value, text]) => {
+      const o = bossPlanNode('option', text, input);
+      o.value = value;
+      o.selected = value === current;
+    });
+
+    return input;
+  }
+
+  const priority = select(
+    'Prioridad',
+    [
+      ['high', '🔴 Alta'],
+      ['medium', '🟡 Media'],
+      ['low', '🔵 Baja']
+    ],
+    task.priority || 'medium'
+  );
+
+  const type = select(
+    'Tipo',
+    [
+      ['supervision', 'Comerciales / formación'],
+      ['territory', 'Pueblos / zonas'],
+      ['obras', 'Obras'],
+      ['management', 'Gestión'],
+      ['other', 'Otra tarea']
+    ],
+    task.type || 'other'
+  );
+
+  const person = select(
+    'Persona relacionada · no asigna la tarea al comercial',
+    [
+      ['', 'Ninguna'],
+      ...getActiveTeamUsers(false).map(user => [
+        user,
+        getDisplayAlias(user)
+      ])
+    ],
+    task.person || ''
+  );
+
+  const town = field(
+    'Pueblo relacionado',
+    'input',
+    task.town || ''
+  );
+  town.maxLength = 80;
+
+  const actions = bossPlanNode(
+    'div',
+    null,
+    body,
+    'display:flex;gap:7px;margin-top:12px;'
+  );
+
+  const save = bossPlanButton(
+    actions,
+    '💾 Guardar tarea',
+    async () => {
+      const d = new Date(due.value + 'T12:00:00');
+
+      if (
+        !title.value.trim() ||
+        !Number.isFinite(d.getTime()) ||
+        getLocalDateISO(d) !== due.value
+      ) {
+        alert('Completa un título y una fecha válidos.');
+        return;
+      }
+
+      const id = task.id || (
+        window.crypto?.randomUUID
+          ? crypto.randomUUID()
+          : Date.now() + '-' + Math.random().toString(36).slice(2)
+      );
+
+      save.disabled = true;
+
+      try {
+        await bossPlanSave(
+          {
+            id,
+            title: title.value.trim(),
+            detail: detail.value.trim(),
+            dueDate: due.value,
+            priority: priority.value,
+            type: type.value,
+            person: person.value,
+            town: town.value.trim(),
+            sourceId: task.sourceId || '',
+            sourceAction: task.sourceAction || '',
+            status: task.status || 'pending'
+          },
+          () => closeModal('bossTaskEditor')
+        );
+      } finally {
+        save.disabled = false;
+      }
+    }
+  );
+
+  bossPlanButton(
+    actions,
+    'Cancelar',
+    () => closeModal('bossTaskEditor')
+  );
+
+  modal.classList.add('active');
+}
+
+function renderBossPlan() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById('bossPlanBody');
+  if (!root) return;
+
+  const today = getTodayISO();
+
+  const pending = bossPlanItems.filter(
+    t => t.status !== 'done'
+  );
+
+  root.replaceChildren();
+
+  const text = (message, color = '#94a3b8') =>
+    bossPlanNode(
+      'p',
+      message,
+      root,
+      `font-size:11px;color:${color};line-height:1.5;` +
+      'margin:8px 0;white-space:pre-line;'
+    );
+
+  const actions = bossPlanNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;'
+  );
+
+  bossPlanButton(
+    actions,
+    '➕ Nueva tarea',
+    () => editBossPlanTask()
+  );
+
+  bossPlanButton(
+    actions,
+    '↻ Actualizar',
+    () => {
+      bossPlanStartWatch();
+      renderBossPlan();
+    }
+  );
+
+  bossPlanButton(
+    actions,
+    '📍 Asignar sector',
+    () => {
+      closeModal('bossPlanModal');
+      startSectorDrawing();
+    }
+  );
+
+  bossPlanButton(
+    actions,
+    '🚧 Obras de hoy',
+    () => {
+      closeModal('bossPlanModal');
+      checkAndShowBossTodayObras(false);
+    }
+  );
+
+  text(bossPlanStatus);
+
+  const tabs = bossPlanNode(
+    'div',
+    null,
+    root,
+    'display:flex;gap:5px;flex-wrap:wrap;'
+  );
+
+  const filters = {
+    today: t => t.status !== 'done' && t.dueDate <= today,
+    next: t => t.status !== 'done' && t.dueDate > today,
+    done: t => t.status === 'done',
+    all: () => true
+  };
+
+  [
+    ['today', 'Hoy y vencidas'],
+    ['next', 'Próximas'],
+    ['done', 'Hechas'],
+    ['all', 'Todas']
+  ].forEach(([key, label]) => {
+    const b = bossPlanButton(
+      tabs,
+      `${label} (${bossPlanItems.filter(filters[key]).length})`,
+      () => {
+        bossPlanFilter = key;
+        renderBossPlan();
+      }
+    );
+
+    if (key === bossPlanFilter) {
+      b.style.background = '#6d28d9';
+    }
+  });
+
+  const order = { high: 0, medium: 1, low: 2 };
+
+  const list = bossPlanItems
+    .filter(filters[bossPlanFilter])
+    .slice()
+    .sort((a, b) =>
+      Number(a.status === 'done') -
+      Number(b.status === 'done') ||
+      Number(b.dueDate < today) -
+      Number(a.dueDate < today) ||
+      (order[a.priority] ?? 1) -
+      (order[b.priority] ?? 1) ||
+      String(a.dueDate).localeCompare(String(b.dueDate))
+    );
+
+  if (!list.length) {
+    text('No hay tareas en este filtro.');
+  }
+
+  list.forEach(task => {
+    const done = task.status === 'done';
+    const late = !done && task.dueDate < today;
+
+    const color = done
+      ? '#34d399'
+      : (
+          late || task.priority === 'high'
+            ? '#f87171'
+            : '#475569'
+        );
+
+    const box = bossPlanNode(
+      'div',
+      null,
+      root,
+      `padding:12px;margin-top:9px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;'
+    );
+
+    bossPlanNode(
+      'strong',
+      `${done ? '✅' : (late ? '🚨' : '📋')} ${task.title}`,
+      box,
+      'font-size:13px;'
+    );
+
+    const priorityLabel = task.priority === 'high'
+      ? 'Alta'
+      : (task.priority === 'low' ? 'Baja' : 'Media');
+
+    bossPlanNode(
+      'p',
+      `${formatDate(task.dueDate)} · ${priorityLabel}` +
+      (task.person ? '\n' + getDisplayAlias(task.person) : '') +
+      (task.town ? ' · ' + task.town : '') +
+      '\n' + (task.detail || ''),
+      box,
+      'white-space:pre-line;font-size:11px;color:#cbd5e1;' +
+      'line-height:1.6;margin:7px 0;'
+    );
+
+    const row = bossPlanNode(
+      'div',
+      null,
+      box,
+      'display:flex;gap:5px;flex-wrap:wrap;'
+    );
+
+    bossPlanButton(
+      row,
+      done ? '↩️ Reabrir' : '✅ Hecha',
+      () => bossPlanSave({
+        id: task.id,
+        status: done ? 'pending' : 'done',
+        doneAt: done ? null : Date.now()
+      })
+    );
+
+    bossPlanButton(
+      row,
+      '✏️ Editar',
+      () => editBossPlanTask(task)
+    );
+
+    if (task.person || task.town || task.sourceAction) {
+      bossPlanButton(
+        row,
+        'Abrir contexto',
+        () => bossPlanOpenContext(task)
+      );
+    }
+  });
+
+  bossPlanNode(
+    'h3',
+    'Revisiones sugeridas por los datos actuales',
+    root,
+    'font-size:14px;color:#c4b5fd;margin:18px 0 7px;'
+  );
+
+  text(
+    'No son tareas asignadas automáticamente. Puedes revisarlas ' +
+    'o añadirlas a tu plan. Se recalculan al abrir o actualizar.'
+  );
+
+  const suggestions = bossPlanSuggestions();
+
+  suggestions.forEach(item => {
+    const exists = pending.some(
+      t => t.sourceId === item.sourceId
+    );
+
+    const box = bossPlanNode(
+      'div',
+      null,
+      root,
+      'padding:11px;border:1px solid #475569;' +
+      'border-radius:11px;margin-top:8px;'
+    );
+
+    bossPlanNode(
+      'strong',
+      item.title,
+      box,
+      'font-size:12px;color:#fde047;'
+    );
+
+    bossPlanNode(
+      'p',
+      item.detail,
+      box,
+      'white-space:pre-line;font-size:11px;color:#cbd5e1;' +
+      'line-height:1.6;margin:6px 0;'
+    );
+
+    bossPlanButton(
+      box,
+      'Revisar',
+      () => bossPlanOpenContext(item)
+    );
+
+    const add = bossPlanButton(
+      box,
+      exists ? 'Ya está en mi plan' : '➕ Añadir a mi plan',
+      () => editBossPlanTask(item)
+    );
+
+    add.disabled = exists;
+  });
+
+  if (!suggestions.length) {
+    text('No hay revisiones destacadas con los criterios actuales.');
+  }
+}
+
+    function startSingleHouseDirect() {
+      window.cnvShowMap?.();
+      cancelDrawing();
+      isDrawingMode = true;
+      isSingleHouseMode = true;
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'none';
+      document.getElementById('drawingBannerText').innerText = "🏠 Toca en el mapa la vivienda o edificio captado...";
+    }
+
+    /* =====================================================================
+       INICIALIZACIÓN DE MAPA + CATASTRO OFICIAL DE NAVARRA (IDENA / SITNA)
+       ===================================================================== */
+    let isManualGpsRequest = false;
+    let lastGpsAccuracy = null;
+    let liveGpsWatchId = null;
+    let cnvGpsFollow = true;
+    let cnvFirstGpsFix = true;
+    window.cnvFollowGps = function(enabled=true) {
+      cnvGpsFollow = Boolean(enabled);
+      if(cnvGpsFollow && userLocationMarker && map) map.setView(userLocationMarker.getLatLng(), Math.max(map.getZoom(),16));
+    };
+
+    window.cnvStartLiveGps = function() {
+      if (!map || !navigator.geolocation || liveGpsWatchId !== null) return;
+      liveGpsWatchId = navigator.geolocation.watchPosition(position => {
+        const {latitude, longitude, accuracy} = position.coords || {};
+        if (![latitude, longitude, accuracy].every(Number.isFinite)) return;
+        lastGpsAccuracy = accuracy;
+        const info = document.getElementById('cnvMapInstruction');
+        if (info) info.textContent = accuracy <= 100
+          ? 'GPS actualizado · precisión ±' + Math.round(accuracy) + ' m'
+          : 'GPS poco preciso · ±' + Math.round(accuracy) + ' m';
+        // Una posición imprecisa no sustituye la última posición fiable.
+        if (accuracy <= 100) {
+          const ll=L.latLng(latitude,longitude);
+          map.fire('locationfound', {latlng:ll, accuracy});
+          if(cnvGpsFollow) {
+            map.setView(ll, Math.max(map.getZoom(),16), {animate:!cnvFirstGpsFix});
+            cnvFirstGpsFix=false;
+          }
+        }
+      }, error => {
+        const info = document.getElementById('cnvMapInstruction');
+        if(info)info.textContent = 'GPS no disponible. Comprueba los permisos.';
+      }, {enableHighAccuracy:true, maximumAge:3000, timeout:20000});
+    };
+    window.cnvStopLiveGps = function() {
+      if(liveGpsWatchId!==null && navigator.geolocation)navigator.geolocation.clearWatch(liveGpsWatchId);
+      liveGpsWatchId=null;
+    };
+
+    function requestReliableGps(manual = false) {
+      if (!map || !navigator.geolocation) {
+        if (manual) alert('El dispositivo no ofrece acceso a la ubicación.');
+        return;
+      }
+      isManualGpsRequest = manual;
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const {latitude,longitude,accuracy}=position.coords;
+          if (![latitude,longitude,accuracy].every(Number.isFinite)) return;
+          const ll=L.latLng(latitude,longitude);
+          lastGpsAccuracy=accuracy;
+          const reliable=accuracy<=100;
+          if (reliable) {
+            map.fire('locationfound', {latlng:ll, accuracy});
+            if (cnvGpsFollow) map.setView(ll, Math.max(map.getZoom(),16));
+          }
+          const gpsBtn=document.querySelector('.hud-header .btn-hud.gps');
+          if(gpsBtn)gpsBtn.title='Precisión GPS estimada: ±'+Math.round(accuracy)+' m';
+          if(manual&&!reliable)alert('La precisión recibida es de ±'+Math.round(accuracy)+' m. No se ha centrado el mapa para evitar una posición engañosa. Prueba al aire libre y vuelve a pulsar GPS.');
+          isManualGpsRequest=false;
+        },
+        error => {
+          isManualGpsRequest=false;
+          if(manual)alert('No se pudo obtener una ubicación fiable. Comprueba los permisos y vuelve a intentarlo. '+(error?.message||''));
+        },
+        {enableHighAccuracy:true,maximumAge:0,timeout:15000}
+      );
+    }
+
+    function initMap() {
+      if (map) return;
+      // Vista inicial general de Navarra mientras el dispositivo obtiene su GPS
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false,
+        maxZoom: 20,
+        rotate: true,
+        touchRotate: true,
+        rotateControl: false
+      }).setView([42.65, -1.65], 10);
+
+      map.on('dragstart', () => { cnvGpsFollow=false; });
+      map.on('rotate', () => {
+        const needle = document.getElementById('compassNeedleIcon');
+        if (needle && typeof map.getBearing === 'function') {
+          needle.style.transform = `rotate(${-map.getBearing()}deg)`;
+        }
+      });
+      const sateliteIGN = L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', {
+        maxNativeZoom: 19,
+        maxZoom: 20
+      });
+      const ortofotoNavarra = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
+        layers: 'ortofoto_maxima_actualidad,ortofoto_500_Estella_2025,ortofoto_500_Pamplona_2025,ortofoto_500_Tafalla_2025,ortofoto_500_Tudela_2025',
+        interpolations: 'bicubic,bicubic,bicubic,bicubic,bicubic',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        detectRetina: true,
+        minZoom: 14,
+        maxZoom: 20,
+        bounds: [[41.90, -2.53], [43.33, -1.03]],
+        attribution: 'Ortofoto: Gobierno de Navarra · IDENA',
+      });
+      ignSatelliteLayer = L.layerGroup([sateliteIGN, ortofotoNavarra]).addTo(map);
+
+      // Capa agrupada oficial de Catastro de Navarra (parcelas + edificaciones + subparcelas)
+      catastroNavarraLayer = L.tileLayer.wms('https://idena.navarra.es/ogc/wms', {
+        layers: 'catastro',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        opacity: 1.0,
+        zIndex: 650,
+        minZoom: 13,
+        maxNativeZoom: 19,
+        maxZoom: 20
+      });
+
+      const todayIso = getTodayISO();
+      document.getElementById('assignDate').value = todayIso;
+      document.getElementById('auditDateSelect').value = todayIso;
+
+      map.on('locationfound', (e) => {
+        isManualGpsRequest = false;
+        const radius = e.accuracy || 20;
+        if (userAccuracyCircle) map.removeLayer(userAccuracyCircle);
+        if (userLocationMarker) map.removeLayer(userLocationMarker);
+
+        userAccuracyCircle = L.circle(e.latlng, {
+          radius: radius,
+          color: '#3b82f6',
+          weight: 1.5,
+          fillColor: '#3b82f6',
+          fillOpacity: 0.18
+        }).addTo(map);
+
+        const gpsIcon = L.divIcon({
+          className: 'user-gps-marker',
+          html: '<div class="user-gps-pulse"></div><div class="user-gps-dot"></div>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+
+        userLocationMarker = L.marker(e.latlng, { icon: gpsIcon, zIndexOffset: 1000 })
+          .addTo(map)
+          .bindPopup(`<div style="font-size:11px; font-weight:800; color:#fff; padding:2px 4px;">📍 Estás aquí (±${Math.round(radius)} m)</div>`);
+      });
+
+      map.on('locationerror', () => {
+        if (isManualGpsRequest) {
+          isManualGpsRequest = false;
+          alert("⚠️ No se pudo obtener tu ubicación GPS. Revisa que los permisos de ubicación estén activos.");
+        }
+      });
+
+      renderAllSavedZones();
+
+      void cargarPerimetrosPueblos();
+      map.on('zoomend', actualizarAgrupacionTerritorial);
+      map.on('click', handleMapClick);
+
+      // La primera lectura sólo centra el mapa si la precisión es suficiente.
+      requestReliableGps(false);
+      setTimeout(() => { if (map) map.invalidateSize(); }, 250);
+    }
+
+    function toggleCatastroLayer() {
+      // Catastro visible para ambos equipos; no modifica ninguna ficha.
+      if (!map || !catastroNavarraLayer || !ignSatelliteLayer) return;
+      const btn = document.getElementById('btnToggleCatastro');
+      if (isCatastroActive) {
+        // Quita solo Catastro y vuelve a dejar Satélite
+        map.removeLayer(catastroNavarraLayer);
+        if (!map.hasLayer(ignSatelliteLayer)) ignSatelliteLayer.addTo(map);
+        isCatastroActive = false;
+        isSatelliteActive = true;
+        if (btn) {
+          btn.classList.remove('active');
+          btn.style.background = 'rgba(15, 23, 42, 0.92)';
+          btn.style.borderColor = 'rgba(255, 255, 255, 0.28)';
+        }
+      } else {
+        // Quita Satélite y deja el mapa de SOLO Catastro
+        if (map.hasLayer(ignSatelliteLayer)) map.removeLayer(ignSatelliteLayer);
+        catastroNavarraLayer.addTo(map);
+        catastroNavarraLayer.bringToFront();
+        if (map.getZoom() < 16) {
+          map.setZoom(17);
+        }
+        isCatastroActive = true;
+        isSatelliteActive = false;
+        if (btn) {
+          btn.classList.add('active');
+          btn.style.background = '#059669';
+          btn.style.borderColor = '#34d399';
+        }
+      }
+    }
+
+    function applyBulkBaseStreetToAll(rawBase) {
+      const base = rawBase.trim();
+      const streetInputs = document.querySelectorAll('#clientsContainer .client-street');
+      streetInputs.forEach(inp => {
+        const cur = inp.value.trim();
+        const prevBase = inp.dataset.lastBulkBase || '';
+        // Solo toca fichas vacías o fichas que aún no tienen número escrito (conserva las ya completadas)
+        const isOnlyPreviousBase = prevBase && cur === prevBase;
+        if (!cur || isOnlyPreviousBase) {
+          inp.value = base ? `${base} ` : '';
+          inp.dataset.lastBulkBase = base;
+          inp.dataset.streetBase = base;
+          inp.dataset.autoFilled = 'true';
+        }
+      });
+    }
+
+    async function fetchDirectCatastroUrlForCoords(lat, lon) {
+      const d = 0.0005;
+      const sw = L.CRS.EPSG3857.project(L.latLng(lat - d, lon - d));
+      const ne = L.CRS.EPSG3857.project(L.latLng(lat + d, lon + d));
+
+      const params = new URLSearchParams({
+        SERVICE: 'WMS',
+        VERSION: '1.1.1',
+        REQUEST: 'GetFeatureInfo',
+        LAYERS: 'catastro',
+        QUERY_LAYERS: 'catastro',
+        SRS: 'EPSG:3857',
+        BBOX: `${sw.x},${sw.y},${ne.x},${ne.y}`,
+        WIDTH: '200',
+        HEIGHT: '200',
+        X: '100',
+        Y: '100',
+        INFO_FORMAT: 'application/json',
+        FEATURE_COUNT: '5'
+      });
+
+      const res = await fetch(`https://idena.navarra.es/ogc/wms?${params.toString()}`);
+      const data = await res.json();
+      if (!data.features || data.features.length === 0) return '';
+      const featWithUrl = data.features.find(f => f.properties && f.properties.URL) || data.features[0];
+      const rawUrl = featWithUrl?.properties?.URL || '';
+      const hrefMatch = rawUrl.match(/href=['"]([^'"]+)['"]/i);
+      return hrefMatch ? hrefMatch[1] : (rawUrl.startsWith('http') ? rawUrl : '');
+    }
+
+    async function openCadastreFromClientBox(btn) {
+      const box = btn.closest('.client-box, .comunidad-box');
+      const streetVal = box?.querySelector('.client-street')?.value.trim() || '';
+      const townVal = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value.trim()
+        || document.getElementById('searchInput')?.value.trim()
+        || '';
+
+      if (!streetVal && !townVal) {
+        alert("⚠️ Escribe primero la calle y el número para sacar su ficha de Catastro.");
+        return;
+      }
+
+      let resultSlot = btn.parentElement.querySelector('.inline-catastro-link-slot');
+      if (!resultSlot) {
+        resultSlot = document.createElement('div');
+        resultSlot.className = 'inline-catastro-link-slot';
+        resultSlot.style.marginTop = '6px';
+        btn.parentElement.appendChild(resultSlot);
+      }
+
+      const origText = btn.innerHTML;
+      btn.innerHTML = '⏳ Buscando ficha oficial...';
+      btn.disabled = true;
+      resultSlot.innerHTML = '';
+
+      try {
+        const q = `${streetVal} ${townVal}`.trim();
+        let candidates = await queryCartoCiudadNavarra(q);
+        if (candidates.length === 0) {
+          candidates = await queryNominatimNavarra(`${streetVal}, ${townVal}`);
+        }
+
+        if (!candidates || candidates.length === 0) {
+          resultSlot.innerHTML = `<div style="font-size:10.5px; color:#fca5a5; text-align:center;">⚠️ No se ubicó "${q}". Revisa el número de portal.</div>`;
+          return;
+        }
+
+        const target = candidates[0];
+        const catastroUrl = await fetchDirectCatastroUrlForCoords(target.lat, target.lon);
+
+        if (catastroUrl) {
+          resultSlot.innerHTML = `
+            <a href="${catastroUrl}" target="_blank" rel="noopener noreferrer"
+               class="konsor-cadastre-link">
+              Ver ficha catastral
+            </a>
+          `;
+        } else {
+          const idenaFallback = `https://idena.navarra.es/navegar/?lat=${target.lat.toFixed(6)}&lon=${target.lon.toFixed(6)}&zoom=19`;
+          resultSlot.innerHTML = `
+            <a href="${idenaFallback}" target="_blank" rel="noopener noreferrer"
+               class="konsor-cadastre-link">
+              Ver parcela en IDENA
+            </a>
+          `;
+        }
+      } catch (e) {
+        resultSlot.innerHTML = `<div style="font-size:10.5px; color:#fca5a5; text-align:center;">Error al consultar Catastro.</div>`;
+      } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    }
+
+    function openIdenaOfficialViewer() {
+      if (isMikelTeamMember(currentUserName)) return;
+      if (!map) return;
+      const center = map.getCenter();
+      const url = `https://idena.navarra.es/navegar/?lat=${center.lat.toFixed(6)}&lon=${center.lng.toFixed(6)}&zoom=18`;
+      const frame = document.getElementById('idenaEmbeddedFrame');
+      const fallbackLink = document.getElementById('idenaExternalFallbackLink');
+      if (fallbackLink) fallbackLink.href = url;
+      if (frame) frame.src = url;
+      document.getElementById('idenaViewerModal').classList.add('active');
+    }
+
+    function closeIdenaModal() {
+      const frame = document.getElementById('idenaEmbeddedFrame');
+      if (frame) frame.src = 'about:blank';
+      closeModal('idenaViewerModal');
+    }
+
+    function calculatePolygonAreaM2(latlngs) {
+      if (!latlngs || latlngs.length < 3) return 0;
+      const rad = Math.PI / 180, R = 6378137;
+      const origin=latlngs[0];
+      const cos=Math.cos(latlngs.reduce((a,p)=>a+p[0],0)/latlngs.length*rad);
+      const xy=latlngs.map(p=>[(p[1]-origin[1])*rad*R*cos,(p[0]-origin[0])*rad*R]);
+      let area=0;
+      for(let i=0;i<xy.length;i++){
+        const a=xy[i],b=xy[(i+1)%xy.length];area+=a[0]*b[1]-b[0]*a[1];
+      }
+      return Math.round(Math.abs(area) / 2);
+    }
+
+    function showRoofMeasureResult(m2,points) {
+      let surface=document.getElementById('konsorMeasurementResult');
+      if(!surface){
+        surface=document.createElement('div');
+        surface.id='konsorMeasurementResult';
+        surface.className='modal-overlay';
+        surface.style.zIndex='10440';
+        surface.innerHTML='<div class="modal-card cn-measure-result" role="dialog" aria-modal="true" aria-label="Medición de tejado">'+
+          '<div class="modal-header"><span>Medición de superficie</span></div>'+
+          '<div class="cn-measure-value" id="konsorMeasureValue"></div>'+
+          '<p class="cn-measure-meta" id="konsorMeasureDetails"></p>'+
+          '<p class="cn-measure-note">Superficie aproximada de la proyección del tejado dibujado. No equivale necesariamente a la superficie útil de la buhardilla ni sustituye las mediciones reales.</p>'+
+          '<div class="cn-measure-actions"><button type="button" id="konsorMeasureRepeat">Medir otra zona</button><button type="button" id="konsorMeasureCopy">Copiar m²</button><button type="button" id="konsorMeasureClose">Cerrar</button></div></div>';
+        document.body.appendChild(surface);
+      }
+      const formatted=new Intl.NumberFormat('es-ES',{maximumFractionDigits:0}).format(m2);
+      document.getElementById('konsorMeasureValue').textContent=formatted+' m²';
+      const perimeter=points.reduce((sum,p,i)=>{
+        const next=points[(i+1)%points.length];
+        return sum+L.latLng(p[0],p[1]).distanceTo(L.latLng(next[0],next[1]));
+      },0);
+      document.getElementById('konsorMeasureDetails').textContent=
+        points.length+' esquinas · perímetro estimado '+Math.round(perimeter)+' m';
+      document.getElementById('konsorMeasureCopy').onclick=async()=>{
+        try{await navigator.clipboard.writeText(String(m2));}
+        catch(e){const value=prompt('Copia esta superficie aproximada (m²):',String(m2));}
+      };
+      document.getElementById('konsorMeasureRepeat').onclick=()=>{surface.classList.remove('active');startRoofMeasureMode();};
+      document.getElementById('konsorMeasureClose').onclick=()=>surface.classList.remove('active');
+      surface.classList.add('active');
+    }
+
+    function startRoofMeasureMode() {
+      if (isMikelTeamMember(currentUserName)) return;
+      cancelDrawing();
+      isDrawingMode = true;
+      isRoofMeasureMode = true;
+      window.cnvMapDrawingState?.({mode:'roof',points:0,m2:0});
+
+      // Si estaba en modo solo Catastro, vuelve a Satélite para medir el tejado con precisión
+      if (isCatastroActive) toggleCatastroLayer();
+
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'flex';
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) btnSingle.style.display = 'none';
+      if (btnConfirm) {
+        btnConfirm.style.display = 'inline-block';
+        btnConfirm.innerText = 'Ver resultado';
+      }
+      document.getElementById('drawingBannerText').innerText = "Marca las esquinas del tejado. Mínimo 3 puntos · Resultado aproximado.";
+    }
+
+    function toggleSatelliteLayer() {
+      if (isCatastroActive) toggleCatastroLayer();
+    }
+
+    let searchPinMarker = null;
+
+    let lastSearchCandidates = [];
+
+    async function queryCartoCiudadNavarra(searchStr, postalOnly = false) {
+      const url = `https://www.cartociudad.es/geocoder/api/geocoder/candidatesJsonp?q=${encodeURIComponent(searchStr)}&limit=10`;
+      const res = await fetch(url, postalOnly ? {signal:AbortSignal.timeout(4000)} : undefined);
+      const rawText = await res.text();
+      // CartoCiudad responde JSON puro o envuelto en callback(...)
+      const jsonStr = rawText.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, '');
+      const list = JSON.parse(jsonStr);
+      if (!Array.isArray(list)) return [];
+
+      // Filtrar resultados de Navarra (código postal 31xxx o provincia Navarra)
+      const navarraOnly = list.filter(item => {
+        const prov = (item.province || '').toLowerCase();
+        const cp = String(item.postalCode || '');
+        return prov.includes('navarra') || cp.startsWith('31');
+      });
+
+      const finalPool = navarraOnly.length > 0 ? navarraOnly : list;
+      const mapped = [];
+
+      for (const item of finalPool) {
+        if(postalOnly){
+          if(item.type!=='portal' || !/^31\d{3}$/.test(String(item.postalCode||'')) || !item.portalNumber)continue;
+          mapped.push({street:item.address,streetType:item.tip_via,
+            portalNumber:String(item.portalNumber)+(item.extension||''),
+            localities:[item.muni,item.poblacion].filter(Boolean),cp:item.postalCode,isPortal:true});
+          continue;
+        }
+        let lat = parseFloat(item.lat);
+        let lon = parseFloat(item.lng);
+
+        // Si es una calle/urbanización sin portal (CartoCiudad devuelve 0,0), pedir el centro exacto de la vía
+        if ((!lat || !lon || Math.abs(lat) < 1 || Math.abs(lon) < 1) && item.id) {
+          try {
+            const findRes = await fetch(`https://www.cartociudad.es/geocoder/api/geocoder/findJsonp?id=${encodeURIComponent(item.id)}&type=${encodeURIComponent(item.type || 'calle')}`);
+            const findRaw = await findRes.text();
+            const findJson = JSON.parse(findRaw.replace(/^[^(]*\(/, '').replace(/\);?\s*$/, ''));
+            if (findJson && findJson.lat && findJson.lng) {
+              lat = parseFloat(findJson.lat);
+              lon = parseFloat(findJson.lng);
+            }
+          } catch (e) {}
+        }
+
+        // Descartar si sigue en (0,0) o fuera de España para que pase al respaldo de mapa
+        if (isNaN(lat) || isNaN(lon) || lat < 35 || lat > 44 || lon < -10 || lon > 5) continue;
+
+        const rawAddr = (item.address || '').trim();
+        const tipVia = (item.tip_via || '').trim();
+        const viaBase = (tipVia && !rawAddr.toUpperCase().startsWith(tipVia.toUpperCase()))
+          ? `${tipVia} ${rawAddr}`
+          : rawAddr;
+        const fullVia = `${viaBase} ${item.portalNumber || ''}`.trim();
+
+        mapped.push({
+          lat,
+          lon,
+          title: fullVia || searchStr,
+          town: item.muni || item.poblacion || 'Navarra',
+          cp: item.postalCode || '',
+          isPortal: Boolean(item.portalNumber || item.type === 'portal'),
+          source: 'Catastro/IGN'
+        });
+      }
+
+      return mapped;
+    }
+
+    async function queryNominatimNavarra(searchStr) {
+      const qFull = searchStr.toLowerCase().includes('navarra') ? searchStr : `${searchStr}, Navarra, España`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=es&viewbox=-2.50,43.35,-0.70,41.90&bounded=0&limit=6&q=${encodeURIComponent(qFull)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data.map(b => {
+        const addr = b.address || {};
+        const town = addr.village || addr.town || addr.city || addr.municipality || 'Navarra';
+        const road = addr.road || b.display_name.split(',')[0];
+        const num = addr.house_number ? ` ${addr.house_number}` : '';
+        return {
+          lat: parseFloat(b.lat),
+          lon: parseFloat(b.lon),
+          title: `${road}${num}`.trim(),
+          town,
+          cp: addr.postcode || '',
+          isPortal: Boolean(addr.road || addr.house_number),
+          source: 'Mapa'
+        };
+      });
+    }
+
+    function flyToSearchCandidate(idx) {
+      const c = lastSearchCandidates[idx];
+      if (!c || !map) return;
+      const dropdown = document.getElementById('searchCandidatesDropdown');
+      if (dropdown) dropdown.style.display = 'none';
+
+      cnvGpsFollow = false;
+      const zoomLvl = c.isPortal ? 18 : 17;
+      map.invalidateSize();
+      map.setView([c.lat, c.lon], zoomLvl, { animate: false });
+
+      setTimeout(() => {
+        if (ignSatelliteLayer && isSatelliteActive) ignSatelliteLayer.eachLayer(layer => layer.redraw());
+        if (catastroNavarraLayer && isCatastroActive) {
+          catastroNavarraLayer.redraw();
+          catastroNavarraLayer.bringToFront();
+        }
+      }, 150);
+
+      if (searchPinMarker) map.removeLayer(searchPinMarker);
+      searchPinMarker = L.marker([c.lat, c.lon]).addTo(map)
+        .bindPopup(`<div style="font-size:11px; font-weight:800; color:#fff; padding:2px 4px;">📍 ${c.title}<br><span style="color:#38bdf8;">${c.town}${c.cp ? ' (' + c.cp + ')' : ''}</span></div>`)
+        .openPopup();
+    }
+
+    async function searchLocation() {
+      const query = document.getElementById('searchInput').value.trim();
+      const dropdown = document.getElementById('searchCandidatesDropdown');
+      if (!query) return;
+
+      // Para Mikel y su equipo: búsqueda básica solo por pueblo (sin localizador de portales exactos)
+      if (isMikelTeamMember(currentUserName)) {
+        try {
+          const basicTown = query.includes(',') ? query.split(',').pop().trim() : query.split(/\s+/).pop().trim();
+          const res = await queryNominatimNavarra(basicTown);
+          if (res && res.length > 0) {
+            cnvGpsFollow = false;
+          map.setView([res[0].lat, res[0].lon], 15, { animate: false });
+          } else {
+            alert("Municipio no encontrado.");
+          }
+        } catch (e) {}
+        return;
+      }
+
+      if (dropdown) {
+        dropdown.style.display = 'flex';
+        dropdown.innerHTML = `<div style="font-size:11px; color:#7dd3fc; padding:4px 6px;">⏳ Buscando en callejero oficial de Navarra...</div>`;
+      }
+
+      try {
+        // 1º: Callejero Oficial CartoCiudad (IGN / Catastro con números de portal reales)
+        let candidates = await queryCartoCiudadNavarra(query);
+
+        // 2º: Si CartoCiudad no devolvió nada (ej. formato con comas), probar con coma normalizada
+        if (candidates.length === 0 && !query.includes(',')) {
+          const parts = query.split(/\s+/);
+          if (parts.length >= 2) {
+            const lastWord = parts[parts.length - 1];
+            const rest = parts.slice(0, -1).join(' ');
+            candidates = await queryCartoCiudadNavarra(`${rest}, ${lastWord}`);
+          }
+        }
+
+        // 3º: Respaldo con OpenStreetMap si fuera un camino o paraje rural
+        if (candidates.length === 0) {
+          candidates = await queryNominatimNavarra(query);
+        }
+
+        // 4º: Último recurso: centrar al menos en el municipio si puso calle + pueblo
+        if (candidates.length === 0) {
+          const townOnly = query.includes(',') ? query.split(',').pop().trim() : query.split(/\s+/).pop().trim();
+          if (townOnly.length >= 3) {
+            candidates = await queryNominatimNavarra(townOnly);
+          }
+        }
+
+        if (candidates.length === 0) {
+          if (dropdown) dropdown.style.display = 'none';
+          alert("No se encontró esa dirección ni municipio en Navarra.");
+          return;
+        }
+
+        // Eliminar duplicados muy cercanos
+        const unique = [];
+        candidates.forEach(cand => {
+          const dup = unique.some(u => Math.abs(u.lat - cand.lat) < 0.0002 && Math.abs(u.lon - cand.lon) < 0.0002);
+          if (!dup) unique.push(cand);
+        });
+        lastSearchCandidates = unique;
+
+        // Si solo hay 1 resultado exacto, vuela directamente; si hay varios (ej. varios pueblos), muestra lista para elegir
+        if (unique.length === 1) {
+          flyToSearchCandidate(0);
+        } else if (dropdown) {
+          let listHtml = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 4px; font-size:9.5px; color:#94a3b8; font-weight:800;">
+              <span>📍 ${unique.length} ubicaciones encontradas (elige localidad):</span>
+              <button onclick="document.getElementById('searchCandidatesDropdown').style.display='none'" style="background:none; border:none; color:#fca5a5; font-weight:900; cursor:pointer;">✕</button>
+            </div>
+          `;
+          unique.forEach((u, i) => {
+            listHtml += `
+              <button onclick="flyToSearchCandidate(${i})" style="text-align:left; background:rgba(255,255,255,0.06); border:1px solid rgba(56,189,248,0.35); border-radius:8px; padding:6px 8px; color:#fff; font-size:11px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                <span><strong>${u.title}</strong> • <span style="color:#38bdf8; font-weight:800;">${u.town}</span></span>
+                <span style="font-size:9px; color:#94a3b8; white-space:nowrap;">${u.source} →</span>
+              </button>
+            `;
+          });
+          dropdown.innerHTML = listHtml;
+          dropdown.style.display = 'flex';
+        }
+      } catch (e) {
+        if (dropdown) dropdown.style.display = 'none';
+        alert("Error al conectar con el callejero.");
+      }
+    }
+    function buildMultiStopMapsUrl(stopsArray) {
+      if (!stopsArray || stopsArray.length === 0) return '#';
+      const cleanStops = stopsArray.map(s => `${s}, Navarra, España`.trim());
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const useAppleMaps = appPrefs.navApp === 'apple' || (appPrefs.navApp !== 'google' && isIOS);
+
+      if (useAppleMaps) {
+        const chainedStops = cleanStops.map(s => encodeURIComponent(s)).join('+to:');
+        return `maps://?daddr=${chainedStops}&dirflg=d`;
+      }
+
+      if (cleanStops.length === 1) {
+        return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cleanStops[0])}&travelmode=driving`;
+      }
+      const destination = encodeURIComponent(cleanStops[cleanStops.length - 1]);
+      const waypoints = cleanStops.slice(0, -1).map(s => encodeURIComponent(s)).join('|');
+      return `https://www.google.com/maps/dir/?api=1&destination=${destination}&waypoints=${waypoints}&travelmode=driving`;
+    }
+
+    function handleClientAtticPhotoUpload(inputEl) {
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      const box = inputEl.closest('.client-box, .comunidad-box');
+      if (!box) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 560;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.58);
+
+          box.dataset.atticPhoto = compressedDataUrl;
+          const previewSlot = box.querySelector('.attic-photo-preview-slot');
+          if (previewSlot) {
+            previewSlot.innerHTML = `
+              <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.15); border:1px solid #34d399; border-radius:8px; padding:5px 8px; margin-top:4px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <img src="${compressedDataUrl}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #fff;">
+                  <span style="font-size:10px; color:#6ee7b7; font-weight:800;">✅ Foto acceso guardada</span>
+                </div>
+                <button type="button" onclick="removeClientAtticPhoto(this)" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+              </div>
+            `;
+          }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeClientAtticPhoto(btn) {
+      const box = btn.closest('.client-box, .comunidad-box');
+      if (!box) return;
+      box.dataset.atticPhoto = '';
+      const previewSlot = box.querySelector('.attic-photo-preview-slot');
+      if (previewSlot) previewSlot.innerHTML = '';
+    }
+
+    function openAtticPhotoLightbox(dataUrl, captionText = 'Foto de Acceso / Buhardilla') {
+      if (!dataUrl) return;
+      let lb = document.getElementById('atticPhotoLightboxModal');
+      if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'atticPhotoLightboxModal';
+        lb.className = 'modal-overlay';
+        lb.style.zIndex = '10080';
+        lb.onclick = () => lb.classList.remove('active');
+        document.body.appendChild(lb);
+      }
+      lb.innerHTML = `
+        <div class="modal-card" style="max-width:420px; text-align:center;" onclick="event.stopPropagation();">
+          <div class="modal-header">
+            <span style="font-size:13px;">📸 ${captionText}</span>
+            <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="document.getElementById('atticPhotoLightboxModal').classList.remove('active')">✕</button>
+          </div>
+          <img src="${dataUrl}" style="width:100%; max-height:65vh; object-fit:contain; border-radius:12px; border:1px solid rgba(255,255,255,0.2);">
+        </div>
+      `;
+      lb.classList.add('active');
+    }
+
+    /* =====================================================================
+       APARTADO "📞 LLAMAR": SEGUIMIENTO DIRECTO DE CLIENTES VOLCADOS EN "SÍ"
+       ===================================================================== */
+    function openFollowUpsModal() {
+      activeFollowUpFilter = 'all';
+      updateFollowUpFilterButtons();
+      renderFollowUpsModal();
+      document.getElementById('followUpsModal').classList.add('active');
+    }
+
+    function setFollowUpFilter(filterKey) {
+      activeFollowUpFilter = filterKey;
+      updateFollowUpFilterButtons();
+      renderFollowUpsModal();
+    }
+
+    function updateFollowUpFilterButtons() {
+      document.getElementById('fuFilterAll').className = `subtab-btn ${activeFollowUpFilter==='all'?'active':''}`;
+      document.getElementById('fuFilterPendiente').className = `subtab-btn ${activeFollowUpFilter==='pendiente'?'active':''}`;
+      document.getElementById('fuFilterLlamado').className = `subtab-btn ${activeFollowUpFilter==='ya_llamado'?'active':''}`;
+      document.getElementById('fuFilterEsperando').className = `subtab-btn ${activeFollowUpFilter==='esperando_confirmacion'?'active':''}`;
+    }
+
+    async function updateClientCallStatus(zoneIdx, clientIdx, newCallStatus) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      const c = z.clients[clientIdx];
+      const isMikel = isMikelTeamMember(z.comercial);
+      if (!isMikel && newCallStatus === 'esperando_confirmacion') {
+        const reason = (prompt("🟣 ESPERANDO INFO — motivo obligatorio.\n¿Qué está esperando o pensando el cliente?\n(ej: lo habla con su mujer, espera presupuesto, quiere más info)", c.waitReason || '') || '').trim();
+        if (reason.length < 3) {
+          alert("⚠️ Tienes que escribir el motivo para poder guardar este estado.");
+          return;
+        }
+        const mustCall = confirm("¿Qué toca dentro de 48 h?\n\nACEPTAR = Volver a LLAMARLE\nCANCELAR = Basta un WHATSAPP de recordatorio");
+        c.waitReason = reason;
+        c.waitType = mustCall ? 'llamar' : 'whatsapp';
+      } else if (!isMikel) {
+        c.waitReason = '';
+        c.waitType = newCallStatus === 'ya_llamado' ? 'llamar' : '';
+      }
+      c.callStatus = newCallStatus;
+      c.statusChangedAt = Date.now();
+      c.nextContactAt = (!isMikel && newCallStatus !== 'pendiente') ? Date.now() + 48 * 3600 * 1000 : null;
+      c.callLog = (c.callLog || []).concat([{ t: Date.now(), s: newCallStatus, r: c.waitReason || '' }]).slice(-20);
+      logActivity('llamada', `${newCallStatus === 'ya_llamado' ? '🟡 Ya llamado' : (newCallStatus === 'esperando_confirmacion' ? '🟣 Esperando confirmación' : '🔴 Por llamar')}: ${c.name || 'Cliente'}${c.waitReason ? ' (' + c.waitReason + ')' : ''} · ${z.town || ''}`, z.comercial);
+      z._updatedAt = Date.now();
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      renderFollowUpsModal();
+      return true;
+    }
+
+    
+    /* ===== FRANJAS DE OBRA, CITAS Y WHATSAPP AL CLIENTE ===== */
+    const OBRA_SLOTS = [
+      { start: '09:00', end: '11:00' },
+      { start: '11:00', end: '13:00' },
+      { start: '15:00', end: '17:00' },
+      { start: '17:00', end: '19:00' }
+    ];
+
+    function obraSlotLabel(t) {
+      const s = OBRA_SLOTS.find(x => x.start === t);
+      return s ? `${s.start} a ${s.end}` : (t || '');
+    }
+
+    function obraSlotOptions(sel) {
+      return OBRA_SLOTS.map(s => `<option value="${s.start}" ${s.start === sel ? 'selected' : ''}>⏰ ${s.start} – ${s.end}</option>`).join('');
+    }
+
+    function isValidDni(v) {
+      v = (v || '').toUpperCase().replace(/[\s-]/g, '');
+      if (!/^[XYZ0-9][0-9]{7}[A-Z]$/.test(v)) return false;
+      const letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+      const n = v.slice(0, 8).replace(/^X/, '0').replace(/^Y/, '1').replace(/^Z/, '2');
+      return letras[parseInt(n, 10) % 23] === v[8];
+    }
+
+    function citaDateLong(iso) {
+      if (!iso) return '';
+      return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function citaWaLink(c, town, comercial) {
+      const phone = (c.phone || '').replace(/\s+/g, '');
+      if (!phone) return '';
+      const alias = getDisplayAlias(comercial);
+      const first = (c.name || '').trim() ? ' ' + c.name.trim().split(' ')[0] : '';
+      const street = (c.street || '').trim() ? c.street.trim() + ', ' : '';
+      const msg =
+`Hola${first}, soy *${alias}* de *Konsor Energía*.
+
+Te confirmo tu cita para la instalación del aislamiento térmico:
+
+📅 *Fecha:* ${citaDateLong(c.obraDate)}
+⏰ *Franja:* de ${obraSlotLabel(c.obraTime).replace(' a ', ' a ')} (el equipo llegará dentro de esa franja)
+📍 *Dirección:* ${street}${town || 'Navarra'}
+
+Por favor, ten preparados el DNI y las escrituras de la vivienda para la documentación. También deberá haber alguien en casa y acceso a la buhardilla. Si necesitas cambiar algo, respóndeme a este mensaje. ¡Gracias!`;
+      return `https://wa.me/34${phone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function showCitaSavedModal(c, ctx) {
+      let modal = document.getElementById('citaSavedModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'citaSavedModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+      }
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const wa = citaWaLink(c, ctx.town, ctx.comercial);
+      modal.innerHTML = `
+        <div class="modal-card">
+          <div class="modal-header-sticky">
+            <div class="modal-header">
+              <span>✅ Cita guardada</span>
+              <button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('citaSavedModal')">✕</button>
+            </div>
+          </div>
+          <div class="modal-scrollable-content">
+            <div style="background:rgba(16,185,129,0.14); border:1px solid #34d399; border-radius:10px; padding:10px; font-size:12px; color:#e2e8f0; line-height:1.6; margin-bottom:10px;">
+              👤 <strong>${esc(c.name) || 'Cliente'}</strong><br>
+              📅 ${citaDateLong(c.obraDate)}<br>
+              ⏰ ${obraSlotLabel(c.obraTime)}<br>
+              📍 ${esc(c.street)} ${esc(ctx.town)}
+            </div>
+            ${wa
+              ? `<a href="${wa}" target="_blank" style="display:block; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:11px; border-radius:10px; font-size:12.5px; font-weight:900; margin-bottom:8px;">💬 Enviar WhatsApp de confirmación al cliente</a>`
+              : `<div style="font-size:11px; color:#fde047; margin-bottom:8px;">⚠️ Esta ficha no tiene teléfono, no se puede mandar WhatsApp.</div>`}
+            <button class="btn-modal-save" onclick="closeModal('citaSavedModal')">Cerrar</button>
+          </div>
+        </div>`;
+      modal.classList.add('active');
+    }
+
+    function downloadCitaFromList(zIdx, cIdx) {
+      const z = savedZones[zIdx];
+      if (!z || !z.clients || !z.clients[cIdx]) return;
+      downloadCrmCita(z.clients[cIdx], { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial });
+    }
+
+    function markObraRealizada(zIdx, cIdx) {
+  recordCompletedObra(zIdx, cIdx);
+}
+
+
+    function renderCitasView() {
+      const container = document.getElementById('followUpsModalBody');
+      const viewerIsMikel = isMikelTeamMember(currentUserName);
+      const isBoss = currentUserRole !== 'comercial';
+      const today = getTodayISO();
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const upcoming = [], past = [], done = [];
+
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
+        (z.clients || []).forEach((c, cIdx) => {
+          if (!isClientValidFilled(c)) return;
+          const it = { z, zIdx, c, cIdx };
+          if (c.obraStatus === 'agendada') { ((c.obraDate || '') >= today ? upcoming : past).push(it); }
+          else if (c.obraStatus === 'realizada') { done.push(it); }
+        });
+      });
+
+      const k = it => (it.c.obraDate || '') + (it.c.obraTime || '');
+      upcoming.sort((a, b) => k(a) < k(b) ? -1 : 1);
+      past.sort((a, b) => k(a) < k(b) ? -1 : 1);
+      done.sort((a, b) => k(a) < k(b) ? 1 : -1);
+
+      const bt = 'flex:1; text-align:center; text-decoration:none; border:none; color:#fff; padding:6px 4px; border-radius:7px; font-size:10px; font-weight:800; cursor:pointer;';
+      const card = (it, mode) => {
+        const { z, zIdx, c, cIdx } = it;
+        const phone = (c.phone || '').replace(/\s+/g, '');
+        const wa = (mode !== 'done' && phone) ? citaWaLink(c, z.town, z.comercial) : '';
+        const crm = (viewerIsMikel || mode === 'done') ? '' : (needsCrmUpload(c)
+          ? '<span style="color:#fca5a5; font-weight:900;">⚠️ Sin subir a CRM</span>'
+          : '<span style="color:#6ee7b7; font-weight:900;">✅ En CRM</span>');
+        const border = mode === 'past' ? '#ef4444' : (mode === 'done' ? '#34d399' : '#f59e0b');
+        return `
+          <div style="background:rgba(255,255,255,0.05); border:1px solid ${border}; border-radius:11px; padding:9px 10px; margin-bottom:8px; font-size:11.5px; color:#e2e8f0;">
+            <div style="display:flex; justify-content:space-between; gap:6px; font-weight:900;">
+              <span>${esc(c.name) || 'Cliente sin nombre'}</span>
+              <span style="color:#fde047;">${mode === 'done' ? '✅ Realizada' : '⏰ ' + obraSlotLabel(c.obraTime)}</span>
+            </div>
+            <div style="color:#94a3b8; font-size:10.5px; margin:2px 0;">
+              📅 ${citaDateLong(c.obraDate)}${mode === 'past' ? ' <strong style="color:#fca5a5;">· ¿Se hizo? Pasó la fecha</strong>' : ''}<br>
+              📍 ${esc(c.street) || 'Sin dirección'} · ${esc(z.town)} · 👤 ${esc(z.comercial)}<br>
+              ${crm}
+            </div>
+            <div style="display:flex; gap:4px; margin-top:5px; flex-wrap:wrap;">
+              ${phone ? `<a href="tel:${phone}" style="${bt} background:#2563eb;">📞 Llamar</a>` : ''}
+              ${wa ? `<a href="${wa}" target="_blank" style="${bt} background:#059669;">💬 Recordar fecha</a>` : ''}
+              ${(!viewerIsMikel && mode !== 'done') ? `<button onclick="downloadCitaFromList(${zIdx}, ${cIdx})" style="${bt} background:#0284c7;">📄 Archivo CRM</button>` : ''}
+              <button onclick="closeModal('followUpsModal'); openDumpModal(${zIdx});" style="${bt} background:#7c3aed;">✏️ Editar</button>
+              ${(mode !== 'done') ? `<button onclick="markObraRealizada(${zIdx}, ${cIdx})" style="${bt} background:#d97706;">✅ Realizada</button>` : ''}
+              ${(mode !== 'done' && isBoss) ? `<button onclick="cancelObra(${zIdx}, ${cIdx})" style="${bt} background:#dc2626;">❌ Cancelada</button>` : ''}
+            </div>
+          </div>`;
+      };
+
+      const section = (title, arr, mode) => arr.length
+        ? `<div class="modal-section-title">${title} (${arr.length})</div>` + arr.map(it => card(it, mode)).join('')
+        : '';
+
+      const html = section('📅 Próximas citas de obra', upcoming, 'upcoming')
+        + section('⚠️ Fecha pasada: ¿se hicieron?', past, 'past')
+        + section('✅ Obras realizadas', done, 'done');
+
+      container.innerHTML = html || '<div style="text-align:center; padding:22px; color:#94a3b8; font-size:12px;">Todavía no hay citas de obra agendadas.</div>';
+    }
+
+    async function saveCallNotes(zoneIdx, clientIdx, emailId, notesId) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      const c = z.clients[clientIdx];
+      const em = (document.getElementById(emailId)?.value || '').trim();
+      const nt = (document.getElementById(notesId)?.value || '').trim();
+      c.email = em;
+      const dniRaw = (document.getElementById(`fu_dni_${zoneIdx}_${clientIdx}`)?.value || '').trim().toUpperCase();
+      if (dniRaw && !isValidDni(dniRaw)) {
+        alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+        return;
+      }
+      c.dni = dniRaw;
+      c.callNotes = nt;
+      z._updatedAt = Date.now();
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      alert("✅ Datos guardados en la ficha.");
+    }
+
+    const routeFormContexts = new Map();
+
+function routeTown(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function routeFingerprint(c) {
+  return JSON.stringify([
+    c.createdAt || '',
+    c.phone || '',
+    c.name || '',
+    c.street || ''
+  ]);
+}
+
+function routeRecords(date, ignored = null) {
+  const rows = [];
+
+  savedZones.forEach(z => {
+    if (isMikelTeamMember(z.comercial)) return;
+
+    (z.clients || []).forEach(c => {
+      if (
+        c === ignored ||
+        c.obraDate !== date ||
+        !['agendada', 'realizada'].includes(c.obraStatus)
+      ) return;
+
+      const minutes = value => {
+        if (!/^\d{2}:\d{2}$/.test(value || '')) return NaN;
+        const [h, m] = value.split(':').map(Number);
+        return h * 60 + m;
+      };
+
+      const t = minutes(c.obraTime);
+
+      const slot = OBRA_SLOTS.findIndex(s =>
+        t >= minutes(s.start) &&
+        t < minutes(s.end)
+      );
+
+      rows.push({
+        z,
+        c,
+        slot,
+        town: routeTown(z.town)
+      });
+    });
+  });
+
+  return rows;
+}
+
+function routePoint(z, c) {
+  if (
+    z.isSingleHouse &&
+    Array.isArray(z.singlePoint) &&
+    z.singlePoint.length === 2
+  ) {
+    const [lat, lon] = z.singlePoint.map(Number);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { lat, lon };
+    }
+  }
+
+  if (typeof ficheroGeoCache !== 'undefined') {
+    const key =
+      `${String(c.street || '').toLowerCase().trim()}|` +
+      `${String(z.town || '').toLowerCase().trim()}`;
+
+    const p = ficheroGeoCache[key];
+
+    if (
+      p &&
+      !p.fail &&
+      Number.isFinite(Number(p.lat)) &&
+      Number.isFinite(Number(p.lon))
+    ) {
+      return {
+        lat: Number(p.lat),
+        lon: Number(p.lon)
+      };
+    }
+  }
+
+  return null;
+}
+
+function routeDistance(a, b) {
+  const rad = Math.PI / 180;
+
+  const h =
+    Math.sin((b.lat - a.lat) * rad / 2) ** 2 +
+    Math.cos(a.lat * rad) *
+    Math.cos(b.lat * rad) *
+    Math.sin((b.lon - a.lon) * rad / 2) ** 2;
+
+  return 12742 * Math.asin(
+    Math.sqrt(Math.min(1, h))
+  );
+}
+
+function routeSlotPlan(
+  date,
+  time,
+  z,
+  client,
+  ignored = client,
+  extraRows = []
+) {
+  const d = new Date(date + 'T12:00:00');
+  const index = OBRA_SLOTS.findIndex(s => s.start === time);
+  const town = routeTown(z.town);
+
+  if (
+    !Number.isFinite(d.getTime()) ||
+    getLocalDateISO(d) !== date ||
+    date <= getTodayISO() ||
+    d.getDay() === 0
+  ) {
+    return {
+      ok: false,
+      reason: 'Elige una fecha desde mañana, de lunes a sábado.'
+    };
+  }
+
+  if (!town) {
+    return {
+      ok: false,
+      reason: 'Indica el municipio antes de agendar.'
+    };
+  }
+
+  if (index < 0) {
+    return {
+      ok: false,
+      reason: 'Selecciona una de las cuatro franjas de obra.'
+    };
+  }
+
+  const rows = routeRecords(date, ignored).concat(
+  extraRows
+    .filter(p => p.date === date && p.c !== ignored)
+    .map(p => ({
+      z: p.z,
+      c: p.c,
+      town: routeTown(p.z.town),
+      slot: OBRA_SLOTS.findIndex(s => s.start === p.time)
+    }))
+);
+
+  if (rows.length >= 4) {
+    return {
+      ok: false,
+      reason: 'Ese día ya tiene cuatro obras.'
+    };
+  }
+
+  if (rows.some(r => r.slot < 0 || !r.town)) {
+    return {
+      ok: false,
+      reason:
+        'Revisa las obras existentes: falta un pueblo ' +
+        'o hay una hora fuera de las franjas.'
+    };
+  }
+
+  if (
+    new Set(rows.map(r => r.slot)).size !== rows.length
+  ) {
+    return {
+      ok: false,
+      reason:
+        'Ese día contiene franjas duplicadas. ' +
+        'Revisa la agenda existente.'
+    };
+  }
+
+  if (rows.some(r => r.slot === index)) {
+    return {
+      ok: false,
+      reason: 'Esta franja ya está ocupada.'
+    };
+  }
+
+  const sequence = [
+    ...rows,
+    { z, c: client, slot: index, town }
+  ].sort((a, b) => a.slot - b.slot);
+
+  const seen = new Set();
+  let last = null;
+  let switches = 0;
+
+  for (const row of sequence) {
+    if (row.town !== last) {
+      if (seen.has(row.town)) {
+        return {
+          ok: false,
+          reason:
+            'Esa franja obliga a salir y volver al mismo ' +
+            'pueblo. Elige otra.'
+        };
+      }
+
+      if (last !== null) switches++;
+
+      seen.add(row.town);
+      last = row.town;
+    }
+  }
+
+  const same = rows.filter(r => r.town === town).length;
+
+  const gaps =
+    sequence[sequence.length - 1].slot -
+    sequence[0].slot +
+    1 -
+    sequence.length;
+
+  const pos = sequence.findIndex(r => r.slot === index);
+
+  const adjacent = [
+    sequence[pos - 1],
+    sequence[pos + 1]
+  ].filter(Boolean);
+
+  const point = routePoint(z, client);
+
+  let distance = 0;
+  let unknown = false;
+
+  adjacent.forEach(r => {
+    if (r.town === town) return;
+
+    const other = routePoint(r.z, r.c);
+
+    if (!point || !other) {
+      unknown = true;
+    } else {
+      distance = Math.max(
+        distance,
+        routeDistance(point, other)
+      );
+    }
+  });
+
+  const category = same
+    ? 0
+    : (
+        !rows.length
+          ? 2
+          : (!unknown && distance <= 25 ? 1 : 3)
+      );
+
+  return {
+    ok: true,
+    category,
+    score:
+      gaps * 1000 +
+      switches * 100 +
+      sequence[0].slot * 10 +
+      distance,
+
+    reason: same
+      ? 'Continúa en el mismo pueblo y prioriza completar los huecos.'
+      : (
+          !rows.length
+            ? 'Jornada libre: permite empezar por este pueblo.'
+            : (
+                unknown
+                  ? 'Combina pueblos; falta comprobar el desplazamiento.'
+                  : `Combina pueblos: hasta ${Math.round(distance)} km ` +
+                    'en línea recta al vecino de ruta.'
+              )
+        )
+  };
+}
+
+function routeBestProposal(z, c) {
+  const start = new Date(
+    getTomorrowISO() + 'T12:00:00'
+  );
+
+  const candidates = [];
+
+  for (let offset = 0; offset < 14; offset++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + offset);
+
+    const date = getLocalDateISO(d);
+
+    OBRA_SLOTS.forEach(s => {
+      const plan = routeSlotPlan(date, s.start, z, c);
+
+      if (plan.ok) {
+        candidates.push({
+          ...plan,
+          date,
+          time: s.start,
+          offset
+        });
+      }
+    });
+  }
+
+  candidates.sort((a, b) =>
+    a.category - b.category ||
+    a.score - b.score ||
+    a.offset - b.offset ||
+    a.time.localeCompare(b.time)
+  );
+
+  return candidates[0] || null;
+}
+
+function routeContext(dateId, create = false) {
+  let ctx = routeFormContexts.get(dateId);
+
+  if (!ctx && create) {
+    const m = /^sched_date_(?:pa_)?(\d+)_(\d+)$/.exec(
+      dateId
+    );
+
+    const z = m && savedZones[Number(m[1])];
+
+    const c = z &&
+      z.clients &&
+      z.clients[Number(m[2])];
+
+    if (!c) return null;
+
+    ctx = {
+      zoneId: z.id,
+      fingerprint: routeFingerprint(c)
+    };
+
+    routeFormContexts.set(dateId, ctx);
+  }
+
+  if (!ctx) return null;
+
+  const matches = [];
+
+  savedZones.forEach(z => {
+    if (z.id !== ctx.zoneId) return;
+
+    (z.clients || []).forEach(c => {
+      if (routeFingerprint(c) === ctx.fingerprint) {
+        matches.push({ z, c });
+      }
+    });
+  });
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function toggleInlineScheduleBox(boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+
+  if (box.style.display !== 'none') {
+    box.style.display = 'none';
+    return;
+  }
+
+  box.style.display = 'flex';
+
+  if (isMikelTeamMember(currentUserName)) return;
+
+  const input = box.querySelector('input[type="date"]');
+  if (!input) return;
+
+  routeFormContexts.delete(input.id);
+
+  const ctx = routeContext(input.id, true);
+
+  if (!ctx) {
+    alert(
+      'No se pudo identificar la ficha. ' +
+      'Abre de nuevo el listado.'
+    );
+    return;
+  }
+
+  const best = routeBestProposal(ctx.z, ctx.c);
+
+  input.value = best ? best.date : getTomorrowISO();
+  input.min = getTomorrowISO();
+
+  updateObraDayInfo(
+    input.id,
+    best ? best.time : ''
+  );
+}
+
+async function confirmScheduleFromFollowUp(
+  zoneIdx,
+  clientIdx,
+  dateInputId,
+  timeInputId
+) {
+  const ctx = routeContext(dateInputId, true);
+
+  if (!ctx) {
+    alert(
+      'La ficha ha cambiado. ' +
+      'Cierra y vuelve a abrir el listado.'
+    );
+    return;
+  }
+
+  const { z, c } = ctx;
+
+  if (
+    isMikelTeamMember(z.comercial) !==
+      isMikelTeamMember(currentUserName) ||
+    (
+      currentUserRole !== 'jefe' &&
+      z.comercial !== currentUserName
+    )
+  ) return;
+
+  if (
+    ![c.name, c.street, c.phone].every(v =>
+      String(v || '').trim()
+    )
+  ) {
+    alert(
+      'Completa nombre, dirección y teléfono antes de agendar.'
+    );
+    return;
+  }
+
+  const date =
+    document.getElementById(dateInputId)?.value || '';
+
+  const time =
+    document.getElementById(timeInputId)?.value || '';
+
+  let equipoInstalador;
+
+  try {
+    equipoInstalador = await elegirEquipoInstaladorKonsor(
+      date,
+      time,
+      c.obraStatus === 'agendada' ? Number(c.obraEquipoInstalacion) : null,
+      c
+    );
+  } catch (error) {
+    alert(error.message || 'No se pudo comprobar KONSOR.');
+    return;
+  }
+
+  const draft = {
+    ...c,
+    obraStatus: 'agendada',
+    obraDate: date,
+    obraTime: time,
+    obraEquipoInstalacion: equipoInstalador
+  };
+
+  const fields = [
+    ['email', 'email'],
+    ['dni', 'dni'],
+    ['callNotes', 'notes']
+  ];
+
+  fields.forEach(([key, suffix]) => {
+    const pa = document.getElementById(
+      `pa_${suffix}_${zoneIdx}_${clientIdx}`
+    );
+
+    const fu = document.getElementById(
+      `fu_${suffix}_${zoneIdx}_${clientIdx}`
+    );
+
+    const input = dateInputId.includes('_pa_')
+      ? pa
+      : fu;
+
+    if (input) draft[key] = input.value.trim();
+  });
+
+  if (draft.dni && !isValidDni(draft.dni)) {
+    alert('Revisa el DNI/NIE del cliente.');
+    return;
+  }
+
+  const nuevaConfirmacion = needsCrmUpload(draft) && !isMikelTeamMember(z.comercial);
+  if (!ensureCrmUpload(draft, {
+    date: z.dumpDate || z.date,
+    town: z.town,
+    comercial: z.comercial
+  })) return;
+
+  const previousClient = {...c};
+  const previousUpdated = z._updatedAt;
+  Object.assign(c, draft, {statusChangedAt: Date.now()});
+  z._updatedAt = Date.now();
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) {
+    Object.keys(c).forEach(k => {if (!(k in previousClient)) delete c[k];});
+    Object.assign(c, previousClient);
+    z._updatedAt = previousUpdated;
+    return;
+  }
+
+  if (nuevaConfirmacion) showCitaSavedModal(c, z);
+  logActivity(
+    'cita',
+    `📅 Cita de obra: ${c.name} · ${z.town} · ` +
+    `${formatDate(date)} ${obraSlotLabel(time)}`,
+    z.comercial
+  );
+
+  routeFormContexts.delete(dateInputId);
+  renderFollowUpsModal();
+
+  if (
+    document.getElementById('auditModal')
+      ?.classList.contains('active') &&
+    activeObrasSubFilter === 'porAgendar'
+  ) {
+    renderPorAgendarView();
+  }
+}
+
+function countObrasByDate() {
+  const counts = {};
+
+  savedZones.forEach(z => {
+    if (isMikelTeamMember(z.comercial)) return;
+
+    (z.clients || []).forEach(c => {
+      if (
+        ['agendada', 'realizada'].includes(c.obraStatus) &&
+        c.obraDate
+      ) {
+        counts[c.obraDate] =
+          (counts[c.obraDate] || 0) + 1;
+      }
+    });
+  });
+
+  return counts;
+}
+
+function findFreeObraDay(fromIso, step) {
+  const d = new Date(fromIso + 'T12:00:00');
+
+  if (!Number.isFinite(d.getTime())) return '';
+
+  for (let i = 0; i < 150; i++) {
+    const iso = getLocalDateISO(d);
+    const rows = routeRecords(iso);
+
+    if (
+      iso > getTodayISO() &&
+      d.getDay() !== 0 &&
+      rows.length < 8 &&
+      !rows.some(r => r.slot < 0)
+    ) {
+      return iso;
+    }
+
+    if (step < 0 && iso <= getTodayISO()) return '';
+
+    d.setDate(d.getDate() + (step < 0 ? -1 : 1));
+  }
+
+  return '';
+}
+
+function obraDayInfoText(iso) {
+  if (!iso) return 'Sin fecha disponible.';
+
+  return `📅 ${formatDate(iso)} · ` +
+    `${routeRecords(iso).length}/8 reservas posibles (equipos 2 y 3)`;
+}
+
+function moveObraDay(dateInpId, step) {
+  const input = document.getElementById(dateInpId);
+  if (!input) return;
+
+  const d = new Date(
+    (input.value || getTomorrowISO()) + 'T12:00:00'
+  );
+
+  d.setDate(d.getDate() + (step < 0 ? -1 : 1));
+
+  const next = findFreeObraDay(
+    getLocalDateISO(d),
+    step
+  );
+
+  if (!next) {
+    alert('No hay otro día disponible en esa dirección.');
+    return;
+  }
+
+  input.value = next;
+  updateObraDayInfo(dateInpId);
+}
+
+function obraSlotsUsage(iso) {
+  const used = {};
+
+  routeRecords(iso).forEach(r => {
+    if (r.slot >= 0) {
+      const key = OBRA_SLOTS[r.slot].start;
+      used[key] = (used[key] || 0) + 1;
+    }
+  });
+
+  return used;
+}
+
+function obraSlotOptionsForDate(iso) {
+  const used = obraSlotsUsage(iso);
+  return '<option value="">Selecciona franja (equipo 2 o 3)</option>' +
+    OBRA_SLOTS.map(s => `
+      <option value="${s.start}">
+        ✅
+        ${s.start} – ${s.end}
+      </option>
+    `).join('');
+}
+
+function updateObraDayInfo(dateInpId, preferred = '') {
+  const input = document.getElementById(dateInpId);
+
+  const info = document.getElementById(
+    dateInpId + '_info'
+  );
+
+  const select = document.getElementById(
+    dateInpId.replace('sched_date_', 'sched_time_')
+  );
+
+  if (!input || !select) return;
+
+  const ctx = routeContext(dateInpId, true);
+
+  if (!ctx || isMikelTeamMember(currentUserName)) {
+    select.innerHTML = obraSlotOptionsForDate(input.value);
+
+    if (info) {
+      info.textContent = obraDayInfoText(input.value);
+    }
+
+    return;
+  }
+
+  const plans = OBRA_SLOTS.map(s => ({
+    ...s,
+    ...routeSlotPlan(
+      input.value,
+      s.start,
+      ctx.z,
+      ctx.c
+    )
+  }));
+
+  const free = plans
+    .filter(p => p.ok)
+    .sort((a, b) => a.score - b.score || a.start.localeCompare(b.start));
+  // Las cuatro franjas siguen siendo elegibles: KONSOR y el equipo
+  // concreto se comprueban al confirmar, no con el planificador antiguo.
+  const available = OBRA_SLOTS.map(slot => ({...slot, ok:true}));
+
+  const chosen =
+    available.find(p => p.start === preferred) ||
+    available[0];
+
+  select.replaceChildren();
+
+  if (!chosen) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Sin franja compatible';
+    select.appendChild(option);
+  }
+
+  available.forEach(p => {
+    const option = document.createElement('option');
+
+    option.value = p.start;
+    option.disabled = !p.ok;
+    option.selected = Boolean(
+      chosen && chosen.start === p.start
+    );
+
+    const badge = p.ok
+      ? (
+          chosen && chosen.start === p.start
+            ? '⭐ Propuesta'
+            : '✅ Libre'
+        )
+      : '⛔';
+
+    option.textContent =
+      `${badge} · ${p.start} – ${p.end}`;
+
+    select.appendChild(option);
+  });
+
+  if (info) {
+    info.textContent =
+      obraDayInfoText(input.value) + ' · ' +
+      (
+        chosen
+          ? 'Equipo concreto sujeto a confirmación de KONSOR.'
+          : 'No hay franja compatible: ' +
+            'cambia de día o revisa la agenda.'
+      );
+  }
+}
+
+function routeValidateAppointment(c, ctx) {
+  if (
+    c.obraStatus !== 'agendada' ||
+    isMikelTeamMember(ctx.comercial)
+  ) return true;
+
+  const originals = [];
+
+  savedZones.forEach(z => {
+    (z.clients || []).forEach(o => {
+      if (
+        o === c ||
+        (
+          c.createdAt &&
+          o.createdAt === c.createdAt &&
+          o.phone === c.phone
+        )
+      ) {
+        originals.push(o);
+      }
+    });
+  });
+
+  const original =
+    originals.length === 1 ? originals[0] : null;
+
+  // La capacidad definitiva la valida KONSOR y guardarTrabajoV2.
+  const plan = {
+    ok: Boolean(c.obraDate && c.obraDate > getTodayISO() &&
+      OBRA_SLOTS.some(slot => slot.start === c.obraTime) &&
+      new Date(c.obraDate + 'T12:00:00').getDay() !== 0),
+    reason: 'Fecha u horario inválidos.'
+  };
+
+  if (!plan.ok) {
+    alert('No se puede reservar: ' + plan.reason);
+    return false;
+  }
+
+  const mixed = routeRecords(
+    c.obraDate,
+    original
+  ).some(r => r.town !== routeTown(ctx.town));
+
+  if (mixed) {
+    return confirm(
+      'Esta jornada combina pueblos. Comprueba que ' +
+      'duración de obra y desplazamientos caben ' +
+      'en las franjas.\n\n' +
+      '¿Confirmas que la ruta es viable?'
+    );
+  }
+
+  return true;
+}
+    function renderFollowUpsModal() {
+      const bCitas = document.getElementById('fuFilterCitas');
+      if (bCitas) bCitas.className = `subtab-btn ${activeFollowUpFilter === 'citas' ? 'active' : ''}`;
+      if (activeFollowUpFilter === 'citas') { renderCitasView(); return; }
+      renderFollowUpsModalBase();
+    }
+
+    function renderFollowUpsModalBase() {
+      const container = document.getElementById('followUpsModalBody');
+      const pendingCalls = [];
+
+     const viewerIsMikel = isMikelTeamMember(currentUserName);
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
+        if (!z.clients) return;
+
+        z.clients.forEach((c, cIdx) => {
+          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+            const cStatus = c.callStatus || 'pendiente';
+            if (activeFollowUpFilter === 'all' || activeFollowUpFilter === cStatus) {
+              pendingCalls.push({
+                zone: z,
+                zoneIdx: zIdx,
+                client: c,
+                clientIdx: cIdx,
+                callStatus: cStatus
+              });
+            }
+          }
+        });
+      });
+
+            const fuEscape = value => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const fuTownKey = value =>
+        String(value || 'Sin municipio')
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+
+      const fuBoss = currentUserRole === 'jefe';
+
+      if (!fuBoss) {
+        window.followUpViewScope = 'mine';
+      }
+
+      const fuScope = window.followUpViewScope || 'mine';
+
+      const fuScoped = pendingCalls.filter(item =>
+        fuScope === 'team' ||
+        item.zone.comercial === currentUserName
+      );
+
+      const fuTowns = new Map();
+
+      fuScoped.forEach(item => {
+        const key = fuTownKey(item.zone.town);
+
+        if (!fuTowns.has(key)) {
+          fuTowns.set(key, {
+            label: String(
+              item.zone.town || 'Sin municipio'
+            ).trim(),
+            count: 0
+          });
+        }
+
+        fuTowns.get(key).count++;
+      });
+
+      if (
+        window.followUpTown &&
+        !fuTowns.has(window.followUpTown)
+      ) {
+        window.followUpTown = '';
+      }
+
+      const fuSelectedTown = window.followUpTown || '';
+
+      const fuVisible = fuScoped.filter(item =>
+        !fuSelectedTown ||
+        fuTownKey(item.zone.town) === fuSelectedTown
+      );
+
+      const fuDue = item => {
+        const next = Number(item.client.nextContactAt);
+
+        if (Number.isFinite(next) && next > 0) {
+          return next;
+        }
+
+        const ref = Number(
+          item.callStatus === 'pendiente'
+            ? (
+                item.client.createdAt ||
+                item.zone.id
+              )
+            : (
+                item.client.statusChangedAt ||
+                item.client.createdAt ||
+                item.zone.id
+              )
+        );
+
+        return Number.isFinite(ref) && ref > 0
+          ? ref + 48 * 3600000
+          : Infinity;
+      };
+
+      fuVisible.sort((a, b) => {
+        const town = fuTownKey(a.zone.town).localeCompare(
+          fuTownKey(b.zone.town),
+          'es'
+        );
+
+        if (town) return town;
+
+        const dueA = fuDue(a);
+        const dueB = fuDue(b);
+
+        return dueA === dueB
+          ? 0
+          : (dueA < dueB ? -1 : 1);
+      });
+
+      pendingCalls.splice(
+        0,
+        pendingCalls.length,
+        ...fuVisible
+      );
+
+      const fuTownCounts = new Map();
+
+      pendingCalls.forEach(item => {
+        const key = fuTownKey(item.zone.town);
+
+        fuTownCounts.set(
+          key,
+          (fuTownCounts.get(key) || 0) + 1
+        );
+      });
+
+      const fuOptions = Array.from(fuTowns.entries())
+        .sort((a, b) =>
+          a[1].label.localeCompare(b[1].label, 'es')
+        )
+        .map(([key, info]) => `
+          <option
+            value="${fuEscape(key)}"
+            ${key === fuSelectedTown ? 'selected' : ''}>
+            ${fuEscape(info.label)} (${info.count})
+          </option>
+        `)
+        .join('');
+
+      let html = `
+        ${fuBoss ? `
+          <div class="input-group">
+            <span class="input-label">👤 Seguimientos de</span>
+            <select class="select-field"
+              onchange="
+                window.followUpViewScope=this.value;
+                window.followUpTown='';
+                renderFollowUpsModal();
+              ">
+              <option value="mine"
+                ${fuScope === 'mine' ? 'selected' : ''}>
+                Mis clientes
+              </option>
+              <option value="team"
+                ${fuScope === 'team' ? 'selected' : ''}>
+                Mi equipo, yo incluido
+              </option>
+            </select>
+          </div>
+        ` : ''}
+
+        <div class="input-group">
+          <span class="input-label">📍 Pueblo</span>
+          <select class="select-field"
+            onchange="
+              window.followUpTown=this.value;
+              renderFollowUpsModal();
+            ">
+            <option value="">
+              Todos los pueblos (${fuScoped.length})
+            </option>
+            ${fuOptions}
+          </select>
+        </div>
+
+        <div style="
+          font-size:11px;
+          color:#94a3b8;
+          margin-bottom:10px;
+          line-height:1.5;">
+          ${pendingCalls.length} ficha(s) en este filtro,
+          agrupadas por pueblo.
+          Dentro de cada pueblo aparecen primero los
+          seguimientos con fecha más próxima o vencida.
+        </div>
+      `;
+
+      if (pendingCalls.length === 0) {
+        html += `<div style="text-align:center; padding:22px 12px; color:#94a3b8; font-size:12px;">
+          ✅ No hay clientes pendientes de llamada en este filtro.
+        </div>`;
+        container.innerHTML = html;
+        return;
+      }
+
+            let lastFollowUpTown = null;
+
+      pendingCalls.forEach(item => {
+        const c = item.client;
+        const z = item.zone;
+        const townKey = fuTownKey(z.town);
+
+        if (townKey !== lastFollowUpTown) {
+          lastFollowUpTown = townKey;
+
+          html += `
+            <div class="modal-section-title"
+              style="
+                font-size:12px;
+                color:#7dd3fc;
+                margin-top:16px;">
+              📍 ${fuEscape(z.town || 'Sin municipio')}
+              · ${fuTownCounts.get(townKey) || 0} ficha(s)
+            </div>
+          `;
+        }
+        const isFilled = isClientValidFilled(c);
+        const cleanPhone = (c.phone || '').replace(/\s+/g, '');
+        const schedBoxId = `sched_inline_${item.zoneIdx}_${item.clientIdx}`;
+        const dateInpId = `sched_date_${item.zoneIdx}_${item.clientIdx}`;
+        const timeInpId = `sched_time_${item.zoneIdx}_${item.clientIdx}`;
+
+        const refTime = item.callStatus === 'pendiente'
+          ? (c.createdAt || z.id || Date.now())
+          : (c.statusChangedAt || c.createdAt || z.id || Date.now());
+        const elapsedHours = Math.max(0, Math.floor((Date.now() - refTime) / 3600000));
+        const isOver48h = elapsedHours >= 48;
+        const isWarning24h = elapsedHours >= 24 && elapsedHours < 48;
+
+        let slaBadge = viewerIsMikel ? '' : `<span style="font-size:9.5px; font-weight:800; color:#34d399;">⏱️ ${elapsedHours}h</span>`;
+        if (!viewerIsMikel && isWarning24h) slaBadge = `<span style="font-size:9.5px; font-weight:900; color:#fde047;">⚠️ ${elapsedHours}h (Llamar hoy)</span>`;
+        if (!viewerIsMikel && isOver48h) slaBadge = `<span style="background:#dc2626; color:#fff; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px;">🚨 +48h (${elapsedHours}h)</span>`;
+
+        let badgeHtml = `<span class="call-status-pill pendiente">🔴 Por llamar</span>`;
+        if (item.callStatus === 'ya_llamado') badgeHtml = `<span class="call-status-pill ya_llamado">🟡 Ya llamado</span>`;
+        if (item.callStatus === 'esperando_confirmacion') badgeHtml = `<span class="call-status-pill esperando_confirmacion">🟣 Esperando confirmación</span>`;
+
+        const borderCol = isOver48h ? '#ef4444' : (isFilled ? '#22d3ee' : '#f59e0b');
+
+        html += `
+          <div class="audit-card" style="cursor:default; border-left:4px solid ${borderCol}; ${isOver48h ? 'background:rgba(220,38,38,0.12);' : ''}">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:13px; color:#fff;">${c.type === 'comunidad' ? '🏢' : '🏠'} ${c.name || 'Ficha sin nombre'}</strong>
+              <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                ${slaBadge} ${fuExtraHtml(c)}
+                ${!isFilled ? `<span class="blank-draft-pill">⚠️ Ficha Incompleta</span>` : ''}
+                ${badgeHtml}
+              </div>
+            </div>
+
+            <div style="font-size:11px; color:#cbd5e1;">
+              📍 ${c.street || 'Sin dirección'} • <strong>${z.town || 'Navarra'}</strong> (${isFilled ? getM2NumericValue(c.m2) + ' m²' : '0 m² hasta rellenar'})
+            </div>
+            <div style="font-size:10px; color:#94a3b8;">
+              🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong> | 👤 ${z.comercial}
+            </div>
+
+            <div style="display:flex; gap:5px; margin-top:4px;">
+              ${cleanPhone ? `<a href="tel:${cleanPhone}" onclick="if('${item.callStatus}'==='pendiente') setTimeout(() => updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'ya_llamado'), 400);" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800;">📞 Llamar (${c.phone})</a>` : `<button onclick="closeModal('followUpsModal'); openDumpModal(${item.zoneIdx});" style="flex:1; background:rgba(245,158,11,0.2); border:1px solid #f59e0b; color:#fde047; padding:7px 4px; border-radius:8px; font-size:10.5px; font-weight:800; cursor:pointer;">✏️ Completar Ficha / Teléfono</button>`}
+              ${(cleanPhone && !viewerIsMikel) ? (() => {
+                const senderAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(z.comercial) : z.comercial;
+                const clientFirst = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
+                const townName = z.town || 'Navarra';
+                const streetName = (c.street || '').trim() ? `${c.street.trim()}, ` : '';
+                const firmaOficial = `\n\n━━━━━━━━━━━━━━━━━━\n*KONSOR ENERGÍA* | Aislamiento Térmico & Certificación CAE\n👤 Gestor asignado: *${senderAlias}*\n🏢 Oficina Central: Calle San Fermín, 43, Pamplona (Navarra)\n🌐 Web Oficial: https://konsorenergia.com\n🛡️ Programa Oficial: Certificados de Ahorro Energético (CAE) - Directiva (UE) 2023/1791`;
+
+                const msgNoContesta = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\nTe he llamado hace un momento respecto al aislamiento térmico gratuito de tu buhardilla en *${streetName}${townName}* mediante el programa oficial CAE.\n\nCuando te venga bien dime una hora y te pego un toque rápido para informarte.${firmaOficial}`
+                );
+
+                const msgEnTramite = encodeURIComponent(
+                  `Hola${clientFirst},\n\nLe confirmamos que su solicitud de comprobación para la vivienda ubicada en *${streetName}${townName}* está en *proceso de verificación catastral y técnica*. En breve nos pondremos en contacto con usted para confirmar la aptitud de la vivienda y coordinar la instalación sin coste.${firmaOficial}`
+                );
+
+                const msgCita = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\nTe confirmo los datos de tu cita reservada para la instalación del aislamiento térmico:\n\n📅 *Fecha:* ${formatDate(c.obraDate || getTodayISO())}\n⏰ *Hora aproximada:* ${c.obraTime || '09:00'} h\n📍 *Dirección:* ${streetName}${townName}\n\nGuarda este mensaje como recordatorio. Cualquier cosa, me tienes disponible directamente por aquí.${firmaOficial}`
+                );
+
+                const msgPostObra = encodeURIComponent(
+                  `Hola${clientFirst}, soy *${senderAlias}* de *Konsor Energía*.\n\n¡Muchas gracias por abrirnos las puertas de tu casa en *${streetName}${townName}*! Esperamos que notes desde hoy mismo el confort térmico y el ahorro en calefacción y aire acondicionado.\n\nSeguimos trabajando para ser el equipo de referencia en toda Navarra: si algún vecino, familiar o amigo quiere comprobar si su vivienda entra gratuita en el plan CAE, pásale este contacto directamente y le atenderé personalmente.${firmaOficial}`
+                );
+
+                return `
+                  <div style="display:flex; flex-direction:column; gap:4px; flex:1.35;">
+                    <div style="display:flex; gap:4px;">
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgNoContesta}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#0891b2; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">📵 No contesta</a>
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgEnTramite}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#7c3aed; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">🔍 En trámite</a>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgCita}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#d97706; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">📅 Recordar cita</a>
+                      <a href="https://wa.me/34${cleanPhone}?text=${msgPostObra}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:5px 3px; border-radius:6px; font-size:9px; font-weight:800;">⭐ Post-obra</a>
+                    </div>
+                  </div>
+                `;
+              })() : ''}
+            </div>
+
+            <div style="display:flex; gap:4px; margin-top:2px;">
+              <button onclick="updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'ya_llamado')" style="flex:1; padding:6px 4px; border-radius:7px; border:1px solid #f59e0b; background:${item.callStatus==='ya_llamado'?'#d97706':'rgba(245,158,11,0.15)'}; color:#fff; font-size:10px; font-weight:800; cursor:pointer;">
+                🟡 Ya llamado
+              </button>
+              <button onclick="updateClientCallStatus(${item.zoneIdx}, ${item.clientIdx}, 'esperando_confirmacion')" style="flex:1.2; padding:6px 4px; border-radius:7px; border:1px solid #a855f7; background:${item.callStatus==='esperando_confirmacion'?'#7c3aed':'rgba(168,85,247,0.15)'}; color:#fff; font-size:10px; font-weight:800; cursor:pointer;">
+                🟣 Esperando conf.
+              </button>
+              <button onclick="toggleInlineScheduleBox('${schedBoxId}')" style="flex:1.1; padding:6px 4px; border-radius:7px; border:1px solid #34d399; background:#059669; color:#fff; font-size:10px; font-weight:900; cursor:pointer;">
+                📅 Citar Obra
+              </button>
+            </div>
+
+            ${viewerIsMikel ? '' : `
+            <details style="background:rgba(56,189,248,0.10); border:1px solid #38bdf8; border-radius:9px; padding:6px 8px; margin-top:4px;">
+              <summary style="font-size:10.5px; font-weight:900; color:#7dd3fc; cursor:pointer;">📝 Datos de la llamada (email, notas)</summary>
+              <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+                <input type="email" id="fu_email_${item.zoneIdx}_${item.clientIdx}" class="input-field" placeholder="✉️ Correo electrónico del cliente" value="${(c.email || '').replace(/"/g, '&quot;')}" style="padding:6px 8px;">
+                <input type="text" id="fu_dni_${item.zoneIdx}_${item.clientIdx}" class="input-field" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${(c.dni || '').replace(/"/g, '&quot;')}" style="padding:6px 8px; text-transform:uppercase;">
+                <textarea id="fu_notes_${item.zoneIdx}_${item.clientIdx}" class="input-field" rows="2" placeholder="Notas de la llamada (horarios, quién decide, dudas...)" style="padding:6px 8px;">${(c.callNotes || '').replace(/</g, '&lt;')}</textarea>
+                <button onclick="saveCallNotes(${item.zoneIdx}, ${item.clientIdx}, 'fu_email_${item.zoneIdx}_${item.clientIdx}', 'fu_notes_${item.zoneIdx}_${item.clientIdx}')" style="padding:7px; border:none; border-radius:8px; background:#0284c7; color:#fff; font-size:11px; font-weight:900; cursor:pointer;">💾 Guardar datos</button>
+              </div>
+            </details>`}
+            <div id="${schedBoxId}" style="display:none; flex-direction:column; gap:6px; background:rgba(5,150,105,0.16); border:1px solid #34d399; border-radius:9px; padding:8px; margin-top:4px;">
+              <div style="font-size:10px; font-weight:800; color:#a7f3d0;">Selecciona día y hora exacta de la obra:</div>
+              <div class="grid-row-2" style="margin-bottom:0;">
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                  <div style="display:flex; gap:3px; align-items:center;">
+                    <button type="button" onclick="moveObraDay('${dateInpId}', -1)" style="background:#1e293b; border:1px solid #34d399; color:#fff; border-radius:7px; padding:6px 8px; font-weight:900; cursor:pointer;">◀</button>
+                    <input type="date" id="${dateInpId}" class="input-field" value="${findFreeObraDay(getTomorrowISO(), 1)}" style="padding:6px 4px;" onchange="updateObraDayInfo('${dateInpId}')">
+                    <button type="button" onclick="moveObraDay('${dateInpId}', 1)" style="background:#1e293b; border:1px solid #34d399; color:#fff; border-radius:7px; padding:6px 8px; font-weight:900; cursor:pointer;">▶</button>
+                  </div>
+                  <div id="${dateInpId}_info" style="font-size:9.5px; color:#a7f3d0; font-weight:800;">${obraDayInfoText(findFreeObraDay(getTomorrowISO(), 1))}</div>
+                </div>
+                    <select id="${timeInpId}" class="select-field" style="padding:6px 8px;">${obraSlotOptionsForDate(findFreeObraDay(getTomorrowISO(), 1))}</select>
+              </div>
+              <button onclick="confirmScheduleFromFollowUp(${item.zoneIdx}, ${item.clientIdx}, '${dateInpId}', '${timeInpId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">
+                ✅ Confirmar Cita de Obra
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    /* =====================================================================
+       BUSCADOR GLOBAL DE CLIENTES, CALLES Y TELÉFONOS
+       ===================================================================== */
+    let globalFichaFilter = 'all';
+let managementView = 'clients';
+let managementScope = 'mine';
+let managementZoneFilter = 'all';
+let managementLimit = 60;
+
+function openGlobalClientSearchModal() {
+  managementView = 'clients';
+  managementScope = 'mine';
+  globalFichaFilter = 'all';
+  managementZoneFilter = 'all';
+  managementLimit = 60;
+
+  document.getElementById('globalClientQuery').value = '';
+
+  const title = document.querySelector(
+    '#globalSearchModal .modal-header span'
+  );
+
+  if (title) {
+    title.textContent = '📂 Gestión de clientes y zonas';
+  }
+
+  document.getElementById('globalClientQuery').placeholder =
+    'Nombre, teléfono, calle, pueblo o sector…';
+
+  renderGlobalClientSearchResults();
+
+  document.getElementById('globalSearchModal')
+    .classList.add('active');
+}
+
+function setGlobalFichaFilter(key) {
+  globalFichaFilter = key;
+  managementLimit = 60;
+  renderGlobalClientSearchResults();
+}
+
+function managementClientState(c) {
+  if (c.obraStatus === 'no_apto') return 'no_apto';
+  if (c.obraStatus === 'realizada') return 'realizada';
+  if (c.obraStatus === 'agendada') return 'agendada';
+
+  if (c.callStatus === 'esperando_confirmacion') {
+    return 'esperando';
+  }
+
+  if (c.callStatus === 'ya_llamado') return 'llamado';
+
+  return 'pendiente';
+}
+
+function managementZoneState(z) {
+  if (z.isNoAptoZone) return 'no_apto';
+  if (z.status === 'completada') return 'completada';
+  if (z.status === 'en_proceso') return 'en_proceso';
+
+  return 'pendiente';
+}
+
+function managementOpenZone(id, onMap) {
+  const zIdx = savedZones.findIndex(z => z.id === id);
+  const z = savedZones[zIdx];
+
+  const sameTeam = z &&
+    isMikelTeamMember(z.comercial) ===
+    isMikelTeamMember(currentUserName);
+
+  const allowed = sameTeam && (
+    z.comercial === currentUserName ||
+    currentUserRole === 'jefe'
+  );
+
+  if (!allowed) {
+    alert('No se puede abrir este registro. Actualiza la vista.');
+    return;
+  }
+
+  closeModal('globalSearchModal');
+
+  if (onMap) {
+    focusMapOnTownOrZone(z.town, zIdx);
+  } else {
+    openDumpModal(zIdx);
+  }
+}
+
+function renderGlobalClientSearchResults() {
+  const container = document.getElementById(
+    'globalClientSearchResults'
+  );
+
+  if (!container || !currentUserName) return;
+
+  const normalize = value => String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+  const query = normalize(
+    document.getElementById('globalClientQuery').value
+  );
+
+  const boss = currentUserRole === 'jefe';
+
+  if (!boss) managementScope = 'mine';
+
+  const team = isMikelTeamMember(currentUserName);
+
+  const zones = savedZones.filter(z =>
+    isMikelTeamMember(z.comercial) === team &&
+    (
+      managementScope === 'team' ||
+      z.comercial === currentUserName
+    )
+  );
+
+  const clients = [];
+  let drafts = 0;
+
+  zones.forEach(z => {
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) {
+        drafts++;
+        return;
+      }
+
+      clients.push({
+        z,
+        c,
+        state: managementClientState(c)
+      });
+    });
+  });
+
+  const sectors = zones.filter(z => !z.isSingleHouse);
+
+  const clientDefs = [
+    ['all', '📋 Todos'],
+    ['pendiente', '🔴 Sin llamar'],
+    ['llamado', '🟡 Ya llamados'],
+    ['esperando', '🟣 Esperando'],
+    ['agendada', '📅 Con cita'],
+    ['realizada', '✅ Obra hecha'],
+    ['no_apto', '🚫 No aptos']
+  ];
+
+  const zoneDefs = [
+    ['all', '📋 Todas'],
+    ['pendiente', '🔵 Por empezar'],
+    ['en_proceso', '🟡 Sin terminar'],
+    ['completada', '✅ Terminadas'],
+    ['no_apto', '🚫 No aptas']
+  ];
+
+  const stateLabel = (defs, key) =>
+    (defs.find(d => d[0] === key) || ['', key])[1];
+
+  container.replaceChildren();
+
+  function row() {
+    const div = document.createElement('div');
+
+    div.style.cssText =
+      'display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px;';
+
+    container.appendChild(div);
+    return div;
+  }
+
+  function button(parent, label, active, action) {
+    const b = document.createElement('button');
+
+    b.type = 'button';
+    b.className = 'subtab-btn' + (active ? ' active' : '');
+
+    b.style.cssText =
+      'flex:1 0 auto;padding:9px 7px;';
+
+    b.textContent = label;
+    b.onclick = action;
+
+    parent.appendChild(b);
+  }
+
+  function note(text) {
+    const p = document.createElement('p');
+
+    p.textContent = text;
+    p.style.cssText =
+      'font-size:11px;color:#94a3b8;' +
+      'line-height:1.5;margin-bottom:9px;';
+
+    container.appendChild(p);
+  }
+
+  function resetRender() {
+    managementLimit = 60;
+    renderGlobalClientSearchResults();
+  }
+
+  if (boss) {
+    const scopeRow = row();
+
+    [
+      ['mine', '👤 Lo mío'],
+      ['team', '👥 Mi equipo, yo incluido']
+    ].forEach(([key, label]) => {
+      button(
+        scopeRow,
+        label,
+        managementScope === key,
+        () => {
+          managementScope = key;
+          resetRender();
+        }
+      );
+    });
+  }
+
+  const tabs = row();
+
+  button(
+    tabs,
+    `🏠 Clientes (${clients.length})`,
+    managementView === 'clients',
+    () => {
+      managementView = 'clients';
+      resetRender();
+    }
+  );
+
+  button(
+    tabs,
+    `🗺️ Zonas (${sectors.length})`,
+    managementView === 'zones',
+    () => {
+      managementView = 'zones';
+      resetRender();
+    }
+  );
+
+  const isClients = managementView === 'clients';
+
+  const pool = isClients
+    ? clients
+    : sectors.map(z => ({
+        z,
+        state: managementZoneState(z)
+      }));
+
+  const matches = pool.filter(item => {
+    if (!query) return true;
+
+    const z = item.z;
+    const c = item.c || {};
+
+    const hay = normalize([
+      c.name,
+      c.phone,
+      c.email,
+      c.street,
+      z.town,
+      z.sectorName,
+      z.comercial,
+      getDisplayAlias(z.comercial)
+    ].join(' '));
+
+    if (hay.includes(query)) return true;
+
+    const digits = query.replace(/\D/g, '');
+
+    return isClients &&
+      /^[+\d\s().-]+$/.test(query) &&
+      digits.length >= 3 &&
+      String(c.phone || '')
+        .replace(/\D/g, '')
+        .includes(digits);
+  });
+
+  const defs = isClients ? clientDefs : zoneDefs;
+
+  const selected = isClients
+    ? globalFichaFilter
+    : managementZoneFilter;
+
+  const filters = row();
+
+  defs.forEach(([key, label]) => {
+    const count = key === 'all'
+      ? matches.length
+      : matches.filter(it => it.state === key).length;
+
+    button(
+      filters,
+      `${label} (${count})`,
+      selected === key,
+      () => {
+        if (isClients) {
+          globalFichaFilter = key;
+        } else {
+          managementZoneFilter = key;
+        }
+
+        resetRender();
+      }
+    );
+  });
+
+  if (isClients && drafts) {
+    note(
+      `${drafts} ficha(s) vacía(s) no incluidas en los clientes. ` +
+      'Puedes completarlas desde su zona.'
+    );
+  }
+
+  let list = matches.filter(item =>
+    selected === 'all' || item.state === selected
+  );
+
+  list.sort((a, b) => {
+    if (isClients) {
+      return (
+        Number(b.c.createdAt) || Number(b.z.id) || 0
+      ) - (
+        Number(a.c.createdAt) || Number(a.z.id) || 0
+      );
+    }
+
+    return String(b.z.date || '').localeCompare(
+      String(a.z.date || '')
+    );
+  });
+
+  note(
+    `${list.length} resultado(s). ` +
+    'Los contadores de estado respetan la búsqueda.'
+  );
+
+  if (!list.length) {
+    note(
+      'No hay registros en este filtro. ' +
+      'Prueba otro estado o cambia la búsqueda.'
+    );
+  }
+
+  list.slice(0, managementLimit).forEach(item => {
+    const { z, c, state } = item;
+
+    const card = document.createElement('div');
+    card.className = 'client-box';
+
+    const title = document.createElement('strong');
+
+    title.style.cssText =
+      'font-size:13px;color:#fff;';
+
+    title.textContent = isClients
+      ? `${c.type === 'comunidad' ? '🏢' : '🏠'} ` +
+        `${c.name || 'Sin nombre'}`
+      : (z.sectorName || 'Sector sin nombre');
+
+    const status = document.createElement('span');
+    status.textContent = stateLabel(defs, state);
+
+    status.style.cssText =
+      'font-size:11px;color:#fde047;font-weight:800;';
+
+    const detail = document.createElement('p');
+
+    detail.style.cssText =
+      'font-size:11px;color:#cbd5e1;' +
+      'white-space:pre-line;line-height:1.5;';
+
+    detail.textContent = isClients
+      ? [
+          `📍 ${c.street || 'Sin dirección'} · ` +
+            `${z.town || 'Sin municipio'}`,
+
+          `👤 ${getDisplayAlias(z.comercial)} · ` +
+            `📞 ${c.phone || 'Sin teléfono'}`,
+
+          c.m2 !== undefined && c.m2 !== ''
+            ? `Superficie registrada: ${c.m2} m²`
+            : 'Superficie sin registrar',
+
+          state === 'agendada'
+            ? `📅 ${formatDate(c.obraDate)} · ` +
+              obraSlotLabel(c.obraTime)
+            : '',
+
+          c.waitReason
+            ? 'Esperando: ' + c.waitReason
+            : '',
+
+          c.callNotes
+            ? 'Notas: ' + c.callNotes
+            : ''
+        ].filter(Boolean).join('\n')
+
+      : [
+          `📍 ${z.town || 'Sin municipio'} · ` +
+            formatDate(z.date),
+
+          `👤 ${getDisplayAlias(z.comercial)}`,
+
+          z.isHotMission
+            ? '🔥 Misión alrededor de obra'
+            : '',
+
+          z.bossNote
+            ? 'Instrucción: ' + z.bossNote
+            : '',
+
+          z.pendingNote
+            ? 'Por terminar: ' + z.pendingNote
+            : '',
+
+          z.noAptoReason
+            ? 'Motivo: ' + z.noAptoReason
+            : ''
+        ].filter(Boolean).join('\n');
+
+    const actions = document.createElement('div');
+
+    actions.style.cssText =
+      'display:flex;flex-wrap:wrap;gap:5px;';
+
+    if (isClients || !z.isNoAptoZone) {
+      button(
+        actions,
+        isClients
+          ? '📂 Abrir zona / ficha'
+          : '📝 Abrir hoja',
+        false,
+        () => managementOpenZone(z.id, false)
+      );
+    }
+
+    if (!isClients) {
+      button(
+        actions,
+        '📍 Ver en mapa',
+        false,
+        () => managementOpenZone(z.id, true)
+      );
+    }
+
+    if (isClients) {
+      const phone = String(c.phone || '')
+        .replace(/[^\d+]/g, '');
+
+      const digits = phone
+        .replace(/\D/g, '')
+        .replace(/^00/, '');
+
+      if (/^\+?\d{7,15}$/.test(phone)) {
+        [
+          ['📞 Llamar', 'tel:' + phone],
+          [
+            '💬 WhatsApp',
+            'https://wa.me/' +
+            (digits.length === 9 ? '34' + digits : digits)
+          ]
+        ].forEach(([label, href]) => {
+          const a = document.createElement('a');
+
+          a.textContent = label;
+          a.href = href;
+          a.className = 'btn-hud';
+
+          a.style.cssText =
+            'padding:9px;text-decoration:none;flex:1;';
+
+          if (href.startsWith('https:')) {
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+          }
+
+          actions.appendChild(a);
+        });
+      }
+    }
+
+    card.append(title, status, detail, actions);
+    container.appendChild(card);
+  });
+
+  if (list.length > managementLimit) {
+    const more = row();
+
+    button(
+      more,
+      `Mostrar más · ` +
+      `${Math.min(managementLimit, list.length)} de ${list.length}`,
+      false,
+      () => {
+        managementLimit += 60;
+        renderGlobalClientSearchResults();
+      }
+    );
+  }
+}
+
+    
+    /* =====================================================================
+       ALERTA AL JEFE: OBRAS PROGRAMADAS PARA HOY + ENVÍO RECLAMO VECINOS
+       ===================================================================== */
+    function getTodayScheduledObrasGrouped() {
+      const todayIso = getTodayISO();
+      const groupedByTown = {};
+      let totalObrasCount = 0;
+      let totalObrasM2 = 0;
+
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
+        z.clients.forEach((c, cIdx) => {
+          if (c.obraStatus === 'agendada' && c.obraDate === todayIso && isClientValidFilled(c)) {
+            const townName = (z.town || 'Navarra').trim();
+            if (!groupedByTown[townName]) {
+              groupedByTown[townName] = {
+                town: townName,
+                obras: [],
+                sampleZonePoints: z.points || []
+              };
+            }
+            const m2Val = getM2NumericValue(c.m2);
+            groupedByTown[townName].obras.push({
+              type: c.type || 'vivienda',
+              street: c.street || 'Dirección N/D',
+              owner: c.name || 'Cliente',
+              phone: c.phone || '',
+              obraTime: c.obraTime || '',
+              m2: m2Val,
+              captador: z.comercial || 'Equipo',
+              docsDone: c.type === 'comunidad' ? countComunidadDocs(c.comunidadDocs) : null,
+              zoneIdx: zIdx,
+              clientIdx: cIdx
+            });
+            totalObrasCount++;
+            totalObrasM2 += m2Val;
+          }
+        });
+      });
+
+      return { groupedByTown, totalObrasCount, totalObrasM2, todayIso };
+    }
+
+    function checkAndShowBossTodayObras(autoOnEntry = false) {
+      const { groupedByTown, totalObrasCount, totalObrasM2, todayIso } = getTodayScheduledObrasGrouped();
+      if (autoOnEntry && totalObrasCount === 0) return;
+
+      const container = document.getElementById('bossObrasHoyContainer');
+      container.innerHTML = '';
+
+      if (totalObrasCount === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">
+            📅 Hoy (${formatDate(todayIso)}) no tienes ninguna obra agendada en calendario.<br><br>
+            <span style="font-size:11px; color:#64748b;">Cuando cambies una ficha a <strong>"📅 Cita Agendada"</strong> y pongas la fecha y hora de la obra, te avisará aquí automáticamente ese día.</span>
+          </div>
+          <button class="btn-modal-save" onclick="closeModal('bossObrasHoyModal')">Entendido</button>
+        `;
+        document.getElementById('bossObrasHoyModal').classList.add('active');
+        return;
+      }
+
+      const townKeys = Object.keys(groupedByTown);
+      let quickSentenceParts = [];
+      townKeys.forEach(tName => {
+        const itemsText = groupedByTown[tName].obras.map(o => {
+          const labelTipo = o.type === 'comunidad' ? 'Comunidad' : 'Vivienda';
+          const timeStr = o.obraTime ? ` a las ${o.obraTime}` : '';
+          return `${labelTipo} ${o.street}${timeStr} (${o.m2} m²)`;
+        });
+        const joinedItems = itemsText.length > 1
+          ? `${itemsText.slice(0, -1).join(', ')} y ${itemsText[itemsText.length - 1]}`
+          : itemsText[0];
+        quickSentenceParts.push(`<strong>${tName}:</strong> ${joinedItems}`);
+      });
+
+      let html = `
+        <div class="today-obra-hero">
+          <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; letter-spacing:0.6px;">
+            🔥 ALERTA DIARIA DE INSTALACIÓN • ${formatDate(todayIso)}
+          </div>
+          <div style="font-size:15px; font-weight:900; color:#fff; margin:6px 0; line-height:1.35;">
+            Hoy se hacen obras en: ${quickSentenceParts.join(' • ')}
+          </div>
+          <div style="font-size:11px; color:#fef3c7;">
+            Total hoy: <strong>${totalObrasCount} obra(s)</strong> (${totalObrasM2} m²). Manda un comercial a captar vecinos en caliente alrededor del camión.
+          </div>
+        </div>
+      `;
+
+      townKeys.forEach((tName, tIdx) => {
+        const group = groupedByTown[tName];
+        const safeTownId = `dispatch_select_${tIdx}`;
+        const existingMissions = hotLeadMissions.filter(m => m.date === todayIso && m.town.toLowerCase() === tName.toLowerCase());
+
+        let obrasListHtml = '';
+        group.obras.forEach(o => {
+          const icon = o.type === 'comunidad' ? '🏢 Comunidad' : '🏠 Vivienda';
+          const timeBadge = o.obraTime ? ` <span style="background:#f59e0b; color:#0f172a; padding:1px 5px; border-radius:5px; font-weight:900; font-size:10px;">⏰ ${o.obraTime}</span>` : '';
+          const docsTag = o.docsDone !== null ? ` • <span style="color:#a78bfa;">Docs: ${o.docsDone}/5</span>` : '';
+          obrasListHtml += `
+            <div class="today-obra-item-line">
+              <div>
+                <div style="font-weight:800; color:#fff;">${icon}: ${o.street}${timeBadge}</div>
+                <div style="font-size:10px; color:#94a3b8;">Cliente: ${o.owner} ${o.phone ? `(${o.phone})` : ''} • Captó: ${o.captador}${docsTag}</div>
+              </div>
+              <span style="background:#059669; color:#fff; font-weight:900; font-size:11px; padding:4px 8px; border-radius:8px; white-space:nowrap;">
+                ${o.m2} m²
+              </span>
+            </div>
+          `;
+        });
+
+        let assignedBadgesHtml = '';
+        existingMissions.forEach(m => {
+          assignedBadgesHtml += `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:10.5px; color:#34d399; font-weight:800; background:rgba(5,150,105,0.2); border:1px solid #059669; padding:5px 8px; border-radius:8px;">
+              <span>✅ Enviado hoy a reclamo: <strong>${m.comercial}</strong></span>
+              <button onclick="removeHotLeadMission(${m.id})" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:10px; font-weight:900; padding:2px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+            </div>
+          `;
+        });
+
+        const townRouteStops = group.obras.map(o => `${o.street}, ${tName}`);
+        const routeMapsUrl = buildMultiStopMapsUrl(townRouteStops);
+
+        html += `
+          <div class="today-town-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:14px; color:#fde047;">📍 ${tName} (${group.obras.length})</strong>
+              <a href="${routeMapsUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:10px; font-weight:900; padding:5px 9px; border-radius:7px; display:inline-block;">
+                🧭 Ruta GPS
+              </a>
+            </div>
+            ${obrasListHtml}
+            ${assignedBadgesHtml}
+            <div class="dispatch-reclamo-box">
+              <div style="font-size:10.5px; font-weight:800; color:#e9d5ff;">
+                🎯 Mandar comercial a rodear la obra y captar vecinos que se asomen:
+              </div>
+              <div class="dispatch-row">
+                <select id="${safeTownId}" class="select-field" style="flex:1;">
+                  <option value="Comercial 1">🏃 Comercial 1</option>
+                  <option value="Comercial 2">🏃 Comercial 2</option>
+                  <option value="Comercial 3">🏃 Comercial 3</option>
+                  <option value="Comercial 4">🏃 Comercial 4</option>
+                  <option value="Comercial 5">🏃 Comercial 5</option>
+                  <option value="Andrei (Jefe)">👑 Ir yo mismo (Andrei)</option>
+                </select>
+                <button class="btn-dispatch-go" onclick="dispatchCommercialToObra('${tName.replace(/'/g, "\\'")}', '${safeTownId}')">
+                  🚀 Enviar Ahora
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `<button class="btn-modal-save" onclick="closeModal('bossObrasHoyModal')">Entendido, ir al Panel</button>`;
+      container.innerHTML = html;
+      document.getElementById('bossObrasHoyModal').classList.add('active');
+    }
+
+    function focusMapOnTownOrZone(townName, zoneIdx) {
+      closeModal('briefingModal');
+      if (zoneIdx !== null && savedZones[zoneIdx] && savedZones[zoneIdx].points && savedZones[zoneIdx].points.length >= 3) {
+        const bounds = L.latLngBounds(savedZones[zoneIdx].points);
+        window.cnvShowMap?.();
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        return;
+      }
+      if (townName) {
+        window.cnvShowMap?.();
+        document.getElementById('searchInput').value = townName;
+        searchLocation();
+      }
+    }
+
+    async function dispatchCommercialToObra(townName, selectElementId) {
+      const selectEl = document.getElementById(selectElementId);
+      if (!selectEl) return;
+      const chosenComercial = selectEl.value;
+      const todayIso = getTodayISO();
+
+      const { groupedByTown } = getTodayScheduledObrasGrouped();
+      const townData = groupedByTown[townName];
+      if (!townData) return;
+
+      const firstObraZone = savedZones[townData.obras[0].zoneIdx];
+      const streetsSummary = townData.obras.map(o => {
+        const hStr = o.obraTime ? ` [⏰ ${o.obraTime}]` : '';
+        return `${o.street}${hStr} (${o.owner} - ${o.m2}m²)`;
+      }).join(' | ');
+
+      hotLeadMissions.push({
+        id: Date.now(),
+        date: todayIso,
+        town: townName,
+        comercial: chosenComercial,
+        streetsSummary: streetsSummary
+      });
+
+
+      savedZones.push({
+        id: Date.now() + 1,
+        date: todayIso,
+        town: townName,
+        sectorName: `🔥 Reclamo Obra (${townName})`,
+        comercial: chosenComercial,
+        isHotMission: true,
+        isSingleHouse: Boolean(firstObraZone?.isSingleHouse),
+        singlePoint: firstObraZone?.singlePoint ? [...firstObraZone.singlePoint] : null,
+        bossNote: `OBRA EN CURSO HOY en ${streetsSummary}. Acude a esa hora y habla con los vecinos que salgan a mirar el camión.`,
+        pendingNote: '',
+        status: 'sin_comprobar',
+        points: townData.sampleZonePoints || [],
+        stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
+        clients: []
+      });
+      if (!await guardarMisionYZona()) return;
+
+      renderAllSavedZones();
+      checkAndShowBossTodayObras(false);
+    }
+
+    async function removeHotLeadMission(missionId) {
+      const target = hotLeadMissions.find(m => m.id === missionId);
+      const delList = safeLoadStorage('comercial_deleted_ids');
+      if (missionId && !delList.includes(missionId)) delList.push(missionId);
+
+      hotLeadMissions = hotLeadMissions.filter(m => m.id !== missionId);
+
+
+      if (target) {
+        savedZones.forEach(z => {
+          if (z.isHotMission && z.comercial === target.comercial && z.date === target.date && z.town === target.town && z.id) {
+            if (!delList.includes(z.id)) delList.push(z.id);
+          }
+        });
+        savedZones = savedZones.filter(z => !(z.isHotMission && z.comercial === target.comercial && z.date === target.date && z.town === target.town));
+
+      }
+      if (!await guardarMisionYZona()) return;
+      localStorage.setItem('comercial_deleted_ids', JSON.stringify(delList));
+
+      renderAllSavedZones();
+      checkAndShowBossTodayObras(false);
+    }
+
+    async function guardarMisionYZona() {
+      try {
+        await window.KonsorBridge.saveGroups({comercial_custom_zones:savedZones, comercial_hot_lead_missions:hotLeadMissions});
+        return true;
+      } catch(e) { alert('La misión y su zona no se han confirmado. '+e.message);return false; }
+    }
+
+    let bossEntrySummaryShown = false;
+
+    async function showBossDailySummaryAndObras(forceShow = false) {
+      if (currentUserRole !== 'jefe') return;
+      if (!forceShow && bossEntrySummaryShown) return;
+
+      const teamList = ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      const statusLines = [];
+
+      teamList.forEach(com => {
+        const comZones = savedZones.filter(z => z.comercial === com && !z.isSingleHouse && !z.isHotMission);
+        if (comZones.length === 0) {
+          statusLines.push(`⚪ <strong>${com}:</strong> Sin zona asignada`);
+          return;
+        }
+
+        const incomplete = comZones.filter(z => z.status === 'en_proceso');
+        const completed = comZones.filter(z => z.status === 'completada');
+        const pendingNew = comZones.filter(z => z.status === 'sin_comprobar' || z.status === 'por_hacer');
+
+        if (incomplete.length > 0) {
+          const names = incomplete.map(z => `${z.sectorName} (${z.town})`).join(', ');
+          statusLines.push(`🟡 <strong>${com}:</strong> Zona incompleta pendiente para mañana → <em>${names}</em>`);
+        } else if (pendingNew.length > 0) {
+          statusLines.push(`🔵 <strong>${com}:</strong> ${pendingNew.length} zona(s) nueva(s) por hacer`);
+        } else if (completed.length > 0) {
+          statusLines.push(`✅ <strong>${com}:</strong> Ya ha terminado su zona`);
+        }
+      });
+
+      bossEntrySummaryShown = true;
+      checkAndShowBossTodayObras(false);
+
+      const modalHeaderTitle = document.querySelector('#bossObrasHoyModal .modal-header span');
+      if (modalHeaderTitle) {
+        modalHeaderTitle.innerText = '👑 Parte del Equipo & Obras de Hoy';
+      }
+
+      const container = document.getElementById('bossObrasHoyContainer');
+      if (container) {
+        const summaryBanner = `
+          <div style="background:rgba(30,41,59,0.95); border:1.5px solid #f59e0b; border-radius:14px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase; margin-bottom:6px;">
+              📋 ESTADO DE ZONAS DE TUS COMERCIALES
+            </div>
+            <div style="font-size:11.5px; color:#f8fafc; line-height:1.6;">
+              ${statusLines.join('<br>')}
+            </div>
+          </div>
+        `;
+        container.innerHTML = summaryBanner + container.innerHTML;
+      }
+    }
+
+    function getCommercialPiqueAndAlerts(comName) {
+            const team = comName === 'Andrei (Jefe)'
+        ? ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5']
+        : ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      const scores = team.map(name => {
+        let m2 = 0;
+        savedZones.forEach(z => {
+          if (z.comercial !== name || !z.clients) return;
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              m2 += getM2NumericValue(c.m2);
+            }
+          });
+        });
+        return { name, bruto: m2 * 1.0, bolsillo: m2 * (name === 'Andrei (Jefe)' ? 1.0 : 0.85) };
+      }).sort((a, b) => b.bruto - a.bruto);
+
+      const myIdx = scores.findIndex(s => s.name === comName);
+      const me = myIdx !== -1 ? scores[myIdx] : { name: comName, bruto: 0, bolsillo: 0 };
+      const leader = scores[0];
+      const runnerUp = scores[1];
+
+      let piqueMsg = '';
+      if (leader.bruto === 0) {
+        piqueMsg = '🚀 <strong>¡Liga abierta!</strong> Nadie ha estrenado el marcador aún. El primero que meta un tejado se pone #1.';
+      } else if (myIdx === 0) {
+        const ventaja = (me.bruto - runnerUp.bruto).toFixed(0);
+        piqueMsg = ventaja > 0
+          ? `👑 <strong>VAS #1 EN CABEZA</strong> (${me.bolsillo.toFixed(2)} € para tu bolsillo). ¡Corre que te pilla <strong>${runnerUp.name}</strong> a solo <strong>${ventaja} m²</strong>!`
+          : `👑 <strong>EMPATE EN EL #1</strong> con <strong>${runnerUp.name}</strong>. ¡Mete una ficha hoy y quédate el liderato solo!`;
+      } else {
+        const ahead = scores[myIdx - 1];
+        const diffAhead = Math.max(1, Math.round(ahead.bruto - me.bruto));
+        const chaser = scores[myIdx + 1];
+        const chaserText = (chaser && chaser.bruto > 0 && (me.bruto - chaser.bruto) <= 120)
+          ? ` ⚠️ Ojo: <strong>${chaser.name}</strong> viene pisándote los talones a ${Math.round(me.bruto - chaser.bruto)} m².`
+          : '';
+        piqueMsg = `⚡ Vas <strong>#${myIdx + 1}</strong> (${me.bolsillo.toFixed(2)} € netos). Te faltan solo <strong>${diffAhead} m²</strong> (1 buhardilla) para adelantar a <strong>${ahead.name}</strong>.${chaserText}`;
+      }
+
+      let overdue48hCount = 0;
+      savedZones.forEach(z => {
+        if (z.comercial !== comName || !z.clients) return;
+        z.clients.forEach(c => {
+          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+            const st = c.callStatus || 'pendiente';
+            const refTime = st === 'pendiente'
+              ? (c.createdAt || z.id || Date.now())
+              : (c.statusChangedAt || c.createdAt || z.id || Date.now());
+            if ((Date.now() - refTime) >= 48 * 3600000) {
+              overdue48hCount++;
+            }
+          }
+        });
+      });
+
+      return { me, myRank: myIdx + 1, piqueMsg, overdue48hCount };
+    }
+
+    let workDayMode = 'day';
+let workDayDate = '';
+
+function showCommercialBriefing() {
+  workDayMode = 'day';
+  workDayDate = getTodayISO();
+  renderCommercialWorkDay();
+  document.getElementById('briefingModal').classList.add('active');
+}
+
+function workDayRange() {
+  const date = new Date(
+    (workDayDate || getTodayISO()) + 'T12:00:00'
+  );
+  const start = new Date(date);
+  const end = new Date(date);
+
+  if (workDayMode === 'week') {
+    start.setDate(
+      date.getDate() - ((date.getDay() + 6) % 7)
+    );
+    end.setTime(start.getTime());
+    end.setDate(start.getDate() + 6);
+  } else if (workDayMode === 'month') {
+    start.setDate(1);
+    end.setMonth(date.getMonth() + 1, 0);
+  }
+
+  return [
+    getLocalDateISO(start),
+    getLocalDateISO(end)
+  ];
+}
+
+function workDayShiftDate(shift) {
+  if (shift.localDate) return shift.localDate;
+
+  const date = new Date(shift.date);
+
+  return Number.isFinite(date.getTime())
+    ? getLocalDateISO(date)
+    : '';
+}
+
+function workDayHours(shift) {
+  const minutes = value => {
+    if (!/^\d{2}:\d{2}$/.test(value || '')) return null;
+
+    const [h, m] = value.split(':').map(Number);
+
+    return h < 24 && m < 60
+      ? h * 60 + m
+      : null;
+  };
+
+  const start = minutes(shift.startTime);
+  if (start === null) return null;
+
+  let end = minutes(shift.endTime);
+  const today = workDayShiftDate(shift) === getTodayISO();
+
+  if (end === null) {
+    if (
+      !today ||
+      !['working', 'lunch'].includes(shift.status)
+    ) {
+      return null;
+    }
+
+    const now = new Date();
+    end = now.getHours() * 60 + now.getMinutes();
+  }
+
+  let pause = Math.max(
+    0,
+    Number(shift.lunchMinutes) || 0
+  );
+
+  if (
+    today &&
+    shift.status === 'lunch' &&
+    !shift.endTime
+  ) {
+    const lunchStart = minutes(shift.lunchStart);
+
+    if (lunchStart !== null) {
+      pause += Math.max(0, end - lunchStart);
+    }
+  }
+
+  return Math.max(0, end - start - pause) / 60;
+}
+
+function renderCommercialWorkDay() {
+  if (!currentUserName) return;
+
+  const container = document.getElementById(
+    'briefingContainer'
+  );
+
+  const title = document.querySelector(
+    '#briefingModal .modal-header span'
+  );
+
+  if (title) {
+    title.textContent = '📋 Mi trabajo · día, semana y mes';
+  }
+
+  const [from, to] = workDayRange();
+  const today = getTodayISO();
+
+  const inRange = date => Boolean(
+    date && date >= from && date <= to
+  );
+
+  const mine = savedZones.filter(
+    z => z.comercial === currentUserName
+  );
+
+  const normal = mine.filter(z =>
+    !z.isSingleHouse &&
+    !z.isNoAptoZone &&
+    !z.isHotMission
+  );
+
+  const earlier = normal.filter(z =>
+    z.date &&
+    z.date < from &&
+    z.status !== 'completada'
+  );
+
+  const scheduled = normal.filter(
+    z => inRange(z.date)
+  );
+
+  const shifts = savedShifts.filter(s =>
+    s.user === currentUserName &&
+    inRange(workDayShiftDate(s))
+  );
+
+  const hours = shifts.map(workDayHours);
+
+  const knownHours = hours.reduce(
+    (sum, h) => sum + (h === null ? 0 : h),
+    0
+  );
+
+  const unknownHours = hours.filter(
+    h => h === null
+  ).length;
+
+  let leads = 0;
+  let overdue = 0;
+  let over24 = 0;
+
+  const obras = [];
+
+  mine.forEach(z => {
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      const created = Number(c.createdAt);
+
+      const captureDate =
+        Number.isFinite(created) && created > 0
+          ? getLocalDateISO(new Date(created))
+          : (z.dumpDate || z.date);
+
+      if (
+        inRange(captureDate) &&
+        c.obraStatus !== 'no_apto'
+      ) {
+        leads++;
+      }
+
+      if (
+        c.obraStatus === 'agendada' &&
+        inRange(c.obraDate)
+      ) {
+        obras.push({ z, c });
+      }
+
+      if (
+        c.obraStatus &&
+        c.obraStatus !== 'a_poner'
+      ) {
+        return;
+      }
+
+      const ref = Number(
+        c.callStatus && c.callStatus !== 'pendiente'
+          ? (c.statusChangedAt || c.createdAt || z.id)
+          : (c.createdAt || z.id)
+      );
+
+      const due = Number(c.nextContactAt);
+
+      if (Number.isFinite(due) && due > 0) {
+        if (Date.now() >= due) overdue++;
+      } else if (Number.isFinite(ref) && ref > 0) {
+        const elapsed = (Date.now() - ref) / 3600000;
+
+        if (elapsed >= 48) overdue++;
+        else if (elapsed >= 24) over24++;
+      }
+    });
+  });
+
+  container.innerHTML = `
+    <div id="workDayTabs" class="subtab-bar"></div>
+
+    <div class="input-group">
+      <span class="input-label">📅 Fecha de referencia</span>
+      <input id="workDayDateInput"
+        type="date" class="input-field">
+    </div>
+
+    <p id="workDayPeriod"
+      style="font-size:11px;color:#94a3b8;margin:8px 0;">
+    </p>
+
+    <div id="workDaySummary" class="routine-guide-box"></div>
+    <div id="workDayContent"></div>
+  `;
+
+  const tabs = document.getElementById('workDayTabs');
+
+  [
+    ['day', 'Día'],
+    ['week', 'Semana'],
+    ['month', 'Mes']
+  ].forEach(([mode, label]) => {
+    const b = document.createElement('button');
+
+    b.type = 'button';
+    b.className = 'subtab-btn' +
+      (workDayMode === mode ? ' active' : '');
+    b.textContent = label;
+
+    b.onclick = () => {
+      workDayMode = mode;
+      renderCommercialWorkDay();
+    };
+
+    tabs.appendChild(b);
+  });
+
+  const dateInput = document.getElementById(
+    'workDayDateInput'
+  );
+
+  dateInput.value = workDayDate || today;
+
+  dateInput.onchange = () => {
+    if (
+      !dateInput.value ||
+      !Number.isFinite(
+        new Date(dateInput.value + 'T12:00:00').getTime()
+      )
+    ) {
+      return;
+    }
+
+    workDayDate = dateInput.value;
+    renderCommercialWorkDay();
+  };
+
+  document.getElementById('workDayPeriod').textContent =
+    `${formatDate(from)} — ${formatDate(to)} · ` +
+    getDisplayAlias(currentUserName);
+
+  document.getElementById('workDaySummary').textContent =
+    `${scheduled.length} sectores asignados · ` +
+    `${leads} fichas captadas · ` +
+    `${obras.length} citas de obra · ` +
+    `${knownHours.toFixed(1)} h registradas` +
+    (
+      unknownHours
+        ? ` · ${unknownHours} jornada(s) con horas sin determinar`
+        : ''
+    );
+
+  const content = document.getElementById(
+    'workDayContent'
+  );
+
+  function heading(text) {
+    const h = document.createElement('div');
+    h.className = 'modal-section-title';
+    h.textContent = text;
+    content.appendChild(h);
+  }
+
+  function card(
+    label,
+    detail,
+    action,
+    buttonLabel = 'Abrir'
+  ) {
+    const box = document.createElement('div');
+    box.className = 'priority-card';
+
+    const strong = document.createElement('strong');
+    strong.textContent = label;
+    strong.style.fontSize = '12px';
+
+    const p = document.createElement('p');
+    p.textContent = detail;
+    p.style.cssText =
+      'font-size:11px;color:#cbd5e1;' +
+      'white-space:pre-line;line-height:1.5;';
+
+    box.append(strong, p);
+
+    if (action) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-hud';
+      b.style.padding = '9px';
+      b.textContent = buttonLabel;
+      b.onclick = action;
+      box.appendChild(b);
+    }
+
+    content.appendChild(box);
+  }
+
+  function openZone(id, onMap) {
+    const index = savedZones.findIndex(z =>
+      z.id === id &&
+      z.comercial === currentUserName
+    );
+
+    if (index < 0) {
+      alert('Esta zona ha cambiado. Actualiza la vista.');
+      return;
+    }
+
+    closeModal('briefingModal');
+
+    if (onMap) {
+      focusMapOnTownOrZone(
+        savedZones[index].town,
+        index
+      );
+    } else {
+      openDumpModal(index);
+    }
+  }
+
+  function zoneCard(z) {
+    const status = z.status === 'completada'
+      ? '✅ Terminada'
+      : (
+          z.status === 'en_proceso'
+            ? '🟡 Incompleta'
+            : '🔵 Por hacer'
+        );
+
+    const detail = [
+      `${z.town || 'Sin municipio'} · ` +
+        `${formatDate(z.date)} · ${status}`,
+      z.bossNote
+        ? 'Instrucción del jefe: ' + z.bossNote
+        : '',
+      z.pendingNote
+        ? 'Falta por terminar: ' + z.pendingNote
+        : ''
+    ].filter(Boolean).join('\n');
+
+    card(
+      z.sectorName || 'Sector',
+      detail,
+      () => openZone(z.id, true),
+      '📍 Ver en mapa'
+    );
+
+    const last = content.lastElementChild;
+    const edit = document.createElement('button');
+
+    edit.type = 'button';
+    edit.className = 'btn-hud';
+    edit.style.padding = '9px';
+    edit.textContent = '📝 Ver / volcar hoja';
+    edit.onclick = () => openZone(z.id, false);
+
+    last.appendChild(edit);
+  }
+
+  heading('1. Prioridad · zonas anteriores sin terminar');
+
+  if (!earlier.length) {
+    card(
+      '✅ Sin pendientes anteriores',
+      'No hay sectores anteriores al periodo seleccionado ' +
+      'pendientes de terminar.'
+    );
+  }
+
+  earlier
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach(zoneCard);
+
+  heading('2. Zonas e instrucciones del periodo');
+
+  if (!scheduled.length) {
+    card(
+      'Sin sectores asignados',
+      'No hay sectores con fecha de asignación ' +
+      'dentro de este periodo.'
+    );
+  }
+
+  scheduled
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach(zoneCard);
+
+  const missions = hotLeadMissions.filter(m =>
+    m.comercial === currentUserName &&
+    inRange(m.date)
+  );
+
+  if (missions.length) {
+    heading('Misiones alrededor de obras');
+
+    missions.forEach(m => {
+      card(
+        '🔥 ' + m.town,
+        `${formatDate(m.date)}\n${m.streetsSummary || ''}`,
+        () => focusMapOnTownOrZone(m.town, null),
+        '📍 Localizar pueblo'
+      );
+    });
+  }
+
+  heading('3. Seguimiento pendiente ahora · todos los periodos');
+
+  card(
+    `${overdue} seguimientos vencidos · ` +
+    `${over24} pendientes de más de 24 h`,
+    'Los vencidos incluyen contactos cuya fecha de seguimiento ' +
+    'ya ha llegado. Revisa también los pendientes recientes.',
+    () => {
+      closeModal('briefingModal');
+      openFollowUpsModal();
+    },
+    '📞 Abrir llamadas'
+  );
+
+  heading('4. Citas de obra del periodo');
+
+  if (!obras.length) {
+    card(
+      'Sin citas agendadas',
+      'No hay citas de obra para las fechas seleccionadas.'
+    );
+  }
+
+  obras.sort((a, b) =>
+    (
+      (a.c.obraDate || '') +
+      (a.c.obraTime || '')
+    ).localeCompare(
+      (b.c.obraDate || '') +
+      (b.c.obraTime || '')
+    )
+  ).forEach(({ z, c }) => {
+    card(
+      c.name || 'Cliente',
+      `${formatDate(c.obraDate)} · ` +
+      `${obraSlotLabel(c.obraTime)}\n` +
+      `${c.street || ''} · ${z.town || ''}`,
+      () => openZone(z.id, false),
+      '📂 Abrir ficha de la zona'
+    );
+  });
+
+  heading('5. Jornada y registro');
+
+  shifts.slice().sort((a, b) =>
+    workDayShiftDate(b).localeCompare(
+      workDayShiftDate(a)
+    )
+  ).forEach(s => {
+    const h = workDayHours(s);
+
+    card(
+      formatDate(workDayShiftDate(s)),
+      `Inicio: ${s.startTime || 'Sin registrar'} · ` +
+      `Fin: ${s.endTime || 'Sin cerrar'}\n` +
+      (
+        h === null
+          ? 'Horas sin determinar: revisa el fichaje.'
+          : `${h.toFixed(1)} h efectivas registradas`
+      )
+    );
+  });
+
+  if (!shifts.length) {
+    card(
+      'Sin jornadas registradas',
+      'No hay fichajes en este periodo.'
+    );
+  }
+
+  card(
+    'Antes de cerrar el día',
+    'Registra las zonas trabajadas, completa las fichas ' +
+    'y deja indicado lo pendiente. Después cierra tu ' +
+    'jornada desde la barra del mapa.'
+  );
+
+  const refresh = document.createElement('button');
+  refresh.type = 'button';
+  refresh.className = 'btn-modal-save';
+  refresh.textContent = '↻ Actualizar esta vista';
+  refresh.onclick = renderCommercialWorkDay;
+
+  content.appendChild(refresh);
+}
+
+    function getTodayShift(userName) {
+      const todayIso = getTodayISO();
+      return savedShifts.find(s => s.user === userName && (s.localDate || getLocalDateISO(new Date(s.date))) === todayIso);
+    }
+
+    async function reopenTodayShift() {
+      const shift = getTodayShift(currentUserName);
+      if (!shift) return;
+      shift.status = 'working';
+      shift.endTime = null;
+      shift.lunchStart = null;
+      shift._updatedAt = Date.now();
+      if (!await saveAndSync('comercial_shifts', savedShifts)) return;
+      updateShiftUI();
+      return true;
+    }
+
+    function updateShiftUI() {
+      const shift = getTodayShift(currentUserName);
+      const statusLbl = document.getElementById('shiftStatusText');
+      const btnStart = document.getElementById('btnStartShift');
+      const btnLunch = document.getElementById('btnLunchShift');
+      const btnEnd = document.getElementById('btnEndShift');
+      const btnReopen = document.getElementById('btnReopenShift');
+
+      if (!shift) {
+        statusLbl.innerHTML = '🔴 Fuera de Jornada';
+        btnStart.style.display = 'inline-block';
+        btnLunch.style.display = 'none';
+        btnEnd.style.display = 'none';
+        if (btnReopen) btnReopen.style.display = 'none';
+      } else if (shift.status === 'working') {
+        statusLbl.innerHTML = `🟢 En Jornada (${shift.startTime})`;
+        btnStart.style.display = 'none';
+        btnLunch.style.display = 'inline-block';
+        btnLunch.innerText = '⏸️ Comida';
+        btnEnd.style.display = 'inline-block';
+        if (btnReopen) btnReopen.style.display = 'none';
+      } else if (shift.status === 'lunch') {
+        statusLbl.innerHTML = `🟡 En Comida (${shift.lunchStart})`;
+        btnStart.style.display = 'none';
+        btnLunch.style.display = 'inline-block';
+        btnLunch.innerText = '▶️ Reanudar';
+        btnEnd.style.display = 'inline-block';
+        if (btnReopen) btnReopen.style.display = 'none';
+      } else if (shift.status === 'finished') {
+        statusLbl.innerHTML = `🏁 Jornada Cerrada (${shift.startTime} - ${shift.endTime})`;
+        btnStart.style.display = 'none';
+        btnLunch.style.display = 'none';
+        btnEnd.style.display = 'none';
+        if (btnReopen) btnReopen.style.display = 'inline-block';
+      }
+    }
+
+    async function handleShiftAction(action) {
+      const before=JSON.parse(JSON.stringify(savedShifts));
+      const now = new Date();
+      const timeStr = now.toTimeString().slice(0, 5);
+      let shift = getTodayShift(currentUserName);
+      if(!shift&&action!=='start')return false;
+
+      if (action === 'start') {
+        if (!shift) {
+          shift = {
+            id: Date.now(),
+            user: currentUserName,
+            date: now.toISOString(),
+            localDate: getTodayISO(),
+            status: 'working',
+            startTime: timeStr,
+            lunchStart: null,
+            lunchEnd: null,
+            endTime: null,
+            lunchMinutes: 0
+          };
+          savedShifts.push(shift);
+        }
+      } else if (action === 'lunch') {
+        if (shift.status === 'working') {
+          shift.status = 'lunch';
+          shift.lunchStart = timeStr;
+          shift._lunchStartMs = Date.now();
+        } else if (shift.status === 'lunch') {
+          shift.status = 'working';
+          shift.lunchEnd = timeStr;
+          if (shift._lunchStartMs) {
+            const diffMin = Math.round((Date.now() - shift._lunchStartMs) / 60000);
+            shift.lunchMinutes = (shift.lunchMinutes || 0) + diffMin;
+          }
+        }
+      } else if (action === 'end') {
+        if (!confirm("¿Seguro que quieres finalizar la jornada de hoy? Los sectores pendientes seguirán en Oficina.")) return false;
+        {
+          if (shift.status === 'lunch' && shift._lunchStartMs) {
+            const diffMin = Math.round((Date.now() - shift._lunchStartMs) / 60000);
+            shift.lunchMinutes = (shift.lunchMinutes || 0) + diffMin;
+          }
+          shift.status = 'finished';
+          shift.endTime = timeStr;
+        }
+      }
+
+      if (!await saveAndSync('comercial_shifts', savedShifts)) { savedShifts=before;updateShiftUI();return false; }
+      try { await window.konsorMotor?.onShiftAction?.(action,shift); }
+      catch(error){alert('El fichaje se ha guardado, pero el cronómetro de calle requiere revisión: '+error.message);}
+      updateShiftUI();window.cnvRefreshHome?.();
+      return true;
+    }
+
+    /* =====================================================================
+       DIBUJO DE SECTORES + OPCIÓN COMPACTA DE VIVIENDA ÚNICA
+       ===================================================================== */
+    function startSectorDrawing() {
+      window.cnvShowMap?.();
+      cancelDrawing();
+      isDrawingMode = true;
+      isCropMode = false;
+      isSingleHouseMode = false;
+      window.cnvMapDrawingState?.({mode:'sector',points:0});
+
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'flex';
+
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) {
+        btnSingle.style.display = isMikelTeamMember(currentUserName) ? 'none' : 'inline-flex';
+        btnSingle.classList.remove('active');
+        btnSingle.innerHTML = '🏠 Vivienda única';
+      }
+      if (btnConfirm) btnConfirm.style.display = 'inline-block';
+
+      refreshSectorAssignees();
+
+      document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
+    }
+
+    function toggleSingleHouseDrawingMode() {
+      isSingleHouseMode = !isSingleHouseMode;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+
+      if (isSingleHouseMode) {
+        btnSingle.classList.add('active');
+        btnSingle.innerHTML = '↩️ Volver a sector';
+        btnConfirm.style.display = 'none';
+        document.getElementById('drawingBannerText').innerText = "🏠 Toca la vivienda o edificio en el mapa...";
+      } else {
+        btnSingle.classList.remove('active');
+        btnSingle.innerHTML = '🏠 Vivienda única';
+        btnConfirm.style.display = 'inline-block';
+        refreshSectorAssignees();
+
+      document.getElementById('drawingBannerText').innerText = "Toca las esquinas del sector comercial...";
+    }
+    }
+
+    function startCropSubZone() {
+      closeModal('dumpModal');
+      isDrawingMode = true;
+      isCropMode = true;
+      isSingleHouseMode = false;
+      tempPoints = [];
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'flex';
+
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) btnSingle.style.display = 'none';
+      if (btnConfirm) btnConfirm.style.display = 'inline-block';
+
+      document.getElementById('drawingBannerText').innerText = "✂️ Toca las esquinas de la ZONA PENDIENTE para mañana...";
+    }
+
+    async function inspectNavarraCadastreAtPoint(latlng) {
+
+      if (!map) return;
+
+      const popup = L.popup({ maxWidth: 290, className:'konsor-cadastre-popup' })
+        .setLatLng(latlng)
+        .setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><strong>Buscando parcela…</strong></section>')
+        .openOn(map);
+
+      try {
+        const point = map.latLngToContainerPoint(latlng);
+        const size = map.getSize();
+        const bounds = map.getBounds();
+        const sw = map.options.crs.project(bounds.getSouthWest());
+        const ne = map.options.crs.project(bounds.getNorthEast());
+
+        const params = new URLSearchParams({
+          SERVICE: 'WMS',
+          VERSION: '1.1.1',
+          REQUEST: 'GetFeatureInfo',
+          LAYERS: 'catastro',
+          QUERY_LAYERS: 'catastro',
+          SRS: 'EPSG:3857',
+          BBOX: `${sw.x},${sw.y},${ne.x},${ne.y}`,
+          WIDTH: Math.round(size.x),
+          HEIGHT: Math.round(size.y),
+          X: Math.round(point.x),
+          Y: Math.round(point.y),
+          INFO_FORMAT: 'application/json',
+          FEATURE_COUNT: '5'
+        });
+
+        const res = await fetch(`https://idena.navarra.es/ogc/wms?${params.toString()}`);
+        const data = await res.json();
+
+        if (!data.features || data.features.length === 0) {
+          popup.setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><p>Sin parcela identificada en este punto.</p></section>');
+          return;
+        }
+
+        const featWithUrl = data.features.find(f => f.properties && f.properties.URL) || data.features[0];
+        const props = featWithUrl.properties || {};
+
+        let rawUrl = props.URL || '';
+        const hrefMatch = rawUrl.match(/href=['"]([^'"]+)['"]/i);
+        const directCatastroUrl = hrefMatch ? hrefMatch[1] : (rawUrl.startsWith('http') ? rawUrl : '');
+
+        if (directCatastroUrl) {
+          const shell=document.createElement('section');shell.className='konsor-cadastre-card';
+          const kicker=document.createElement('span');kicker.className='konsor-map-eyebrow';kicker.textContent='CATASTRO · NAVARRA';
+          const title=document.createElement('strong');title.textContent='Ficha de la parcela';
+          const anchor=document.createElement('a');anchor.className='konsor-cadastre-link';
+          anchor.textContent='Ver ficha catastral';anchor.href=directCatastroUrl;
+          anchor.target='_blank';anchor.rel='noopener noreferrer';
+          if(!/^https:\/\//i.test(directCatastroUrl)){popup.setContent('Enlace catastral no disponible.');return;}
+          shell.append(kicker,title,anchor);popup.setContent(shell);
+        } else {
+          popup.setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><p>No hay ficha disponible para este punto.</p></section>');
+        }
+      } catch (err) {
+        popup.setContent('<section class="konsor-cadastre-card"><span class="konsor-map-eyebrow">CATASTRO · NAVARRA</span><p>No se pudo consultar el servicio catastral. Inténtalo de nuevo.</p></section>');
+      }
+    }
+
+    function handleMapClick(e) {
+      if (!isDrawingMode) {
+        inspectNavarraCadastreAtPoint(e.latlng);
+        return;
+      }
+      const pt = [e.latlng.lat, e.latlng.lng];
+
+      if (isSingleHouseMode) {
+        isDrawingMode = false;
+        isSingleHouseMode = false;
+        document.getElementById('drawingBanner').classList.remove('active');
+        openSingleHouseModal(pt[0], pt[1], null);
+        return;
+      }
+
+      tempPoints.push(pt);
+      window.cnvMapDrawingState?.({mode:isRoofMeasureMode?'roof':isPuebloDrawingMode?'town':'sector',
+        points:tempPoints.length,m2:isRoofMeasureMode&&tempPoints.length>=3?calculatePolygonAreaM2(tempPoints):0});
+      const dotColor = isRoofMeasureMode ? '#3478f6' : '#3478f6';
+      const m = L.circleMarker(pt, { radius: 6, color: '#fff', fillColor: dotColor, fillOpacity: 1 }).addTo(map);
+      tempMarkers.push(m);
+
+      if (isPuebloDrawingMode) {
+        if (measurePolygonLayer) map.removeLayer(measurePolygonLayer);
+        if (tempPoints.length >= 2) {
+          measurePolygonLayer = tempPoints.length >= 3
+            ? L.polygon(tempPoints,{color:'#3478f6',weight:3,fillColor:'#79aafa',fillOpacity:.16}).addTo(map)
+            : L.polyline(tempPoints,{color:'#3478f6',weight:3}).addTo(map);
+        }
+        document.getElementById('drawingBannerText').textContent =
+          tempPoints.length>=3 ? 'Perímetro visible · '+tempPoints.length+' puntos. Pulsa Guardar perímetro.'
+          : 'Delimita el pueblo · '+tempPoints.length+'/3 puntos mínimos.';
+      }
+      if (isRoofMeasureMode) {
+        if (measurePolygonLayer) map.removeLayer(measurePolygonLayer);
+        if (tempPoints.length >= 3) {
+          measurePolygonLayer = L.polygon(tempPoints, {
+            color: '#3478f6',
+            weight: 2.5,
+            fillColor: '#79aafa',
+            fillOpacity: 0.20
+          }).addTo(map);
+          const m2 = calculatePolygonAreaM2(tempPoints);
+          document.getElementById('drawingBannerText').innerText = `Superficie aproximada: ${m2} m² · Añade esquinas o pulsa Ver resultado`;
+        } else {
+          document.getElementById('drawingBannerText').innerText = `Puntos marcados: ${tempPoints.length}/3 como mínimo`;
+        }
+      }
+    }
+
+    async function detectTownFromCoordinates(lat, lon) {
+      const townInput = document.getElementById('assignTown');
+      if (!townInput) return;
+      if (isMikelTeamMember(currentUserName)) {
+        townInput.value = '';
+        townInput.placeholder = 'Escribe el pueblo manualmente...';
+        return;
+      }
+      townInput.value = 'Detectando localidad...';
+      try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`);
+        const data = await resp.json();
+        const addr = data.address || {};
+        const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || '';
+        townInput.value = detectedTown;
+        if (!detectedTown) townInput.placeholder = 'Escribe el pueblo manualmente...';
+      } catch (e) {
+        townInput.value = '';
+        townInput.placeholder = 'Sin red: escribe el pueblo...';
+      }
+    }
+
+    /* =====================================================================
+       FLUJO DIRECTO: VIVIENDA / EDIFICIO ÚNICO
+       ===================================================================== */
+    async function openSingleHouseModal(lat, lon, existingZoneIdx = null) {
+      editingSingleHouseIndex = existingZoneIdx;
+      pendingSingleHouseCoords = [lat, lon];
+
+      const existingZone = existingZoneIdx !== null ? savedZones[existingZoneIdx] : null;
+      const existingClient = (existingZone && existingZone.clients && existingZone.clients[0]) ? existingZone.clients[0] : {};
+
+      const isComunidad = existingClient.type === 'comunidad';
+      const assignedOwner = existingZone ? existingZone.comercial : currentUserName;
+      const dateVal = existingZone ? (existingZone.dumpDate || existingZone.date || getTodayISO()) : getTodayISO();
+      const townVal = existingZone ? (existingZone.town || '') : '';
+      const canDelete = existingZoneIdx !== null && (currentUserRole === 'jefe' || assignedOwner === currentUserName);
+
+      document.getElementById('singleHouseModalTitle').innerText = existingZone
+        ? `✏️ Editar Vivienda / Edificio Único`
+        : `🏠 Nueva Captación • Vivienda / Edificio`;
+
+      const body = document.getElementById('singleHouseModalBody');
+      body.innerHTML = `
+        <div class="grid-row-2">
+          <div class="input-group" style="margin-bottom:0;">
+            <span class="input-label">📅 Fecha</span>
+            <input type="date" id="singleHouseDate" class="input-field" value="${dateVal}">
+          </div>
+          <div class="input-group" style="margin-bottom:0;">
+            <span class="input-label">📍 Pueblo</span>
+            <input type="text" id="singleHouseTown" class="input-field" placeholder="Detectando..." value="${townVal}">
+          </div>
+        </div>
+
+        ${currentUserRole === 'jefe' ? `
+          <div class="input-group" style="margin-top:6px;">
+            <span class="input-label">👤 Comercial Captador</span>
+            <select id="singleHouseComercial" class="select-field">
+              <option value="Andrei (Jefe)" ${assignedOwner==='Andrei (Jefe)'?'selected':''}>👑 Andrei (Jefe)</option>
+              <option value="Comercial 1" ${assignedOwner==='Comercial 1'?'selected':''}>Comercial 1</option>
+              <option value="Comercial 2" ${assignedOwner==='Comercial 2'?'selected':''}>Comercial 2</option>
+              <option value="Comercial 3" ${assignedOwner==='Comercial 3'?'selected':''}>Comercial 3</option>
+              <option value="Comercial 4" ${assignedOwner==='Comercial 4'?'selected':''}>Comercial 4</option>
+              <option value="Comercial 5" ${assignedOwner==='Comercial 5'?'selected':''}>Comercial 5</option>
+            </select>
+          </div>
+        ` : `<input type="hidden" id="singleHouseComercial" value="${assignedOwner}">`}
+
+        <div id="singleHouseCardContainer" style="margin-top:8px;">
+          <div class="${isComunidad ? 'comunidad-box' : 'client-box'}" data-client-index="0">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Tipo de Inmueble Captado</strong>
+              <select class="select-field client-type" style="font-size:11px; padding:4px 8px; width:auto;" onchange="switchClientTypeView(this, 0)">
+                <option value="vivienda" ${!isComunidad && existingClient.type!=='urbanizacion'?'selected':''}>🏠 Vivienda Individual</option>
+                <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
+                ${!isMikelTeamMember(currentUserName) ? `<option value="urbanizacion" ${existingClient.type==='urbanizacion'?'selected':''}>🏘️ Urbanización conjunta</option>` : ''}
+              </select>
+            </div>
+
+            <div class="client-fields-dynamic-area" style="width:100%; box-sizing:border-box;">
+              ${isComunidad ? getComunidadFormHTML(existingClient, 0) : getViviendaFormHTML(existingClient)}
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn-modal-save" style="flex:3;" onclick="saveSingleHouseData()">💾 Guardar Vivienda / Edificio</button>
+          ${canDelete ? `<button class="btn-modal-delete" style="flex:1;" onclick="deleteSingleHouse(${existingZoneIdx})">🗑️</button>` : ''}
+        </div>
+      `;
+
+      if (isComunidad) {
+        const box = body.querySelector('.comunidad-box');
+        renderAtticsBreakdownList(box, existingClient.atticsDetails || null, parseInt(existingClient.numAttics || 2));
+      }
+
+      document.getElementById('singleHouseModal').classList.add('active');
+      window.cnEnhanceSingleHouse?.();
+
+      const townField=body.querySelector('#singleHouseTown');
+      townField.addEventListener('change',()=>fillPostalCodeFromStreet(body.querySelector('.client-street')));
+      if(existingZoneIdx!==null)void fillPostalCodeFromStreet(body.querySelector('.client-street'));
+      if (existingZoneIdx === null) {
+        const townInput = document.getElementById('singleHouseTown');
+        const streetInput = body.querySelector('.client-street');
+        if (townInput && !townVal) townInput.value = 'Detectando...';
+
+        try {
+          const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
+          const data = await resp.json();
+          const addr = data.address || {};
+          const detectedTown = addr.village || addr.town || addr.city || addr.municipality || addr.hamlet || addr.suburb || '';
+          const road = addr.road || addr.pedestrian || addr.square || addr.footway || '';
+          const houseNum = addr.house_number ? ` ${addr.house_number}` : '';
+
+          if (townInput && (!townVal || townInput.value === 'Detectando...')) townInput.value = detectedTown;
+          if (streetInput && !streetInput.value && road) {
+            streetInput.value = `${road}${houseNum}`;
+          }
+          const cpInput = body.querySelector('.client-cp');
+          if (cpInput && !cpInput.value) {
+            const autoCp = /^31\d{3}$/.test(String(addr.postcode || '')) ? String(addr.postcode) : '';
+            if (autoCp) {
+              cpInput.value = autoCp;
+              cpInput.dataset.autoPostalCode=autoCp;
+              updateClientCteFromCp(cpInput);
+            }
+          }
+        } catch (e) {
+          if (townInput && townInput.value === 'Detectando...') { townInput.value = ''; townInput.placeholder = 'Confirma el pueblo'; }
+        }
+      }
+    }
+
+        /* ===== CITA → CRM OBLIGATORIA + SEGUIMIENTO ===== */
+    function buildCrmRecord(c, ctx) {
+      const m2Val = getM2NumericValue(c.m2);
+      const cteInfo = detectCteZoneFromCpAndTown(c.postalCode || '', ctx.town || '');
+      return {
+        id_ficha: `${c.createdAt || ''}_${(c.phone || '').replace(/\D/g, '')}`,
+        fecha_captacion: ctx.date || '',
+        comercial_captador: getDisplayAlias(ctx.comercial),
+        comercial_id: ctx.comercial,
+        origen_captacion: c.origen || 'puerta',
+        notas_llamada: c.callNotes || '',
+        dni: c.dni || '',
+        hora_fin_obra: (OBRA_SLOTS.find(s => s.start === c.obraTime) || {}).end || null,
+        franja_obra: obraSlotLabel(c.obraTime),
+        tipo_inmueble: c.type === 'comunidad' ? 'COMUNIDAD' : 'VIVIENDA_UNIFAMILIAR',
+        cliente_nombre: c.name || '',
+        telefono: (c.phone || '').replace(/\s+/g, ''),
+        email: c.email || '',
+        direccion: c.street || '',
+        municipio: ctx.town || '',
+        provincia: 'Navarra',
+        codigo_postal: c.postalCode || cteInfo.cp || '',
+        zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'PENDIENTE_VERIFICAR',
+        anio_construccion: parseInt(c.buildYear) || null,
+        superficie_m2: m2Val,
+        tipo_acceso: formatAccessDisplay(c),
+        estado_expediente: 'CITA_AGENDADA',
+        agendar_web_calendar: true,
+        fecha_obra: c.obraDate || null,
+        hora_obra: c.obraTime || null,
+        documentacion_comunidad: c.type === 'comunidad' ? (c.comunidadDocs || {}) : null
+      };
+    }
+
+    function downloadCrmCita(c, ctx) {
+      const payload = {
+        origen_app: "Konsor_Campo_Navarra_v2027",
+        exportado_en: new Date().toISOString(),
+        periodo: (ctx.date || '').slice(0, 7),
+        total_fichas: 1,
+        fichas: [buildCrmRecord(c, ctx)]
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Cita_CRM_${c.obraDate || ''}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function needsCrmUpload(c) {
+      if (!c || c.obraStatus !== 'agendada') return false;
+      return !(c.crmUploaded && c.crmDate === c.obraDate && c.crmTime === c.obraTime);
+    }
+
+    function ensureCrmUpload(c, ctx) {
+            if (isMikelTeamMember(ctx.comercial)) return true;
+      if (c.dni && !isValidDni(c.dni)) {
+        alert("⚠️ El DNI/NIE de " + (c.name || 'un cliente') + " no parece válido. Revisa los números y la letra.");
+        return false;
+      }
+      if (!needsCrmUpload(c)) return true;
+if (!routeValidateAppointment(c, ctx)) return false;
+      if (c.obraDate && new Date(c.obraDate + 'T12:00:00').getDay() === 0) {
+        alert("⚠️ Los domingos no se trabaja. Elige un día de lunes a sábado.");
+        return false;
+      }
+      if (c.obraDate && c.obraTime) {
+        const myId = `${c.createdAt || ''}_${(c.phone || '').replace(/\D/g, '')}`;
+        let clash = 0;
+        savedZones.forEach(zz => (zz.clients || []).forEach(o => {
+          const oId = `${o.createdAt || ''}_${(o.phone || '').replace(/\D/g, '')}`;
+          if (o.obraStatus === 'agendada' && o.obraDate === c.obraDate && o.obraTime === c.obraTime && oId !== myId && !isMikelTeamMember(zz.comercial)) clash++;
+        }));
+        if (clash > 0 && !confirm(`⚠️ Ya hay ${clash} obra(s) agendada(s) el ${c.obraDate} en la franja ${obraSlotLabel(c.obraTime)}.\n\n¿Quieres agendar esta también en esa franja?`)) return false;
+      }
+      if (!c.obraDate || !c.obraTime) {
+        alert("⚠️ Pon la fecha y la hora de la cita de obra para poder guardar.");
+        return false;
+      }
+      if (!confirm("📅 CITA DE OBRA: " + (c.name || 'cliente') + " (" + c.obraDate + " " + c.obraTime + ")\n\nPara guardar la cita hay que subirla a la CRM oficial.\n\nPulsa ACEPTAR para generar el archivo de la cita.")) return false;
+      downloadCrmCita(c, ctx);
+      if (!confirm("¿Has subido ya ese archivo a la CRM oficial?\n\nACEPTAR = Sí, ya está subida (se guarda la cita)\nCANCELAR = Todavía no (NO se guarda)")) return false;
+      c.crmUploaded = true;
+      c.crmUploadedAt = Date.now();
+      c.crmDate = c.obraDate;
+      c.crmTime = c.obraTime;
+      return true;
+    }
+
+    function fuExtraHtml(c) {
+      if (!c || !c.nextContactAt) return '';
+      const d = new Date(c.nextContactAt);
+      const lbl = d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const late = Date.now() >= c.nextContactAt;
+      const what = c.waitType === 'whatsapp' ? '💬 WhatsApp' : '📞 Llamar';
+      const reason = (c.waitReason || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<span style="font-size:9.5px; font-weight:900; color:${late ? '#fca5a5' : '#c4b5fd'};">⏰ ${what} ${late ? 'YA TOCA' : 'el ' + lbl}</span>${reason ? ` <span style="font-size:9.5px; color:#e9d5ff;">· ${reason}</span>` : ''}`;
+    }
+
+    function extractClientFromBox(box, existingCallStatus = 'pendiente', existingMeta = {}) {
+      const m = existingMeta || {};
+      const c = {
+  ...m,
+  ...extractClientFromBoxBase(box, existingCallStatus, m)
+};
+      c.crmUploaded = !!m.crmUploaded;
+      c.crmUploadedAt = m.crmUploadedAt || null;
+      c.crmDate = m.crmDate || '';
+      c.crmTime = m.crmTime || '';
+      c.origen = box.querySelector('.client-origen')?.value || m.origen || 'puerta';
+      c.waitType = m.waitType || '';
+      c.waitReason = m.waitReason || '';
+      c.nextContactAt = m.nextContactAt || null;
+      c.callLog = m.callLog || [];
+      c.callNotes = m.callNotes || '';
+      const dniField = box.querySelector('.client-dni');
+            c.dni = dniField
+        ? dniField.value.trim().toUpperCase()
+        : (m.dni || '');
+
+      if (
+        c.obraStatus === 'realizada' &&
+        m.obraStatus !== 'realizada'
+      ) {
+        c.obraRealizadaDate = getTodayISO();
+        c.obraRealizadaAt = Date.now();
+      }
+
+      return c;
+    }
+
+    function extractClientFromBoxBase(box, existingCallStatus = 'pendiente', existingMeta = {}) {
+      const nowMs = Date.now();
+      const createdAt = existingMeta.createdAt || nowMs;
+      const statusChangedAt = existingMeta.statusChangedAt || nowMs;
+      const typeVal = box.querySelector('.client-type') ? box.querySelector('.client-type').value : 'vivienda';
+      const statusVal = box.querySelector('.client-obra-status').value;
+      const reasonVal = statusVal === 'no_apto' ? (box.querySelector('.client-no-apto-reason')?.value || 'ninguno') : 'ninguno';
+      const obraDateVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-date')?.value || getTodayISO()) : '';
+      const obraTimeVal = statusVal === 'agendada' ? (box.querySelector('.client-obra-time')?.value || '09:30') : '';
+
+      const buildYearVal = box.querySelector('.client-build-year')?.value.trim() || '';
+      const postalCodeVal = box.querySelector('.client-cp')?.value.trim() || '';
+      const cteZoneRaw = box.querySelector('.client-cte-zone')?.value.trim() || '';
+      const cteZoneVal = cteZoneRaw === 'Auto por CP' || cteZoneRaw === 'Sin detectar' ? '' : cteZoneRaw;
+      const emailVal = box.querySelector('.client-email')?.value.trim() || '';
+      const accessTypeVal = box.querySelector('.client-access-type')?.value || 'Trampilla';
+      const accessOtherVal = accessTypeVal === 'Otro' ? (box.querySelector('.client-access-other')?.value.trim() || '') : '';
+      const atticPhotoVal = box.dataset.atticPhoto ?? existingMeta.atticPhoto ?? '';
+      if (typeVal === 'comunidad') {
+        const atticCards = box.querySelectorAll('.attic-item-card');
+        const atticsDetails = [];
+        let computedTotalM2 = 0;
+
+        atticCards.forEach(attCard => {
+          const door = attCard.querySelector('.attic-door').value.trim();
+          const m2Val = getM2NumericValue(attCard.querySelector('.attic-m2').value);
+          const owner = attCard.querySelector('.attic-owner').value.trim();
+          const phone = attCard.querySelector('.attic-phone').value.trim();
+
+          computedTotalM2 += m2Val;
+          atticsDetails.push({ door, m2: m2Val, owner, phone });
+        });
+
+        const comunidadDocs = {};
+        COMUNIDAD_DOCS_SCHEMA.forEach(docItem => {
+          const chk = box.querySelector(`.${docItem.key}`);
+          comunidadDocs[docItem.key] = chk ? chk.checked : false;
+        });
+
+        return {
+          type: 'comunidad',
+          isPresi: box.querySelector('.client-is-presi').value === 'si',
+          name: box.querySelector('.client-name').value.trim(),
+          street: box.querySelector('.client-street').value.trim(),
+          postalCode: postalCodeVal,
+          locality: box.querySelector('.client-locality')?.value || '',
+          cteZone: cteZoneVal,
+          phone: box.querySelector('.client-phone').value.trim(),
+          email: emailVal,
+          buildYear: buildYearVal,
+          accessType: accessTypeVal,
+          accessOther: accessOtherVal,
+          atticPhoto: atticPhotoVal,
+          numAttics: atticsDetails.length,
+          atticsDetails: atticsDetails,
+          m2: isMikelTeamMember(currentUserName) ? (existingMeta.m2 ?? 0) : computedTotalM2,
+          obraStatus: statusVal,
+          obraDate: obraDateVal,
+          obraTime: obraTimeVal,
+          obraReason: reasonVal,
+          callStatus: existingCallStatus,
+          createdAt,
+          statusChangedAt,
+          comunidadDocs
+        };
+      } else {
+        return {
+          type: typeVal === 'urbanizacion' ? 'urbanizacion' : 'vivienda',
+          urbanizacionNombre: typeVal === 'urbanizacion'
+            ? box.querySelector('.client-urbanizacion-name')?.value.trim() || ''
+            : '',
+          urbanizacionId: typeVal === 'urbanizacion'
+            ? ComercialCore.norm(box.querySelector('.client-urbanizacion-name')?.value || '')
+            : '',
+
+          name: box.querySelector('.client-name').value.trim(),
+          street: box.querySelector('.client-street').value.trim(),
+          postalCode: postalCodeVal,
+          locality: box.querySelector('.client-locality')?.value || '',
+          cteZone: cteZoneVal,
+          phone: box.querySelector('.client-phone').value.trim(),
+          email: emailVal,
+          buildYear: buildYearVal,
+          accessType: accessTypeVal,
+          accessOther: accessOtherVal,
+          atticPhoto: atticPhotoVal,
+          m2: box.querySelector('.client-m2') ? getM2NumericValue(box.querySelector('.client-m2').value) : (existingMeta.m2 ?? 0),
+          m2Total: box.querySelector('.client-total-m2')?.value || '',
+          m2Floors: box.querySelector('.client-floors')?.value || '',
+          m2Coverage: box.querySelector('.client-attic-coverage')?.value || '',
+          m2WallCm: box.querySelector('.client-attic-wall')?.value || '',
+          obraStatus: statusVal,
+          obraDate: obraDateVal,
+          obraTime: obraTimeVal,
+          obraReason: reasonVal,
+          callStatus: existingCallStatus,
+          createdAt,
+          statusChangedAt
+        };
+      }
+    }
+
+    async function saveSingleHouseData() {
+      const container = document.getElementById('singleHouseCardContainer');
+      const box = container.querySelector('.client-box, .comunidad-box');
+      if (!box) return;
+      await fillPostalCodeFromStreet(box.querySelector('.client-street'));
+      if(box.querySelector('.address-choices:not([hidden])')){alert('Selecciona la localidad de la dirección antes de guardar.');return;}
+
+      const prevCallStatus = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]?.callStatus) || 'pendiente';
+           const prevClientMeta = (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]?.clients?.[0]) || {};
+      const clientObj = extractClientFromBox(box, prevCallStatus, prevClientMeta);
+      if (!isClientValidFilled(clientObj)) {
+        alert("⚠️ Rellena al menos el nombre, la calle o el teléfono antes de guardar esta vivienda.");
+        return;
+      }
+
+      if (clientObj.type === 'urbanizacion' && !clientObj.urbanizacionId) {
+        alert('Indica el nombre de la urbanización.');
+        return;
+      }
+
+      if (clientObj.dni && !isValidDni(clientObj.dni)) {
+        alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+        return;
+      }
+      const dateVal = document.getElementById('singleHouseDate').value || getTodayISO();
+      let townVal = document.getElementById('singleHouseTown').value.trim();
+      if (!townVal || townVal === 'Detectando...') { alert('Indica la localidad de la vivienda antes de guardar.'); return; }
+      const comercialVal = document.getElementById('singleHouseComercial').value || currentUserName;
+
+      const nuevaConfirmacion = needsCrmUpload(clientObj) && !isMikelTeamMember(comercialVal);
+      if (!ensureCrmUpload(clientObj, {
+  date: dateVal,
+  town: townVal,
+  comercial: comercialVal
+})) return;
+
+const labelStreet = clientObj.street ||
+  (
+    clientObj.type === 'comunidad'
+      ? 'Edificio Único'
+      : 'Vivienda Única'
+  );
+      const sectorTitle = `${clientObj.type === 'comunidad' ? '🏢' : '🏠'} ${labelStreet}`;
+
+      if (editingSingleHouseIndex !== null && savedZones[editingSingleHouseIndex]) {
+        const z = savedZones[editingSingleHouseIndex];
+        z.date = dateVal;
+        z.dumpDate = dateVal;
+        z.town = townVal;
+        z.sectorName = sectorTitle;
+        z.comercial = comercialVal;
+        z.stats = { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 };
+        z.clients = [clientObj];
+      } else {
+        savedZones.push({
+          id: Date.now(),
+          isSingleHouse: true,
+          singlePoint: pendingSingleHouseCoords,
+          date: dateVal,
+          dumpDate: dateVal,
+          town: townVal,
+          sectorName: sectorTitle,
+          comercial: comercialVal,
+          bossNote: '',
+          pendingNote: '',
+          status: 'completada',
+          points: [],
+          stats: { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 },
+          clients: [clientObj]
+        });
+      }
+
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+           logActivity('ficha', `🏠 Registró ${clientObj.type === 'comunidad' ? 'una comunidad' : 'una vivienda'}: ${clientObj.name || clientObj.street || 'sin nombre'} · ${townVal}`, comercialVal);
+      editingSingleHouseIndex = null;
+      pendingSingleHouseCoords = null;
+      closeModal('singleHouseModal');
+      if (nuevaConfirmacion) showCitaSavedModal(clientObj, {town:townVal, comercial:comercialVal});
+      renderAllSavedZones();
+      updateHudLiveSalaryPill();
+    }
+
+    async function deleteSingleHouse(idx) {
+      const z=savedZones[idx];
+      if(!z?.isSingleHouse)return;
+      if(currentUserRole!=='jefe'&&z.comercial!==currentUserName){
+        alert('Solo puedes eliminar tus propias captaciones.');return;
+      }
+      const client=z.clients?.[0]||{};
+      const address=client.street||z.sectorName||z.town||'vivienda';
+      const activeBooking=['agendada','realizada'].includes(client.obraStatus);
+      if(!confirm('¿Eliminar definitivamente la vivienda de '+address+' y su ficha de Firebase?'
+        +(activeBooking?'\n\nATENCIÓN: esta ficha tiene una obra agendada o realizada. Comprueba la agenda antes de continuar.':'')))return;
+      const nextZones=savedZones.filter((_,i)=>i!==idx);
+      if(!await saveAndSync('comercial_custom_zones',nextZones))return;
+      savedZones=nextZones;
+      closeModal('singleHouseModal');
+      if(map)map.closePopup();
+      renderAllSavedZones();
+      window.cnvRefreshHome?.();
+    }
+    window.konsorDeleteSingleHouse=deleteSingleHouse;
+
+    window.konsorDeleteSectorClient=async function(zoneIndex,clientIndex){
+      const zone=savedZones?.[zoneIndex],client=zone?.clients?.[clientIndex];
+      if(!zone||zone.isSingleHouse||!client)return;
+      if(currentUserRole!=='jefe'&&zone.comercial!==currentUserName){
+        alert('No tienes permiso para borrar esta ficha.');return;
+      }
+      const address=client.street||client.name||'sin dirección';
+      if(!confirm('¿Borrar definitivamente la ficha de '+address+'? Se conservará el sector.'
+        +(['agendada','realizada'].includes(client.obraStatus)?'\n\nATENCIÓN: tiene una obra registrada. Revisa la agenda.':'')))return;
+      const nextZones=savedZones.map((z,i)=>{
+        if(i!==zoneIndex)return z;
+        return {...z,clients:(z.clients||[]).filter((_,j)=>j!==clientIndex),
+          stats:{...z.stats,si:Math.max(0,Number(z.stats?.si||0)-(client.obraStatus==='no_apto'?0:1))}};
+      });
+      if(!await saveAndSync('comercial_custom_zones',nextZones))return;
+      savedZones=nextZones;
+      if(map)map.closePopup();
+      renderAllSavedZones();
+      closeModal('dumpModal');
+      window.cnvRefreshHome?.();
+    };
+
+    async function finishSectorDrawing() {
+      if (isPuebloDrawingMode) {
+        if (tempPoints.length < 3) {
+          alert('Marca tres puntos como mínimo');
+          return;
+        }
+        await guardarPuebloDibujado();
+        return;
+      }
+
+      if (tempPoints.length < 3) {
+        alert("Toca al menos 3 puntos para delimitar.");
+        return;
+      }
+
+     if (isRoofMeasureMode) {
+        const totalM2 = calculatePolygonAreaM2(tempPoints);
+        if(totalM2<=0){alert('El polígono no tiene superficie calculable. Separa los puntos y vuelve a cerrar.');return;}
+        const measuredPoints=tempPoints.map(p=>[...p]);
+        cancelDrawing();
+        showRoofMeasureResult(totalM2,measuredPoints);
+        return;
+      }
+
+      if (isNoAptoDrawingMode) {
+        const reason = prompt("🚫 Motivo de Zona No Apta (ej. Urbanización Post-2006, Tejado plano, Ya aislado):") || "Post-2006 / Inviable";
+        const townInput = document.getElementById('searchInput')?.value.trim() || 'Navarra';
+        savedZones.push({
+          id: Date.now(),
+          date: getTodayISO(),
+          town: townInput,
+          sectorName: `🚫 Zona No Apta (${reason})`,
+          comercial: currentUserName,
+          isNoAptoZone: true,
+          noAptoReason: reason,
+          status: 'completada',
+          points: [...tempPoints],
+          stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
+          clients: []
+        });
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+        cancelDrawing();
+        renderAllSavedZones();
+        return;
+      }
+
+      document.getElementById('drawingBanner').classList.remove('active');
+      window.cnvMapDrawingState?.({mode:null});
+
+      if (isCropMode && selectedZoneIndexToDump !== null) {
+        const z = savedZones[selectedZoneIndexToDump];
+        z.points = tempPoints;
+        z.status = 'en_proceso';
+        z.date = getTomorrowISO();
+        z.isUrgentContinuation = true;
+        z._updatedAt = Date.now();
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+        isCropMode = false;
+        isDrawingMode = false;
+        tempPoints = [];
+        tempMarkers.forEach(m => map.removeLayer(m));
+        tempMarkers = [];
+        renderAllSavedZones();
+        openDumpModal(selectedZoneIndexToDump);
+      } else {
+        let sumLat = 0;
+        let sumLon = 0;
+        tempPoints.forEach(pt => {
+          sumLat += pt[0];
+          sumLon += pt[1];
+        });
+        const centerLat = sumLat / tempPoints.length;
+        const centerLon = sumLon / tempPoints.length;
+
+        const assignOverlay=document.getElementById('assignModal');
+        if(assignOverlay.parentElement!==document.body)document.body.appendChild(assignOverlay);
+        assignOverlay.style.zIndex='11090';
+        assignOverlay.classList.add('active');
+        const agenda = document.getElementById('assignDate');
+        const responsible = document.getElementById('assignComercial');
+        if (agenda && responsible) {
+          agenda.value = suggestSectorDateFor(responsible.value);
+          if (!responsible.dataset.konsorSuggestedDate) {
+            responsible.addEventListener('change', () => {
+              if (agenda) agenda.value = suggestSectorDateFor(responsible.value);
+            });
+            responsible.dataset.konsorSuggestedDate = '1';
+          }
+        }
+        const sectorNameField=document.getElementById('assignSectorName');
+        if(sectorNameField)sectorNameField.value='';
+        const townParent=puebloParaSectorKonsor(tempPoints);
+        const chosen=konsorSectorParentTown
+          ? perimetrosPueblos.find(p=>ComercialCore.norm(p.nombre)===ComercialCore.norm(konsorSectorParentTown))
+          : townParent;
+        if(chosen){
+          const outside=tempPoints.some(p=>!puntoEnPoligonoKonsor(p,chosen.points));
+          if(outside){
+            alert('El sector tiene esquinas fuera del perímetro de '+chosen.nombre+'. Ajusta el dibujo antes de asignarlo.');
+            closeModal('assignModal');
+            document.getElementById('drawingBanner').classList.add('active');
+            window.cnvMapDrawingState?.({mode:'sector',points:tempPoints.length});
+            return;
+          }
+          const input=document.getElementById('assignTown');
+          input.value=chosen.nombre;
+          input.readOnly=true;
+          const preview=document.getElementById('assignSectorPreview');
+          if(preview)preview.textContent=konsorSectorLabel(chosen.nombre)+' · '+chosen.nombre;
+        }else{
+          const input=document.getElementById('assignTown');
+          input.readOnly=false;
+          const preview=document.getElementById('assignSectorPreview');
+          const render=()=>{if(preview)preview.textContent=input.value.trim()
+            ? konsorSectorLabel(input.value.trim())+' · '+input.value.trim()
+            : 'Indica el pueblo para numerar el sector';};
+          input.addEventListener('input',render,{once:false});
+          render();
+          detectTownFromCoordinates(centerLat,centerLon);
+        }
+      }
+    }
+
+    let pendingSectorId = null;
+    function cancelDrawing() {
+      isPuebloDrawingMode = false;
+      pendingSectorId = null;
+      konsorSectorParentTown = '';
+      isDrawingMode = false;
+      isCropMode = false;
+      isSingleHouseMode = false;
+      isRoofMeasureMode = false;
+      window.cnvMapDrawingState?.({mode:null});
+      tempPoints = []
+      tempMarkers.forEach(m => map.removeLayer(m));
+      tempMarkers = [];
+      if (measurePolygonLayer) {
+        map.removeLayer(measurePolygonLayer);
+        measurePolygonLayer = null;
+      }
+      isNoAptoDrawingMode = false;
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnConfirm) btnConfirm.innerText = 'CONFIRMAR ZONA';
+      document.getElementById('drawingBanner').classList.remove('active');
+    }
+
+    function startNoAptoZoneDrawing() {
+      cancelDrawing();
+      isDrawingMode = true;
+      isNoAptoDrawingMode = true;
+      const banner = document.getElementById('drawingBanner');
+      banner.className = 'banner-drawing active';
+      document.getElementById('drawingBannerActionsRow').style.display = 'flex';
+      const btnSingle = document.getElementById('btnToggleSingleHouseMode');
+      const btnConfirm = document.getElementById('btnConfirmSectorPoly');
+      if (btnSingle) btnSingle.style.display = 'none';
+      if (btnConfirm) {
+        btnConfirm.style.display = 'inline-block';
+        btnConfirm.innerText = '🚫 MARCAR NO APTA';
+      }
+      document.getElementById('drawingBannerText').innerText = "🚫 Toca las esquinas de la urbanización o manzana NO APTA...";
+    }
+
+    async function deleteNoAptoZone(idx) {
+      const z = savedZones[idx];
+      if (!z) return;
+      if (z.id) {
+        const delList = safeLoadStorage('comercial_deleted_ids');
+        if (!delList.includes(z.id)) {
+          delList.push(z.id);
+          localStorage.setItem('comercial_deleted_ids', JSON.stringify(delList));
+        }
+      }
+      savedZones.splice(idx, 1);
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      map.closePopup();
+      renderAllSavedZones();
+    }
+
+
+    function detectarSolapamientosSectores(nuevo) {
+      const dentro = (p, poly) => {
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const a = poly[i], b = poly[j];
+          if ((a[0] > p[0]) !== (b[0] > p[0]) &&
+              p[1] < (b[1]-a[1])*(p[0]-a[0])/(b[0]-a[0])+a[1])
+            inside = !inside;
+        }
+        return inside;
+      };
+
+      const cruzan = (a,b,c,d) => {
+        const o = (p,q,r) =>
+          (q[1]-p[1])*(r[0]-p[0]) -
+          (q[0]-p[0])*(r[1]-p[1]);
+        return o(a,b,c)*o(a,b,d)<0 &&
+               o(c,d,a)*o(c,d,b)<0;
+      };
+
+      const solapan = (a,b) => {
+        if (a.some(p=>dentro(p,b)) || b.some(p=>dentro(p,a)))
+          return true;
+        for(let i=0;i<a.length;i++)
+          for(let j=0;j<b.length;j++)
+            if(cruzan(a[i],a[(i+1)%a.length],
+                      b[j],b[(j+1)%b.length]))
+              return true;
+        return false;
+      };
+
+      return [
+        ...savedZones,
+        ...(currentUserName === 'Andrei (Jefe)'
+          ? sectoresMikelSupervision : [])
+      ].filter(z =>
+        !z.isSingleHouse &&
+        Array.isArray(z.points) &&
+        z.points.length >= 3 &&
+        z.points.every(p =>
+          Array.isArray(p) && p.length === 2 &&
+          Number.isFinite(p[0]) && Number.isFinite(p[1])
+        ) &&
+        solapan(nuevo,z.points)
+      );
+    }
+
+function konsorNextSectorNumber(town) {
+      const zones=savedZones.filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&
+        ComercialCore.norm(z.parentTown||z.town)===ComercialCore.norm(town));
+      const nums=zones.map(z=>{
+        const m=String(z.sectorName||'').match(/^Sector\\s+(?:.*?\\s+#)?(\\d+)(?:\\b|\\s*[·-])/i);
+        return m?Number(m[1]):0;
+      }).filter(n=>Number.isInteger(n)&&n>0);
+      return Math.max(zones.length,...nums,0)+1;
+    }
+    function konsorSectorLabel(town){return 'Sector '+konsorNextSectorNumber(town);}
+    function suggestSectorDateFor(comercial) {
+      const today = getTodayISO();
+      const queued = savedZones.filter(z => z && z.comercial === comercial &&
+        !z.isSingleHouse && !z.isNoAptoZone && !z.isHotMission &&
+        z.status !== 'completada' && /^\\d{4}-\\d{2}-\\d{2}$/.test(z.date || '') &&
+        z.date >= today).map(z => z.date).sort();
+      const latest = queued.length ? queued[queued.length - 1] : null;
+      // Si la persona ya tiene sectores futuros, el nuevo va después.
+      // Sin carga futura se propone hoy, excepto domingo.
+      const cursor = new Date((latest || today) + 'T12:00:00Z');
+      if (latest) cursor.setUTCDate(cursor.getUTCDate() + 1);
+      while (cursor.getUTCDay() === 0) cursor.setUTCDate(cursor.getUTCDate() + 1);
+      return cursor.toISOString().slice(0, 10);
+    }
+
+    async function confirmSectorAssignment() {
+      const dateVal = document.getElementById('assignDate').value || getTodayISO();
+      const parentTown=puebloParaSectorKonsor(tempPoints);
+      if(konsorSectorParentTown&&!parentTown){
+        alert('El sector debe estar dentro del pueblo seleccionado.');
+        return;
+      }
+      if(konsorSectorParentTown&&parentTown&&ComercialCore.norm(parentTown.nombre)!==ComercialCore.norm(konsorSectorParentTown)){
+        alert('El sector pertenece a otro pueblo. Revisa el dibujo.');
+        return;
+      }
+      if(parentTown&&tempPoints.some(p=>!puntoEnPoligonoKonsor(p,parentTown.points))){
+        alert('Todas las esquinas del sector deben estar dentro del pueblo.');return;
+      }
+      let town = document.getElementById('assignTown').value.trim();
+      if (!town || town === 'Detectando localidad...') {
+        alert("⚠️ Escribe el nombre del pueblo o municipio antes de guardar.");
+        return;
+      }
+
+      if(parentTown)town=parentTown.nombre;
+      const sectorRef=document.getElementById('assignSectorName').value.trim();
+      const bossNote=document.getElementById('assignBossNote').value.trim();
+      const sectorNumber=konsorNextSectorNumber(town);
+      const sectorName='Sector '+sectorNumber+(sectorRef?' · '+sectorRef:'');
+
+      const comercial = document.getElementById('assignComercial').value;
+      if (!getActiveTeamUsers(
+        isMikelTeamMember(currentUserName)
+      ).includes(comercial)) {
+        alert('Solo puedes asignar sectores a tu propio equipo.');
+        return;
+      }
+
+
+
+      const coincidencias = detectarSolapamientosSectores(tempPoints);
+
+      if (coincidencias.length) {
+        const lista = coincidencias.slice(0,6).map(z => {
+          const estado = z.status === 'completada'
+            ? 'Terminado'
+            : z.status === 'en_proceso' ? 'En proceso' : 'Pendiente';
+          return '• ' + (z.sectorName || 'Sector') +
+            ' — ' + (z.comercial || 'Sin responsable') +
+            ' — ' + estado;
+        }).join('\n');
+
+        if (!confirm(
+          '⚠️ POSIBLE SOLAPAMIENTO CON ' +
+          coincidencias.length + ' SECTOR(ES):\n\n' +
+          lista + '\n\n¿Crear igualmente?'
+        )) return;
+      }
+
+      const button = document.querySelector('#assignModal .btn-modal-save');
+      if (button.disabled) return;
+      button.disabled = true;
+      pendingSectorId ??= Date.now();
+      const sector = {
+        id: pendingSectorId,
+        date: dateVal,
+        town,
+        parentTown:parentTown?.nombre||'',
+        sectorName,
+        sectorNumber,
+        sectorRef,
+        comercial,
+        bossNote: bossNote || '',
+        pendingNote: '',
+        status: 'sin_comprobar',
+        points: tempPoints.map(p => [...p]),
+        stats: { no: 0, ausente: 0, papelito: 0, si: 0 },
+        clients: []
+      };
+      try {
+        const proposal = savedZones.filter(z => z.id !== sector.id).concat(sector);
+        if (!await saveAndSync('comercial_custom_zones', proposal)) return;
+        savedZones.push(sector);
+      } finally { button.disabled = false; }
+      cancelDrawing();
+      closeModal('assignModal');
+      renderAllSavedZones();
+      konsorRetomarImportacionSiExiste();
+    }
+
+
+    // Agrupación visual: nunca modifica sectores ni fichas.
+    let capasSectoresAgrupables = [];
+    let capasMacrosector = [];
+
+    function envolventeTerritorial(puntos) {
+      const p = puntos.map(v => [Number(v[1]), Number(v[0])])
+        .filter(v => Number.isFinite(v[0]) && Number.isFinite(v[1]))
+        .sort((a,b) => a[0]-b[0] || a[1]-b[1]);
+
+      const orient = (a,b,c) =>
+        (b[0]-a[0])*(c[1]-a[1]) -
+        (b[1]-a[1])*(c[0]-a[0]);
+
+      const lower = [];
+      for (const v of p) {
+        while (lower.length >= 2 &&
+          orient(lower[lower.length-2], lower[lower.length-1], v) <= 0)
+          lower.pop();
+        lower.push(v);
+      }
+
+      const upper = [];
+      for (const v of [...p].reverse()) {
+        while (upper.length >= 2 &&
+          orient(upper[upper.length-2], upper[upper.length-1], v) <= 0)
+          upper.pop();
+        upper.push(v);
+      }
+
+      lower.pop();
+      upper.pop();
+
+      return [...lower,...upper].map(v => [v[1],v[0]]);
+    }
+
+
+    let municipiosOficiales = new Map();
+    let capasMunicipiosOficiales = [];
+
+    function claveMunicipio(nombre) {
+      return ComercialCore.norm(nombre).split('/')[0].trim();
+    }
+
+    async function cargarMunicipiosOficiales() {
+      try {
+        const r = await fetch(
+          './municipios-navarra.geojson',
+          {cache:'no-cache'}
+        );
+        if (!r.ok) throw Error('Cartografía no disponible');
+        const datos = await r.json();
+
+        const mapa = new Map();
+        for (const f of datos.features || []) {
+          const nombre = f.properties?.nombre;
+          if (!nombre || !f.geometry) continue;
+
+          const variantes = nombre.split('/');
+          for (const variante of variantes) {
+            const clave = claveMunicipio(variante);
+            if (clave && !mapa.has(clave))
+              mapa.set(clave, f);
+          }
+        }
+
+        municipiosOficiales = mapa;
+        if (map) actualizarAgrupacionTerritorial();
+      } catch(e) {
+        console.warn('Límites municipales:', e);
+      }
+    }
+
+    function dibujarMunicipiosOficiales() {
+      for (const capa of capasMunicipiosOficiales)
+        map.removeLayer(capa);
+      capasMunicipiosOficiales = [];
+
+      if (map.getZoom() >= 13) return;
+
+      const zonas = [
+        ...savedZones.filter(z =>
+          !z.isNoAptoZone &&
+          (currentUserRole === 'jefe' ||
+           z.comercial === currentUserName)
+        ),
+        ...(currentUserName === 'Andrei (Jefe)'
+          ? sectoresMikelSupervision : [])
+      ];
+
+      const porPueblo = new Map();
+      for (const z of zonas) {
+        const clave = claveMunicipio(z.town);
+        if (!municipiosOficiales.has(clave)) continue;
+        if (!porPueblo.has(clave)) porPueblo.set(clave, []);
+        porPueblo.get(clave).push(z);
+      }
+
+      if (currentUserName === 'Andrei (Jefe)') {
+        for (const nombre of completedTowns) {
+          const clave = claveMunicipio(nombre);
+          if (municipiosOficiales.has(clave) &&
+              !porPueblo.has(clave))
+            porPueblo.set(clave, []);
+        }
+      }
+
+      for (const [clave, sectores] of porPueblo) {
+        const f = municipiosOficiales.get(clave);
+        const nombre = f.properties.nombre;
+        const terminado = completedTowns.some(t =>
+          claveMunicipio(t) === clave
+        );
+
+        const completos = sectores.filter(z =>
+          z.status === 'completada'
+        ).length;
+
+        const si = sectores.reduce(
+          (n,z) => n + (Number(z.stats?.si) || 0), 0
+        );
+
+        const color = terminado ? '#22c55e' : '#eab308';
+
+        const capa = L.geoJSON(f, {
+          style: {
+            color,
+            weight: terminado ? 5 : 3,
+            fillColor: color,
+            fillOpacity: 0.13
+          }
+        }).addTo(map);
+
+        const panel = document.createElement('div');
+        const titulo = document.createElement('strong');
+        titulo.textContent =
+          (terminado ? '✅ ' : '🟡 ') + nombre;
+        panel.appendChild(titulo);
+
+        for (const linea of [
+          'Sectores terminados: ' +
+            completos + '/' + sectores.length,
+          'Interesados registrados: ' + si,
+          terminado
+            ? 'Pueblo marcado como finalizado'
+            : 'Pueblo pendiente de finalizar',
+          'Límite oficial del término municipal'
+        ]) {
+          const div = document.createElement('div');
+          div.textContent = linea;
+          panel.appendChild(div);
+        }
+
+        capa.bindPopup(panel);
+        capa.on('click', () => {
+          map.fitBounds(capa.getBounds(), {maxZoom:13});
+        });
+
+        capasMunicipiosOficiales.push(capa);
+      }
+    }
+
+
+    let capasPueblosManuales = [];
+
+    function sectoresDePuebloManual(nombre) {
+      const clave = ComercialCore.norm(nombre);
+      return [
+        ...savedZones.map((z,idx)=>({z,idx,externo:false})),
+        ...(currentUserName === 'Andrei (Jefe)'
+          ? sectoresMikelSupervision.map(z=>({
+              z,idx:-1,externo:true
+            })) : [])
+      ].filter(x =>
+        !x.z.isNoAptoZone &&
+        ComercialCore.norm(x.z.town) === clave
+      );
+    }
+
+    function abrirPanelPuebloManual(nombre,latlng) {
+      if (!map) return;
+      const centro=latlng||map.getCenter();
+      const popup=L.popup({maxWidth:290,className:'konsor-town-actions-popup'}).setLatLng(centro);
+      const card=document.createElement('section');card.className='konsor-map-info konsor-town-actions';
+      const tag=document.createElement('span');tag.className='konsor-map-eyebrow';tag.textContent='TERRITORIO';
+      const title=document.createElement('strong');title.className='konsor-map-title';title.textContent=nombre;
+      const actions=document.createElement('div');actions.className='konsor-map-actions';
+      const make=(label,fn,primary=false)=>{
+        const button=document.createElement('button');button.type='button';
+        button.textContent=label;
+        if(primary)button.className='konsor-map-action-primary';
+        button.onclick=()=>{map.closePopup();fn();};
+        actions.append(button);
+      };
+      make('Ver pueblo y sus sectores',()=>window.openCnTerritory?.(nombre),true);
+      make('Consultar Catastro aquí',()=>inspectNavarraCadastreAtPoint(centro));
+      if(['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName))
+        make('Crear sector dentro',()=>window.konsorStartSectorInTown?.(nombre));
+      card.append(tag,title,actions);
+      popup.setContent(card).openOn(map);
+    }
+
+    function abrirSectoresPuebloManual(nombre,comercial,lista) {
+      openWorkMenu(
+        comercial + ' · ' + nombre,
+        'Selecciona un sector para consultar sus datos.',
+        lista.map(item=>[
+          (item.z.status==='completada'?'✅ ':'🟡 ') +
+          (item.z.sectorName || 'Sector'),
+          'Interesados: ' + (item.z.stats?.si || 0) +
+          ' · ' + (item.externo?'Supervisión Mikel':'Fichas'),
+          ()=>{
+            if (item.externo) {
+              const z=item.z;
+              openWorkMenu(
+                z.sectorName || 'Sector de Mikel',
+                'Consulta territorial de solo lectura',
+                [
+                  ['👤 Responsable',z.comercial||'Sin asignar',()=>{}],
+                  ['📊 Resultados',
+                   'Sí: '+(z.stats?.si||0)+
+                   ' · No: '+(z.stats?.no||0)+
+                   ' · Ausentes: '+(z.stats?.ausente||0),
+                   ()=>{}]
+                ]
+              );
+            } else {
+              openDumpModal(item.idx);
+            }
+          }
+        ])
+      );
+    }
+
+    window.konsorOpenTownActions=abrirPanelPuebloManual;
+
+    function actualizarAgrupacionTerritorial() {
+      if (!map) return;
+
+      for (const capa of [...capasMacrosector,...capasPueblosManuales])
+        map.removeLayer(capa);
+      capasMacrosector = [];
+      capasPueblosManuales = [];
+
+      for (const entrada of capasSectoresAgrupables) {
+        if (!map.hasLayer(entrada.capa))
+          entrada.capa.addTo(map);
+      }
+
+      const zoomCercano = map.getZoom() >= 13;
+
+      const pueblosDibujados = new Set();
+
+      if (['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName)) {
+        for (const pueblo of perimetrosPueblos) {
+          if (!Array.isArray(pueblo.points) ||
+              pueblo.points.length < 3) continue;
+
+          const clave=ComercialCore.norm(pueblo.nombre);
+          pueblosDibujados.add(clave);
+
+          const terminado=completedTowns.some(t=>
+            ComercialCore.norm(t)===clave
+          );
+
+          const list=savedZones.filter(z=>!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&ComercialCore.norm(z.town)===clave);
+          const completos=list.filter(z=>z.status==='completada').length;
+          const estado=terminado||(list.length>0&&completos===list.length)?'hecho':list.some(z=>z.status==='en_proceso'||z.status==='completada')?'haciendo':'pendiente';
+          const color=estado==='hecho'?'#34a479':estado==='haciendo'?'#558bd2':'#8797a9';
+          const capa=L.polygon(pueblo.points,{
+            color,weight:zoomCercano?2:3,fillColor:color,fillOpacity:zoomCercano?.035:.12,
+            dashArray:zoomCercano?'6 5':null
+          }).addTo(map);
+          if(zoomCercano)capa.bringToBack();
+
+          capa.bindTooltip(pueblo.nombre,{
+            sticky:true,direction:'center'
+          });
+
+          capa.on('click',e=>{
+            L.DomEvent.stopPropagation(e);
+            if(isDrawingMode){handleMapClick(e);return;}
+            abrirPanelPuebloManual(pueblo.nombre,e.latlng);
+          });
+
+          capasPueblosManuales.push(capa);
+        }
+      }
+
+      const grupos=new Map();
+
+      for (const entrada of capasSectoresAgrupables) {
+        const z=entrada.zona;
+        const clave=ComercialCore.norm(z.town);
+
+        if (pueblosDibujados.has(clave)) {
+          if (!zoomCercano) map.removeLayer(entrada.capa);
+          continue;
+        }
+
+        const grupo=clave+'|'+ComercialCore.norm(z.comercial);
+        if (!grupos.has(grupo)) grupos.set(grupo,[]);
+        grupos.get(grupo).push(entrada);
+      }
+
+      // Alternativa visual para pueblos aún no dibujados.
+      if (zoomCercano) return;
+      for (const entradas of grupos.values()) {
+        if (entradas.length < 2) continue;
+
+        const contorno=envolventeTerritorial(
+          entradas.flatMap(x=>x.zona.points)
+        );
+        if (contorno.length < 3) continue;
+
+        const z=entradas[0].zona;
+        const capa=L.polygon(contorno,{
+          color:getComercialColor(z.comercial),
+          weight:3,fillOpacity:0.12
+        }).addTo(map);
+
+        capa.bindTooltip(
+          (z.town||'Pueblo')+' · '+z.comercial
+        );
+
+        for (const entrada of entradas)
+          map.removeLayer(entrada.capa);
+
+        capasMacrosector.push(capa);
+      }
+    }
+
+    function renderAllSavedZones() {
+      loadedMapLayers.forEach(l => map.removeLayer(l));
+      loadedMapLayers = [];
+      capasSectoresAgrupables = [];
+
+      const viewerIsMikelTeam = isMikelTeamMember(currentUserName);
+      savedZones.forEach((z, idx) => {
+        if (isMikelTeamMember(z.comercial) !== viewerIsMikelTeam) return;
+        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
+          return;
+        }
+
+        const comercialColor = getComercialColor(z.comercial);
+
+        if (z.isSingleHouse && z.singlePoint && z.singlePoint.length === 2) {
+          const client=z.clients?.[0]||{};
+          const isCom=client.type==='comunidad';
+          const houseSvg=isCom
+            ? '<path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16M3 21h18M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1M10 21v-3h4v3"/>'
+            : '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Zm6 11v-8h6v8"/>';
+          const houseIcon=L.divIcon({
+            className:'konsor-house-marker-shell',
+            html:'<span class="konsor-house-pin" style="--house-accent:'+comercialColor+'"><svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+houseSvg+'</svg></span>',
+            iconSize:[40,44],iconAnchor:[20,40]
+          });
+          const marker=L.marker(z.singlePoint,{icon:houseIcon}).addTo(map);
+          marker.on('click',e=>{
+            L.DomEvent.stopPropagation(e);
+            if(isDrawingMode){handleMapClick(e);return;}
+            const panel=document.createElement('section');panel.className='konsor-map-info';
+            const eyebrow=document.createElement('span');eyebrow.className='konsor-map-eyebrow';
+            eyebrow.textContent=isCom?'EDIFICIO':'VIVIENDA';
+            const title=document.createElement('strong');title.className='konsor-map-title';
+            title.textContent=client.street||z.sectorName||'Vivienda individual';
+            const sub=document.createElement('p');sub.className='konsor-map-description';
+            sub.textContent=(client.name||'Sin nombre')+' · '+(z.comercial||'Sin responsable');
+            const actions=document.createElement('div');actions.className='konsor-map-actions';
+            const cad=document.createElement('button');cad.type='button';cad.textContent='Consultar Catastro';
+            cad.className='konsor-map-action-primary';
+            cad.onclick=()=>inspectNavarraCadastreAtPoint(L.latLng(z.singlePoint[0],z.singlePoint[1]));
+            actions.append(cad);
+            if(currentUserRole==='jefe'||z.comercial===currentUserName){
+              const edit=document.createElement('button');edit.type='button';edit.textContent='Editar ficha';
+              edit.onclick=()=>{map.closePopup();openSingleHouseModal(z.singlePoint[0],z.singlePoint[1],idx);};
+              actions.append(edit);
+              const del=document.createElement('button');del.type='button';del.textContent='Eliminar';del.className='konsor-map-action-danger';
+              del.onclick=()=>deleteSingleHouse(idx);
+              actions.append(del);
+            }
+            panel.append(eyebrow,title,sub,actions);
+            marker.bindPopup(panel,{maxWidth:300,closeButton:true}).openPopup();
+          });
+          loadedMapLayers.push(marker);
+          return;
+        }
+
+        if (!z.points || z.points.length < 3) return;
+
+        let borderStyleColor = comercialColor;
+        let fillStyleColor = comercialColor;
+        let fillOp = 0.35;
+        let dashArray = null;
+
+        if (z.status === 'sin_comprobar' || z.status === 'por_hacer') {
+          dashArray = '6, 6';
+        } else if (z.status === 'en_proceso') {
+          borderStyleColor = '#f59e0b';
+          fillStyleColor = '#facc15';
+          fillOp = 0.50;
+        }
+
+        // Si es una Zona No Apta (urbanización post-2006 / descartada)
+        if (z.isNoAptoZone) {
+          const naPoly = L.polygon(z.points, {
+            color: '#ef4444',
+            weight: 2.5,
+            dashArray: '5, 5',
+            fillColor: '#dc2626',
+            fillOpacity: 0.35
+          }).addTo(map);
+
+          naPoly.bindPopup(`
+            <div class="popup-zone-info">
+              <div class="popup-zone-title" style="color:#fca5a5;">🚫 ZONA NO APTA (${z.town || 'Navarra'})</div>
+              <div class="popup-zone-sub">Motivo: <strong>${z.noAptoReason || 'Post-2006 / Inviable'}</strong></div>
+              <div class="popup-zone-sub">Marcado por: ${z.comercial}</div>
+              ${(currentUserRole === 'jefe' || z.comercial === currentUserName) ? `<button class="btn-popup-open" style="background:#dc2626;" onclick="deleteNoAptoZone(${idx})">🗑️ Quitar marca</button>` : ''}
+            </div>
+          `);
+          loadedMapLayers.push(naPoly);
+          return;
+        }
+
+        const polygon = L.polygon(z.points, {
+          color: borderStyleColor,
+          weight: z.status === 'en_proceso' ? 4 : 3,
+          dashArray: dashArray,
+          fillColor: fillStyleColor,
+          fillOpacity: fillOp
+        }).addTo(map);
+
+        const displayName = z.sectorName || z.town || 'Sector Comercial';
+        const displayComercial = z.comercial || 'Comercial';
+        const displayDate = z.date ? formatDate(z.date) : '';
+        let statusBadgeText = '⚪ Por Hacer';
+        if (z.status === 'en_proceso') statusBadgeText = '🟡 Incompleto';
+        if (z.status === 'completada') statusBadgeText = '✅ Terminado';
+
+        const isSupervisor = (currentUserRole === 'jefe' && z.comercial !== currentUserName);
+        const btnActionLabel = isSupervisor ? 'Abrir Dirección' : 'Ver mi jornada';
+
+        polygon.on('click', (e) => {
+          if (isDrawingMode) {
+            handleMapClick(e);
+            return;
+          }
+          L.DomEvent.stopPropagation(e);
+          const lat = e.latlng.lat;
+          const lng = e.latlng.lng;
+          const popupHtml = `
+            <div class="popup-zone-info">
+              <div class="popup-zone-title">📍 ${displayName}</div>
+              <div class="popup-zone-sub">👤 <strong>${displayComercial}</strong> | ${statusBadgeText}</div>
+              ${z.pendingNote ? `<div style="font-size:10px; color:#fde047; margin-bottom:6px;">✏️ <strong>Falta:</strong> ${z.pendingNote}</div>` : ''}
+              <div style="display:flex; flex-direction:column; gap:5px; margin-top:4px;">
+                <button class="konsor-map-cadastre-trigger" onclick="inspectNavarraCadastreAtPoint(L.latLng(${lat}, ${lng}))">Consultar Catastro</button>
+                <button class="btn-popup-open" onclick="${isSupervisor ? 'window.openCnTerritory?.()' : 'window.openCnDay?.()'}">${btnActionLabel}</button>
+              </div>
+            </div>
+          `;
+          L.popup({ maxWidth: 230 }).setLatLng(e.latlng).setContent(popupHtml).openOn(map);
+        });
+
+        loadedMapLayers.push(polygon);
+        capasSectoresAgrupables.push({capa:polygon,zona:z});
+      });
+      dibujarSectoresMikelSupervision();
+      actualizarAgrupacionTerritorial();
+      window.cnvRefreshHome?.();
+      window.refreshCnTerritory?.();
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
+    }
+
+    /* =====================================================================
+       SELECTOR DE ZONA AL VOLCAR HOJA (SI HAY VARIAS ZONAS)
+       ===================================================================== */
+    function openSelectZoneToDumpModal() {
+      const candidateIndices = [];
+      const viewerIsMikel = isMikelTeamMember(currentUserName);
+      savedZones.forEach((z, idx) => {
+        if (z.isNoAptoZone || isMikelTeamMember(z.comercial) !== viewerIsMikel) return;
+        if (!z.isSingleHouse && (currentUserRole === 'jefe' || z.comercial === currentUserName)) {
+          candidateIndices.push(idx);
+        }
+      });
+
+      if (candidateIndices.length === 0) {
+        alert("No hay ningún sector trazado en el mapa. Primero debes asignar un sector o marcar una vivienda única.");
+        return;
+      }
+
+      if (candidateIndices.length === 1) {
+        openDumpModal(candidateIndices[0]);
+        return;
+      }
+
+      const listContainer = document.getElementById('zoneSelectorDumpList');
+      let html = `<div style="font-size:11px; color:#94a3b8; margin-bottom:8px;">Tienes <strong>${candidateIndices.length} sectores</strong> en tu mapa. Elige cuál vas a volcar ahora:</div>`;
+
+      candidateIndices.slice().reverse().forEach(idx => {
+        const z = savedZones[idx];
+        let statusTag = '⚪ Por Hacer';
+        if (z.status === 'en_proceso') statusTag = '🟡 Incompleto';
+        if (z.status === 'completada') statusTag = '✅ Terminado';
+
+        html += `
+          <div class="audit-card" onclick="closeModal('zoneSelectorDumpModal'); openDumpModal(${idx});">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:13px; color:#60a5fa;">📍 ${z.sectorName}</strong>
+              <span style="font-size:10px; font-weight:800; color:#fde047;">${statusTag}</span>
+            </div>
+            <div style="font-size:11px; color:#cbd5e1;">🏘️ ${z.town} • 📅 ${formatDate(z.date)} • 👤 ${z.comercial}</div>
+            ${z.bossNote ? `<div style="font-size:10px; color:#a78bfa;">💬 Nota: "${z.bossNote}"</div>` : ''}
+          </div>
+        `;
+      });
+
+      listContainer.innerHTML = html;
+      document.getElementById('zoneSelectorDumpModal').classList.add('active');
+    }
+
+    function togglePendingNoteVisibility() {
+      const st = document.getElementById('dumpProgressState');
+      const noteGroup = document.getElementById('pendingNoteGroup');
+      if (st && noteGroup) {
+        noteGroup.style.display = st.value === 'en_proceso' ? 'flex' : 'none';
+      }
+    }
+
+    async function toggleSupervisorComunidadDoc(zoneIdx, clientIdx, docKey, isChecked) {
+      const z = savedZones[zoneIdx];
+      if (!z || !z.clients || !z.clients[clientIdx]) return;
+      if (!z.clients[clientIdx].comunidadDocs) z.clients[clientIdx].comunidadDocs = {};
+      z.clients[clientIdx].comunidadDocs[docKey] = isChecked;
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      openDumpModal(zoneIdx);
+    }
+
+    function openDumpModal(idx) {
+      const z = savedZones[idx];
+      if (!z) return;
+
+      if (z.isSingleHouse && z.singlePoint) {
+        openSingleHouseModal(z.singlePoint[0], z.singlePoint[1], idx);
+        return;
+      }
+
+      selectedZoneIndexToDump = idx;
+      const displayName = z.sectorName || z.town || 'Sector Comercial';
+
+      const isSupervisorView = (currentUserRole === 'jefe' && z.comercial !== currentUserName);
+      const bodyContainer = document.getElementById('dumpModalBodyContent');
+      bodyContainer.innerHTML = '';
+
+      if (isSupervisorView) {
+        document.getElementById('dumpModalTitle').innerText = `🔍 Ficha de Supervisión: ${displayName}`;
+
+        let statusText = '⚪ Por Hacer';
+        if (z.status === 'en_proceso') statusText = '🟡 Incompleto (Continuar mañana)';
+        if (z.status === 'completada') statusText = '✅ Terminado';
+
+        let clientsHtml = '';
+        if (z.clients && z.clients.length > 0) {
+          z.clients.forEach((c, cIdx) => {
+            const isComunidad = c.type === 'comunidad';
+            const isFilled = isClientValidFilled(c);
+            let stBadge = '<span style="color:#60a5fa; font-weight:800;">📝 Captación SÍ</span>';
+            if (c.obraStatus === 'agendada') {
+              const dateTag = c.obraDate ? ` (${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''})` : '';
+              stBadge = `<span style="color:#fde047; font-weight:800;">📅 Cita${dateTag}</span>`;
+            }
+            if (c.obraStatus === 'realizada') stBadge = '<span style="color:#34d399; font-weight:800;">✅ Obra Realizada</span>';
+            if (c.obraStatus === 'no_apto') stBadge = `<span class="no-apto-pill">🚫 No Apta</span>`;
+
+            const yearNum = parseInt(c.buildYear) || 1990;
+            const yearAlert = yearNum > 2006 ? `<div class="year-warning-alert">⚠️ Año ${yearNum} (Debe ser 2006 o inferior para CAE)</div>` : '';
+
+            if (isComunidad) {
+              const presiStatus = c.isPresi ? '<span class="hierarchy-pill p1">👑 Presidente Oficial</span>' : '<span class="hierarchy-pill p3">👥 Vecino Intermediario</span>';
+              const docsCount = countComunidadDocs(c.comunidadDocs);
+
+              let atticsBreakdownHtml = '';
+              if (c.atticsDetails && c.atticsDetails.length > 0) {
+                c.atticsDetails.forEach(att => {
+                  atticsBreakdownHtml += `
+                    <div style="font-size:10px; background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:6px; margin-top:2px; display:flex; justify-content:space-between;">
+                      <span>🏠 <strong>Piso ${att.door || 'Buhardilla'}</strong>: ${att.owner || 'Propietario N/D'} (${att.phone || 'Sin tel'})</span>
+                      <span style="color:#34d399; font-weight:800;">${att.m2} m²</span>
+                    </div>
+                  `;
+                });
+              }
+
+              let docsChecklistHtml = '';
+              COMUNIDAD_DOCS_SCHEMA.forEach(docItem => {
+                const checked = c.comunidadDocs && c.comunidadDocs[docItem.key] ? 'checked' : '';
+                docsChecklistHtml += `
+                  <label class="cae-check-item">
+                    <input type="checkbox" ${checked} onchange="toggleSupervisorComunidadDoc(${idx}, ${cIdx}, '${docItem.key}', this.checked)">
+                    <span>${docItem.label}</span>
+                  </label>
+                `;
+              });
+
+              clientsHtml += `
+                <div class="comunidad-box" style="margin-top:6px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:#a78bfa; font-size:12px;">🏢 Comunidad #${cIdx+1}: ${c.street || 'Edificio'}</strong>
+                    ${presiStatus}
+                  </div>
+                  <div style="font-size:11px; color:#e2e8f0; margin-top:2px;">
+                    👤 Presidente/Enlace: <strong>${c.name || 'N/D'}</strong> (Tel: ${c.phone || 'N/D'})
+                  </div>
+                  <div style="font-size:10px; color:#cbd5e1; display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong></span>
+                    <span style="color:#34d399; font-weight:900;">Total: ${isFilled ? getM2NumericValue(c.m2) : 0} m²</span>
+                  </div>
+                  <div style="font-size:10px; margin-top:2px;">${stBadge}</div>
+                  ${yearAlert}
+                  ${atticsBreakdownHtml ? `<div style="margin-top:4px;"><span style="font-size:9px; color:#94a3b8; font-weight:800;">DESGLOSE PISOS ÚLTIMA PLANTA:</span>${atticsBreakdownHtml}</div>` : ''}
+
+                  <div class="comunidad-docs-box">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <strong style="font-size:10px; color:#c4b5fd; text-transform:uppercase;">📋 Control Documental Comunidad</strong>
+                      <span style="font-size:10px; font-weight:900; color:${docsCount===5?'#34d399':'#fde047'};">${docsCount}/5 Completados</span>
+                    </div>
+                    ${docsChecklistHtml}
+                  </div>
+                </div>
+              `;
+            } else {
+              clientsHtml += `
+                <div class="client-detail-row" style="margin-top:6px; padding:8px; flex-direction:column; align-items:stretch; gap:4px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong>🏠 #${cIdx+1} ${c.name || 'Cliente sin rellenar'} ${!isFilled ? '<span class="blank-draft-pill">En blanco</span>' : ''}</strong>
+                    ${stBadge}
+                  </div>
+                  <div style="font-size:10.5px; color:#cbd5e1;">📍 ${c.street || 'N/D'} • 📞 ${c.phone || 'Sin tel'}</div>
+                  <div style="font-size:10px; color:#94a3b8; display:flex; justify-content:space-between;">
+                    <span>🏗️ Año: <strong>${c.buildYear || '≤ 2006'}</strong> | 🚪 Acceso: <strong>${formatAccessDisplay(c)}</strong></span>
+                    <span style="color:#a78bfa; font-weight:800;">📐 ${isFilled ? getM2NumericValue(c.m2) : 0} m²</span>
+                  </div>
+                  ${yearAlert}
+                </div>
+              `;
+            }
+            clientsHtml += '<button type="button" class="konsor-delete-client-btn" onclick="window.konsorDeleteSectorClient('+idx+','+cIdx+')">Eliminar esta ficha</button>';
+          });
+        } else {
+          clientsHtml = `<div style="font-size:11px; color:#64748b; padding:8px; text-align:center;">El comercial no ha introducido fichas de "SÍ" todavía.</div>`;
+        }
+
+        bodyContainer.innerHTML = `
+          <div class="input-group">
+            <span class="input-label">👤 Comercial Asignado</span>
+            <span style="font-size:13px; font-weight:900; color:#60a5fa;">${z.comercial}</span>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">📅 Fecha de Volcado</span>
+            <span style="font-size:12px; font-weight:700;">${formatDate(z.dumpDate || z.date)}</span>
+          </div>
+
+          <div class="modal-section-title">📊 Totales Reportados por el Comercial</div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div style="background:rgba(239,68,68,0.15); border:1px solid #ef4444; padding:8px 10px; border-radius:10px; font-size:11px;">
+              ❌ No (Rechazos): <strong>${z.stats?.no || 0}</strong>
+            </div>
+            <div style="background:rgba(217,119,6,0.15); border:1px solid #d97706; padding:8px 10px; border-radius:10px; font-size:11px;">
+              ⏳ Ausentes: <strong>${z.stats?.ausente || 0}</strong>
+            </div>
+            <div style="background:rgba(8,145,178,0.15); border:1px solid #0891b2; padding:8px 10px; border-radius:10px; font-size:11px;">
+              📄 Info / Papelito: <strong>${z.stats?.papelito || 0}</strong>
+            </div>
+            <div style="background:rgba(5,150,105,0.15); border:1px solid #059669; padding:8px 10px; border-radius:10px; font-size:11px; color:#34d399;">
+              ✅ Sí (Interesados): <strong>${z.stats?.si || 0}</strong>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <span class="input-label">🏡 Estado del Sector</span>
+            <span style="font-size:12px; font-weight:800; color:#fde047;">${statusText}</span>
+          </div>
+
+          ${z.pendingNote ? `
+            <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.15);">
+              <span class="input-label" style="color:#fde047;">✏️ Lo que falta por terminar (Escrito por ${z.comercial}):</span>
+              <div style="font-size:12px; color:#fff; font-weight:700;">"${z.pendingNote}"</div>
+            </div>
+          ` : ''}
+
+          <div class="input-group" style="flex-direction:column; align-items:flex-start; gap:6px; margin-top:10px; border-color:#7c3aed; background:rgba(124,58,237,0.12);">
+            <span class="input-label" style="color:#a78bfa;">💬 Escribir Instrucción / Nota para ${z.comercial}:</span>
+            <input type="text" id="supervisionBossNoteInput" class="input-field" placeholder="Ej. Remata esa acera mañana primera hora..." value="${z.bossNote || ''}" style="width:100%;">
+          </div>
+
+          <div class="modal-section-title">🏡 Fichas Técnicas Captadas (${z.clients ? z.clients.filter(c => c.obraStatus !== 'no_apto').length : 0})</div>
+          ${clientsHtml}
+
+          <div style="display:flex; gap:8px; margin-top:14px;">
+            <button class="btn-modal-save" style="flex:3;" onclick="saveSupervisionBossNote()">💾 Guardar Nota para Comercial</button>
+            <button class="btn-modal-delete" style="flex:1;" onclick="deleteZone(${idx})">🗑️ Borrar</button>
+          </div>
+        `;
+      } else {
+        document.getElementById('dumpModalTitle').innerText = `Volcado: ${displayName}`;
+
+       const isMikelUser = isMikelTeamMember(currentUserName);
+        bodyContainer.innerHTML = `
+          ${!isMikelUser ? `
+            <button class="btn-modal-ocr" onclick="document.getElementById('sheetPhotoInput').click()">
+              📷 ESCANEAR FOTO DE PLANTILLA OFICIAL
+            </button>
+            <input type="file" id="sheetPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="processStructuredSheetOCR(event)">
+
+            <div id="ocrStatusText" style="display:none; font-size:11px; color:#22d3ee; text-align:center; margin-bottom:8px; font-weight:700;">
+              ⏳ Analizando cuadrículas A/N/I/S y tabla de Catastro...
+            </div>
+          ` : ''}
+
+          <div class="input-group">
+            <span class="input-label">📅 Fecha Real de Volcado</span>
+            <input type="date" id="dumpDate" class="input-field" value="${z.dumpDate || z.date || getTodayISO()}">
+          </div>
+
+          <div class="modal-section-title">📊 Totales del Día en el Papel</div>
+          <div class="grid-row-2">
+            <div class="input-group" style="margin-bottom:0;">
+              <span class="input-label">❌ No</span>
+              <input type="number" id="dumpNo" class="input-field" placeholder="0" value="${z.stats?.no ? z.stats.no : ''}" onfocus="this.select()">
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <span class="input-label">⏳ Ausentes</span>
+              <input type="number" id="dumpAusente" class="input-field" placeholder="0" value="${z.stats?.ausente ? z.stats.ausente : ''}" onfocus="this.select()">
+            </div>
+          </div>
+
+          <div class="grid-row-2" style="margin-top:6px;">
+            <div class="input-group" style="margin-bottom:0;">
+              <span class="input-label">📄 Papelito</span>
+              <input type="number" id="dumpPapelito" class="input-field" placeholder="0" value="${z.stats?.papelito ? z.stats.papelito : ''}" onfocus="this.select()">
+            </div>
+            <div class="input-group" style="margin-bottom:0; border-color:#059669;">
+              <span class="input-label" style="color:#34d399;">✅ Sí (Interesados)</span>
+              <input type="number" id="dumpSi" class="input-field" placeholder="0" value="${z.stats?.si ? z.stats.si : ''}" onfocus="this.select()" onchange="renderClientFormFields()">
+            </div>
+          </div>
+
+          <div class="input-group" style="margin-top:6px; border-color:#64748b;">
+            <span class="input-label" style="color:#cbd5e1;">🧱 Ya Aislado (Otra empresa CAE - No baja % éxito)</span>
+            <input type="number" id="dumpYaAislado" class="input-field" style="max-width:85px;" placeholder="0" value="${z.stats?.yaAislado ? z.stats.yaAislado : ''}" onfocus="this.select()">
+          </div>
+
+          <div class="input-group" style="margin-top:8px;">
+            <span class="input-label">🏡 Estado del Sector</span>
+            <select id="dumpProgressState" class="select-field" onchange="togglePendingNoteVisibility()">
+              <option value="sin_comprobar" ${z.status==='sin_comprobar'||z.status==='por_hacer'?'selected':''}>Por hacer</option>
+              <option value="en_proceso" ${z.status==='en_proceso'?'selected':''}>En proceso</option>
+              <option value="completada" ${z.status==='completada'?'selected':''}>Terminado</option>
+            </select>
+          </div>
+
+          <div id="pendingNoteGroup" class="input-group" style="display:${z.status==='en_proceso'?'flex':'none'}; flex-direction:column; align-items:flex-start; gap:4px; border-color:#d97706; background:rgba(217, 119, 6, 0.1);">
+            <span class="input-label" style="color:#fde047;">✏️ ¿Qué parte exacta falta por terminar para mañana?</span>
+            <input type="text" id="dumpPendingNote" class="input-field" placeholder="Ej. Falta la acera par de la Calle Mayor..." value="${z.pendingNote || ''}" style="width:100%;">
+
+            ${!isMikelUser ? `
+              <button class="btn-modal-crop" onclick="startCropSubZone()">
+                ✂️ Redibujar zona pendiente en el mapa
+              </button>
+            ` : ''}
+          </div>
+
+          <button type="button" class="btn-modal-save" style="width:100%;margin:11px 0;background:#2563eb" onclick="abrirAsistenteCaptacion()">Asistente de captación · 4 pasos</button>
+          <div id="clientsContainer"></div>
+
+          <div style="display:flex; gap:8px;">
+            <button class="btn-modal-save" style="flex:3;" onclick="saveDumpData()">💾 Finalizar Volcado</button>
+            ${currentUserRole === 'jefe' ? `<button class="btn-modal-delete" style="flex:1;" onclick="deleteZone(${idx})">🗑️ Borrar</button>` : ''}
+          </div>
+        `;
+
+        renderClientFormFields();
+      }
+
+      document.getElementById('dumpModal').classList.add('active');
+      window.cnEnhanceDump?.();
+    }
+
+    async function saveSupervisionBossNote() {
+      if (selectedZoneIndexToDump === null) return;
+      const noteInput = document.getElementById('supervisionBossNoteInput');
+      if (noteInput) {
+        savedZones[selectedZoneIndexToDump].bossNote = noteInput.value.trim();
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      }
+      closeModal('dumpModal');
+      renderAllSavedZones();
+    }
+
+    async function processStructuredSheetOCR(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById('ocrStatusText');
+      statusEl.style.display = 'block';
+      statusEl.innerText = '⏳ Analizando formato oficial de plantilla...';
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await img.decode();
+
+      try {
+        const talliesCanvas = document.createElement('canvas');
+        talliesCanvas.width = img.width;
+        talliesCanvas.height = img.height * 0.25;
+        const tCtx = talliesCanvas.getContext('2d');
+        tCtx.drawImage(img, 0, img.height * 0.10, img.width, img.height * 0.25, 0, 0, img.width, img.height * 0.25);
+
+        const talliesResult = await Tesseract.recognize(talliesCanvas, 'spa');
+        const talliesText = talliesResult.data.text;
+
+        const parseTallyCount = (linePattern) => {
+          if (!linePattern) return 0;
+          let total = 0;
+          const blocksOfFive = (linePattern.match(/(HH|卌|X|H|\/|\-){2,}/g) || []).length;
+          total += blocksOfFive * 5;
+          const singleStrokes = (linePattern.match(/\||i|l|1/g) || []).length;
+          total += singleStrokes;
+          return total > 0 ? total : 0;
+        };
+
+        const lines = talliesText.split('\n');
+        let valA = 0, valN = 0, valI = 0, valS = 0;
+
+        lines.forEach(line => {
+          const clean = line.toUpperCase();
+          if (clean.includes('A') || clean.includes('AUSENTE')) valA = Math.max(valA, parseTallyCount(line));
+          if (clean.includes('N') || clean.includes('NO') || clean.includes('RECHAZO')) valN = Math.max(valN, parseTallyCount(line));
+          if (clean.includes('I') || clean.includes('INFORMACIÓN')) valI = Math.max(valI, parseTallyCount(line));
+          if (clean.includes('S') || clean.includes('SÍ') || clean.includes('SI')) valS = Math.max(valS, parseTallyCount(line));
+        });
+
+        document.getElementById('dumpAusente').value = valA;
+        document.getElementById('dumpNo').value = valN;
+        document.getElementById('dumpPapelito').value = valI;
+        document.getElementById('dumpSi').value = valS;
+
+        if ((valA + valN + valI + valS) === 0) {
+          alert("⚠️ No se han detectado marcas claras en la cabecera. Introduce los conteos manualmente.");
+        }
+
+        const tableCanvas = document.createElement('canvas');
+        tableCanvas.width = img.width;
+        tableCanvas.height = img.height * 0.60;
+        const tbCtx = tableCanvas.getContext('2d');
+        tbCtx.drawImage(img, 0, img.height * 0.35, img.width, img.height * 0.60, 0, 0, img.width, img.height * 0.60);
+
+        const tableResult = await Tesseract.recognize(tableCanvas, 'spa');
+        const tableLines = tableResult.data.text.split('\n').filter(l => l.trim().length > 3);
+
+        renderClientFormFields();
+
+        const clientBoxes = document.querySelectorAll('.client-box, .comunidad-box');
+        tableLines.slice(0, clientBoxes.length).forEach((lineText, idx) => {
+          const box = clientBoxes[idx];
+          if (!box) return;
+
+          const phoneMatch = lineText.match(/\b[6789]\d{8}\b/);
+          if (phoneMatch) {
+            const phoneEl = box.querySelector('.client-phone');
+            if (phoneEl) phoneEl.value = phoneMatch[0];
+          }
+
+          const parts = lineText.split(/\s{2,}/);
+          const streetEl = box.querySelector('.client-street');
+          const nameEl = box.querySelector('.client-name');
+          if (parts.length >= 2) {
+            if (streetEl) streetEl.value = parts[0].replace(/^[0-9.]+\s*/, '');
+            if (nameEl) nameEl.value = parts[1];
+          } else {
+            if (nameEl) nameEl.value = lineText;
+          }
+        });
+
+        statusEl.innerText = '✅ Plantilla escaneada correctamente por zonas.';
+      } catch (err) {
+        statusEl.innerText = '⚠️ No se pudo recortar la plantilla. Por favor ingresa los datos a mano.';
+      }
+    }
+
+    async function deleteZone(idx) {
+      if (currentUserRole !== 'jefe') {
+        alert("⛔ Acceso Denegado: Solo Andrei (Jefe de Equipo) puede borrar sectores del mapa.");
+        return;
+      }
+
+      if (idx === null || idx === undefined || !savedZones[idx]) return;
+      const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
+      if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
+        const deletedZone = savedZones[idx];
+        savedZones.splice(idx, 1);
+        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+        closeModal('dumpModal');
+        closeModal('auditModal');
+        renderAllSavedZones();
+        if (document.getElementById('auditModal').classList.contains('active')) {
+          renderCurrentAuditView();
+        }
+      }
+    }
+
+
+    /* Captación guiada: escribe en los campos originales y conserva su motor de guardado. */
+    let capturaGuiada = {paso:0, ficha:0};
+
+    function abrirAsistenteCaptacion(indice=0) {
+      if (selectedZoneIndexToDump === null) return;
+      const z=savedZones[selectedZoneIndexToDump];
+      if (!z || (currentUserRole==='jefe' && z.comercial!==currentUserName)) return;
+      let boxes=document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      if (!boxes.length) {
+        const cantidad=document.getElementById('dumpSi');
+        if (!cantidad) return;
+        cantidad.value='1';
+        renderClientFormFields();
+        boxes=document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      }
+      if (!boxes.length) return;
+      capturaGuiada={paso:window.cnDumpHasGroups?.()?1:0,ficha:Math.max(0,Math.min(indice,boxes.length-1))};
+      mostrarPasoCaptacion();
+    }
+
+    function mostrarPasoCaptacion() {
+      const cajas=[...document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box')];
+      const box=cajas[capturaGuiada.ficha];
+      if (!box) return;
+      let fondo=document.getElementById('captacionGuiadaModal');
+      if (!fondo) {
+        fondo=document.createElement('div');
+        fondo.id='captacionGuiadaModal';
+        fondo.className='modal-overlay';
+        fondo.style.zIndex='11050';
+        fondo.innerHTML='<div class="captacion-ios-card">'+
+          '<div class="captacion-ios-head"><div><small id="captacionSubtitulo"></small>'+
+          '<h2 id="captacionTitulo"></h2></div>'+
+          '<button type="button" id="captacionCerrar" aria-label="Cerrar asistente">✕</button></div>'+
+          '<div class="captacion-ios-progress" id="captacionBarra"></div>'+
+          '<div class="captacion-ios-body" id="captacionCuerpo"></div>'+
+          '<div class="captacion-ios-footer" id="captacionPie"></div></div>';
+        document.body.appendChild(fondo);
+        fondo.querySelector('#captacionCerrar').onclick=()=>fondo.classList.remove('active');
+      }
+      fondo.classList.add('active');
+      const paso=capturaGuiada.paso;
+      const z=savedZones[selectedZoneIndexToDump];
+      fondo.querySelector('#captacionTitulo').textContent=
+        ['Tipo de vivienda','Contacto y dirección','Datos técnicos','Revisar y guardar'][paso];
+      fondo.querySelector('#captacionSubtitulo').textContent=
+        (z.town||'Pueblo sin indicar')+' · '+(z.sectorName||'Sector')+
+        ' · Ficha '+(capturaGuiada.ficha+1)+' de '+cajas.length;
+      const barra=fondo.querySelector('#captacionBarra');barra.replaceChildren();
+      for(let n=0;n<4;n++){
+        const tramo=document.createElement('span');
+        tramo.style.background=n<=paso?'#3478f6':'#e6ebf3';
+        barra.appendChild(tramo);
+      }
+      const cuerpo=fondo.querySelector('#captacionCuerpo');cuerpo.replaceChildren();
+      const pie=fondo.querySelector('#captacionPie');pie.replaceChildren();
+      const nodo=(padre,tag,texto,clase)=>{
+        const el=document.createElement(tag);
+        if(texto!==null)el.textContent=texto;
+        if(clase)el.className=clase;
+        padre.appendChild(el);
+        return el;
+      };
+      const inputOriginal=selector=>box.querySelector(selector);
+      const aviso=texto=>nodo(cuerpo,'p',texto,'captacion-ios-note');
+      const fila=(titulo,selector,{tipo='text',placeholder='',readonly=false}={})=>{
+        const original=inputOriginal(selector);
+        if(!original)return null;
+        const grupo=nodo(cuerpo,'label',null,'captacion-ios-field');
+        nodo(grupo,'span',titulo);
+        const input=nodo(grupo,'input',null);
+        input.type=tipo;
+        input.placeholder=placeholder;
+        input.value=original.value||'';
+        input.readOnly=readonly;
+        input.autocomplete='off';
+        input.oninput=()=>{
+          if(readonly)return;
+          original.value=input.value;
+          if(selector==='.client-phone'&&box.dataset.konsorInvalidPhone==='1'){
+            delete box.dataset.konsorInvalidPhone;
+          }
+          original.dispatchEvent(new Event('input',{bubbles:true}));
+          if(selector==='.client-street')original.dataset.autoFilled='false';
+          if(selector==='.client-total-m2'||selector==='.client-floors'){
+            const salida=inputOriginal('.client-m2');
+            const leyenda=cuerpo.querySelector('#captacionM2Neto');
+            if(salida&&leyenda)leyenda.textContent=salida.value?salida.value+' m²':'Pendiente';
+          }
+        };
+        input.onblur=()=>{
+          if(readonly)return;
+          original.dispatchEvent(new Event('change',{bubbles:true}));
+          original.dispatchEvent(new Event('blur',{bubbles:false}));
+        };
+        return input;
+      };
+      const boton=(padre,texto,funcion,secundario=false)=>{
+        const b=nodo(padre,'button',texto,secundario?'captacion-ios-btn secundario':'captacion-ios-btn');
+        b.type='button';b.onclick=funcion;return b;
+      };
+      const cambio=incremento=>{
+        capturaGuiada.paso=Math.max(0,Math.min(3,capturaGuiada.paso+incremento));
+        mostrarPasoCaptacion();
+      };
+      if(paso===0){
+        aviso('Selecciona una opción. La ficha mostrará únicamente los datos necesarios para ese tipo de captación.');
+        const tipo=inputOriginal('.client-type');
+        for(const option of tipo.options){
+          const card=boton(cuerpo,option.textContent,()=>{
+            tipo.value=option.value;
+            switchClientTypeView(tipo,capturaGuiada.ficha);
+            capturaGuiada.paso=1;
+            mostrarPasoCaptacion();
+          },tipo.value!==option.value);
+          card.classList.add('captacion-ios-choice');
+          if(tipo.value===option.value)card.classList.add('seleccionado');
+        }
+        aviso('Conservamos la ficha de viviendas, comunidades y urbanizaciones del sistema actual.');
+      } else if(paso===1){
+        aviso('Introduce la dirección y el contacto. Comprobaremos la localidad, el código postal y la zona CTE.');
+        fila('Calle y número','.client-street',{placeholder:'Ej. Calle Mayor 12'});
+        fila('Nombre del contacto','.client-name',{placeholder:'Nombre y apellidos'});
+        fila('Teléfono','.client-phone',{tipo:'tel',placeholder:'Número de teléfono'});
+        boton(cuerpo,'No tengo un teléfono válido · Marcar ficha',()=>{
+          const name=inputOriginal('.client-name')?.value.trim();
+          const street=inputOriginal('.client-street')?.value.trim();
+          if(!name||!street){alert('Anota al menos el nombre y la dirección para identificar esta ficha.');return;}
+          if(!confirm('Esta ficha quedará registrada como NO CONTACTABLE, sin aparecer en la cola de llamadas. ¿Confirmas que el teléfono no es válido?'))return;
+          box.dataset.konsorInvalidPhone='1';
+          capturaGuiada.paso=2;mostrarPasoCaptacion();
+        },true);
+        if(box.dataset.konsorInvalidPhone==='1')aviso('Teléfono marcado como ilegible o no válido. Esta ficha no se enviará a la cola de llamadas.');
+        const datosAuto=nodo(cuerpo,'div',null,'captacion-ios-summary');
+        nodo(datosAuto,'strong','Comprobación automática de dirección');
+        const localidadReal=inputOriginal('.client-locality');
+        const cteReal=inputOriginal('.client-cte-zone');
+        const resultadoAuto=nodo(datosAuto,'div','Localidad: '+(localidadReal?.value||z.town||'Pendiente')+
+          ' · CP: '+(inputOriginal('.client-cp')?.value||'Pendiente')+
+          ' · CTE: '+(cteReal?.value||'Pendiente'));
+        const detallesAuto=nodo(cuerpo,'details',null,'captacion-ios-correccion');
+        nodo(detallesAuto,'summary','Corregir localidad o código postal');
+        const correccion=nodo(detallesAuto,'div',null,'captacion-ios-correction-fields');
+        fila('Localidad','.client-locality',{placeholder:z.town||'Pueblo'});
+        fila('Código postal','.client-cp',{tipo:'tel',placeholder:'Ej. 31152'});
+        [...cuerpo.querySelectorAll('.captacion-ios-field')].slice(-2)
+          .forEach(el=>correccion.appendChild(el));
+        const postal=inputOriginal('.client-cp');
+        const cte=inputOriginal('.client-cte-zone');
+        const zona=nodo(cuerpo,'div','Zona CTE: '+(cte?.value||'Pendiente de verificar'),'captacion-ios-summary');
+        boton(cuerpo,'Comprobar dirección y CTE',async()=>{
+          const calle=inputOriginal('.client-street');
+          if(calle){
+            const pending=fillPostalCodeFromStreet(calle);
+            if(pending&&typeof pending.then==='function')await pending;
+          }
+          updateClientCteFromCp(postal);
+          zona.textContent='Zona CTE: '+(cte?.value||'Pendiente de verificar');
+          resultadoAuto.textContent='Localidad: '+(localidadReal?.value||z.town||'Pendiente')+
+            ' · CP: '+(postal?.value||'Pendiente')+' · CTE: '+(cte?.value||'Pendiente');
+          const choices=box.querySelector('.address-choices');
+          if(choices&&!choices.hidden)alert('Hay varias localidades posibles. Selecciónala en Edición avanzada.');
+          const cpInput=[...cuerpo.querySelectorAll('input')].find(i=>i.placeholder==='Ej. 31152');
+          if(cpInput)cpInput.value=postal.value;
+        },true);
+      } else if(paso===2){
+        aviso('Consulta el catastro y revisa los datos. Los metros netos se calculan con el motor actual, incluyendo plantas y deducciones.');
+        const cat=box.querySelector('button[onclick*="openCadastreFromClientBox"]');
+        if(cat){
+          const consult=boton(cuerpo,'Consultar Catastro de esta vivienda',async()=>{
+            const result=cuerpo.querySelector('#captacionCatastroResultado');
+            result.replaceChildren();
+            const status=nodo(result,'p','Buscando localización y ficha catastral…','captacion-ios-note');
+            consult.disabled=true;
+            try{
+              await openCadastreFromClientBox(cat);
+              const slot=cat.parentElement?.querySelector('.inline-catastro-link-slot');
+              const link=slot?.querySelector('a[href]');
+              if(link){
+                const official=nodo(result,'a','Ver ficha catastral','captacion-ios-btn');
+                official.href=link.href;official.target='_blank';official.rel='noopener noreferrer';
+                status.textContent='Consulta los m² y el año en la ficha oficial.';
+              }else{
+                status.textContent=slot?.textContent?.trim()||'No se pudo localizar la vivienda. Revisa la dirección y el número.';
+              }
+            }catch(err){status.textContent='No se pudo consultar Catastro: '+(err.message||err);}
+            finally{consult.disabled=false;}
+          },true);
+          consult.classList.add('cn-inline-catastro-button');
+          const result=nodo(cuerpo,'div',null,'cn-inline-catastro-result');
+          result.id='captacionCatastroResultado';
+        }
+        fila('Año de construcción','.client-build-year',{tipo:'number',placeholder:'Ej. 1998'});
+        if(inputOriginal('.client-total-m2')){
+          fila('Superficie catastral (m²)','.client-total-m2',{tipo:'number',placeholder:'m²'});
+          fila('Número de plantas','.client-floors',{tipo:'number',placeholder:'Plantas'});
+          const salida=nodo(cuerpo,'div',null,'captacion-ios-summary');
+          nodo(salida,'span','Superficie neta estimada: ');
+          const net=nodo(salida,'strong',inputOriginal('.client-m2')?.value?inputOriginal('.client-m2').value+' m²':'Pendiente');
+          net.id='captacionM2Neto';
+        } else if(inputOriginal('.client-num-attics')){
+          fila('Número de viviendas en última planta','.client-num-attics',{tipo:'number'});
+          aviso('La comunidad conserva el desglose por áticos y la documentación obligatoria en Edición avanzada.');
+        }
+        const anio=Number(inputOriginal('.client-build-year')?.value||0);
+        const cte=inputOriginal('.client-cte-zone')?.value||'';
+        const motivos=[];
+        if(anio>2006)motivos.push('año posterior a 2006');
+        if(cte&&cte!=='Sin detectar'&&cte!=='Auto por CP'&&!/^[DE][123]$/.test(cte))motivos.push('zona CTE fuera de D/E');
+        if(motivos.length)nodo(cuerpo,'p','Revisar posible no aptitud: '+motivos.join(' y ')+'. No se cambiará el estado sin confirmación.','captacion-ios-warning');
+        else aviso('La aptitud definitiva requiere comprobar todos los datos; no se decide únicamente con la fecha o los m².');
+        const estado=inputOriginal('.client-obra-status');
+        const razones=inputOriginal('.client-no-apto-reason');
+        if(estado&&razones){
+          const grupo=nodo(cuerpo,'label',null,'captacion-ios-field');
+          nodo(grupo,'span','Motivo de no aptitud (si procede)');
+          const opciones=nodo(grupo,'select',null,'captacion-ios-select');
+          for(const o of razones.options)opciones.add(new Option(o.textContent,o.value));
+          opciones.value=razones.value;
+          boton(cuerpo,'Confirmar como no apta',()=>{
+            if(!confirm('Confirma que has revisado los datos y que la vivienda es NO APTA. ¿Continuar?'))return;
+            razones.value=opciones.value;
+            estado.value='no_apto';
+            estado.dispatchEvent(new Event('change',{bubbles:true}));
+            alert('Ficha marcada como no apta. Revisa la información y guarda la hoja cuando corresponda.');
+            mostrarPasoCaptacion();
+          },true);
+        }
+      } else {
+        const summary=nodo(cuerpo,'div',null,'captacion-ios-summary');
+        const row=(etiqueta,valor)=>nodo(summary,'div',etiqueta+': '+(valor||'Sin completar'));
+        row('Tipo',inputOriginal('.client-type')?.selectedOptions[0]?.textContent);
+        row('Contacto',inputOriginal('.client-name')?.value);
+        row('Teléfono',inputOriginal('.client-phone')?.value);
+        row('Dirección',inputOriginal('.client-street')?.value);
+        row('Código postal',inputOriginal('.client-cp')?.value);
+        row('CTE',inputOriginal('.client-cte-zone')?.value);
+        row('Año',inputOriginal('.client-build-year')?.value);
+        row('m² netos',inputOriginal('.client-m2')?.value);
+        const detalles=box.querySelector('.client-obra-status');
+        if(detalles&&detalles.value==='no_apto')
+          nodo(cuerpo,'p','Esta ficha está marcada como no apta. Revisa que conste el motivo.','captacion-ios-warning');
+        aviso('Antes de guardar puedes revisar los campos avanzados, documentación de comunidades y estado de la cita. El guardado será el mismo que utilizabas antes.');
+        boton(cuerpo,'Abrir edición avanzada',()=>{
+          fondo.classList.remove('active');
+          box.scrollIntoView({behavior:'smooth',block:'start'});
+        },true);
+        boton(cuerpo,'Ficha revisada · continuar',()=>{
+          const name=inputOriginal('.client-name')?.value.trim()||'';
+          const street=inputOriginal('.client-street')?.value.trim()||'';
+          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\s().-]/g,'');
+          if(phone.startsWith('+34'))phone=phone.slice(3);
+          else if(phone.startsWith('0034'))phone=phone.slice(4);
+          if(!name||!street||(!(/^[6789]\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1')){
+            alert('Esta ficha necesita nombre y calle, además de un teléfono válido o la marca de número ilegible.');
+            capturaGuiada.paso=1;mostrarPasoCaptacion();return;
+          }
+          const year=Number(inputOriginal('.client-build-year')?.value||0);
+          const result=inputOriginal('.client-obra-status')?.value||'';
+          if(box.dataset.konsorInvalidPhone!=='1'&&year>2006&&result!=='no_apto'){
+            alert('El año supera 2006. Revisa la aptitud y confirma el estado NO APTO antes de continuar.');
+            capturaGuiada.paso=2;mostrarPasoCaptacion();return;
+          }
+          if(capturaGuiada.ficha+1<cajas.length){
+            capturaGuiada.ficha++;capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
+          }else{
+            fondo.classList.remove('active');
+            window.cnRefreshDumpWizard?.();
+          }
+        });
+      }
+      if(paso<3)boton(pie,'Continuar',()=>{
+        if(paso===1){
+          const name=inputOriginal('.client-name')?.value.trim()||'';
+          const street=inputOriginal('.client-street')?.value.trim()||'';
+          let phone=(inputOriginal('.client-phone')?.value||'').replace(/[\s().-]/g,'');
+          if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
+          if(!street||!name){alert('Introduce dirección y nombre del contacto para continuar.');return;}
+          if(!(/^[6789]\d{8}$/.test(phone))&&box.dataset.konsorInvalidPhone!=='1'){alert('Revisar número de teléfono: corrige los 9 dígitos o marca la ficha como no contactable.');return;}
+        }
+        cambio(1);
+      });
+      if(paso>0)boton(pie,'Atrás',()=>cambio(-1),true);
+      boton(pie,'Salir sin guardar',()=>fondo.classList.remove('active'),true);
+      if(paso===3&&cajas.length>1){
+        const nav=nodo(cuerpo,'div',null,'captacion-ios-nav');
+        boton(nav,'Ficha anterior',()=>{
+          capturaGuiada.ficha=Math.max(0,capturaGuiada.ficha-1);capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
+        },true);
+        boton(nav,'Ficha siguiente',()=>{
+          capturaGuiada.ficha=Math.min(cajas.length-1,capturaGuiada.ficha+1);
+          capturaGuiada.paso=window.cnDumpHasGroups?.()?1:0;mostrarPasoCaptacion();
+        },true);
+      }
+    }
+
+    function renderClientFormFields() {
+      const container = document.getElementById('clientsContainer');
+      if (!container) return;
+
+      const dumpSiEl = document.getElementById('dumpSi');
+      const siCount = dumpSiEl ? (parseInt(dumpSiEl.value) || 0) : 0;
+
+      const currentDOMBoxes = container.querySelectorAll('.client-box, .comunidad-box');
+      if (siCount < currentDOMBoxes.length) {
+        const hasFilledRemoved = Array.from(currentDOMBoxes).slice(siCount).some(b =>
+          (b.querySelector('.client-name')?.value.trim() || '') !== '' ||
+          (b.querySelector('.client-phone')?.value.trim() || '') !== ''
+        );
+        if (hasFilledRemoved && !confirm(`Vas a eliminar ${currentDOMBoxes.length - siCount} ficha(s) con datos escritos. ¿Continuar?`)) {
+          dumpSiEl.value = currentDOMBoxes.length;
+          return;
+        }
+      }
+
+      const z = selectedZoneIndexToDump !== null ? savedZones[selectedZoneIndexToDump] : null;
+      const inMemoryClients = Array.from(currentDOMBoxes).map((box, idx) => {
+        const prevCall = (z && z.clients && z.clients[idx]?.callStatus) || 'pendiente';
+        const c=extractClientFromBox(box, prevCall, z?.clients?.[idx] || {});
+        c.captacionInvalida=box.dataset.konsorInvalidPhone==='1';
+        return c;
+      });
+
+      container.innerHTML = '';
+      if (siCount <= 0) return;
+
+     const title = document.createElement('div');
+      title.className = 'modal-section-title';
+      title.innerText = `🏡 / 🏢 Fichas de Captación (${siCount})`;
+      container.appendChild(title);
+
+      if (siCount >= 2 && !isMikelTeamMember(currentUserName)) {
+        const bulkStreetBox = document.createElement('div');
+        bulkStreetBox.style.cssText = 'background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:10px; padding:8px 10px; margin-bottom:10px; display:flex; flex-direction:column; gap:5px;';
+        bulkStreetBox.innerHTML = `
+          <label style="font-size:10px; font-weight:900; color:#93c5fd; text-transform:uppercase;">
+            🛣️ Calle rápida para las ${siCount} fichas (escribe la calle y luego pon solo el nº en cada ficha):
+          </label>
+          <input type="text" id="bulkBaseStreetInput" class="input-field" placeholder="Ej. Urbanización Caralahorza" oninput="applyBulkBaseStreetToAll(this.value)">
+        `;
+        container.appendChild(bulkStreetBox);
+      }
+
+      for (let i = 0; i < siCount; i++) {
+        const existing = inMemoryClients[i] || (z && z.clients && z.clients[i] ? z.clients[i] : {});
+        const isComunidad = existing.type === 'comunidad';
+
+        const box = document.createElement('div');
+        box.className = isComunidad ? 'comunidad-box' : 'client-box';
+        box.setAttribute('data-client-index', i);
+        if (existing.atticPhoto) box.dataset.atticPhoto = existing.atticPhoto;
+        if (existing.captacionInvalida) box.dataset.konsorInvalidPhone = '1';
+
+        box.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="font-size:11px; color:${isComunidad?'#a78bfa':'#34d399'};">Ficha #${i+1}</strong>
+            <select class="select-field client-type" style="font-size:10px; padding:3px 6px; width:auto;" onchange="switchClientTypeView(this, ${i})">
+              <option value="vivienda" ${!isComunidad && existing.type!=='urbanizacion'?'selected':''}>🏠 Vivienda Individual</option>
+              <option value="comunidad" ${isComunidad?'selected':''}>🏢 Comunidad (Edificio)</option>
+                ${!isMikelTeamMember(currentUserName) ? `<option value="urbanizacion" ${existing.type==='urbanizacion'?'selected':''}>🏘️ Urbanización conjunta</option>` : ''}
+            </select>
+          </div>
+
+          <div class="client-fields-dynamic-area" style="width:100%; box-sizing:border-box;">
+            ${isComunidad ? getComunidadFormHTML(existing, i) : getViviendaFormHTML(existing)}
+          </div>
+        `;
+        container.appendChild(box);
+
+        if (isComunidad) {
+          renderAtticsBreakdownList(box, existing.atticsDetails || null, parseInt(existing.numAttics || 2));
+        }
+      }
+    }
+
+    function propagateStreetToNextEmpty(inputEl) {
+      if (isMikelTeamMember(currentUserName)) return;
+
+      const nueva = inputEl.value.trim()
+        .replace(/\\s+\\d+(?:\\s+.*)?$/, '').trim();
+
+      if (nueva.length < 3) return;
+
+      const anterior = inputEl.dataset.streetBase ||
+        inputEl.dataset.lastBulkBase || '';
+
+      // Si solo se modifica el portal, no cambiar otras fichas.
+      if (anterior === nueva) return;
+
+      const cajas = Array.from(document.querySelectorAll(
+        '#clientsContainer .client-box, #clientsContainer .comunidad-box'
+      ));
+      const indice = cajas.indexOf(
+        inputEl.closest('.client-box, .comunidad-box')
+      );
+
+      if (indice < 0) return;
+
+      for (let i = indice + 1; i < cajas.length; i++) {
+        const campo = cajas[i].querySelector('.client-street');
+        if (!campo) continue;
+
+        const valor = campo.value.trim();
+        const baseAnterior = campo.dataset.streetBase ||
+          campo.dataset.lastBulkBase || '';
+
+        // Detenerse al encontrar otra calle fijada manualmente.
+        if (valor && !baseAnterior) break;
+        if (baseAnterior &&
+            baseAnterior !== anterior &&
+            baseAnterior !== nueva) break;
+
+        // Mantener el número de portal que ya tuviera esa ficha.
+        let portal = '';
+        if (baseAnterior &&
+            valor.toLowerCase().startsWith(baseAnterior.toLowerCase())) {
+          const resto = valor.slice(baseAnterior.length).trim();
+          if (/^\\d/.test(resto)) portal = resto;
+        }
+
+        campo.value = nueva + (portal ? ' ' + portal : ' ');
+        campo.dataset.streetBase = nueva;
+        campo.dataset.lastBulkBase = nueva;
+        campo.dataset.autoFilled = 'true';
+      }
+
+      inputEl.dataset.streetBase = nueva;
+      inputEl.dataset.lastBulkBase = nueva;
+      inputEl.dataset.autoFilled = 'false';
+    }
+
+    function switchClientTypeView(selectEl, idx) {
+      const parentBox = selectEl.closest('.client-box, .comunidad-box');
+      const dynamicArea = parentBox.querySelector('.client-fields-dynamic-area');
+      const isComunidad = selectEl.value === 'comunidad';
+
+      const preserved = {
+        street: parentBox.querySelector('.client-street')?.value || '',
+        urbanizacionNombre: parentBox.querySelector('.client-urbanizacion-name')?.value || '',
+
+        postalCode: parentBox.querySelector('.client-cp')?.value || '',
+        cteZone: parentBox.querySelector('.client-cte-zone')?.value || '',
+        name: parentBox.querySelector('.client-name')?.value || '',
+        phone: parentBox.querySelector('.client-phone')?.value || '',
+        email: parentBox.querySelector('.client-email')?.value || '',
+        dni: parentBox.querySelector('.client-dni')?.value || '',
+        buildYear: parentBox.querySelector('.client-build-year')?.value || '',
+        accessType: parentBox.querySelector('.client-access-type')?.value || 'Trampilla',
+        accessOther: parentBox.querySelector('.client-access-other')?.value || '',
+        obraStatus: parentBox.querySelector('.client-obra-status')?.value || 'a_poner',
+        obraDate: parentBox.querySelector('.client-obra-date')?.value || getTodayISO(),
+        obraTime: parentBox.querySelector('.client-obra-time')?.value || '09:30',
+        m2: parentBox.querySelector('.client-m2')?.value || '60-80'
+      };
+
+      parentBox.className = isComunidad ? 'comunidad-box' : 'client-box';
+      dynamicArea.innerHTML = isComunidad ? getComunidadFormHTML(preserved, idx) : getViviendaFormHTML({...preserved, type:selectEl.value});
+
+      if (isComunidad) {
+        renderAtticsBreakdownList(parentBox, null, 2);
+      }
+    }
+
+    function toggleAccessOtherInput(selectEl) {
+      const area = selectEl.closest('.client-fields-dynamic-area');
+      const otherBox = area ? area.querySelector('.access-other-box') : null;
+      if (otherBox) {
+        otherBox.style.display = selectEl.value === 'Otro' ? 'block' : 'none';
+      }
+    }
+
+    const NAVARRA_CTE_BY_CP = {
+      '31001':'D2','31002':'D2','31003':'D2','31004':'D2','31005':'D2','31006':'D2','31007':'D2','31008':'D2','31009':'D2','31010':'D2','31011':'D2','31012':'D2','31013':'D2','31014':'D2','31015':'D2','31016':'D2',
+      '31180':'D2','31190':'D2','31191':'D2','31192':'D2','31194':'D2','31195':'D2','31600':'D2','31610':'D2','31620':'D2','31621':'D2',
+      '31100':'D2','31110':'D2','31120':'D2','31130':'D2','31131':'D2','31132':'D2','31140':'D2','31150':'D2','31160':'D2','31170':'D2',
+      '31200':'D2','31210':'D2','31220':'D2','31230':'D1','31240':'D2','31250':'D2','31260':'D2','31261':'D2','31262':'D2','31263':'D2','31264':'D2','31270':'D2','31280':'D2','31290':'D2','31291':'D2','31292':'D2',
+      '31300':'D2','31310':'D2','31311':'D2','31312':'D2','31313':'D2','31314':'D2','31315':'D2','31320':'D2','31330':'D2','31340':'D2','31350':'D2','31360':'D2','31370':'D2','31380':'D2','31381':'D2','31382':'D2','31390':'D2','31391':'D2','31392':'D2','31393':'D2','31394':'D2','31395':'D2','31396':'D2','31397':'D2','31398':'D2',
+      '31400':'D2','31410':'D2','31420':'D2','31430':'D2','31440':'E1','31450':'E1','31460':'E1','31470':'E1','31480':'D2','31490':'D2',
+      '31500':'D2','31510':'D2','31511':'D2','31512':'D2','31513':'D2','31514':'D2','31515':'D2','31520':'D2','31521':'D2','31522':'D2','31523':'D2','31530':'D2','31540':'D2','31550':'D2','31560':'D2','31570':'D2','31580':'D1','31587':'D1','31588':'D1','31589':'D1','31590':'D2','31591':'D2','31592':'D2','31593':'D2','31594':'D2',
+      '31630':'E1','31640':'E1','31650':'E1','31660':'E1','31670':'E1','31680':'E1','31690':'E1',
+      '31700':'D1','31710':'D1','31720':'D1','31730':'D1','31740':'D1','31750':'D1','31760':'D1','31770':'D1','31780':'D1','31790':'D1',
+      '31800':'D1','31810':'D1','31820':'D1','31830':'D1','31840':'D1','31850':'D1','31860':'D1','31866':'D1','31867':'D1','31868':'D1','31869':'D1','31870':'D1','31876':'D1','31877':'D1','31878':'D1','31879':'D1','31880':'D1','31890':'D1','31891':'D1','31892':'D1'
+    };
+
+    const NAVARRA_TOWN_TO_CP = {
+      'pamplona':'31001','iruna':'31001','tudela':'31500','baranain':'31010','burlada':'31600','estella':'31200','zizur':'31180','zizur mayor':'31180','zizur menor':'31190',
+      'tafalla':'31300','villava':'31610','ansoain':'31013','berriozar':'31013','arangoiti':'31192','mutilva':'31192','noain':'31110','cizur':'31190','egues':'31620','sarriguren':'31621',
+      'huarte':'31620','peralta':'31350','funes':'31360','falces':'31370','san adrian':'31570','azagra':'31560','lodosa':'31580','mendavia':'31587','sesma':'31293','carcar':'31579',
+      'andosilla':'31261','lerín':'31260','lerin':'31260','milagro':'31320','cadreita':'31515','villafranca':'31330','marcilla':'31340','caparroso':'31380','oliete':'31390','olite':'31390',
+      'corella':'31591','cintruenigo':'31592','fitero':'31593','cascante':'31520','murchante':'31521','castejon':'31590','valtierra':'31514','arguedas':'31513','ribaforada':'31550','cortes':'31530','bunuel':'31540','ablitas':'31523','monteagudo':'31522',
+      'sanguesa':'31400','lumbier':'31440','aoiz':'31430','puente la reina':'31100','artajona':'31140','larraga':'31251','berbinzana':'31252','miranda de arga':'31253','mendigorria':'31150','maneru':'31130','cirauqui':'31131','oteiza':'31250','villatuerta':'31132',
+      'viana':'31230','los arcos':'31210','alló':'31262','allo':'31262','dicastillo':'31263','arróniz':'31243','arroniz':'31243','ayegui':'31240','murieta':'31280','ancin':'31281','zubielqui':'31241',
+      'alsasua':'31800','altsasu':'31800','olazti':'31809','olazagutia':'31809','etxarri aranatz':'31820','lakuntza':'31830','arbizu':'31839','uharte arakil':'31840','irurtzun':'31860','lekunberri':'31870','leitza':'31880','goizueta':'31754',
+      'elizondo':'31700','baztan':'31700','doneztebe':'31740','santesteban':'31740','lesaka':'31770','bera':'31780','vera de bidasoa':'31780','etxalar':'31760','igantzi':'31790','arantza':'31790','sunbilla':'31791','bertizarana':'31793',
+      'roncal':'31415','isaba':'31417','ochagavia':'31680','burguete':'31640','auritz':'31640','erro':'31696','zubiri':'31630','esteribar':'31630'
+    };
+
+    function detectCteZoneFromCpAndTown(cpStr, townStr = '') {
+      const cp = String(cpStr || '').replace(/\D/g, '').slice(0, 5);
+
+      // No deducir el CP por localidad: un municipio puede tener varios.
+      if (cp.length !== 5) {
+        return { cp: '', cteZone: '', isApto: false };
+      }
+
+      // Únicamente correspondencias explícitas configuradas.
+      const zone = NAVARRA_CTE_BY_CP[cp] || '';
+
+      if (!zone) {
+        return { cp, cteZone: '', isApto: false };
+      }
+
+      return {
+        cp,
+        cteZone: zone,
+        isApto: /^[DE][123]$/.test(zone)
+      };
+    }
+
+    const pendingPostalLookups=new WeakMap();
+    function fillPostalCodeFromStreet(streetInput) {
+      if(!streetInput)return;
+      const area=streetInput.closest('.client-fields-dynamic-area');
+      const postal=area?.querySelector('.client-cp');
+      if(!postal || (postal.value && postal.value!==postal.dataset.autoPostalCode))return;
+      const house=area.closest('#singleHouseModal');
+      const readTown=()=>String(house
+        ? house.querySelector('#singleHouseTown')?.value
+        : savedZones[selectedZoneIndexToDump]?.town || '').trim();
+      const address=streetInput.value.trim(),town=readTown();
+      const key=JSON.stringify([address,town]);
+      if(postal.dataset.lookupKey===key)return pendingPostalLookups.get(postal);
+      postal.dataset.lookupKey=key;
+      const choices=area.querySelector('.address-choices');
+      const locality=area.querySelector('.client-locality');
+      if(choices){choices.hidden=true;choices.replaceChildren();}
+      if(postal.dataset.autoPostalCode){
+        postal.value='';postal.dataset.autoPostalCode='';
+        updateClientCteFromCp(postal);
+      }
+      if(!ComercialCore.postalAddress(address)){postal.placeholder='Ej. 31360';return;}
+      postal.placeholder='Buscando…';
+      const current=()=>postal.isConnected && postal.dataset.lookupKey===key &&
+        streetInput.value.trim()===address && readTown()===town && !postal.value;
+      const apply=match=>{
+        if(!current())return;
+        const foundTown=match.localities[0] || town;
+        if(house)house.querySelector('#singleHouseTown').value=foundTown;
+        if(locality)locality.value=foundTown;
+        postal.value=match.cp;
+        postal.dataset.autoPostalCode=match.cp;
+        postal.dataset.lookupKey=JSON.stringify([address,readTown()]);
+        if(choices)choices.hidden=true;
+        updateClientCteFromCp(postal);
+      };
+      const lookup=(async()=>{
+        try{
+          const context=town && town!=='Detectando...' ? town : '';
+          let candidates=await queryCartoCiudadNavarra([address,context].filter(Boolean).join(', '),true);
+          let matches=ComercialCore.postalMatches(candidates,address,context);
+          // A house without a resolved municipality can choose among Navarra portals.
+          if(!matches.length && house && context){
+            candidates=await queryCartoCiudadNavarra(address+', Navarra',true);
+            matches=ComercialCore.postalMatches(candidates,address);
+          }
+          if(!matches.length && context){
+            candidates=await queryCartoCiudadNavarra(address+', Navarra',true);
+            matches=ComercialCore.postalMatches(candidates,address,context);
+          }
+          if(!current())return;
+          const unique=[...new Map(matches.map(m=>[JSON.stringify([m.localities,m.cp]),m])).values()];
+          if(unique.length===1){apply(unique[0]);}
+          else if(choices && unique.length){
+            choices.replaceChildren(new Option('Selecciona localidad y código postal',''));
+            unique.forEach((m,i)=>choices.add(new Option(m.localities.join(' / ')+' · '+m.cp,String(i))));
+            choices.hidden=false;
+            choices.onchange=()=>{if(choices.value!=='')apply(unique[Number(choices.value)]);};
+          }else{
+            delete postal.dataset.lookupKey;
+            postal.placeholder='Indica localidad o CP';
+          }
+        }catch(error){
+          if(postal.dataset.lookupKey===key)delete postal.dataset.lookupKey;
+        }finally{
+          if(postal.value)postal.placeholder='Ej. 31360';
+          else if(postal.placeholder==='Buscando…')postal.placeholder='Indica localidad o CP';
+        }
+      })();
+      pendingPostalLookups.set(postal,lookup);
+      return lookup;
+    }
+
+    function updateClientCteFromCp(inputEl) {
+      const area = inputEl.closest('.client-fields-dynamic-area');
+      if (!area) return;
+      const townContext = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const info = detectCteZoneFromCpAndTown(inputEl.value, townContext);
+      const cteInput = area.querySelector('.client-cte-zone');
+      const warnSlot = area.querySelector('.cte-warning-slot');
+
+      if (cteInput) {
+        cteInput.value = info.cteZone || 'Sin detectar';
+        cteInput.style.color = !info.cteZone ? '#94a3b8' : (info.isApto ? '#34d399' : '#fca5a5');
+        cteInput.style.borderColor = !info.cteZone ? 'rgba(255,255,255,0.2)' : (info.isApto ? '#059669' : '#ef4444');
+      }
+      if (warnSlot) {
+        warnSlot.innerHTML = (info.cteZone && !info.isApto)
+          ? `<div class="year-warning-alert">🚫 NO APTA CTE: Zona ${info.cteZone}. Solo trabajamos zonas D (D1, D2, D3) y E (E1, E2, E3).</div>`
+          : '';
+      }
+    }
+
+    function validateBuildYearWarning(inputEl) {
+      const yr = parseInt(inputEl.value);
+      const warnEl = inputEl.closest('.client-fields-dynamic-area').querySelector('.build-year-warning-slot');
+      if (!warnEl) return;
+      if (yr && yr > 2006) {
+        warnEl.innerHTML = `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>`;
+      } else {
+        warnEl.innerHTML = '';
+      }
+    }
+
+    function getAccessFieldHTML(existing) {
+      const acc = existing.accessType || 'Trampilla';
+      return `
+        <div>
+          <label style="font-size:9px; color:#94a3b8; font-weight:800;">TIPO DE ACCESO</label>
+          <select class="select-field client-access-type" onchange="toggleAccessOtherInput(this)">
+            <option value="Trampilla" ${acc==='Trampilla'?'selected':''}>Trampilla</option>
+            <option value="Tejado" ${acc==='Tejado'?'selected':''}>Tejado</option>
+            <option value="Otro" ${acc==='Otro'?'selected':''}>Otro</option>
+          </select>
+        </div>
+      `;
+    }
+
+    function avisoAptitudHTML(c, zona = '') {
+      const conjunta = c.type === 'urbanizacion';
+      const resultado = ComercialCore.evaluarAptitud({
+        ...c,
+        cteZone: zona || c.cteZone,
+        urbanizacionId: conjunta ? c.urbanizacionId || ComercialCore.norm(c.urbanizacionNombre) : '',
+        viviendasAptasUrbanizacion: conjunta
+          ? contarViviendasUrbanizacion(c.urbanizacionNombre || '')
+          : 0
+      });
+      const colores = {
+        apto: '#34d399',
+        revisar: '#fbbf24',
+        pendiente: '#93c5fd',
+        no_apto: '#fca5a5'
+      };
+      const nombres = {
+        apto: 'APTO',
+        revisar: 'REVISAR',
+        pendiente: 'PENDIENTE',
+        no_apto: 'NO APTO'
+      };
+      return `<div class="client-aptitud-summary"
+        style="padding:8px;margin:7px 0;border:1px solid ${colores[resultado.estado]};border-radius:8px;color:${colores[resultado.estado]};font-size:11px">
+        <strong>${nombres[resultado.estado]}</strong> · ${resultado.motivo}
+      </div>`;
+    }
+
+    function actualizarAvisoAptitud(el) {
+      const area = el.closest('.client-fields-dynamic-area');
+      if (!area || !area.querySelector('.client-aptitud-summary')) return;
+      const c = {
+        type: area.closest('.client-box, .comunidad-box')
+          ?.querySelector('.client-type')?.value || 'vivienda',
+        urbanizacionNombre: area.querySelector('.client-urbanizacion-name')?.value || '',
+        m2: area.querySelector('.client-m2')?.value || '',
+        buildYear: area.querySelector('.client-build-year')?.value || '',
+        cteZone: area.querySelector('.client-cte-zone')?.value || ''
+      };
+      area.querySelector('.client-aptitud-summary').outerHTML =
+        avisoAptitudHTML(c);
+    }
+
+    document.addEventListener('input', e => {
+      if (e.target.matches('.client-m2,.client-total-m2,.client-build-year,.client-cp')) {
+        queueMicrotask(() => actualizarAvisoAptitud(e.target));
+      }
+    });
+
+    function contarViviendasUrbanizacion(nombre) {
+      const id = ComercialCore.norm(nombre);
+      if (!id) return 0;
+
+      const viviendas = savedZones.flatMap(z =>
+        isMikelTeamMember(z.comercial) ? [] :
+        (z.clients || []).filter(c =>
+          c.type === 'urbanizacion' &&
+          c.urbanizacionId === id &&
+          c.obraStatus !== 'no_apto'
+        )
+      );
+
+      return ComercialCore.planUrbanizacion(viviendas).aptas;
+    }
+
+    function actualizarContadorUrbanizacion(input) {
+      const slot = input.closest('.client-fields-dynamic-area')
+        ?.querySelector('.urbanizacion-progress');
+      if (!slot) return;
+
+      const n = contarViviendasUrbanizacion(input.value);
+      slot.textContent = n >= 8
+        ? `✅ ${n} viviendas aptas · Lista para planificar 4 + 4`
+        : `🏘️ ${n}/8 viviendas aptas · Faltan ${8-n}`;
+    }
+
+    async function abrirPlanUrbanizacion(btn) {
+      if(currentUserName!=='Andrei (Jefe)')return;
+
+      const area=btn.closest('.client-fields-dynamic-area');
+      const nombre=area?.querySelector('.client-urbanizacion-name')?.value.trim();
+      const id=ComercialCore.norm(nombre);
+      if(!id){alert('Indica el nombre de la urbanización.');return;}
+
+      const viviendas=savedZones.flatMap(z=>
+        isMikelTeamMember(z.comercial)?[]:
+        (z.clients||[]).filter(c=>
+          c.type==='urbanizacion' &&
+          ComercialCore.norm(c.urbanizacionId||c.urbanizacionNombre)===id &&
+          c.obraStatus!=='no_apto'
+        )
+      );
+
+      const opciones=ComercialCore.opcionesAgendaUrbanizacion(viviendas);
+      if(!opciones.length){
+        alert('Se necesitan 8 viviendas que cumplan los requisitos.');
+        return;
+      }
+
+      const modal=document.createElement('dialog');
+      modal.style.cssText='border:1px solid #64748b;border-radius:12px;background:#0f172a;color:white;padding:18px;width:min(92vw,420px)';
+      const titulo=document.createElement('h3');
+      titulo.textContent='🏘️ Planificar '+nombre;
+      modal.append(titulo);
+
+      const selector=document.createElement('select');
+      selector.className='select-field';
+      selector.style.width='100%';
+      opciones.forEach((o,i)=>selector.add(new Option(o.nombre,String(i))));
+      modal.append(selector);
+
+      const fecha=document.createElement('input');
+      fecha.type='date';
+      fecha.className='input-field';
+      fecha.style.cssText='display:block;width:100%;margin:12px 0';
+      fecha.min=getTomorrowISO();
+      fecha.value=getTomorrowISO();
+      modal.append(fecha);
+
+      const resultado=document.createElement('p');
+      resultado.style.fontSize='12px';
+      resultado.textContent='Comprueba los 8 huecos antes de programar.';
+      modal.append(resultado);
+
+      const comprobar=document.createElement('button');
+      comprobar.textContent='🔎 Comprobar KONSOR';
+      comprobar.className='btn-modal-save';
+      comprobar.onclick=async()=>{
+        comprobar.disabled=true;
+        resultado.textContent='Consultando disponibilidad...';
+        try{
+          if(!ComercialCore.date(fecha.value) ||
+             fecha.value<getTomorrowISO())
+            throw Error('Selecciona una fecha futura válida.');
+
+          const r=await ComercialCore.validarAgendaUrbanizacion(
+            opciones[Number(selector.value)],
+            fecha.value,
+            consultarKonsorFecha
+          );
+
+          resultado.textContent=r.disponible
+            ? '✅ 8 huecos libres en KONSOR. Propuesta lista para revisión; aún no se ha reservado nada.'
+            : '🚫 Ocupado: equipo '+r.equipo+
+              ' · '+r.fecha+' · '+r.hora;
+        }catch(e){
+          resultado.textContent='⚠️ '+e.message;
+        }finally{
+          comprobar.disabled=false;
+        }
+      };
+      modal.append(comprobar);
+      const confirmar=document.createElement('button');
+      confirmar.textContent='✅ Confirmar 8 reservas';
+      confirmar.className='btn-modal-save';
+      confirmar.style.cssText='display:block;width:100%;margin-top:10px';
+
+      confirmar.onclick=async()=>{
+        if(window.KonsorBridge?.busy){
+          alert('Hay un guardado pendiente. Termínalo antes de agendar.');
+          return;
+        }
+
+        const fechaElegida=fecha.value;
+        const modalidad=Number(selector.value);
+
+        if(fechaElegida<getTomorrowISO()){
+          alert('Selecciona una fecha futura.');
+          return;
+        }
+
+        confirmar.disabled=true;
+        comprobar.disabled=true;
+        resultado.textContent='Verificando las 8 reservas...';
+
+        try{
+          // Reconstruir el grupo con los datos actuales.
+          const actuales=savedZones.flatMap(z=>
+            isMikelTeamMember(z.comercial) ? [] :
+            (z.clients||[]).filter(c=>
+              c.type==='urbanizacion' &&
+              ComercialCore.norm(
+                c.urbanizacionId||c.urbanizacionNombre
+              )===id &&
+              c.obraStatus!=='no_apto'
+            )
+          );
+
+          const opcionesActuales=
+            ComercialCore.opcionesAgendaUrbanizacion(actuales);
+
+          const opcion=opcionesActuales[modalidad];
+
+          if(!opcion)
+            throw Error('El grupo ya no reúne 8 viviendas aptas.');
+
+          // Impedir reservar fichas sin identificador o ya agendadas.
+          const viviendas=opcion.bloques.flatMap(b=>b.viviendas);
+
+          if(viviendas.some(c=>
+            !c.clientUid ||
+            c.obraStatus==='agendada' ||
+            !String(c.name||'').trim() ||
+            !String(c.street||'').trim() ||
+            !String(c.phone||'').trim()
+          )){
+            throw Error(
+              'Las 8 viviendas deben estar guardadas, sin cita, '+
+              'y tener nombre, dirección y teléfono.'
+            );
+          }
+
+          // KONSOR se consulta de nuevo justo antes de confirmar.
+          const plan=await ComercialCore.validarAgendaUrbanizacion(
+            opcion,fechaElegida,consultarKonsorFecha
+          );
+
+          if(!plan.disponible){
+            throw Error(
+              'Franja ocupada: equipo '+plan.equipo+
+              ', '+plan.fecha+', '+plan.hora
+            );
+          }
+
+          if(plan.reservas.length!==8)
+            throw Error('La planificación no contiene 8 reservas.');
+
+          const dias=[...new Set(plan.reservas.map(r=>r.fecha))];
+
+          if(dias.some(d=>new Date(d+'T12:00:00').getDay()===0))
+            throw Error('No se pueden programar obras en domingo.');
+
+          if(!confirm(
+            '¿Confirmas las 8 instalaciones de '+nombre+
+            '?\n\nModalidad: '+opcion.nombre+
+            '\nInicio: '+fechaElegida+
+            '\n\nLas 8 citas se guardarán juntas.'
+          ))return;
+
+          // Copia: no modificar fichas visibles antes de guardar.
+          const candidato=JSON.parse(JSON.stringify(savedZones));
+          const cambios=new Map();
+
+          for(const reserva of plan.reservas){
+            cambios.set(reserva.vivienda.clientUid,reserva);
+          }
+
+          let modificadas=0;
+
+          for(const zona of candidato){
+            for(const cliente of zona.clients||[]){
+              const r=cambios.get(cliente.clientUid);
+              if(!r)continue;
+
+              if(isMikelTeamMember(zona.comercial) ||
+                 cliente.obraStatus==='agendada')
+                throw Error('Una ficha ha cambiado. Recarga y revisa.');
+
+              cliente.obraStatus='agendada';
+              cliente.obraDate=r.fecha;
+              cliente.obraTime=r.hora;
+              cliente.obraEquipoInstalacion=r.equipo;
+              cliente.statusChangedAt=Date.now();
+              modificadas++;
+            }
+          }
+
+          if(modificadas!==8)
+            throw Error('No se localizaron exactamente 8 fichas.');
+
+          // UNA llamada: Firebase confirma las 8 o ninguna.
+          await window.KonsorBridge.save(
+            'comercial_custom_zones',candidato
+          );
+
+          savedZones=candidato;
+          resultado.textContent='✅ Las 8 reservas están confirmadas.';
+          alert('✅ 8 instalaciones guardadas correctamente.');
+          modal.close();
+          renderAllSavedZones();
+
+        }catch(error){
+          resultado.textContent='⚠️ '+(
+            error.message||'No se pudieron guardar las reservas.'
+          );
+        }finally{
+          confirmar.disabled=false;
+          comprobar.disabled=false;
+        }
+      };
+
+      modal.append(confirmar);
+
+
+      const cerrar=document.createElement('button');
+      cerrar.textContent='Cerrar';
+      cerrar.style.cssText='display:block;margin-top:12px;padding:8px';
+      cerrar.onclick=()=>modal.close();
+      modal.append(cerrar);
+      modal.addEventListener('close',()=>modal.remove());
+      document.body.append(modal);
+      modal.showModal();
+    }
+
+    function getViviendaFormHTML(existing) {
+      const defaultObraDate = existing.obraDate || getTodayISO();
+      const defaultObraTime = existing.obraTime || '09:30';
+      const buildYearVal = existing.buildYear || '';
+      const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
+      const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
+
+      const townCtx = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const cteAuto = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtx);
+      const cpDisplay = existing.postalCode || '';
+      const cteDisplay = existing.cteZone || cteAuto.cteZone || '';
+      const isCteInvalid = cteDisplay && !/^[DE][123]$/.test(cteDisplay);
+
+      return `
+        ${existing.type === 'urbanizacion' ? `
+          <label style="display:block;margin:6px 0;color:#a7f3d0;font-size:11px;font-weight:800">
+            🏘️ Nombre de la urbanización
+            <input class="input-field client-urbanizacion-name" oninput="actualizarContadorUrbanizacion(this)"
+              placeholder="Ej. Urbanización Los Olivos"
+              value="${String(existing.urbanizacionNombre || '').replace(/"/g,'&quot;')}"
+              style="margin-top:5px;width:100%">
+          </label>
+          <div class="urbanizacion-progress"
+            style="color:#a7f3d0;font-size:11px;margin:5px 0">
+            🏘️ ${contarViviendasUrbanizacion(existing.urbanizacionNombre)} viviendas aptas registradas
+          </div>
+          <button type="button" class="btn-modal-save"
+            onclick="abrirPlanUrbanizacion(this)"
+            style="margin:6px 0;width:100%">
+            📅 Planificar 4 + 4
+          </button>
+        ` : ''}
+
+        ${!isMikelTeamMember(currentUserName) ? avisoAptitudHTML(existing, existing.cteZone || detectCteZoneFromCpAndTown(existing.postalCode || "").cteZone) : ""}
+        <div class="grid-row-2">
+          <div style="display:flex; gap:4px; flex:1.15;">
+            <input type="text" class="input-field client-name" placeholder="Nombre del Propietario" value="${existing.name || ''}">
+            ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-name')" title="Dictar nombre">🎙️</button>` : ''}
+          </div>
+          <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
+        </div>
+
+        <div style="margin-bottom:6px;">
+          <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico (Opcional)" value="${existing.email || ''}">
+          ${!isMikelTeamMember(currentUserName) ? `<input type="text" class="input-field client-dni" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${String(existing.dni || '').replace(/"/g, '&quot;')}" style="margin-top:5px; text-transform:uppercase;" oninput="validateDniField(this)">` : ''}
+        </div>
+
+        <div style="display:flex; gap:4px; margin-bottom:6px;">
+          <input type="text" class="input-field client-street" placeholder="Calle y Portal / Piso (Ej. Urbanización Caralahorza 7)" value="${existing.street || ''}" onchange="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
+          ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar calle">🎙️</button>` : ''}
+        </div>
+
+        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" onblur="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))" value="${String(existing.locality || townCtx || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
+        <select class="select-field address-choices" aria-label="Elegir localidad y código postal" hidden></select>
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
+            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplay}" oninput="this.dataset.autoPostalCode=''; updateClientCteFromCp(this)" onfocus="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))">
+          </div>
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">🌡️ ZONA CTE (D1-D3 / E1-E3)</label>
+            <input type="text" class="input-field client-cte-zone" readonly value="${cteDisplay || 'Auto por CP'}" style="color:${!cteDisplay ? '#94a3b8' : (isCteInvalid ? '#fca5a5' : '#34d399')}; border-color:${!cteDisplay ? 'rgba(255,255,255,0.2)' : (isCteInvalid ? '#ef4444' : '#059669')};">
+          </div>
+        </div>
+        <div class="cte-warning-slot">
+          ${isCteInvalid ? `<div class="year-warning-alert">🚫 NO APTA CTE: Zona ${cteDisplay}. Solo trabajamos zonas D (D1, D2, D3) y E (E1, E2, E3).</div>` : ''}
+        </div>
+
+       ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-bottom:6px;">
+            <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
+              🏛️ Comprobar Catastro de esta casa (Año y m²)
+            </button>
+          </div>
+        ` : ''}
+
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">AÑO CONSTRUCCIÓN (≤ 2006)</label>
+            <input type="number" class="input-field client-build-year" placeholder="Ej. 1995 (2006 máx.)" value="${buildYearVal}" oninput="validateBuildYearWarning(this)">
+          </div>
+          ${getAccessFieldHTML(existing)}
+        </div>
+
+        <div class="access-other-box" style="display:${isOtroAccess ? 'block' : 'none'}; margin-bottom:6px;">
+          <input type="text" class="input-field client-access-other" placeholder="Escribe qué tipo de acceso es..." value="${existing.accessOther || ''}">
+        </div>
+
+        <div class="build-year-warning-slot">
+          ${isInvalidYear ? `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>` : ''}
+        </div>
+
+        ${!isMikelTeamMember(currentUserName) ? `
+        <div class="attic-compact">
+          <label>m² de buhardilla
+            <input class="input-field client-total-m2" type="number" min="0" step="0.1" inputmode="decimal" placeholder="m²" value="${getM2NumericValue(existing.m2Total)||''}" oninput="calculateClientAttic(this)">
+          </label>
+          <label>Plantas
+            <input class="input-field client-floors" type="number" min="1" step="1" inputmode="numeric" placeholder="1" value="${Number(existing.m2Floors)>0?Number(existing.m2Floors):1}" oninput="calculateClientAttic(this)">
+          </label>
+          <label>Resultado ≈ m²
+            <input class="input-field client-m2" type="number" readonly aria-live="polite" value="${existing.m2!==undefined?getM2NumericValue(existing.m2):''}">
+          </label>
+          <input type="hidden" class="client-attic-coverage" value="${Number(existing.m2Coverage)||100}">
+          <input type="hidden" class="client-attic-wall" value="${existing.m2WallCm!=='' && existing.m2WallCm!=null?Number(existing.m2WallCm):25}">
+        </div>` : ''}
+
+        <div class="grid-row-2" style="align-items:start;">
+          <div style="grid-column:1 / -1; margin-bottom:6px;">
+            <select class="select-field client-origen">
+              <option value="puerta" ${(!existing.origen || existing.origen==='puerta')?'selected':''}>🚪 Captado puerta a puerta</option>
+              <option value="llamada_cliente" ${existing.origen==='llamada_cliente'?'selected':''}>📞 Me llamó el cliente (vio / oyó)</option>
+              <option value="exterior" ${existing.origen==='exterior'?'selected':''}>🏠 Exterior / cartel / otro</option>
+            </select>
+          </div>
+          <select class="select-field client-obra-status" onchange="handleObraStatusChange(this)">
+            <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>📝 Captación SÍ (Automática)</option>
+            ${existing.obraStatus==='agendada_historica'?'<option value="agendada_historica" selected>Agendada · histórico sin reservar</option>':''}
+            <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Cita Agendada</option>
+            <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
+            <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica)</option>
+          </select>
+        </div>
+
+        ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-top:4px;">
+            <label style="display:block; text-align:center; background:rgba(124,58,237,0.18); border:1px dashed #a78bfa; color:#ddd6fe; font-size:10.5px; font-weight:800; padding:6px 8px; border-radius:8px; cursor:pointer;">
+              📸 ${existing.atticPhoto ? 'Cambiar Foto Trampilla / Acceso' : 'Adjuntar Foto Trampilla / Buhardilla'}
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleClientAtticPhotoUpload(this)">
+            </label>
+            <div class="attic-photo-preview-slot">
+              ${existing.atticPhoto ? `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.15); border:1px solid #34d399; border-radius:8px; padding:5px 8px; margin-top:4px;">
+                  <div style="display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="openAtticPhotoLightbox('${existing.atticPhoto}', '${(existing.street || 'Acceso').replace(/'/g, "\\'")}')">
+                    <img src="${existing.atticPhoto}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #fff;">
+                    <span style="font-size:10px; color:#6ee7b7; font-weight:800;">👁️ Ver foto guardada</span>
+                  </div>
+                  <button type="button" onclick="removeClientAtticPhoto(this)" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; flex-direction:column; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:7px 8px; margin-top:4px; gap:5px;">
+          <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
+          <div class="grid-row-2" style="margin-bottom:0;">
+            <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px;">
+            <select class="select-field client-obra-time" style="padding:6px 8px;">${obraSlotOptions(defaultObraTime)}</select>
+          </div>
+        </div>
+
+        <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
+          <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica:</label>
+          <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
+            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción &gt; 2006 (No Apto CAE)</option>
+            <option value="m2_insuficiente" ${existing.obraReason==='m2_insuficiente'?'selected':''}>📐 Superficie m² insuficiente</option>
+            <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Aislamiento previo existente</option>
+            <option value="suelo_forjado" ${existing.obraReason==='suelo_forjado'?'selected':''}>🏗️ Problema en suelo / forjado</option>
+            <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a tejado imposible</option>
+          </select>
+        </div>
+      `;
+    }
+
+    function getComunidadFormHTML(existing, cardIdx) {
+      const defaultObraDate = existing.obraDate || getTodayISO();
+      const defaultObraTime = existing.obraTime || '09:30';
+      const buildYearVal = existing.buildYear || '';
+      const isInvalidYear = buildYearVal && parseInt(buildYearVal) > 2006;
+      const isOtroAccess = (existing.accessType || 'Trampilla') === 'Otro';
+      const docs = existing.comunidadDocs || {};
+      const townCtxCom = (selectedZoneIndexToDump !== null && savedZones[selectedZoneIndexToDump]?.town)
+        || document.getElementById('singleHouseTown')?.value
+        || '';
+      const cteAutoCom = detectCteZoneFromCpAndTown(existing.postalCode || '', townCtxCom);
+      const cpDisplayCom = existing.postalCode || '';
+      const cteDisplayCom = existing.cteZone || cteAutoCom.cteZone || '';
+      const isCteInvalidCom = cteDisplayCom && !/^[DE][123]$/.test(cteDisplayCom);
+
+      let docsCheckboxesHtml = '';
+      COMUNIDAD_DOCS_SCHEMA.forEach(docItem => {
+        docsCheckboxesHtml += `
+          <label class="cae-check-item">
+            <input type="checkbox" class="${docItem.key}" ${docs[docItem.key] ? 'checked' : ''}>
+            <span>${docItem.label}</span>
+          </label>
+        `;
+      });
+
+      return `
+        ${!isMikelTeamMember(currentUserName) ? avisoAptitudHTML(existing, existing.cteZone || detectCteZoneFromCpAndTown(existing.postalCode || "").cteZone) : ""}
+        <div style="background:rgba(0,0,0,0.25); padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:4px; margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:800; color:#a78bfa;">👑 ¿Es el Presidente Oficial?</span>
+            <select class="select-field client-is-presi" style="padding:2px 6px; width:auto;" onchange="togglePresiHierarchyInfo(this)">
+              <option value="si" ${existing.isPresi!==false?'selected':''}>SÍ (Presidente)</option>
+              <option value="no" ${existing.isPresi===false?'selected':''}>NO (Vecino Enlace)</option>
+            </select>
+          </div>
+
+          <div class="presi-hierarchy-hint" style="font-size:9.5px; color:#cbd5e1; border-left:2px solid #a78bfa; padding-left:6px; margin-top:2px;">
+            ${existing.isPresi===false ? '⚠️ Se deberá mandar nuestro acta de nombramiento si no es presidente oficial.' : '👑 Hablando directamente con la Presidencia del Edificio.'}
+          </div>
+        </div>
+
+        <div style="display:flex; gap:4px; margin-bottom:6px;">
+          <input type="text" class="input-field client-street" placeholder="Dirección Comunidad (Ej. C/ Mayor 14)" value="${existing.street || ''}" onchange="propagateStreetToNextEmpty(this)" onblur="fillPostalCodeFromStreet(this)">
+          ${!isMikelTeamMember(currentUserName) ? `<button type="button" class="btn-voice-mic" onclick="startVoiceDictationForBtn(this, '.client-street')" title="Dictar dirección">🎙️</button>` : ''}
+        </div>
+
+        <input class="input-field client-locality" aria-label="Localidad / pueblo" placeholder="Localidad / pueblo" onblur="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))" value="${String(existing.locality || townCtxCom || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="margin-bottom:6px;">
+        <select class="select-field address-choices" aria-label="Elegir localidad y código postal" hidden></select>
+        <div class="grid-row-2">
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">📮 CÓDIGO POSTAL</label>
+            <input type="tel" class="input-field client-cp" maxlength="5" placeholder="Ej. 31360" value="${cpDisplayCom}" oninput="this.dataset.autoPostalCode=''; updateClientCteFromCp(this)" onfocus="fillPostalCodeFromStreet(this.closest('.client-fields-dynamic-area').querySelector('.client-street'))">
+          </div>
+          <div>
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">🌡️ ZONA CTE (D1-D3 / E1-E3)</label>
+            <input type="text" class="input-field client-cte-zone" readonly value="${cteDisplayCom || 'Auto por CP'}" style="color:${!cteDisplayCom ? '#94a3b8' : (isCteInvalidCom ? '#fca5a5' : '#34d399')}; border-color:${!cteDisplayCom ? 'rgba(255,255,255,0.2)' : (isCteInvalidCom ? '#ef4444' : '#059669')};">
+          </div>
+        </div>
+        <div class="cte-warning-slot">
+          ${isCteInvalidCom ? `<div class="year-warning-alert">🚫 NO APTA CTE: Zona ${cteDisplayCom}. Solo trabajamos zonas D (D1, D2, D3) y E (E1, E2, E3).</div>` : ''}
+        </div>
+
+        ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-bottom:6px;">
+            <button type="button" onclick="openCadastreFromClientBox(this)" style="width:100%; padding:7px 8px; border-radius:8px; border:1px solid #38bdf8; background:rgba(2,132,199,0.22); color:#7dd3fc; font-size:10.5px; font-weight:800; cursor:pointer;">
+              🏛️ Comprobar Catastro de este edificio (Año y m²)
+            </button>
+          </div>
+        ` : ''}
+
+        <div class="grid-row-2">
+          <input type="text" class="input-field client-name" placeholder="Nombre Presidente / Enlace" value="${existing.name || ''}">
+          <input type="tel" class="input-field client-phone" placeholder="Teléfono" value="${existing.phone || ''}">
+        </div>
+
+        <div style="margin-bottom:6px;">
+          <input type="email" class="input-field client-email" placeholder="✉️ Correo electrónico presidente / administrador" value="${existing.email || ''}">
+          ${!isMikelTeamMember(currentUserName) ? `<input type="text" class="input-field client-dni" placeholder="🪪 DNI / NIE del presidente" maxlength="10" value="${String(existing.dni || '').replace(/"/g, '&quot;')}" style="margin-top:5px; text-transform:uppercase;" oninput="validateDniField(this)">` : ''}
+        </div>
+
+        <div class="grid-row-2">
+          <div style="flex:1;">
+            <label style="font-size:9px; color:#94a3b8; font-weight:800;">AÑO EDIFICIO (≤ 2006)</label>
+            <input type="number" class="input-field client-build-year" placeholder="Ej. 1995 (2006 máx.)" value="${buildYearVal}" oninput="validateBuildYearWarning(this)">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:9px; color:#a78bfa; font-weight:800;">Nº BUHARDILLAS (ÁTICOS)</label>
+            <input type="number" class="input-field client-num-attics" min="1" max="10" placeholder="Ej. 2" value="${existing.numAttics || '2'}" onchange="updateAtticsCount(this)">
+          </div>
+        </div>
+
+        <div style="margin-bottom:6px;">
+          ${getAccessFieldHTML(existing)}
+        </div>
+
+        <div class="access-other-box" style="display:${isOtroAccess ? 'block' : 'none'}; margin-bottom:6px;">
+          <input type="text" class="input-field client-access-other" placeholder="Escribe qué tipo de acceso es..." value="${existing.accessOther || ''}">
+        </div>
+
+        <div class="build-year-warning-slot">
+          ${isInvalidYear ? `<div class="year-warning-alert">⚠️ Atención: El año debe ser 2006 o inferior para entrar en CAE.</div>` : ''}
+        </div>
+
+        <div class="comunidad-docs-box">
+          <div style="font-size:10px; font-weight:900; color:#c4b5fd; text-transform:uppercase;">
+            📋 Control Documental Obligatorio (Solo Comunidades):
+          </div>
+          ${docsCheckboxesHtml}
+        </div>
+
+        <div style="font-size:10px; font-weight:800; color:#cbd5e1; margin:8px 0 4px 0; text-transform:uppercase; display:flex; justify-content:space-between;">
+          <span>🏘️ Desglose de Pisos de la última planta:</span>
+          ${!isMikelTeamMember(currentUserName) ? '<span style="color:#60a5fa; font-weight:700;">(Cada vecino sus m²)</span>' : ''}
+        </div>
+
+        <div class="attics-list-container"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(5, 150, 105, 0.18); border:1px solid #059669; padding:8px 10px; border-radius:8px; margin-top:8px;">
+          ${!isMikelTeamMember(currentUserName) ? `<span style="font-size:11px; font-weight:800; color:#34d399;">📐 Total Cubierta Aislable:</span>
+          <strong class="comunidad-calculated-m2-label" style="font-size:14px; color:#34d399;">${getM2NumericValue(existing.m2)} m²</strong>` : ''}
+        </div>
+
+        <div style="margin-top:8px;">
+          <div style="grid-column:1 / -1; margin-bottom:6px;">
+            <select class="select-field client-origen">
+              <option value="puerta" ${(!existing.origen || existing.origen==='puerta')?'selected':''}>🚪 Captado puerta a puerta</option>
+              <option value="llamada_cliente" ${existing.origen==='llamada_cliente'?'selected':''}>📞 Me llamó el cliente (vio / oyó)</option>
+              <option value="exterior" ${existing.origen==='exterior'?'selected':''}>🏠 Exterior / cartel / otro</option>
+            </select>
+          </div>
+          <select class="select-field client-obra-status" onchange="handleObraStatusChange(this)">
+            <option value="a_poner" ${(!existing.obraStatus || existing.obraStatus==='a_poner')?'selected':''}>📝 Captación SÍ (Automática)</option>
+            ${existing.obraStatus==='agendada_historica'?'<option value="agendada_historica" selected>Agendada · histórico sin reservar</option>':''}
+            <option value="agendada" ${existing.obraStatus==='agendada'?'selected':''}>📅 Cita Agendada (Obra)</option>
+            <option value="realizada" ${existing.obraStatus==='realizada'?'selected':''}>✅ Obra REALIZADA</option>
+            <option value="no_apto" ${existing.obraStatus==='no_apto'?'selected':''}>🚫 No Apta (Técnica/Junta)</option>
+          </select>
+        </div>
+
+        ${!isMikelTeamMember(currentUserName) ? `
+          <div style="margin-top:6px;">
+            <label style="display:block; text-align:center; background:rgba(124,58,237,0.18); border:1px dashed #a78bfa; color:#ddd6fe; font-size:10.5px; font-weight:800; padding:6px 8px; border-radius:8px; cursor:pointer;">
+              📸 ${existing.atticPhoto ? 'Cambiar Foto Acceso Cubierta' : 'Adjuntar Foto Acceso / Cubierta'}
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleClientAtticPhotoUpload(this)">
+            </label>
+            <div class="attic-photo-preview-slot">
+              ${existing.atticPhoto ? `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.15); border:1px solid #34d399; border-radius:8px; padding:5px 8px; margin-top:4px;">
+                  <div style="display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="openAtticPhotoLightbox('${existing.atticPhoto}', '${(existing.street || 'Acceso Edificio').replace(/'/g, "\\'")}')">
+                    <img src="${existing.atticPhoto}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid #fff;">
+                    <span style="font-size:10px; color:#6ee7b7; font-weight:800;">👁️ Ver foto guardada</span>
+                  </div>
+                  <button type="button" onclick="removeClientAtticPhoto(this)" style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; cursor:pointer;">✕ Quitar</button>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="cita-date-box" style="display: ${existing.obraStatus==='agendada'?'flex':'none'}; flex-direction:column; background:rgba(245, 158, 11, 0.16); border:1px solid #f59e0b; border-radius:8px; padding:7px 8px; margin-top:6px; gap:5px;">
+          <label style="font-size:10.5px; font-weight:800; color:#fde047;">📅 Día y Hora exacta de la Obra:</label>
+          <div class="grid-row-2" style="margin-bottom:0;">
+            <input type="date" class="input-field client-obra-date" value="${defaultObraDate}" style="padding:6px 8px;">
+            <select class="select-field client-obra-time" style="padding:6px 8px;">${obraSlotOptions(defaultObraTime)}</select>
+          </div>
+        </div>
+
+        <div class="no-apto-reason-box" style="display: ${existing.obraStatus==='no_apto'?'block':'none'}; margin-top:4px;">
+          <label style="font-size:10px; font-weight:800; color:#fca5a5;">Motivo de Caída Técnica / Rechazo Junta:</label>
+          <select class="select-field client-no-apto-reason" style="width:100%; margin-top:2px;">
+            <option value="año_post_2006" ${existing.obraReason==='año_post_2006'?'selected':''}>🏗️ Año construcción &gt; 2006 (No Apto CAE)</option>
+            <option value="rechazo_junta" ${existing.obraReason==='rechazo_junta'?'selected':''}>❌ Rechazado en Junta de Propietarios</option>
+            <option value="ya_aislado" ${existing.obraReason==='ya_aislado'?'selected':''}>🧱 Tejado/Cubierta aislada recientemente</option>
+            <option value="acceso_imposible" ${existing.obraReason==='acceso_imposible'?'selected':''}>🚪 Acceso a bajo cubierta cerrado/imposible</option>
+          </select>
+        </div>
+      `;
+    }
+
+    function renderAtticsBreakdownList(parentBox, existingAtticsList, count) {
+      const listContainer = parentBox.querySelector('.attics-list-container');
+      if (!listContainer) return;
+
+      listContainer.innerHTML = '';
+      const totalCount = Math.max(1, count || 1);
+
+      for (let k = 0; k < totalCount; k++) {
+        const attData = (existingAtticsList && existingAtticsList[k]) ? existingAtticsList[k] : {};
+        const atticCard = document.createElement('div');
+        atticCard.className = 'attic-item-card';
+
+        const defaultDoor = attData.door || `Piso ${k+1}º`;
+        const defaultM2 = attData.m2 !== undefined ? getM2NumericValue(attData.m2) : 0;
+
+        atticCard.innerHTML = `
+          <div class="attic-item-header">
+            <span>🏠 Buhardilla #${k+1}</span>
+            <span style="color:#a78bfa;">Puerta / Propietario Afectado</span>
+          </div>
+
+          <div class="grid-row-2">
+            <input type="text" class="input-field attic-door" placeholder="Piso/Puerta (Ej. 4ºA)" value="${defaultDoor}">
+            <input type="number" min="0" step="0.01" class="input-field attic-m2" placeholder="m² piso" value="${defaultM2}" ${isMikelTeamMember(currentUserName)?'hidden disabled':''} oninput="recalculateComunidadTotalM2(this)">
+          </div>
+
+          <div class="grid-row-2">
+            <input type="text" class="input-field attic-owner" placeholder="Propietario (Opcional)" value="${attData.owner || ''}">
+            <input type="tel" class="input-field attic-phone" placeholder="Tel. Vecino (Opcional)" value="${attData.phone || ''}">
+          </div>
+        `;
+        listContainer.appendChild(atticCard);
+      }
+
+      recalculateComunidadTotalM2(listContainer.querySelector('.attic-m2'));
+    }
+
+    function updateAtticsCount(inputEl) {
+      const parentBox = inputEl.closest('.comunidad-box');
+      const newCount = Math.max(1, parseInt(inputEl.value) || 1);
+      const currentCards = parentBox.querySelectorAll('.attic-item-card');
+      const preserved = Array.from(currentCards).map(card => ({
+        door: card.querySelector('.attic-door')?.value || '',
+        m2: getM2NumericValue(card.querySelector('.attic-m2')?.value),
+        owner: card.querySelector('.attic-owner')?.value || '',
+        phone: card.querySelector('.attic-phone')?.value || ''
+      }));
+      renderAtticsBreakdownList(parentBox, preserved, newCount);
+    }
+
+    function calculateClientAttic(input) {
+      if(isMikelTeamMember(currentUserName))return;
+      const box=input.closest('.client-box');
+      const result=ComercialCore.attic(
+        box.querySelector('.client-total-m2').value,
+        box.querySelector('.client-floors').value,
+        box.querySelector('.client-attic-coverage').value,
+        box.querySelector('.client-attic-wall').value
+      );
+      box.querySelector('.client-m2').value=result ? result.net : '';
+    }
+    function recalculateComunidadTotalM2(inputEl) {
+      if(isMikelTeamMember(currentUserName))return;
+      if (!inputEl) return;
+      const parentBox = inputEl.closest('.comunidad-box');
+      if (!parentBox) return;
+
+      const m2Inputs = parentBox.querySelectorAll('.attic-m2');
+      let sum = 0;
+      m2Inputs.forEach(inp => {
+        sum += getM2NumericValue(inp.value);
+      });
+
+      const labelEl = parentBox.querySelector('.comunidad-calculated-m2-label');
+      if (labelEl) {
+        labelEl.innerText = `${sum} m²`;
+      }
+    }
+
+    function togglePresiHierarchyInfo(selectEl) {
+      const hintEl = selectEl.closest('div.client-fields-dynamic-area').querySelector('.presi-hierarchy-hint');
+      if (hintEl) {
+        hintEl.innerHTML = selectEl.value === 'no'
+          ? '⚠️ Se deberá mandar nuestro acta de nombramiento si no es presidente oficial.'
+          : '👑 Hablando directamente con la Presidencia del Edificio.';
+      }
+    }
+
+    function handleObraStatusChange(selectEl) {
+      const parentBox = selectEl.closest('.client-box, .comunidad-box');
+      const reasonBox = parentBox.querySelector('.no-apto-reason-box');
+      const citaDateBox = parentBox.querySelector('.cita-date-box');
+
+      if (reasonBox) {
+        reasonBox.style.display = selectEl.value === 'no_apto' ? 'block' : 'none';
+      }
+      if (citaDateBox) {
+        citaDateBox.style.display = selectEl.value === 'agendada' ? 'flex' : 'none';
+      }
+    }
+
+    async function saveDumpData() {
+      if (selectedZoneIndexToDump === null) return;
+
+      const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
+      const siDeclarados = Math.max(0,parseInt(document.getElementById('dumpSi')?.value,10)||0);
+      const contactComplete = box=>{
+        const v=sel=>box.querySelector(sel)?.value?.trim()||'';
+        let phone=v('.client-phone').replace(/[\s().-]/g,'');
+        if(phone.startsWith('+34'))phone=phone.slice(3);else if(phone.startsWith('0034'))phone=phone.slice(4);
+        return Boolean(v('.client-street')&&v('.client-name')&&/^[6789]\d{8}$/.test(phone));
+      };
+      const markedInvalid=box=>box.dataset.konsorInvalidPhone==='1' &&
+        Boolean(box.querySelector('.client-street')?.value.trim()&&box.querySelector('.client-name')?.value.trim());
+      const completeCount=Array.from(clientBoxes).filter(box=>contactComplete(box)||markedInvalid(box)).length;
+      const invalidCount=Array.from(clientBoxes).filter(markedInvalid).length;
+      if(!isMikelTeamMember(currentUserName)&&(completeCount!==siDeclarados || clientBoxes.length!==siDeclarados)){
+        alert('Volcado pendiente: '+completeCount+' de '+siDeclarados+' interesados están revisados. Completa los contactos o marca expresamente los teléfonos ilegibles.');
+        return;
+      }
+      await Promise.all(Array.from(clientBoxes,box=>pendingPostalLookups.get(box.querySelector('.client-cp'))));
+      if(Array.from(clientBoxes).some(box=>box.querySelector('.address-choices:not([hidden])'))){alert('Selecciona la localidad de las direcciones pendientes antes de guardar.');return;}
+      const z = savedZones[selectedZoneIndexToDump];
+      const prevClients = z.clients ? [...z.clients] : [];
+      if(!z.dumpDate && !z.firstDumpRecordedAt)z.firstDumpRecordedAt=Date.now();
+      z.dumpDate = document.getElementById('dumpDate').value;
+
+      z.clients = [];
+      clientBoxes.forEach((box, idx) => {
+        const prev = prevClients[idx] || {};
+        const preservedCallStatus = prev.callStatus || 'pendiente';
+        const client=extractClientFromBox(box, preservedCallStatus, prev);
+        client.captacionInvalida = box.dataset.konsorInvalidPhone==='1';
+        if(client.captacionInvalida)client.captacionInvalidReason='Telefono no valido o ilegible';
+        else{delete client.captacionInvalidReason;}
+        z.clients.push(client);
+      });
+
+      const confirmaciones = [];
+            for (const cl of z.clients) {
+        if (cl.captacionInvalida)continue;
+        if (needsCrmUpload(cl) && !isMikelTeamMember(z.comercial)) confirmaciones.push(cl);
+        if (!ensureCrmUpload(cl, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial })) {
+          z.clients = prevClients;
+          return;
+        }
+      }
+      const validFilledCount = z.clients.filter(c => isClientValidFilled(c)).length;
+      const reportedSi = parseInt(document.getElementById('dumpSi').value) || 0;
+
+      z.stats = {
+        no: parseInt(document.getElementById('dumpNo').value) || 0,
+        ausente: parseInt(document.getElementById('dumpAusente').value) || 0,
+        papelito: parseInt(document.getElementById('dumpPapelito').value) || 0,
+        yaAislado: parseInt(document.getElementById('dumpYaAislado')?.value) || 0,
+        si: reportedSi,
+        siContactables: Math.max(0,reportedSi-invalidCount),
+        siNoContactables: invalidCount
+      };
+
+      const newStatus = document.getElementById('dumpProgressState').value;
+      // La fecha planificada original no se altera al dejar un sector a medias.
+      // Mi jornada prioriza el sector atrasado al siguiente día, conservando el historial.
+      z.status = newStatus;
+      z.pendingNote = z.status === 'en_proceso' ? document.getElementById('dumpPendingNote').value.trim() : '';
+      z._updatedAt = Date.now();
+
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      closeModal('dumpModal');
+      if (confirmaciones.length) showCitaSavedModal(confirmaciones.at(-1), z);
+      renderAllSavedZones();
+      updateHudLiveSalaryPill();
+           try {
+        const nuevasFichas = z.clients.filter((cl, i) => isClientValidFilled(cl) && !isClientValidFilled(prevClients[i] || {})).length;
+        const totalPuertas = (z.stats.no || 0) + (z.stats.ausente || 0) + (z.stats.papelito || 0) + (z.stats.si || 0);
+        logActivity('hoja', `📋 Volcó hoja en ${z.town || ''}: ${z.stats.si || 0} SÍ · ${totalPuertas} puertas${nuevasFichas ? ' · ' + nuevasFichas + ' ficha(s) nueva(s)' : ''}`, z.comercial);
+        z.clients.forEach((cl, i) => {
+          const pv = prevClients[i] || {};
+          if (cl.obraStatus === 'agendada' && pv.obraStatus !== 'agendada') {
+            logActivity('cita', `📅 Cita de obra: ${cl.name || 'Cliente'} · ${z.town || ''} · ${formatDate(cl.obraDate)} ${obraSlotLabel(cl.obraTime)}`, z.comercial);
+          }
+          if (cl.obraStatus === 'realizada' && pv.obraStatus !== 'realizada') {
+            logActivity('obra', `✅ Obra realizada: ${cl.name || 'Cliente'} · ${z.town || ''}`, z.comercial);
+          }
+        });
+      } catch (e) {}
+      if (z.stats && z.stats.si > 0) {
+        triggerHapticAndSound('success');
+        showCelebrationToast(`🔥 ¡+${z.stats.si} SÍ volcado(s) en ${z.town}!`);
+      } else {
+        triggerHapticAndSound('tap');
+      }
+
+     if (currentUserRole === 'comercial') {
+        if (isMikelTeamMember(currentUserName)) {
+          alert(`✅ ¡Hoja volcada correctamente!`);
+          return;
+        }
+        const piqueAfter = getCommercialPiqueAndAlerts(currentUserName);
+        const zoneM2 = z.clients.reduce((acc, c) => (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) ? acc + getM2NumericValue(c.m2) : acc, 0);
+        const zoneNeto = (zoneM2 * 0.85).toFixed(2);
+        const todayIso = getTodayISO();
+        let todaySiTotal = 0;
+        savedZones.forEach(item => {
+          if (item.comercial === currentUserName && (item.dumpDate || item.date) === todayIso) {
+            todaySiTotal += (item.stats?.si || 0);
+          }
+        });
+        alert(`✅ ¡Hoja volcada!\n\n💰 Has sumado +${zoneNeto} € netos en este sector.\n🎯 Llevas ${todaySiTotal} / 10 SÍ del reto de hoy.\n🏆 Vas #${piqueAfter.myRank} en la liga con ${piqueAfter.me.bolsillo.toFixed(2)} € acumulados.`);
+      }
+    }
+
+    /* =====================================================================
+       MOTOR DE CICLOS MENSUALES (MES ACTUAL DESDE 0 VS MES ANTERIOR)
+       ===================================================================== */
+    function getMonthKeyOffset(monthsBack = 0) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - monthsBack);
+      return getLocalDateISO(d).slice(0, 7);
+    }
+
+    function formatMonthLabelEs(ymStr) {
+      if (!ymStr || !ymStr.includes('-')) return ymStr;
+      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const [y, m] = ymStr.split('-');
+      return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+    }
+
+    function computeUserMonthMetrics(userName, monthYm) {
+      let m2 = 0, si = 0, no = 0, doors = 0;
+      const daysSet = new Set();
+
+      savedZones.forEach(z => {
+        if (z.comercial !== userName || z.isNoAptoZone) return;
+        const zDate = z.dumpDate || z.date || '';
+        if (monthYm && !zDate.startsWith(monthYm)) return;
+        if (zDate) daysSet.add(zDate);
+
+        const st = z.stats || {};
+        si += (st.si || 0);
+        no += (st.no || 0);
+        doors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              m2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+      });
+
+      const isAndrei = userName === 'Andrei (Jefe)';
+      const moneyPersonal = m2 * (isAndrei ? 1.0 : 0.85);
+      const moneyBossShare = m2 * (isAndrei ? 1.0 : 0.15);
+      return { m2, si, no, doors, days: daysSet.size, moneyPersonal, moneyBossShare };
+    }
+
+    function updateHudLiveSalaryPill() {
+  try { updateMiPlanBadge(); } catch (e) {}
+  try { ensurePushRegistered(); } catch (e) {}
+  try { startProfilesWatch(); } catch (e) {}
+
+  const pill = document.getElementById('hudLiveSalaryPill');
+
+  if (!pill || !currentUserName) return;
+
+  if (isMikelTeamMember(currentUserName)) {
+    pill.style.display = 'none';
+    return;
+  }
+
+  const today = getTodayISO();
+  const boss = currentUserName === 'Andrei (Jefe)';
+
+  const amount = boss
+    ? teamOverviewMetrics('month', today, 'captadas').boss
+    : personalStatsMetrics(
+        currentUserName,
+        ...personalStatsRange('month', today)
+      ).potencial;
+
+  pill.textContent = `Pot. ${amount.toFixed(0)} €`;
+
+  pill.title = boss
+    ? 'Potencial del mes: producción propia + 15% del equipo'
+    : 'Potencial de tus captaciones del mes';
+
+  pill.onclick = () => {
+    if (boss) openTeamManagementMenu();
+    else openCommercialStatsModal();
+  };
+
+  pill.style.display = 'inline-block';
+}
+
+
+    function startVoiceDictationForBtn(btnEl, targetSelector) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        alert("ℹ️ Tu navegador no soporta dictado directo desde este botón; usa el micrófono del teclado de tu móvil.");
+        return;
+      }
+      const container = btnEl.closest('.client-box, .comunidad-box, .input-group, .modal-card') || document;
+      const inputEl = container.querySelector(targetSelector);
+      if (!inputEl) return;
+
+      const rec = new SpeechRec();
+      rec.lang = 'es-ES';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+
+      btnEl.classList.add('recording');
+      triggerHapticAndSound('tap');
+
+      rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        inputEl.value = inputEl.value ? `${inputEl.value.trim()} ${transcript}` : transcript;
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        triggerHapticAndSound('success');
+      };
+      rec.onerror = () => { btnEl.classList.remove('recording'); };
+      rec.onend = () => { btnEl.classList.remove('recording'); };
+      rec.start();
+    }
+
+    /* =====================================================================
+       MODAL LIGA VISUAL DE RANKING (CICLO MENSUAL DESDE 0)
+       ===================================================================== */
+    let leaguePeriod = 'month';
+let leagueDate = '';
+let leagueMetric = 'captadas';
+
+function leagueRows(
+  period,
+  date,
+  metric,
+  previous = false, totals = null
+) {
+  const fields = {
+    captadas: ['m2Captado', 'validas'],
+    citas: ['m2Citas', 'citas'],
+    realizadas: ['m2Hechas', 'hechas']
+  };
+
+  const [areaField, countField] =
+    fields[metric] || fields.captadas;
+
+  const range = personalStatsRange(
+    period,
+    date,
+    previous
+  );
+
+  const rows = getActiveTeamUsers(false)
+    .map(name => {
+      const data = totals?.[name] || personalStatsMetrics(
+        name,
+        ...range
+      );
+
+      return {
+        name,
+        area: data[areaField],
+        count: data[countField],
+        personal: data[areaField] * (
+          name === 'Andrei (Jefe)' ? 1 : 0.85
+        ),
+        unknownDone: data.antiguasSinFecha,
+        rank: null
+      };
+    })
+    .sort((a, b) =>
+      b.area - a.area ||
+      getDisplayAlias(a.name).localeCompare(
+        getDisplayAlias(b.name),
+        'es'
+      )
+    );
+
+  rows.forEach((row, i) => {
+    if (row.area <= 0) return;
+
+    row.rank =
+      i > 0 && row.area === rows[i - 1].area
+        ? rows[i - 1].rank
+        : i + 1;
+  });
+
+  return rows;
+}
+
+function openLeagueRankingModal() {
+  if (
+    !currentUserName ||
+    isMikelTeamMember(currentUserName)
+  ) return;
+
+  const modal = document.getElementById(
+    'leagueRankingModal'
+  );
+
+  if (!modal.classList.contains('active')) {
+    leaguePeriod = 'month';
+    leagueDate = getTodayISO();
+    leagueMetric = 'captadas';
+  }
+
+  renderLeagueRanking();
+  modal.classList.add('active');
+}
+
+let leagueGeneration=0;
+async function renderLeagueRanking() {
+  const request=++leagueGeneration;
+  const root = document.getElementById(
+    'leagueRankingContainer'
+  );
+
+  if (!root || !currentUserName) return;
+
+  document.getElementById('leagueModalTitle')
+    .textContent = '🏆 Liga del equipo Andrei';
+
+  const date = leagueDate || getTodayISO();
+
+  const range = personalStatsRange(
+    leaguePeriod,
+    date
+  );
+
+  const previousRange = personalStatsRange(leaguePeriod,date,true);
+  let totals=null;
+  if(currentUserRole==='comercial'){
+    root.textContent='Cargando la clasificación del equipo…';
+    try{totals=(await window.teamSummaryV2({mode:'liga',range,previous:previousRange,phase:leagueMetric})).data;}
+    catch(e){if(request===leagueGeneration)root.textContent='No se pudo cargar la clasificación. '+e.message;return;}
+    if(request!==leagueGeneration)return;
+  }
+  const rows=leagueRows(leaguePeriod,date,leagueMetric,false,totals?.current);
+  const previousRows=leagueRows(leaguePeriod,date,leagueMetric,true,totals?.previous);
+
+  const me = rows.find(
+    r => r.name === currentUserName
+  );
+
+  const before = previousRows.find(
+    r => r.name === currentUserName
+  );
+
+  const total = rows.reduce(
+    (sum, r) => sum + r.area,
+    0
+  );
+
+  const best = rows[0]?.area || 0;
+
+  const leaders = rows.filter(
+    r => r.rank === 1
+  );
+
+  const labels = {
+    captadas: 'Captaciones no descartadas',
+    citas: 'Citas pendientes de ejecutar',
+    realizadas: 'Obras realizadas'
+  };
+
+  const money = amount =>
+    amount.toLocaleString('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    });
+
+  root.replaceChildren();
+
+  function node(
+    tag,
+    text,
+    parent = root,
+    css = ''
+  ) {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function tabs(items, selected, onSelect) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      const button = node(
+        'button',
+        label,
+        row,
+        'flex:1;min-width:0;padding:10px 4px;' +
+        'border:1px solid #475569;border-radius:9px;' +
+        'color:#fff;font-size:11px;font-weight:800;'
+      );
+
+      button.type = 'button';
+
+      button.style.background = selected === key
+        ? '#b45309'
+        : '#1e293b';
+
+      button.setAttribute(
+        'aria-pressed',
+        String(selected === key)
+      );
+
+      button.onclick = () => {
+        onSelect(key);
+        renderLeagueRanking();
+      };
+    });
+  }
+
+  tabs(
+    [
+      ['day', 'Día'],
+      ['week', 'Semana'],
+      ['month', 'Mes']
+    ],
+    leaguePeriod,
+    value => {
+      leaguePeriod = value;
+    }
+  );
+
+  tabs(
+    [
+      ['captadas', '📝 Captaciones'],
+      ['citas', '📅 Citas'],
+      ['realizadas', '✅ Hechas']
+    ],
+    leagueMetric,
+    value => {
+      leagueMetric = value;
+    }
+  );
+
+  const input = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border-radius:9px;' +
+    'border:1px solid #475569;background:#1e293b;color:#fff;'
+  );
+
+  input.type = 'date';
+  input.value = date;
+  input.max = getTodayISO();
+
+  input.setAttribute(
+    'aria-label',
+    'Fecha hasta la que consultar la liga'
+  );
+
+  input.onchange = () => {
+    const d = new Date(
+      input.value + 'T12:00:00'
+    );
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      input.value > getTodayISO()
+    ) return;
+
+    leagueDate = input.value;
+    renderLeagueRanking();
+  };
+
+  node(
+    'p',
+    `${formatDate(range[0])} a ` +
+    `${formatDate(range[1])} · ` +
+    labels[leagueMetric],
+    root,
+    'font-size:11px;color:#cbd5e1;' +
+    'margin:10px 0;line-height:1.5;'
+  );
+
+  const hero = node(
+    'div',
+    null,
+    root,
+    'padding:13px;border:1px solid #fbbf24;' +
+    'border-radius:13px;background:#422006;' +
+    'margin-bottom:10px;'
+  );
+
+  node(
+    'strong',
+    best > 0
+      ? (
+          leaders.length > 1
+            ? '🤝 Empate en cabeza'
+            : '👑 ' +
+              getDisplayAlias(leaders[0].name) +
+              ' lidera'
+        )
+      : '🏁 Liga sin puntuación en este periodo',
+    hero,
+    'display:block;font-size:15px;color:#fde047;'
+  );
+
+  node(
+    'p',
+    `Equipo: ${total} m² estimados · ` +
+    `${money(total)} de producción base`,
+    hero,
+    'font-size:12px;color:#fef3c7;' +
+    'line-height:1.5;margin-top:6px;'
+  );
+
+  if (me) {
+    const delta = me.area - (before?.area || 0);
+
+    let position = me.rank
+      ? `Tu puesto: #${me.rank}`
+      : 'Todavía sin puntuación';
+
+    if (me.rank && before?.rank) {
+      const movement = before.rank - me.rank;
+
+      position += movement > 0
+        ? ` · ↑ ${movement} puesto(s)`
+        : (
+            movement < 0
+              ? ` · ↓ ${Math.abs(movement)} puesto(s)`
+              : ' · mismo puesto'
+          );
+    }
+
+    node(
+      'strong',
+      position,
+      hero,
+      'display:block;font-size:12px;' +
+      'color:#fff;margin-top:9px;'
+    );
+
+    node(
+      'p',
+      `${delta > 0 ? '+' : ''}${delta} m² frente a ` +
+      `${formatDate(previousRange[0])}–` +
+      formatDate(previousRange[1]),
+      hero,
+      'font-size:11px;color:#fef3c7;' +
+      'line-height:1.5;margin-top:4px;'
+    );
+  }
+
+  rows.forEach(row => {
+    const isMe = row.name === currentUserName;
+
+    const card = node(
+      'div',
+      null,
+      root,
+      'padding:12px;margin-bottom:8px;' +
+      'border-radius:12px;background:#1e293b;' +
+      `border:1px solid ${isMe ? '#38bdf8' : '#475569'};`
+    );
+
+    const badge = row.rank === 1
+      ? '🥇'
+      : (
+          row.rank === 2
+            ? '🥈'
+            : (
+                row.rank === 3
+                  ? '🥉'
+                  : (row.rank ? '#' + row.rank : '—')
+              )
+        );
+
+    node(
+      'strong',
+      `${badge} ${getDisplayAlias(row.name)}` +
+      (isMe ? ' · TÚ' : ''),
+      card,
+      'display:block;font-size:13px;color:#fff;'
+    );
+
+    node(
+      'p',
+      `${row.area} m² · ${row.count} ficha(s) · ` +
+      `${money(row.area)} de producción base`,
+      card,
+      'font-size:12px;color:#fde047;' +
+      'line-height:1.5;margin:6px 0;'
+    );
+
+    node(
+      'p',
+      `Parte personal estimada: ${money(row.personal)}`,
+      card,
+      'font-size:11px;color:#94a3b8;margin-bottom:7px;'
+    );
+
+    const track = node(
+      'div',
+      null,
+      card,
+      'height:7px;background:#0f172a;' +
+      'border-radius:8px;overflow:hidden;'
+    );
+
+    const width = best
+      ? Math.min(100, row.area / best * 100)
+      : 0;
+
+    node(
+      'div',
+      null,
+      track,
+      `height:100%;width:${width}%;` +
+      `background:${row.rank === 1 ? '#fbbf24' : '#10b981'};` +
+      'border-radius:8px;'
+    );
+
+    if (row.rank === 1 && leaders.length > 1) {
+      node(
+        'p',
+        'Empate en el primer puesto',
+        card,
+        'font-size:10px;color:#fde047;margin-top:5px;'
+      );
+    }
+  });
+
+  node(
+    'p',
+    'Se compara la misma producción base para todos, ' +
+    'Andrei incluido. El reparto personal es 100% ' +
+    'para Andrei y 85% para cada comercial. ' +
+    'Los importes son estimaciones; no acreditan cobros.',
+    root,
+    'font-size:10px;color:#94a3b8;' +
+    'line-height:1.5;margin-top:10px;'
+  );
+
+  if (
+    leagueMetric === 'realizadas' &&
+    rows.some(r => r.unknownDone > 0)
+  ) {
+    node(
+      'p',
+      'Hay obras antiguas sin fecha de ejecución. ' +
+      'No se incluyen en la clasificación del periodo ' +
+      'hasta registrar su fecha.',
+      root,
+      'font-size:11px;color:#fde047;' +
+      'line-height:1.5;margin-top:8px;'
+    );
+  }
+
+  const detail = node(
+    'button',
+    '📈 Ver mis estadísticas en este periodo',
+    root,
+    'width:100%;padding:12px;border:1px solid #60a5fa;' +
+    'border-radius:10px;background:#1d4ed8;color:#fff;' +
+    'font-weight:800;margin-top:10px;'
+  );
+
+  detail.type = 'button';
+
+  detail.onclick = () => {
+    closeModal('leagueRankingModal');
+    openCommercialStatsModal();
+
+    personalStatsMode = leaguePeriod;
+    personalStatsDate = date;
+
+    renderPersonalStats();
+  };
+}
+
+   let activeRadarSubTab = 'compare';
+let radarPeriod = 'month';
+let radarDate = '';
+let radarPhase = 'captadas';
+
+function switchRadarSubTab(key) {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  activeRadarSubTab = key;
+
+  [
+    ['radarTabCompare', 'compare'],
+    ['radarTabTowns', 'towns'],
+    ['radarTabOpps', 'opps']
+  ].forEach(([id, tab]) => {
+    document.getElementById(id).className =
+      'subtab-btn' + (key === tab ? ' active' : '');
+  });
+
+  renderMikelRadarContent();
+}
+
+function openMikelRadarModal() {
+  if (currentUserName !== 'Andrei (Jefe)') return;
+  window.openKonsorTeamComparison?.();
+  return;
+
+  radarPeriod = 'month';
+  radarDate = getTodayISO();
+  radarPhase = 'captadas';
+
+  document.querySelector(
+    '#mikelRadarModal .modal-header span'
+  ).textContent = '⚔️ Comparación de equipos';
+
+  document.getElementById('radarTabTowns')
+    .textContent = '🗺️ Pueblos';
+
+  document.getElementById('radarTabOpps')
+    .textContent = '🎯 Revisar';
+
+  switchRadarSubTab('compare');
+
+  document.getElementById('mikelRadarModal')
+    .classList.add('active');
+}
+
+function radarTeamModel(mikel, range, phase) {
+  const fields = {
+    captadas: ['m2Captado', 'validas'],
+    citas: ['m2Citas', 'citas'],
+    realizadas: ['m2Hechas', 'hechas']
+  };
+
+  const [areaField, countField] = fields[phase];
+
+  const model = {
+    label: mikel ? 'Mikel' : 'Andrei',
+    rows: [],
+    area: 0,
+    count: 0,
+    visitas: 0,
+    si: 0,
+    no: 0,
+    papelito: 0,
+    ausente: 0,
+    aisladas: 0,
+    horas: 0,
+    jornadas: 0,
+    sinHoras: 0,
+    sinFecha: 0
+  };
+
+  getActiveTeamUsers(mikel).forEach(name => {
+    const m = personalStatsMetrics(name, ...range);
+
+    model.rows.push({
+      name,
+      team: model.label,
+      area: m[areaField],
+      count: m[countField]
+    });
+
+    model.area += m[areaField];
+    model.count += m[countField];
+    model.visitas += m.puertas;
+    model.si += m.si;
+    model.no += m.no;
+    model.papelito += m.papelito;
+    model.ausente += m.ausente;
+    model.aisladas += m.yaAislado;
+    model.horas += m.horas;
+    model.jornadas += m.jornadas;
+    model.sinHoras += m.jornadasSinHoras;
+    model.sinFecha += m.antiguasSinFecha;
+  });
+
+  return model;
+}
+
+function radarTownModel(mikel, range, phase) {
+  const users = new Set(getActiveTeamUsers(mikel));
+  const towns = new Map();
+
+  const inside = date =>
+    Boolean(date && date >= range[0] && date <= range[1]);
+
+  const local = value => {
+    const d = new Date(value);
+
+    return value && Number.isFinite(d.getTime())
+      ? getLocalDateISO(d)
+      : '';
+  };
+
+  function get(z) {
+    const key = routeTown(z.town);
+    if (!key) return null;
+
+    if (!towns.has(key)) {
+      towns.set(key, {
+        key,
+        name: z.town,
+        area: 0,
+        count: 0,
+        visitas: 0,
+        si: 0,
+        zones: 0,
+        dates: new Set(),
+        first: '',
+        inPeriod: false
+      });
+    }
+
+    return towns.get(key);
+  }
+
+  savedZones.forEach(z => {
+    if (
+      !users.has(z.comercial) ||
+      z.isNoAptoZone
+    ) return;
+
+    const t = get(z);
+    if (!t) return;
+
+    const recordDate = z.dumpDate || z.date || '';
+
+    if (
+      recordDate &&
+      (!t.first || recordDate < t.first)
+    ) {
+      t.first = recordDate;
+    }
+
+    if (inside(recordDate)) {
+      t.inPeriod = true;
+      t.dates.add(recordDate);
+
+      if (!z.isSingleHouse && !z.isHotMission) {
+        t.zones++;
+      }
+
+      const st = z.stats || {};
+
+      const external =
+        z.isSingleHouse &&
+        z.clients?.[0]?.origen &&
+        z.clients[0].origen !== 'puerta';
+
+      if (!external) {
+        const count = key => Math.max(
+          0,
+          Math.floor(Number(st[key]) || 0)
+        );
+
+        t.visitas += [
+          'si', 'no', 'papelito', 'ausente', 'yaAislado'
+        ].reduce((n, key) => n + count(key), 0);
+
+        t.si += count('si');
+      }
+    }
+
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      const capture = local(c.createdAt) || recordDate;
+
+      if (
+        capture &&
+        (!t.first || capture < t.first)
+      ) {
+        t.first = capture;
+      }
+
+      if (c.obraStatus === 'no_apto') return;
+
+      const date = phase === 'captadas'
+        ? capture
+        : (
+            phase === 'citas' &&
+            c.obraStatus === 'agendada'
+              ? c.obraDate
+              : (
+                  phase === 'realizadas' &&
+                  c.obraStatus === 'realizada'
+                    ? c.obraRealizadaDate ||
+                      local(c.obraRealizadaAt)
+                    : ''
+                )
+          );
+
+      if (!inside(date)) return;
+
+      t.inPeriod = true;
+      t.dates.add(date);
+      t.count++;
+      t.area += personalStatsM2(c.m2);
+    });
+  });
+
+  return new Map(
+    [...towns.entries()].filter(
+      ([, t]) => t.inPeriod
+    )
+  );
+}
+
+let radarGeneration=0;
+async function renderMikelRadarContent() {
+  const request=++radarGeneration;
+  if (currentUserName !== 'Andrei (Jefe)') return;
+
+  const root = document.getElementById(
+    'mikelRadarModalBody'
+  );
+
+  if (!root) return;
+
+  const date = radarDate || getTodayISO();
+
+  const range = personalStatsRange(
+    radarPeriod,
+    date
+  );
+
+  const previousRange = personalStatsRange(
+    radarPeriod,
+    date,
+    true
+  );
+
+  const a = radarTeamModel(false, range, radarPhase);
+  let remote;
+  root.textContent='Cargando totales del otro equipo…';
+  try {remote=(await window.teamSummaryV2({mode:'radar',range,previous:previousRange,phase:radarPhase})).data;}
+  catch(e){if(request===radarGeneration)root.textContent='No se pudo cargar la comparación. '+e.message;return;}
+  if(request!==radarGeneration)return;
+  const b=remote.current;
+
+  const ap = radarTeamModel(
+    false,
+    previousRange,
+    radarPhase
+  );
+
+  const bp=remote.previous;
+
+  const at = radarTownModel(false, range, radarPhase);
+  const bt=new Map(remote.towns.map(([k,t])=>[k,{...t,dates:new Set(t.dates)}]));
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  root.replaceChildren();
+
+  function node(tag, text, parent = root, css = '') {
+    const el = document.createElement(tag);
+
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+
+    parent.appendChild(el);
+    return el;
+  }
+
+  function button(parent, text, action, active = false) {
+    const el = node(
+      'button',
+      text,
+      parent,
+      'flex:1;min-width:0;padding:9px 5px;' +
+      'border:1px solid #475569;border-radius:9px;' +
+      'color:#fff;font-size:11px;font-weight:800;'
+    );
+
+    el.type = 'button';
+    el.style.background = active ? '#0f766e' : '#1e293b';
+    el.onclick = action;
+
+    return el;
+  }
+
+  function tabs(items, selected, change) {
+    const row = node(
+      'div',
+      null,
+      root,
+      'display:flex;gap:5px;margin-bottom:8px;'
+    );
+
+    items.forEach(([key, label]) => {
+      button(
+        row,
+        label,
+        () => {
+          change(key);
+          renderMikelRadarContent();
+        },
+        key === selected
+      );
+    });
+  }
+
+  tabs(
+    [['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']],
+    radarPeriod,
+    key => {
+      radarPeriod = key;
+    }
+  );
+
+  tabs(
+    [
+      ['captadas', '📝 Captaciones'],
+      ['citas', '📅 Citas'],
+      ['realizadas', '✅ Hechas']
+    ],
+    radarPhase,
+    key => {
+      radarPhase = key;
+    }
+  );
+
+  const input = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;border:1px solid #475569;' +
+    'border-radius:9px;background:#1e293b;color:#fff;'
+  );
+
+  input.type = 'date';
+  input.max = getTodayISO();
+  input.value = date;
+
+  input.setAttribute(
+    'aria-label',
+    'Fecha de comparación de equipos'
+  );
+
+  input.onchange = () => {
+    const d = new Date(input.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      input.value > getTodayISO()
+    ) return;
+
+    radarDate = input.value;
+    renderMikelRadarContent();
+  };
+
+  node(
+    'p',
+    `${formatDate(range[0])} a ${formatDate(range[1])} · ` +
+    'Producción base a 1 €/m²',
+    root,
+    'font-size:11px;color:#94a3b8;' +
+    'line-height:1.5;margin:9px 0;'
+  );
+
+  button(
+    root,
+    '↻ Actualizar comparación',
+    renderMikelRadarContent
+  );
+
+  function card(title, text, color = '#475569') {
+    const box = node(
+      'div',
+      null,
+      root,
+      `padding:12px;margin-top:9px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;'
+    );
+
+    node(
+      'strong',
+      title,
+      box,
+      'display:block;font-size:13px;color:#e2e8f0;'
+    );
+
+    node(
+      'p',
+      text,
+      box,
+      'white-space:pre-line;font-size:12px;color:#cbd5e1;' +
+      'line-height:1.6;margin-top:6px;'
+    );
+
+    return box;
+  }
+
+  function townLink(box, town) {
+    button(
+      box,
+      '📍 Localizar pueblo',
+      () => {
+        closeModal('mikelRadarModal');
+        focusMapOnTownOrZone(town, null);
+      }
+    );
+  }
+
+  if (activeRadarSubTab === 'compare') {
+    const grid = node(
+      'div',
+      null,
+      root,
+      'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));' +
+      'gap:8px;margin-top:10px;'
+    );
+
+    [a, b].forEach(t => {
+      const color = t.label === 'Andrei'
+        ? '#a78bfa'
+        : '#2dd4bf';
+
+      const box = node(
+        'div',
+        null,
+        grid,
+        `padding:12px;border:1px solid ${color};` +
+        'border-radius:12px;background:#1e293b;min-width:0;'
+      );
+
+      node(
+        'strong',
+        'Equipo ' + t.label,
+        box,
+        'display:block;font-size:12px;color:#cbd5e1;'
+      );
+
+      node(
+        'strong',
+        money(t.area),
+        box,
+        'display:block;font-size:21px;color:#fff;margin:7px 0;'
+      );
+
+      node(
+        'p',
+        `${t.area} m² · ${t.count} fichas\n` +
+        `${t.visitas} visitas · ${t.si} SÍ\n` +
+        `${t.visitas ? (100 * t.si / t.visitas).toFixed(1) : '0.0'}% SÍ / visitas\n` +
+        `${t.horas.toFixed(1)} h registradas\n` +
+        `${t.jornadas} jornadas-persona`,
+        box,
+        'white-space:pre-line;font-size:11px;' +
+        'color:#cbd5e1;line-height:1.6;'
+      );
+    });
+
+    const difference = a.area - b.area;
+
+    card(
+      'Diferencia de producción',
+      a.area === 0 && b.area === 0
+        ? 'Sin producción registrada en esta fase y periodo.'
+        : (
+            difference === 0
+              ? 'Ambos equipos tienen la misma producción registrada.'
+              : `${difference > 0 ? 'Andrei' : 'Mikel'} tiene ` +
+                `${Math.abs(difference)} m² más registrados en esta fase.`
+          )
+    );
+
+    card(
+      'Evolución frente al periodo anterior',
+      `${formatDate(previousRange[0])} a ` +
+      `${formatDate(previousRange[1])}\n` +
+      `Andrei: ${a.area - ap.area > 0 ? '+' : ''}` +
+      `${a.area - ap.area} m²\n` +
+      `Mikel: ${b.area - bp.area > 0 ? '+' : ''}` +
+      `${b.area - bp.area} m²`
+    );
+
+    node(
+      'h3',
+      'Clasificación individual cruzada',
+      root,
+      'font-size:13px;color:#7dd3fc;margin:15px 0 8px;'
+    );
+
+    const rows = [...a.rows, ...b.rows].sort((x, y) =>
+      y.area - x.area ||
+      getDisplayAlias(x.name).localeCompare(
+        getDisplayAlias(y.name),
+        'es'
+      )
+    );
+
+    let rank = null;
+
+    rows.forEach((r, i) => {
+      if (
+        r.area > 0 &&
+        (i === 0 || r.area !== rows[i - 1].area)
+      ) {
+        rank = i + 1;
+      }
+
+      card(
+        `${r.area > 0 ? '#' + rank : '—'} ` +
+        `${getDisplayAlias(r.name)} · ${r.team}`,
+        `${r.area} m² · ${r.count} fichas · ` +
+        `${money(r.area)} de producción base`
+      );
+    });
+  } else if (activeRadarSubTab === 'towns') {
+    const keys = [
+      ...new Set([...at.keys(), ...bt.keys()])
+    ].sort((x, y) => {
+      const ax =
+        (at.get(x)?.area || 0) +
+        (bt.get(x)?.area || 0);
+
+      const ay =
+        (at.get(y)?.area || 0) +
+        (bt.get(y)?.area || 0);
+
+      return ay - ax || x.localeCompare(y, 'es');
+    });
+
+    if (!keys.length) {
+      card(
+        'Sin pueblos en este periodo',
+        'No hay registros para las fechas elegidas.'
+      );
+    }
+
+    keys.forEach(key => {
+      const own = at.get(key);
+      const other = bt.get(key);
+
+      const common = own && other
+        ? [...own.dates].filter(d => other.dates.has(d))
+        : [];
+
+      const box = card(
+        (own?.name || other.name) +
+        (own && other ? ' · ambos equipos' : ''),
+        `Andrei: ${own?.count || 0} fichas · ` +
+        `${own?.area || 0} m² · ${own?.visitas || 0} visitas\n` +
+        `Mikel: ${other?.count || 0} fichas · ` +
+        `${other?.area || 0} m² · ${other?.visitas || 0} visitas\n` +
+        (
+          common.length
+            ? `Registros de ambos equipos en ` +
+              `${common.length} fecha(s) común(es).`
+            : 'Sin fechas de registro coincidentes.'
+        ),
+        common.length ? '#f59e0b' : '#475569'
+      );
+
+      townLink(box, own?.name || other.name);
+    });
+
+    node(
+      'p',
+      'Coincidir en un pueblo o fecha no demuestra que se ' +
+      'hayan trabajado las mismas calles. Se comparan fechas ' +
+      'de asignación/volcado y de las fichas de la fase elegida.',
+      root,
+      'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+    );
+  } else {
+    let signals = 0;
+
+    bt.forEach((town, key) => {
+      const own = at.get(key);
+
+      const common = own
+        ? [...own.dates].filter(d => town.dates.has(d))
+        : [];
+
+      if (common.length) {
+        signals++;
+
+        const box = card(
+          'Revisar reparto territorial · ' + town.name,
+          `${common.length} fecha(s) con registros de ambos equipos.\n` +
+          'Comprueba las calles y sectores asignados antes ' +
+          'de mandar más personas.',
+          '#f59e0b'
+        );
+
+        townLink(box, town.name);
+      }
+
+      if (
+        town.first &&
+        town.first >= range[0] &&
+        town.first <= range[1]
+      ) {
+        signals++;
+
+        const box = card(
+          'Primer registro guardado de Mikel · ' + town.name,
+          `Primera fecha encontrada: ${formatDate(town.first)}.\n` +
+          'Indica el primer registro en esta app, no necesariamente ' +
+          'cuándo empezó a trabajar allí.',
+          '#2dd4bf'
+        );
+
+        townLink(box, town.name);
+      }
+
+      if (!own && town.si >= 3) {
+        signals++;
+
+        const box = card(
+          'Pueblo para estudiar · ' + town.name,
+          `Mikel tiene ${town.si} SÍ y ${town.visitas} visitas ` +
+          'registradas en el periodo.\n' +
+          'Tu equipo no tiene registros en ese pueblo para ' +
+          'estas fechas. Revisa aptitud y disponibilidad ' +
+          'territorial antes de planificar una visita.'
+        );
+
+        townLink(box, town.name);
+      }
+    });
+
+    at.forEach((town, key) => {
+      if (bt.has(key) || town.count < 3) return;
+
+      signals++;
+
+      const box = card(
+        'Revisar continuidad de tu trabajo · ' + town.name,
+        `${town.count} fichas y ${town.area} m² en esta fase.\n` +
+        'No hay registros de Mikel para el mismo periodo. ' +
+        'Revisa seguimiento y sectores pendientes antes ' +
+        'de ampliar el equipo.'
+      );
+
+      townLink(box, town.name);
+    });
+
+    if (!signals) {
+      card(
+        'Sin señales destacadas',
+        'No hay coincidencias o criterios de revisión ' +
+        'activados con los registros del periodo.'
+      );
+    }
+  }
+
+  if (a.sinHoras + b.sinHoras > 0) {
+    node(
+      'p',
+      `${a.sinHoras + b.sinHoras} jornada(s) con horas ` +
+      'sin determinar entre ambos equipos.',
+      root,
+      'font-size:11px;color:#fde047;line-height:1.5;margin-top:10px;'
+    );
+  }
+
+  if (
+    radarPhase === 'realizadas' &&
+    a.sinFecha + b.sinFecha > 0
+  ) {
+    node(
+      'p',
+      'Hay obras antiguas sin fecha de ejecución: ' +
+      'quedan fuera de los totales por periodo.',
+      root,
+      'font-size:11px;color:#fde047;line-height:1.5;margin-top:8px;'
+    );
+  }
+
+  node(
+    'p',
+    'Comparación de registros disponibles, no de cobros. ' +
+    'Ambos equipos incluyen a su jefe. Las diferencias ' +
+    'también pueden reflejar registros incompletos o ' +
+    'distintas condiciones de zona.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+  );
+}
+
+    let personalStatsMode = 'month';
+let personalStatsDate = '';
+
+function personalStatsRange(mode, iso, previous = false) {
+  const end = new Date(iso + 'T12:00:00');
+
+  if (previous) {
+    if (mode === 'day') {
+      end.setDate(end.getDate() - 1);
+    } else if (mode === 'week') {
+      end.setDate(end.getDate() - 7);
+    } else {
+      const day = end.getDate();
+      end.setDate(1);
+      end.setMonth(end.getMonth() - 1);
+
+      const last = new Date(
+        end.getFullYear(),
+        end.getMonth() + 1,
+        0
+      ).getDate();
+
+      end.setDate(Math.min(day, last));
+    }
+  }
+
+  const start = new Date(end);
+
+  if (mode === 'week') {
+    start.setDate(
+      start.getDate() - ((start.getDay() + 6) % 7)
+    );
+  }
+
+  if (mode === 'month') start.setDate(1);
+
+  return [
+    getLocalDateISO(start),
+    getLocalDateISO(end)
+  ];
+}
+
+function personalStatsM2(value) {
+  return getM2NumericValue(value);
+}
+
+function personalStatsMetrics(user, from, to) {
+  const inside = date =>
+    Boolean(date && date >= from && date <= to);
+
+  const dateOf = value => {
+    const d = new Date(value);
+
+    return value && Number.isFinite(d.getTime())
+      ? getLocalDateISO(d)
+      : '';
+  };
+
+  const m = {
+    no: 0, ausente: 0, papelito: 0, si: 0,
+    yaAislado: 0, fichas: 0, validas: 0,
+    noAptas: 0, citas: 0, hechas: 0,
+    m2Captado: 0, m2Citas: 0, m2Hechas: 0,
+    sinM2: 0, horas: 0, jornadas: 0,
+    jornadasSinHoras: 0, antiguasSinFecha: 0
+  };
+
+  savedZones.forEach(z => {
+    if (
+      z.comercial !== user ||
+      z.isNoAptoZone
+    ) return;
+
+    if (inside(z.dumpDate || z.date)) {
+      const st = z.stats || {};
+
+      const singleExternal =
+        z.isSingleHouse &&
+        z.clients?.[0]?.origen &&
+        z.clients[0].origen !== 'puerta';
+
+      if (!singleExternal) {
+        [
+          'no', 'ausente', 'papelito', 'si', 'yaAislado'
+        ].forEach(key => {
+          m[key] += Math.max(
+            0,
+            Math.floor(Number(st[key]) || 0)
+          );
+        });
+      }
+    }
+
+    (z.clients || []).forEach(c => {
+      if (!isClientValidFilled(c)) return;
+
+      const captureDate =
+        dateOf(c.createdAt) ||
+        z.dumpDate ||
+        z.date;
+
+      const area = personalStatsM2(c.m2);
+
+      if (inside(captureDate)) {
+        m.fichas++;
+
+        if (c.obraStatus === 'no_apto') {
+          m.noAptas++;
+        } else {
+          m.validas++;
+          m.m2Captado += area;
+          if (!area) m.sinM2++;
+        }
+      }
+
+      if (
+        c.obraStatus === 'agendada' &&
+        inside(c.obraDate)
+      ) {
+        m.citas++;
+        m.m2Citas += area;
+      }
+
+      if (c.obraStatus === 'realizada') {
+        const doneDate =
+          c.obraRealizadaDate ||
+          dateOf(c.obraRealizadaAt);
+
+        if (!doneDate) {
+          m.antiguasSinFecha++;
+        } else if (inside(doneDate)) {
+          m.hechas++;
+          m.m2Hechas += area;
+        }
+      }
+    });
+  });
+
+  const days = new Set();
+
+  savedShifts.forEach(s => {
+    if (s.user !== user) return;
+
+    const date = workDayShiftDate(s);
+
+    if (!inside(date) || !s.startTime) return;
+
+    days.add(date);
+
+    const h = workDayHours(s);
+
+    if (h === null) m.jornadasSinHoras++;
+    else m.horas += h;
+  });
+
+  m.jornadas = days.size;
+
+  m.puertas =
+    m.no + m.ausente + m.papelito +
+    m.si + m.yaAislado;
+
+  const rate = user === 'Andrei (Jefe)' ? 1 : 0.85;
+
+  m.potencial = m.m2Captado * rate;
+  m.previsto = m.m2Citas * rate;
+  m.generado = m.m2Hechas * rate;
+
+  return m;
+}
+
+function openCommercialStatsModal() {
+  if (isMikelTeamMember(currentUserName)) {
+    openCommercialStatsModalLegacy();
+    return;
+  }
+
+  personalStatsMode = 'month';
+  personalStatsDate = getTodayISO();
+
+  renderPersonalStats();
+
+  document.getElementById('commercialStatsModal')
+    .classList.add('active');
+}
+
+function renderPersonalStats() {
+  const root = document.getElementById(
+    'commercialStatsContainer'
+  );
+
+  if (!root || !currentUserName) return;
+
+  const period = personalStatsRange(
+    personalStatsMode,
+    personalStatsDate || getTodayISO()
+  );
+
+  const previous = personalStatsRange(
+    personalStatsMode,
+    personalStatsDate || getTodayISO(),
+    true
+  );
+
+  const m = personalStatsMetrics(
+    currentUserName,
+    ...period
+  );
+
+  const p = personalStatsMetrics(
+    currentUserName,
+    ...previous
+  );
+
+  const money = n => n.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'EUR'
+  });
+
+  root.replaceChildren();
+
+  const node = (tag, text, parent = root, css = '') => {
+    const el = document.createElement(tag);
+    if (text !== null) el.textContent = text;
+    if (css) el.style.cssText = css;
+    parent.appendChild(el);
+    return el;
+  };
+
+  const tabs = node(
+    'div',
+    null,
+    root,
+    'display:flex;gap:5px;margin-bottom:10px;'
+  );
+
+  [
+    ['day', 'Día'],
+    ['week', 'Semana'],
+    ['month', 'Mes']
+  ].forEach(([mode, label]) => {
+    const b = node(
+      'button',
+      label,
+      tabs,
+      'flex:1;padding:10px;border:1px solid #475569;' +
+      'border-radius:9px;color:#fff;'
+    );
+
+    b.type = 'button';
+    b.style.background = personalStatsMode === mode
+      ? '#2563eb'
+      : '#1e293b';
+
+    b.onclick = () => {
+      personalStatsMode = mode;
+      renderPersonalStats();
+    };
+  });
+
+  const date = node(
+    'input',
+    null,
+    root,
+    'width:100%;padding:10px;background:#1e293b;' +
+    'color:#fff;border:1px solid #475569;border-radius:9px;'
+  );
+
+  date.type = 'date';
+  date.max = getTodayISO();
+  date.value = personalStatsDate || getTodayISO();
+
+  date.setAttribute(
+    'aria-label',
+    'Fecha hasta la que consultar las estadísticas'
+  );
+
+  date.onchange = () => {
+    const d = new Date(date.value + 'T12:00:00');
+
+    if (
+      !Number.isFinite(d.getTime()) ||
+      date.value > getTodayISO()
+    ) return;
+
+    personalStatsDate = date.value;
+    renderPersonalStats();
+  };
+
+  node(
+    'p',
+    `${getDisplayAlias(currentUserName)} · ` +
+    `${formatDate(period[0])} a ${formatDate(period[1])}`,
+    root,
+    'font-size:12px;color:#cbd5e1;line-height:1.5;margin:9px 0;'
+  );
+
+  node(
+    'p',
+    'Semana y mes se calculan desde su inicio hasta la fecha ' +
+    'elegida. La comparación anterior llega al mismo día ' +
+    'de semana o de mes.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-bottom:10px;'
+  );
+
+  const grid = node(
+    'div',
+    null,
+    root,
+    'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;'
+  );
+
+  function tile(label, value, detail, color) {
+    const box = node(
+      'div',
+      null,
+      grid,
+      `padding:12px;border:1px solid ${color};` +
+      'border-radius:12px;background:#1e293b;min-width:0;'
+    );
+
+    node(
+      'div', label, box,
+      'font-size:10px;color:#cbd5e1;font-weight:800;'
+    );
+
+    node(
+      'strong', value, box,
+      `display:block;font-size:20px;color:${color};margin:5px 0;`
+    );
+
+    node(
+      'p', detail, box,
+      'font-size:10px;color:#94a3b8;line-height:1.4;'
+    );
+  }
+
+  tile(
+    '📝 Potencial captado',
+    money(m.potencial),
+    `${m.validas} fichas no descartadas · ` +
+    `${m.m2Captado} m² estimados`,
+    '#60a5fa'
+  );
+
+  tile(
+    '📅 Previsto en citas',
+    money(m.previsto),
+    `${m.citas} citas pendientes de ejecutar en estas fechas`,
+    '#fbbf24'
+  );
+
+  tile(
+    '✅ Generado por obras',
+    money(m.generado),
+    `${m.hechas} obras con fecha de ejecución registrada`,
+    '#34d399'
+  );
+
+  tile(
+    '💳 Cobrado',
+    'Sin registro',
+    'La app todavía no registra pagos ni liquidaciones.',
+    '#94a3b8'
+  );
+
+  node(
+    'p',
+    'Importes estimados con 1 €/m² de base y tu porcentaje ' +
+    'actual. Estas tres fases se solapan: no deben sumarse. ' +
+    'No equivalen a salario neto.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin:9px 0;'
+  );
+
+  node(
+    'h3',
+    'Actividad y resultados',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  const table = node(
+    'table',
+    null,
+    root,
+    'width:100%;font-size:12px;border-collapse:collapse;'
+  );
+
+  function row(parent, values, header = false) {
+    const tr = node('tr', null, parent);
+
+    values.forEach(v => {
+      node(
+        header ? 'th' : 'td',
+        String(v),
+        tr,
+        'padding:9px 5px;text-align:left;' +
+        'border-bottom:1px solid #334155;'
+      );
+    });
+  }
+
+  row(
+    table,
+    ['Resultado de visita', 'Cantidad', '% visitas'],
+    true
+  );
+
+  [
+    ['SÍ', 'si'],
+    ['NO', 'no'],
+    ['Información', 'papelito'],
+    ['Ausentes', 'ausente'],
+    ['Ya aisladas', 'yaAislado']
+  ].forEach(([label, key]) => {
+    row(table, [
+      label,
+      m[key],
+      m.puertas
+        ? (100 * m[key] / m.puertas).toFixed(1) + '%'
+        : '—'
+    ]);
+  });
+
+  row(table, [
+    'Total visitas registradas',
+    m.puertas,
+    m.puertas ? '100%' : '—'
+  ]);
+
+  node(
+    'p',
+    `${m.fichas} fichas creadas · ` +
+    `${m.noAptas} actualmente no aptas · ` +
+    `${m.jornadas} días con fichaje · ` +
+    `${m.horas.toFixed(1)} h registradas`,
+    root,
+    'font-size:12px;line-height:1.6;margin-top:10px;'
+  );
+
+  node(
+    'p',
+    'Ritmo: ' +
+    (
+      m.horas > 0
+        ? (m.puertas / m.horas).toFixed(1) + ' visitas/h'
+        : 'sin horas suficientes'
+    ) +
+    ' · ' +
+    (
+      m.jornadas > 0
+        ? (m.puertas / m.jornadas).toFixed(1) +
+          ' visitas por día con fichaje'
+        : 'sin días con fichaje'
+    ),
+    root,
+    'font-size:11px;color:#94a3b8;line-height:1.5;'
+  );
+
+  node(
+    'h3',
+    'Comparación con el periodo anterior',
+    root,
+    'font-size:13px;color:#7dd3fc;margin:14px 0 8px;'
+  );
+
+  node(
+    'p',
+    `${formatDate(previous[0])} a ${formatDate(previous[1])}`,
+    root,
+    'font-size:11px;color:#94a3b8;margin-bottom:7px;'
+  );
+
+  const compare = node(
+    'table',
+    null,
+    root,
+    'width:100%;font-size:11px;border-collapse:collapse;'
+  );
+
+  row(
+    compare,
+    ['Indicador', 'Actual', 'Anterior', 'Cambio'],
+    true
+  );
+
+  [
+    ['Visitas', 'puertas'],
+    ['Fichas', 'fichas'],
+    ['Citas', 'citas'],
+    ['Obras', 'hechas'],
+    ['Horas', 'horas'],
+    ['Potencial', 'potencial'],
+    ['Generado', 'generado']
+  ].forEach(([label, key]) => {
+    const euro = ['potencial', 'generado'].includes(key);
+
+    const format = n => euro
+      ? money(n)
+      : (key === 'horas' ? n.toFixed(1) : String(n));
+
+    const diff = m[key] - p[key];
+
+    row(compare, [
+      label,
+      format(m[key]),
+      format(p[key]),
+      (diff > 0 ? '+' : '') + format(diff)
+    ]);
+  });
+
+  const issues = [];
+
+  if (m.jornadasSinHoras) {
+    issues.push(
+      `${m.jornadasSinHoras} jornada(s) con horas sin determinar.`
+    );
+  }
+
+  if (m.sinM2) {
+    issues.push(
+      `${m.sinM2} ficha(s) sin superficie válida: ` +
+      'aportan 0 € a la estimación.'
+    );
+  }
+
+  if (m.antiguasSinFecha) {
+    issues.push(
+      `${m.antiguasSinFecha} obra(s) del histórico sin fecha ` +
+      'de ejecución: no se asignan a un periodo.'
+    );
+  }
+
+  if (issues.length) {
+    node(
+      'p',
+      issues.join('\n'),
+      root,
+      'white-space:pre-line;font-size:11px;color:#fde047;' +
+      'line-height:1.6;margin-top:12px;'
+    );
+  }
+
+  node(
+    'p',
+    'Datos según los registros actuales. Las visitas usan ' +
+    'la fecha de volcado; las fichas, su fecha de creación; ' +
+    'las citas, la fecha prevista; las obras, su fecha ' +
+    'de ejecución registrada.',
+    root,
+    'font-size:10px;color:#94a3b8;line-height:1.5;margin-top:12px;'
+  );
+}
+
+async function recordCompletedObra(zoneIdx, clientIdx) {
+  const z = savedZones[zoneIdx];
+  const c = z?.clients?.[clientIdx];
+
+  if (
+    !c ||
+    (
+      currentUserRole !== 'jefe' &&
+      z.comercial !== currentUserName
+    )
+  ) return;
+
+  const suggested =
+    c.obraRealizadaDate ||
+    (
+      c.obraDate && c.obraDate <= getTodayISO()
+        ? c.obraDate
+        : getTodayISO()
+    );
+
+  const date = prompt(
+    'Fecha real de ejecución (AAAA-MM-DD). ' +
+    'Confirma la fecha para marcar la obra como realizada:',
+    suggested
+  );
+
+  if (date === null) return;
+
+  const d = new Date(date + 'T12:00:00');
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !Number.isFinite(d.getTime()) ||
+    getLocalDateISO(d) !== date ||
+    date > getTodayISO()
+  ) {
+    alert('Introduce una fecha válida, de hoy o anterior.');
+    return;
+  }
+
+  c.obraStatus = 'realizada';
+  c.obraRealizadaDate = date;
+  c.obraRealizadaAt = Date.now();
+  c.statusChangedAt = Date.now();
+  z._updatedAt = Date.now();
+
+  if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+
+  logActivity(
+    'obra',
+    `✅ Obra realizada: ${c.name || 'Cliente'} · ` +
+    `${z.town || ''} · ${formatDate(date)}`,
+    z.comercial
+  );
+
+  if (
+    document.getElementById('followUpsModal')
+      ?.classList.contains('active')
+  ) renderFollowUpsModal();
+
+  if (
+    document.getElementById('globalSearchModal')
+      ?.classList.contains('active')
+  ) renderGlobalClientSearchResults();
+
+  if (
+    document.getElementById('auditModal')
+      ?.classList.contains('active')
+  ) renderCurrentAuditView();
+
+  if (
+    document.getElementById('commercialStatsModal')
+      ?.classList.contains('active')
+  ) renderPersonalStats();
+
+  updateHudLiveSalaryPill();
+}
+
+function openCommercialStatsModalLegacy() {
+      const container = document.getElementById('commercialStatsContainer');
+      container.innerHTML = '';
+
+      const curYm = getMonthKeyOffset(0);
+      const prevYm = getMonthKeyOffset(1);
+      const curLabel = formatMonthLabelEs(curYm);
+      const prevLabel = formatMonthLabelEs(prevYm);
+
+      let totalTocadas = 0, totalSi = 0, totalNo = 0, totalPapelito = 0, totalM2 = 0;
+      let histM2 = 0;
+      const datesSet = new Set();
+
+      savedZones.forEach(z => {
+        if (z.comercial !== currentUserName || z.isNoAptoZone) return;
+        const st = z.stats || {};
+        const zDate = z.dumpDate || z.date || '';
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              histM2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+
+        if (!zDate.startsWith(curYm)) return;
+        if (zDate) datesSet.add(zDate);
+
+        const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        totalTocadas += tocadas;
+        totalSi += (st.si||0);
+        totalNo += (st.no||0);
+        totalPapelito += (st.papelito||0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+              totalM2 += getM2NumericValue(c.m2);
+            }
+          });
+        }
+      });
+
+      const prevMetrics = computeUserMonthMetrics(currentUserName, prevYm);
+      const factorComision = currentUserRole === 'jefe' ? 1.0 : 0.85;
+      const dineroMesActual = totalM2 * factorComision;
+      const dineroMesAnterior = prevMetrics.moneyPersonal;
+      const diffMesEuros = dineroMesActual - dineroMesAnterior;
+      const diffSign = diffMesEuros >= 0 ? '+' : '';
+      const diffColor = diffMesEuros >= 0 ? '#34d399' : '#fca5a5';
+
+      const totalDays = Math.max(1, datesSet.size);
+      const dineroMedioDia = (dineroMesActual / totalDays).toFixed(2);
+      const proyeccionMes = (dineroMesActual * (22 / totalDays)).toFixed(2);
+      const puertasPorDiaMedio = Math.round(totalTocadas / totalDays);
+      const successRate = totalTocadas > 0 ? Math.round((totalSi / totalTocadas) * 100) : 0;
+      const noRate = totalTocadas > 0 ? Math.round((totalNo / totalTocadas) * 100) : 0;
+      const infoRate = totalTocadas > 0 ? Math.round((totalPapelito / totalTocadas) * 100) : 0;
+
+      const userShifts = savedShifts.filter(s => {
+        const shDate = s.localDate || getLocalDateISO(new Date(s.date));
+        return s.user === currentUserName && shDate.startsWith(curYm);
+      });
+      let avgHoursDay = 0;
+      if (userShifts.length > 0) {
+        const sumH = userShifts.reduce((acc, s) => acc + getShiftEffectiveHours(s), 0);
+        avgHoursDay = (sumH / userShifts.length).toFixed(1);
+      } else {
+        avgHoursDay = (puertasPorDiaMedio / 20).toFixed(1);
+      }
+
+      const isMikelUser = isMikelTeamMember(currentUserName);
+      const headerTitle = currentUserRole === 'jefe'
+        ? `👑 TU PRODUCCIÓN PERSONAL • ${curLabel.toUpperCase()}`
+        : `💰 TU SUELDO ACUMULADO • ${curLabel.toUpperCase()}`;
+
+      container.innerHTML = `
+        <div style="background:linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius:14px; padding:14px; margin-bottom:10px; border:1px solid #60a5fa;">
+          <div style="font-size:10px; font-weight:800; color:#bfdbfe; text-transform:uppercase;">${headerTitle}</div>
+          <div style="font-size:26px; font-weight:900; color:#fff; margin:4px 0;">${dineroMesActual.toFixed(2)} €</div>
+          <div style="font-size:11px; color:#e0f2fe;">
+            • Media este mes: <strong>${dineroMedioDia} € / día</strong> (${totalM2} m²)<br>
+            ${!isMikelUser ? `• Proyección cierre de ${curLabel}: <strong>${proyeccionMes} €</strong><br>` : ''}
+            • Jornadas trabajadas en ${curLabel}: <strong>${datesSet.size} días</strong>
+          </div>
+        </div>
+
+        <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(255,255,255,0.14); border-radius:12px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:9.5px; color:#94a3b8; font-weight:800; text-transform:uppercase;">📅 Mes Anterior (${prevLabel})</div>
+            <div style="font-size:15px; font-weight:900; color:#fff; margin-top:2px;">${dineroMesAnterior.toFixed(2)} € <small style="font-size:10px; color:#94a3b8; font-weight:700;">(${prevMetrics.m2} m²)</small></div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:9.5px; color:#94a3b8; font-weight:800; text-transform:uppercase;">Diferencia Mes</div>
+            <div style="font-size:14px; font-weight:900; color:${diffColor}; margin-top:2px;">${diffSign}${diffMesEuros.toFixed(2)} €</div>
+          </div>
+        </div>
+
+        <div class="modal-section-title">⏱️ Ritmo & Horas Reales de Trabajo</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
+            <div style="font-size:9px; color:#94a3b8; font-weight:800;">PUERTAS / DÍA (MEDIA)</div>
+            <div style="font-size:18px; font-weight:900; color:#38bdf8; margin-top:2px;">${puertasPorDiaMedio} puertas</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:10px; border-radius:10px;">
+            <div style="font-size:9px; color:#94a3b8; font-weight:800;">HORAS REALES / DÍA</div>
+            <div style="font-size:18px; font-weight:900; color:#34d399; margin-top:2px;">${avgHoursDay} h / día</div>
+          </div>
+        </div>
+
+        <div class="modal-section-title">📊 Porcentajes de Conversión (Todo Conjunto)</div>
+        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:#34d399; font-weight:800;">✅ % SÍ (Interesados / Citas):</span>
+            <strong>${successRate}% (${totalSi} totales)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:#fca5a5; font-weight:800;">❌ % NO (Rechazos):</span>
+            <strong>${noRate}% (${totalNo} totales)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <span style="color:#38bdf8; font-weight:800;">📄 % INFORMACIÓN / PAPELITO:</span>
+            <strong>${infoRate}% (${totalPapelito} totales)</strong>
+          </div>
+        </div>
+
+        <button class="btn-modal-save" style="margin-top:14px;" onclick="closeModal('commercialStatsModal')">Entendido, ¡A seguir reventando! 🔥</button>
+      `;
+
+      document.getElementById('commercialStatsModal').classList.add('active');
+    }
+
+    /* =====================================================================
+       EXPORTACIÓN A EXCEL (CSV) PARA LIQUIDACIÓN MENSUAL
+       ===================================================================== */
+    function exportOfficialCrmJsonPackage() {
+      const month = document.getElementById('auditMonthSelect')?.value || 'ALL';
+      const records = [];
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
+        z.clients.forEach(c => {
+          if (c.obraStatus !== 'agendada' || !isClientValidFilled(c)) return;
+          const d = c.obraDate || z.dumpDate || z.date || '';
+          if (month !== 'ALL' && !d.startsWith(month)) return;
+          records.push(buildCrmRecord(c, { date: z.dumpDate || z.date, town: z.town, comercial: z.comercial }));
+        });
+      });
+      if (records.length === 0) {
+        alert("⚠️ No hay citas agendadas en este periodo.");
+        return;
+      }
+      const payload = { origen_app: "Konsor_Campo_Navarra_v2027", exportado_en: new Date().toISOString(), periodo: month, total_fichas: records.length, fichas: records };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Citas_CRM_Konsor_${month}_${getTodayISO()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    
+    function exportReportToCSV() {
+      const headers = [
+        'Fecha', 'Comercial', 'Pueblo', 'Sector', 'Tipo Inmueble',
+        'Cliente / Presidente', 'Telefono', 'Direccion', 'Ano Edificio', 'Tipo Acceso',
+        'm2', 'Estado Obra', 'Estado Llamada', 'Fecha Obra', 'Hora Obra', 'Docs Comunidad (de 5)',
+        'Importe Bruto EUR', 'Comision Comercial (85%) EUR', 'Beneficio Jefe (15% o 100%) EUR'
+      ];
+
+      const rows = [headers.join(';')];
+
+      const selectedMonthCsv = document.getElementById('auditMonthSelect')?.value || 'ALL';
+
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial) || !z.clients || z.clients.length === 0) return;
+        const zDateCsv = z.dumpDate || z.date || '';
+        if (selectedMonthCsv !== 'ALL' && !zDateCsv.startsWith(selectedMonthCsv)) return;
+        z.clients.forEach(c => {
+          if (!isClientValidFilled(c)) return;
+          const m2Val = getM2NumericValue(c.m2);
+          const isValid = c.obraStatus !== 'no_apto';
+          const bruto = isValid ? m2Val * 1.0 : 0;
+          const isJefe = z.comercial === 'Andrei (Jefe)';
+          const comisionCom = isValid ? (isJefe ? 0 : bruto * 0.85) : 0;
+          const beneficioJefe = isValid ? (isJefe ? bruto : bruto * 0.15) : 0;
+          const docsInfo = c.type === 'comunidad' ? `${countComunidadDocs(c.comunidadDocs)}/5` : 'N/A (Vivienda)';
+
+          const clean = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
+
+          rows.push([
+            clean(z.dumpDate || z.date),
+            clean(z.comercial),
+            clean(z.town),
+            clean(z.sectorName),
+            clean(c.type === 'comunidad' ? 'Comunidad' : 'Vivienda'),
+            clean(c.name),
+            clean(c.phone),
+            clean(c.street),
+            clean(c.buildYear || ''),
+            clean(formatAccessDisplay(c)),
+            m2Val,
+            clean(c.obraStatus),
+            clean(c.callStatus || 'pendiente'),
+            clean(c.obraDate || ''),
+            clean(c.obraTime || ''),
+            clean(docsInfo),
+            bruto.toFixed(2).replace('.', ','),
+            comisionCom.toFixed(2).replace('.', ','),
+            beneficioJefe.toFixed(2).replace('.', ',')
+          ].join(';'));
+        });
+      });
+
+      const csvContent = '\uFEFF' + rows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Liquidacion_Comercial_Navarra_${getTodayISO()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /* =====================================================================
+       PANEL DE AUDITORÍA DEL JEFE
+       ===================================================================== */
+    function populateAuditMonthOptions() {
+      const sel = document.getElementById('auditMonthSelect');
+      if (!sel) return;
+      const currentMonthYm = getTodayISO().slice(0, 7);
+      const prevVal = sel.dataset.initialized ? sel.value : currentMonthYm;
+      sel.dataset.initialized = 'true';
+
+      const monthsSet = new Set([currentMonthYm, getMonthKeyOffset(1)]);
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial)) return;
+        const d = (z.dumpDate || z.date || '').slice(0, 7);
+        if (/^\d{4}-\d{2}$/.test(d)) monthsSet.add(d);
+      });
+      const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sortedMonths = Array.from(monthsSet).sort().reverse();
+      sel.innerHTML =
+        sortedMonths.map(ym => {
+          const [y, m] = ym.split('-');
+          const label = `${monthNames[parseInt(m, 10) - 1]} ${y}${ym === currentMonthYm ? ' (Mes Actual)' : ''}`;
+          return `<option value="${ym}" ${prevVal === ym ? 'selected' : ''}>📅 ${label}</option>`;
+        }).join('') +
+        `<option value="ALL" ${prevVal === 'ALL' ? 'selected' : ''}>📊 Todo el Histórico Acumulado</option>`;
+    }
+
+    function openAuditModal() {
+      populateAuditMonthOptions();
+      const monthGrp = document.getElementById('monthFilterGroup');
+      if (monthGrp) monthGrp.style.display = (!isMikelTeamMember(currentUserName) && activeAuditTab === 'kpis') ? 'flex' : 'none';
+      renderCurrentAuditView();
+      document.getElementById('auditModal').classList.add('active');
+    }
+
+    function switchAuditTab(tab) {
+      activeAuditTab = tab;
+      document.getElementById('tabBtnKpis').className = `tab-btn ${tab==='kpis'?'active':''}`;
+      document.getElementById('tabBtnComerciales').className = `tab-btn ${tab==='comerciales'?'active':''}`;
+      document.getElementById('tabBtnSemana').className = `tab-btn ${tab==='semana'?'active':''}`;
+      document.getElementById('tabBtnObras').className = `tab-btn ${tab==='obras'?'active':''}`;
+      document.getElementById('tabBtnPueblos').className = `tab-btn ${tab==='pueblos'?'active':''}`;
+
+      document.getElementById('dateSelectorGroup').style.display = (tab === 'comerciales') ? 'flex' : 'none';
+      const monthGrp = document.getElementById('monthFilterGroup');
+      if (monthGrp) monthGrp.style.display = (!isMikelTeamMember(currentUserName) && tab === 'kpis') ? 'flex' : 'none';
+      renderCurrentAuditView();
+    }
+
+    function setRankingFilter(filterMode) {
+      activeRankingFilter = filterMode;
+      renderKpisAudit();
+    }
+
+    function setObrasSubFilter(mode) {
+      activeObrasSubFilter = mode;
+      renderObrasOptimizationAudit();
+    }
+
+    function markObraAsRealizada(zoneIdx, clientIdx) {
+  recordCompletedObra(zoneIdx, clientIdx);
+}
+
+
+    function renderCurrentAuditView() {
+      if (activeAuditTab === 'kpis') {
+        renderKpisAudit();
+      } else if (activeAuditTab === 'comerciales') {
+        renderComercialesAudit();
+      } else if (activeAuditTab === 'semana') {
+        renderWeeklyCalendarAudit();
+      } else if (activeAuditTab === 'obras') {
+        renderObrasOptimizationAudit();
+      } else {
+        renderPueblosAudit();
+      }
+    }
+
+    function renderKpisAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const viewingAsMikel = isMikelTeamMember(currentUserName);
+
+      // Vista ultra-básica para Mikel: solo Total Equipo, Total SÍ y Total NO
+      if (viewingAsMikel) {
+        const mikelUsers = getActiveTeamUsers(true);
+        let totalPuertas = 0;
+        let totalSi = 0;
+        let totalNo = 0;
+
+        savedZones.forEach(z => {
+          if (!mikelUsers.includes(z.comercial) || z.isNoAptoZone) return;
+          const st = z.stats || {};
+          totalSi += (st.si || 0);
+          totalNo += (st.no || 0);
+          totalPuertas += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0) + (st.yaAislado || 0);
+        });
+
+        container.innerHTML = `
+          <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+            <div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase;">
+              📊 RESUMEN GENERAL DE TUS COMERCIALES
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center;">
+              <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 6px;">
+                <div style="font-size:9.5px; color:#cbd5e1; font-weight:800;">🚪 TOTAL EQUIPO</div>
+                <div style="font-size:20px; font-weight:900; color:#fff; margin-top:4px;">${totalPuertas}</div>
+              </div>
+              <div style="background:rgba(5,150,105,0.18); border:1px solid #10b981; border-radius:10px; padding:12px 6px;">
+                <div style="font-size:9.5px; color:#6ee7b7; font-weight:800;">✅ TOTAL SÍ</div>
+                <div style="font-size:20px; font-weight:900; color:#34d399; margin-top:4px;">${totalSi}</div>
+              </div>
+              <div style="background:rgba(220,38,38,0.18); border:1px solid #ef4444; border-radius:10px; padding:12px 6px;">
+                <div style="font-size:9.5px; color:#fca5a5; font-weight:800;">❌ TOTAL NO</div>
+                <div style="font-size:20px; font-weight:900; color:#f87171; margin-top:4px;">${totalNo}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const usersList = getActiveTeamUsers(false);
+      const bossNameSelf = viewingAsMikel ? 'Mikel (Jefe)' : 'Andrei (Jefe)';
+      const statsMap = {};
+
+      usersList.forEach(u => {
+        statsMap[u] = {
+          name: u,
+          daysWorked: 0,
+          totalTocadas: 0,
+          totalSi: 0,
+          totalNo: 0,
+          totalPapelito: 0,
+          totalNoAptas: 0,
+          citasAgendadasCount: 0,
+          m2SiCaptados: 0,
+          m2Agendados: 0,
+          m2Realizados: 0,
+          dineroParaJefe: 0,
+          overdue48hCount: 0,
+          lateDumpsCount: 0,
+          datesSet: new Set()
+        };
+      });
+
+      const selectedMonth = document.getElementById('auditMonthSelect')?.value || 'ALL';
+
+      savedZones.forEach(z => {
+        const u = z.comercial || 'Comercial 1';
+        if (!statsMap[u]) return;
+
+        const st = z.stats || {};
+        const zDate = z.dumpDate || z.date;
+        if (selectedMonth !== 'ALL' && (!zDate || !zDate.startsWith(selectedMonth))) return;
+        if (zDate) statsMap[u].datesSet.add(zDate);
+
+        // Detectar volcado fuera del día asignado (si no venía como zona incompleta)
+        if (!z.isSingleHouse && !z.isHotMission && !z.isUrgentContinuation && z.dumpDate && z.date && z.dumpDate > z.date) {
+          statsMap[u].lateDumpsCount += 1;
+        }
+
+        const tocadas = (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        statsMap[u].totalTocadas += tocadas;
+        statsMap[u].totalSi += (st.si||0);
+        statsMap[u].totalNo += (st.no||0);
+        statsMap[u].totalPapelito += (st.papelito||0);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus === 'no_apto') {
+              statsMap[u].totalNoAptas += 1;
+              return;
+            }
+            if (!isClientValidFilled(c)) return;
+            let m2Val = getM2NumericValue(c.m2);
+
+            statsMap[u].m2SiCaptados += m2Val;
+            if (c.obraStatus === 'agendada') {
+              statsMap[u].m2Agendados += m2Val;
+              statsMap[u].citasAgendadasCount += 1;
+            }
+            if (c.obraStatus === 'realizada') statsMap[u].m2Realizados += m2Val;
+
+            if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+              const callSt = c.callStatus || 'pendiente';
+              const refTime = callSt === 'pendiente'
+                ? (c.createdAt || z.id || Date.now())
+                : (c.statusChangedAt || c.createdAt || z.id || Date.now());
+              if ((Date.now() - refTime) >= 48 * 3600000) {
+                statsMap[u].overdue48hCount += 1;
+              }
+            }
+          });
+        }
+      });
+
+      let totalEquipoM2 = 0;
+      let totalBeneficioJefe = 0;
+
+      usersList.forEach(u => {
+        const s = statsMap[u];
+        s.daysWorked = Math.max(1, s.datesSet.size);
+
+        let selectedM2Metric = s.m2SiCaptados;
+        if (activeRankingFilter === 'agendadas') selectedM2Metric = s.m2Agendados;
+        if (activeRankingFilter === 'realizadas') selectedM2Metric = s.m2Realizados;
+
+        if (u === 'Andrei (Jefe)') {
+          s.dineroParaJefe = selectedM2Metric * 1.0;
+        } else {
+          s.dineroParaJefe = selectedM2Metric * 0.15;
+        }
+
+        totalEquipoM2 += selectedM2Metric;
+        totalBeneficioJefe += s.dineroParaJefe;
+      });
+
+      const sortedRank = Object.values(statsMap).sort((a, b) => b.dineroParaJefe - a.dineroParaJefe);
+      const topContributor = sortedRank[0];
+
+      let subheaderTitle = "📝 TU BENEFICIO EN CAPTACIONES (TODOS LOS 'SÍ')";
+      if (activeRankingFilter === 'agendadas') {
+        subheaderTitle = "📅 TU BENEFICIO AGENDADO (CITAS PUESTAS)";
+      } else if (activeRankingFilter === 'realizadas') {
+        subheaderTitle = "✅ TU BENEFICIO REAL (OBRAS HECHAS)";
+      }
+
+      const summaryCard = document.createElement('div');
+      summaryCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
+      summaryCard.style.border = '1px solid #a78bfa';
+      summaryCard.style.borderRadius = '16px';
+      summaryCard.style.padding = '12px 14px';
+      summaryCard.style.marginBottom = '8px';
+
+      summaryCard.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div>
+            <div style="font-size:10px; font-weight:800; color:#e2e8f0; text-transform:uppercase;">${subheaderTitle}</div>
+            <div style="font-size:22px; font-weight:900; color:#ffffff; margin:2px 0;">${totalBeneficioJefe.toFixed(2)} € Para Ti</div>
+            <div style="font-size:10.5px; color:#cbd5e1;">
+              • Volumen Total: <strong>${totalEquipoM2} m²</strong><br>
+              • Mayor Aportación: <strong>${topContributor ? topContributor.name : 'N/D'}</strong>
+            </div>
+          </div>
+          ${currentUserName === 'Andrei (Jefe)' ? `
+            <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0;">
+              <button onclick="exportOfficialCrmJsonPackage()" style="background:#0284c7; color:#fff; border:1px solid #38bdf8; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
+                ⚡ CRM Oficial
+              </button>
+                            <button onclick="openComplianceModal()" style="background:#7c3aed; color:#fff; border:1px solid #a78bfa; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
+                🕵️ Control
+              </button>
+              <button onclick="exportReportToCSV()" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:9px; padding:6px 9px; font-size:10px; font-weight:900; cursor:pointer;">
+                📥 Excel CSV
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      container.appendChild(summaryCard);
+
+      // Tarjeta comparativa Mes Actual vs Mes Anterior para el Jefe y el Equipo
+      if (selectedMonth !== 'ALL') {
+        const [selY, selM] = selectedMonth.split('-').map(Number);
+        const prevDateObj = new Date(selY, selM - 2, 1);
+        const prevMonthYm = getLocalDateISO(prevDateObj).slice(0, 7);
+
+        let prevBossTotal = 0;
+        let prevAndreiOwn = 0;
+        let prevTeamComs = 0;
+
+        usersList.forEach(u => {
+          const pm = computeUserMonthMetrics(u, prevMonthYm);
+          prevBossTotal += pm.moneyBossShare;
+          if (u === 'Andrei (Jefe)') prevAndreiOwn += pm.moneyBossShare;
+          else prevTeamComs += pm.moneyBossShare;
+        });
+
+        const curAndreiOwn = statsMap['Andrei (Jefe)'].dineroParaJefe;
+        const curTeamComs = totalBeneficioJefe - curAndreiOwn;
+        const diffGlobal = totalBeneficioJefe - prevBossTotal;
+        const diffOwn = curAndreiOwn - prevAndreiOwn;
+        const diffTeam = curTeamComs - prevTeamComs;
+
+        const fmtDiff = (val) => `<strong style="color:${val >= 0 ? '#34d399' : '#fca5a5'};">${val >= 0 ? '+' : ''}${val.toFixed(0)} €</strong>`;
+
+        const monthCompCard = document.createElement('div');
+        monthCompCard.style.cssText = 'background:rgba(30,41,59,0.92); border:1px solid rgba(167,139,250,0.4); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:10.5px; color:#e2e8f0;';
+        monthCompCard.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:9.5px; font-weight:900; color:#c4b5fd; text-transform:uppercase;">📈 Comparativa vs ${formatMonthLabelEs(prevMonthYm)}</span>
+            <span>Balance Global: ${fmtDiff(diffGlobal)}</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:rgba(0,0,0,0.28); padding:6px 8px; border-radius:8px;">
+            <div>👑 Tuyo: <strong>${curAndreiOwn.toFixed(0)} €</strong> <small style="color:#94a3b8;">(ant. ${prevAndreiOwn.toFixed(0)} € · ${fmtDiff(diffOwn)})</small></div>
+            <div>🏃 Equipo (15%): <strong>${curTeamComs.toFixed(0)} €</strong> <small style="color:#94a3b8;">(ant. ${prevTeamComs.toFixed(0)} € · ${fmtDiff(diffTeam)})</small></div>
+          </div>
+        `;
+        container.appendChild(monthCompCard);
+      }
+
+      const subtabContainer = document.createElement('div');
+      subtabContainer.className = 'subtab-bar';
+      subtabContainer.innerHTML = `
+        <button class="subtab-btn ${activeRankingFilter==='si'?'active':''}" onclick="setRankingFilter('si')">📝 Captaciones (SÍ)</button>
+        <button class="subtab-btn ${activeRankingFilter==='agendadas'?'active':''}" onclick="setRankingFilter('agendadas')">📅 Agendadas</button>
+        <button class="subtab-btn ${activeRankingFilter==='realizadas'?'active':''}" onclick="setRankingFilter('realizadas')">✅ Hechas</button>
+      `;
+      container.appendChild(subtabContainer);
+
+      const tableWrapper = document.createElement('div');
+      tableWrapper.style.overflowX = 'auto';
+
+      let tableRows = '';
+      sortedRank.forEach((s, rankIdx) => {
+        const avgSiPerDay = (s.totalSi / s.daysWorked).toFixed(1);
+        const conversionRate = s.totalTocadas > 0 ? ((s.totalSi / s.totalTocadas) * 100).toFixed(0) : '0';
+
+        let medal = `#${rankIdx + 1}`;
+        if (rankIdx === 0) medal = '🥇';
+        if (rankIdx === 1) medal = '🥈';
+        if (rankIdx === 2) medal = '🥉';
+
+        let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">🟢 CUMPLIENDO</span>';
+        let rowClass = '';
+
+        if (rankIdx === 0 && s.dineroParaJefe > 0) {
+          badgeStatus = '<span style="color:#34d399; font-weight:900;">🔥 TOP APORTACIÓN</span>';
+          rowClass = 'rank-row-top';
+        } else if (parseFloat(avgSiPerDay) < 1.0 && s.daysWorked >= 1) {
+          badgeStatus = '<span style="color:#fca5a5; font-weight:900;">⚠️ ALERTA / FORMACIÓN</span>';
+          rowClass = 'rank-row-warning';
+        }
+
+        const gapWithLeader = (topContributor.dineroParaJefe - s.dineroParaJefe).toFixed(2);
+        const gapText = rankIdx === 0 ? '---' : `-${gapWithLeader} € vs #1`;
+
+        let prevUserHint = '';
+        if (selectedMonth !== 'ALL') {
+          const [sy, sm] = selectedMonth.split('-').map(Number);
+          const pYm = getLocalDateISO(new Date(sy, sm - 2, 1)).slice(0, 7);
+          const pData = computeUserMonthMetrics(s.name, pYm);
+          const uDiff = s.dineroParaJefe - pData.moneyBossShare;
+          prevUserHint = `<div style="font-size:8.5px; color:#94a3b8; margin-top:1px;">Mes ant.: ${pData.moneyBossShare.toFixed(0)} € (<span style="color:${uDiff>=0?'#34d399':'#fca5a5'}; font-weight:800;">${uDiff>=0?'+':''}${uDiff.toFixed(0)} €</span>)</div>`;
+        }
+
+        const sourceLabel = s.name === 'Andrei (Jefe)'
+          ? `<div style="font-size:9px; color:#34d399; margin-top:1px;">100% Obra Propia</div>${prevUserHint}`
+          : `<div style="font-size:9px; color:#a78bfa; margin-top:1px;">Tu 15% de comisión (Suyo: ${(s.m2SiCaptados * 0.85).toFixed(0)} €)</div>${prevUserHint}`;
+
+        tableRows += `
+          <tr class="${rowClass}">
+            <td style="font-size:14px; text-align:center;">${medal}</td>
+            <td>
+              <div style="font-weight:900; color:#fff;">${s.name}</div>
+              <div style="font-size:9px; margin-top:2px;">${badgeStatus}</div>
+              ${sourceLabel}
+            </td>
+            <td style="color:#34d399; font-weight:900; font-size:12px;">${s.dineroParaJefe.toFixed(2)} €</td>
+            <td style="text-align:center;">
+              <div><strong>${avgSiPerDay}</strong> / día</div>
+              <small style="color:#94a3b8; font-size:9px;">${conversionRate}% Éxito</small>
+            </td>
+            <td style="font-size:10px; color:#fde047; text-align:right;">${gapText}</td>
+          </tr>
+        `;
+      });
+
+      tableWrapper.innerHTML = `
+        <table class="ranking-table-container">
+          <thead>
+            <tr>
+              <th style="width:30px; text-align:center;">#</th>
+              <th>Origen</th>
+              <th>Para Ti</th>
+              <th style="text-align:center;">Media "Sí"</th>
+              <th style="text-align:right;">Brecha vs #1</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      `;
+
+      container.appendChild(tableWrapper);
+
+      // Todo lo de abajo (cajas de liquidez, radiografía de coaching y radar) es exclusivo de Andrei
+      if (currentUserName !== 'Andrei (Jefe)') return;
+
+      // Resumen económico global de las 3 fases para el Jefe
+      let globalPotencialJefe = 0;
+      let globalAgendadoJefe = 0;
+      let globalRealizadoJefe = 0;
+
+      usersList.forEach(u => {
+        const s = statsMap[u];
+        const mult = u === 'Andrei (Jefe)' ? 1.0 : 0.15;
+        globalPotencialJefe += s.m2SiCaptados * mult;
+        globalAgendadoJefe += s.m2Agendados * mult;
+        globalRealizadoJefe += s.m2Realizados * mult;
+      });
+
+      const financeStrip = document.createElement('div');
+      financeStrip.style.cssText = 'display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:12px;';
+      financeStrip.innerHTML = `
+        <div style="background:rgba(37,99,235,0.16); border:1px solid #3b82f6; border-radius:10px; padding:8px; text-align:center;">
+          <div style="font-size:9px; color:#93c5fd; font-weight:800;">📝 CAPTADO (SÍ)</div>
+          <div style="font-size:13px; color:#fff; font-weight:900; margin-top:2px;">${globalPotencialJefe.toFixed(0)} €</div>
+        </div>
+        <div style="background:rgba(217,119,6,0.16); border:1px solid #f59e0b; border-radius:10px; padding:8px; text-align:center;">
+          <div style="font-size:9px; color:#fde047; font-weight:800;">📅 EN CARTERA</div>
+          <div style="font-size:13px; color:#fff; font-weight:900; margin-top:2px;">${globalAgendadoJefe.toFixed(0)} €</div>
+        </div>
+        <div style="background:rgba(5,150,105,0.18); border:1px solid #10b981; border-radius:10px; padding:8px; text-align:center;">
+          <div style="font-size:9px; color:#6ee7b7; font-weight:800;">✅ COBRADO REAL</div>
+          <div style="font-size:13px; color:#34d399; font-weight:900; margin-top:2px;">${globalRealizadoJefe.toFixed(0)} €</div>
+        </div>
+      `;
+      container.appendChild(financeStrip);
+
+      // Radiografía de coaching por comercial (en qué falla cada uno)
+      const diagTitle = document.createElement('div');
+      diagTitle.className = 'modal-section-title';
+      diagTitle.style.marginTop = '14px';
+      diagTitle.innerText = '🩺 Radiografía del Equipo (Qué hablar / entrenar con cada uno)';
+      container.appendChild(diagTitle);
+
+      ['Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'].forEach(comName => {
+        const s = statsMap[comName];
+        const avgDoorsDay = Math.round(s.totalTocadas / s.daysWorked);
+        const papelitoPct = s.totalTocadas > 0 ? Math.round((s.totalPapelito / s.totalTocadas) * 100) : 0;
+        const siPct = s.totalTocadas > 0 ? Math.round((s.totalSi / s.totalTocadas) * 100) : 0;
+        const totalValidLeads = s.totalSi;
+        const citaRatio = totalValidLeads > 0 ? Math.round((s.citasAgendadasCount / totalValidLeads) * 100) : 0;
+        const noAptoRatio = (totalValidLeads + s.totalNoAptas) > 0
+          ? Math.round((s.totalNoAptas / (totalValidLeads + s.totalNoAptas)) * 100)
+          : 0;
+
+        const alerts = [];
+        if (s.totalTocadas === 0) {
+          alerts.push('⚪ Sin actividad registrada todavía.');
+        } else {
+          if (avgDoorsDay < 35) {
+            alerts.push(`🐌 <strong>Ritmo bajo (${avgDoorsDay} puertas/día):</strong> Salir con él a dinamizar el paso entre portales.`);
+          }
+          if (papelitoPct >= 30 && siPct < 5) {
+            alerts.push(`📄 <strong>Mucho papelito (${papelitoPct}%) y poco cierre (${siPct}% SÍ):</strong> Practicar discurso en puerta para sacar teléfono.`);
+          }
+          if (totalValidLeads >= 3 && citaRatio < 25) {
+            alerts.push(`📞 <strong>Falla al cerrar cita por teléfono (${citaRatio}% citas):</strong> Revisar juntos sus llamadas.`);
+          }
+          if (noAptoRatio >= 25) {
+            alerts.push(`🏗️ <strong>Muchas caídas técnicas (${noAptoRatio}%):</strong> Recordarle mirar año ≤ 2006 en Catastro antes de llamar.`);
+          }
+          if (s.overdue48hCount > 0) {
+            alerts.push(`🚨 <strong>${s.overdue48hCount} lead(s) pasados de 48h</strong> sin cerrar ni actualizar.`);
+          }
+          if (s.lateDumpsCount > 0) {
+            alerts.push(`⏰ <strong>${s.lateDumpsCount} hoja(s) volcada(s) fuera de día:</strong> Exigir volcado antes de cerrar jornada.`);
+          }
+        }
+
+        const isHealthy = alerts.length === 0;
+        const card = document.createElement('div');
+        card.className = 'audit-card';
+        card.style.cursor = 'default';
+        card.style.borderLeft = `4px solid ${isHealthy ? '#10b981' : '#f59e0b'}`;
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="font-size:12.5px; color:#fff;">🏃 ${comName}</strong>
+            <span style="font-size:10px; font-weight:800; color:${isHealthy ? '#34d399' : '#fde047'};">
+              ${isHealthy ? '🔥 Rendimiento Óptimo' : '🎯 Puntos de Mejora'}
+            </span>
+          </div>
+          <div style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin-top:3px;">
+            ${isHealthy
+              ? '✅ Buen ritmo en calle, volcados al día y llamadas dentro de las 48h.'
+              : alerts.map(a => `• ${a}`).join('<br>')}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /* =====================================================================
+       CALENDARIO SEMANAL DE OBRAS (PLANIFICACIÓN DE CUADRILLAS L-V)
+       ===================================================================== */
+    function changeWeekOffset(delta) {
+      weekOffset += delta;
+      renderWeeklyCalendarAudit();
+    }
+
+    function renderWeeklyCalendarAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const todayIso = getTodayISO();
+      const baseDate = new Date();
+      baseDate.setDate(baseDate.getDate() + weekOffset * 7);
+
+      const dayOfWeek = baseDate.getDay();
+      const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const mondayDate = new Date(baseDate);
+      mondayDate.setDate(baseDate.getDate() + diffToMonday);
+
+      const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+      const weekDays = [];
+
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(mondayDate);
+        d.setDate(mondayDate.getDate() + i);
+        const iso = getLocalDateISO(d);
+        weekDays.push({ name: dayNames[i], iso, obras: [], totalM2: 0 });
+      }
+
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
+        z.clients.forEach(c => {
+          if (c.obraStatus === 'agendada' && c.obraDate && isClientValidFilled(c)) {
+            const targetDay = weekDays.find(wd => wd.iso === c.obraDate);
+            if (targetDay) {
+              const m2Val = getM2NumericValue(c.m2);
+              targetDay.obras.push({
+                town: z.town,
+                street: c.street || 'Sin dirección',
+                owner: c.name || 'Cliente',
+                type: c.type || 'vivienda',
+                obraTime: c.obraTime || '',
+                m2: m2Val,
+                docsCount: c.type === 'comunidad' ? countComunidadDocs(c.comunidadDocs) : null,
+                zoneIdx: zIdx
+              });
+              targetDay.totalM2 += m2Val;
+            }
+          }
+        });
+      });
+
+      const weekTotalM2 = weekDays.reduce((acc, d) => acc + d.totalM2, 0);
+
+      let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.06); padding:8px 10px; border-radius:12px; margin-bottom:10px;">
+          <button onclick="changeWeekOffset(-1)" style="background:#1e293b; border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">◀ Ant.</button>
+          <div style="text-align:center;">
+            <div style="font-size:11px; font-weight:900; color:#fff;">${formatDate(weekDays[0].iso)} - ${formatDate(weekDays[4].iso)}</div>
+            <div style="font-size:10px; color:#34d399; font-weight:800;">Carga Semanal: ${weekTotalM2} m²</div>
+          </div>
+          <button onclick="changeWeekOffset(1)" style="background:#1e293b; border:1px solid rgba(255,255,255,0.2); color:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Sig. ▶</button>
+        </div>
+      `;
+
+      weekDays.forEach(wd => {
+        const isToday = wd.iso === todayIso;
+        const dayStops = wd.obras.map(o => `${o.street}, ${o.town}`);
+        const dayMapsUrl = buildMultiStopMapsUrl(dayStops);
+
+        html += `
+          <div class="week-day-card ${isToday ? 'today' : ''}">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:12.5px; color:${isToday ? '#fde047' : '#60a5fa'};">
+                ${wd.name} ${formatDate(wd.iso)} ${isToday ? '(HOY)' : ''}
+              </strong>
+              <div style="display:flex; align-items:center; gap:5px;">
+                ${wd.obras.length > 0 ? `<a href="${dayMapsUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px; display:inline-block;">🧭 Ruta</a>` : ''}
+                <span style="background:${wd.totalM2 > 0 ? '#059669' : 'rgba(255,255,255,0.1)'}; color:#fff; font-size:10px; font-weight:900; padding:3px 8px; border-radius:7px;">
+                  ${wd.totalM2} m²
+                </span>
+              </div>
+            </div>
+        `;
+
+        if (wd.obras.length === 0) {
+          html += `<div style="font-size:10.5px; color:#64748b;">Sin obras agendadas este día.</div>`;
+        } else {
+          wd.obras.sort((a, b) => (a.obraTime || '').localeCompare(b.obraTime || '')).forEach(o => {
+            const isCom = o.type === 'comunidad';
+            const timeBadge = o.obraTime ? `<span style="color:#fde047; font-weight:900;">[⏰ ${o.obraTime}]</span> ` : '';
+            const docBadge = isCom ? ` • <span style="color:${o.docsCount===5?'#34d399':'#fca5a5'}; font-weight:800;">Docs: ${o.docsCount}/5</span>` : '';
+            html += `
+              <div onclick="closeModal('auditModal'); openDumpModal(${o.zoneIdx});" style="cursor:pointer; font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:7px; display:flex; justify-content:space-between; align-items:center;">
+                <span>${timeBadge}${isCom ? '🏢' : '🏠'} <strong>${o.town}</strong>: ${o.street} (${o.owner})${docBadge}</span>
+                <strong style="color:#34d399; margin-left:6px;">${o.m2} m²</strong>
+              </div>
+            `;
+          });
+        }
+
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function renderComercialesAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const selectedDate = document.getElementById('auditDateSelect').value;
+      const usersList = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+
+      const stats = {};
+      usersList.forEach(u => {
+        stats[u] = {
+          tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0,
+          captacionesSiCount: 0, obrasPuestas: 0, obrasRealizadas: 0, obrasNoAptas: 0,
+          m2TotalSi: 0, m2Ejecutados: 0,
+          zones: []
+        };
+      });
+
+      savedZones.forEach(z => {
+        const u = z.comercial || 'Comercial 1';
+        if (!stats[u]) return;
+
+        const zDate = z.dumpDate || z.date;
+        if (zDate !== selectedDate) return;
+
+        const st = z.stats || {};
+        stats[u].no += st.no || 0;
+        stats[u].ausente += st.ausente || 0;
+        stats[u].papelito += st.papelito || 0;
+        stats[u].si += st.si || 0;
+        stats[u].tocadas += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+        stats[u].zones.push(z);
+
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus === 'no_apto') {
+              stats[u].obrasNoAptas += 1;
+              return;
+            }
+            if (!isClientValidFilled(c)) return;
+
+            let m2Val = getM2NumericValue(c.m2);
+            stats[u].m2TotalSi += m2Val;
+            stats[u].captacionesSiCount += 1;
+
+            if (c.obraStatus === 'agendada') stats[u].obrasPuestas += 1;
+            else if (c.obraStatus === 'realizada') {
+              stats[u].obrasRealizadas += 1;
+              stats[u].m2Ejecutados += m2Val;
+            }
+          });
+        }
+      });
+
+      let totalOverridenCommission = 0;
+
+      usersList.forEach((u, uIdx) => {
+        const s = stats[u];
+        const ratioConversion = s.tocadas > 0 ? Math.round((s.si / s.tocadas) * 100) : 0;
+
+        const userShift = savedShifts.find(sh => {
+          const shDate = sh.localDate || getLocalDateISO(new Date(sh.date));
+          return sh.user === u && shDate === selectedDate;
+        });
+
+        let shiftTimelineHtml = '🕒 Sin fichaje registrado en esta fecha.';
+        let puertasPorHora = 'N/D';
+
+        if (userShift) {
+          const inicio = userShift.startTime || 'N/D';
+          const fin = userShift.endTime || (userShift.status === 'working' ? 'En Curso' : 'N/D');
+          const comida = userShift.lunchStart ? `${userShift.lunchStart} (${userShift.lunchMinutes || 0} min)` : 'Sin pausa';
+          const effHours = getShiftEffectiveHours(userShift);
+          shiftTimelineHtml = `▶️ Inicio: <strong>${inicio}</strong> | ⏸️ Comida: <strong>${comida}</strong> | ⏹️ Fin: <strong>${fin}</strong> (${effHours.toFixed(1)}h)`;
+          puertasPorHora = effHours > 0 ? Math.round(s.tocadas / effHours) : 'N/D';
+        }
+
+        let cobradoComercial = 0;
+        if (u === 'Andrei (Jefe)') {
+          cobradoComercial = s.m2TotalSi * 1.0;
+        } else {
+          cobradoComercial = s.m2TotalSi * 0.85;
+          totalOverridenCommission += (s.m2TotalSi * 0.15);
+        }
+
+        let detailsHtml = '';
+        if (s.zones.length === 0) {
+          detailsHtml = `<div style="font-size:10px; color:#64748b;">Sin manzana ni vivienda registrada en este día.</div>`;
+        } else {
+          s.zones.forEach(zoneItem => {
+            const originalIdx = savedZones.indexOf(zoneItem);
+            let clientRows = '';
+
+            if (zoneItem.clients && zoneItem.clients.length > 0) {
+              zoneItem.clients.forEach(cItem => {
+                const isFilled = isClientValidFilled(cItem);
+                let badgeStatus = '<span style="color:#60a5fa; font-weight:800;">📝 Captación SÍ</span>';
+                if (cItem.obraStatus === 'agendada') {
+                  const dateTxt = cItem.obraDate ? ` (${formatDate(cItem.obraDate)}${cItem.obraTime ? ' ' + cItem.obraTime : ''})` : '';
+                  badgeStatus = `<span style="color:#fde047; font-weight:800;">📅 Obra${dateTxt}</span>`;
+                }
+                if (cItem.obraStatus === 'agendada_historica') badgeStatus = 'Agendada · histórico sin reservar';
+                if (cItem.obraStatus === 'realizada') badgeStatus = '<span style="color:#34d399; font-weight:800;">✅ Obra Hecha</span>';
+                if (cItem.obraStatus === 'no_apto') badgeStatus = `<span class="no-apto-pill">🚫 No Apta</span>`;
+
+                const isCom = cItem.type === 'comunidad';
+                const typeIcon = isCom ? '🏢' : '🏠';
+                const docsTag = isCom ? ` <span style="color:#a78bfa; font-weight:800;">[Docs ${countComunidadDocs(cItem.comunidadDocs)}/5]</span>` : '';
+
+                clientRows += `
+                  <div class="client-detail-row">
+                    <span>${typeIcon} <strong>${cItem.name || 'Sin rellenar'}</strong> (${cItem.street || 'N/D'})${docsTag}</span>
+                    <span>${badgeStatus} (${isFilled ? getM2NumericValue(cItem.m2) : 0} m²)</span>
+                  </div>
+                `;
+              });
+            } else {
+              clientRows = `<div style="font-size:10px; color:#64748b;">Sin fichas aún.</div>`;
+            }
+
+            const isLateDump = !zoneItem.isSingleHouse && !zoneItem.isHotMission && !zoneItem.isUrgentContinuation && zoneItem.dumpDate && zoneItem.date && zoneItem.dumpDate > zoneItem.date;
+            const lateBadge = isLateDump ? ` <span style="background:rgba(220,38,38,0.25); border:1px solid #ef4444; color:#fca5a5; font-size:9px; padding:1px 5px; border-radius:5px;">⏰ Volcado tarde (era ${formatDate(zoneItem.date)})</span>` : '';
+
+            detailsHtml += `
+              <div style="border-left: 2px solid #60a5fa; padding-left: 6px; margin-bottom: 8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:11px; font-weight:800; color:#38bdf8;">📍 ${zoneItem.sectorName} (${zoneItem.town})${lateBadge}</span>
+                  <div style="display:flex; gap:4px;">
+                    ${currentUserRole==='jefe' && zoneItem.status==='en_proceso' ? `<button onclick="openNoteModal(${originalIdx})" style="padding:2px 6px; font-size:9px; background:#7c3aed; border:none; border-radius:6px; color:#fff; cursor:pointer;">📌 Nota</button>` : ''}
+                    ${currentUserRole==='jefe' ? `<button onclick="deleteZone(${originalIdx})" style="padding:2px 6px; font-size:9px; background:rgba(239,68,68,0.2); border:1px solid #ef4444; border-radius:6px; color:#fca5a5; cursor:pointer;">🗑️ Borrar</button>` : ''}
+                  </div>
+                </div>
+                ${zoneItem.pendingNote ? `<div style="font-size:10px; color:#fde047;">✏️ Pendiente: "${zoneItem.pendingNote}"</div>` : ''}
+                ${zoneItem.bossNote ? `<div style="font-size:10px; color:#a78bfa;">💬 Nota Jefe: "${zoneItem.bossNote}"</div>` : ''}
+                ${clientRows}
+              </div>
+            `;
+          });
+        }
+
+        const panelId = `detail_panel_${uIdx}`;
+
+        const card = document.createElement('div');
+        card.className = 'audit-card';
+        card.onclick = () => toggleDetailPanel(panelId);
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#60a5fa; font-size:13px;">${u} ▾</strong>
+            <span class="financial-pill">Ganado Día (SÍ): ${cobradoComercial.toFixed(2)} €</span>
+          </div>
+
+          <div class="time-timeline-box">
+            ${shiftTimelineHtml}
+          </div>
+
+          <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
+            🚪 Puertas: <strong>${s.tocadas}</strong> | Ritmo: <strong>${puertasPorHora === 'N/D' ? 'N/D' : '~' + puertasPorHora + ' puertas/h'}</strong> | Eficiencia: <strong>${ratioConversion}% Sí</strong>
+          </div>
+
+          <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:2px;">
+            <span>📝 SÍ válidos: <strong>${s.captacionesSiCount}</strong> (${s.m2TotalSi} m²) | 📅 Citas: <strong>${s.obrasPuestas}</strong></span>
+            <span style="color:#fca5a5;">🚫 Caídas: <strong>${s.obrasNoAptas}</strong></span>
+          </div>
+
+          <div id="${panelId}" class="audit-details-panel">
+            <div class="detail-section-label">📋 Actividad del Día:</div>
+            ${detailsHtml}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const jefeStats = stats['Andrei (Jefe)'];
+      const totalJefeDia = (jefeStats.m2TotalSi * 1.0) + totalOverridenCommission;
+
+      if (currentUserName !== 'Andrei (Jefe)') return;
+
+      // Cuadro limpio de planificación y cumplimiento (1 fila compacta por sector/tarea)
+      const teamListOnly = ['Andrei (Jefe)', 'Comercial 1', 'Comercial 2', 'Comercial 3', 'Comercial 4', 'Comercial 5'];
+      let quickPlanRows = '';
+
+      teamListOnly.forEach(com => {
+        const displayAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(com) : com;
+        const dayZones = savedZones.filter(z => {
+          if (z.comercial !== com || z.isSingleHouse || z.isHotMission || z.isNoAptoZone) return false;
+          if (z.date === selectedDate || z.dumpDate === selectedDate) return true;
+          if (selectedDate === getTodayISO() && z.status !== 'completada' && z.date <= selectedDate) return true;
+          return false;
+        });
+        const dayHot = hotLeadMissions.filter(m => m.comercial === com && m.date === selectedDate);
+        const hasTasks = dayZones.length > 0 || dayHot.length > 0;
+
+        let rowsHtml = '';
+        if (!hasTasks) {
+          rowsHtml = `<div style="font-size:10px; color:#64748b; padding:3px 6px;">⚪ Sin zona asignada</div>`;
+        } else {
+          rowsHtml += dayZones.map(dz => {
+            const zIdx = savedZones.indexOf(dz);
+            let badgeBg = 'rgba(59,130,246,0.18)';
+            let badgeCol = '#93c5fd';
+            let badgeTxt = 'Por hacer';
+            if (dz.status === 'en_proceso') {
+              badgeBg = 'rgba(245,158,11,0.22)';
+              badgeCol = '#fde047';
+              badgeTxt = 'Incompleta';
+            } else if (dz.status === 'completada') {
+              badgeBg = 'rgba(16,185,129,0.22)';
+              badgeCol = '#6ee7b7';
+              badgeTxt = 'Hecha';
+            }
+            const cleanSector = (dz.sectorName || '').replace(/\s*\([^)]*\)\s*$/, '');
+            const townTag = dz.town ? ` · <span style="color:#94a3b8; font-weight:700;">${dz.town}</span>` : '';
+
+            return `
+              <div onclick="closeModal('auditModal'); openDumpModal(${zIdx});" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px; background:rgba(15,23,42,0.65); border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:5px 7px; margin-top:4px;">
+                <div style="min-width:0; flex:1; font-size:11px; color:#f8fafc; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${cleanSector}${townTag}
+                </div>
+                <span style="background:${badgeBg}; color:${badgeCol}; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px; white-space:nowrap; flex-shrink:0;">
+                  ${badgeTxt}
+                </span>
+                <button onclick="event.stopPropagation(); closeModal('auditModal'); focusMapOnTownOrZone('${(dz.town||'').replace(/'/g, "\\'")}', ${zIdx});" style="background:#2563eb; border:none; color:#fff; font-size:10px; font-weight:900; padding:3px 6px; border-radius:6px; cursor:pointer; flex-shrink:0;" title="Ver en mapa">
+                  📍
+                </button>
+              </div>
+            `;
+          }).join('');
+
+          rowsHtml += dayHot.map(h => `
+            <div onclick="closeModal('auditModal'); focusMapOnTownOrZone('${(h.town||'').replace(/'/g, "\\'")}', null);" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px; background:rgba(16,185,129,0.14); border:1px solid rgba(52,211,153,0.35); border-radius:8px; padding:5px 7px; margin-top:4px;">
+              <div style="min-width:0; flex:1; font-size:11px; color:#6ee7b7; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                🔥 Reclamo Obra · ${h.town}
+              </div>
+              <span style="background:rgba(16,185,129,0.25); color:#a7f3d0; font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:6px; white-space:nowrap; flex-shrink:0;">
+                En caliente
+              </span>
+              <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:3px 6px; border-radius:6px; flex-shrink:0;">📍</span>
+            </div>
+          `).join('');
+        }
+
+        quickPlanRows += `
+          <div style="padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="font-size:11.5px; color:${hasTasks ? '#e2e8f0' : '#64748b'};">${com === 'Andrei (Jefe)' ? '👑 ' + displayAlias : '🏃 ' + displayAlias}</strong>
+              ${hasTasks ? `<span style="font-size:9.5px; color:#60a5fa; font-weight:800;">${dayZones.length + dayHot.length} tarea(s)</span>` : ''}
+            </div>
+            ${rowsHtml}
+          </div>
+        `;
+      });
+
+      const teamPlanCard = document.createElement('div');
+      teamPlanCard.style.cssText = 'background:rgba(30,41,59,0.9); border:1px solid rgba(96,165,250,0.45); border-radius:14px; padding:11px 12px; margin-bottom:10px;';
+      teamPlanCard.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="font-size:10px; font-weight:900; color:#60a5fa; text-transform:uppercase;">📋 PLANIFICACIÓN (${formatDate(selectedDate)})</span>
+          <button onclick="closeModal('auditModal'); showBossDailySummaryAndObras(true);" style="background:#7c3aed; border:1px solid #a78bfa; color:#fff; font-size:9.5px; font-weight:800; padding:3px 8px; border-radius:6px; cursor:pointer;">🔔 Ver Parte</button>
+        </div>
+        ${quickPlanRows}
+      `;
+      container.prepend(teamPlanCard);
+
+      const bossTotalCard = document.createElement('div');
+      bossTotalCard.style.background = 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)';
+      bossTotalCard.style.border = '1px solid #a78bfa';
+      bossTotalCard.style.borderRadius = '14px';
+      bossTotalCard.style.padding = '14px';
+      bossTotalCard.style.marginBottom = '12px';
+
+      bossTotalCard.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#e9d5ff; text-transform:uppercase;">💰 BALANCE POTENCIAL DEL DÍA (${formatDate(selectedDate)})</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${totalJefeDia.toFixed(2)} € Tu Beneficio (SÍ)</div>
+        <div style="font-size:11px; color:#ddd6fe;">
+          • Obras Propias: <strong>${(jefeStats.m2TotalSi * 1.0).toFixed(2)} €</strong> (${jefeStats.m2TotalSi} m²)<br>
+          • 15% Comisiones Equipo: <strong>${totalOverridenCommission.toFixed(2)} €</strong>
+        </div>
+      `;
+
+      container.prepend(bossTotalCard);
+    }
+
+        function renderObrasOptimizationAudit() {
+      if (activeObrasSubFilter === 'porAgendar') { renderPorAgendarView(); return; }
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const { totalObrasCount } = getTodayScheduledObrasGrouped();
+      const streetClusters = {};
+      let totalFilteredM2 = 0;
+      let totalFilteredClients = 0;
+
+      const targetStatus = activeObrasSubFilter === 'realizadas' ? 'realizada' : 'agendada';
+
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial) || !z.clients) return;
+
+        z.clients.forEach((c, cIdx) => {
+          if (c.obraStatus !== targetStatus || !isClientValidFilled(c)) return;
+
+          let m2Val = getM2NumericValue(c.m2);
+          const town = (z.town || 'Navarra').trim();
+          const streetRaw = (c.street || 'Calle Sin Nombre').trim();
+          const normalizedStreet = normalizeStreetClusterKey(streetRaw);
+          const key = `${town.toLowerCase()}___${normalizedStreet}`;
+
+          if (!streetClusters[key]) {
+            streetClusters[key] = {
+              town,
+              streetDisplay: streetRaw.replace(/[0-9]+.*$/, '').trim() || streetRaw,
+              totalM2: 0,
+              houseCount: 0,
+              clients: [],
+              sectorName: z.sectorName
+            };
+          }
+
+          streetClusters[key].totalM2 += m2Val;
+          streetClusters[key].houseCount += 1;
+          streetClusters[key].clients.push({ ...c, m2Val, comercial: z.comercial, zoneIdx: zIdx, clientIdx: cIdx });
+
+          totalFilteredM2 += m2Val;
+          totalFilteredClients += 1;
+        });
+      });
+
+      const sortedStreets = Object.values(streetClusters).sort((a, b) => b.totalM2 - a.totalM2);
+
+      const headerBox = document.createElement('div');
+      headerBox.style.background = activeObrasSubFilter === 'realizadas'
+        ? 'linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%)'
+        : 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+      headerBox.style.border = activeObrasSubFilter === 'realizadas' ? '1px solid #60a5fa' : '1px solid #34d399';
+      headerBox.style.borderRadius = '14px';
+      headerBox.style.padding = '14px';
+      headerBox.style.marginBottom = '8px';
+
+      headerBox.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div>
+            <div style="font-size:10px; font-weight:800; color:#e0f2fe; text-transform:uppercase;">
+              ${activeObrasSubFilter === 'realizadas' ? '✅ HISTORIAL DE OBRAS REALIZADAS (LIQUIDACIÓN)' : '📅 OBRAS AGENDADAS CON FECHA'}
+            </div>
+            <div style="font-size:20px; font-weight:900; color:#ffffff; margin:4px 0;">
+              ${totalFilteredM2} m² (${(totalFilteredM2 * 1.0).toFixed(2)} €)
+            </div>
+            <div style="font-size:11px; color:#ecfdf5;">
+              • Total: <strong>${totalFilteredClients} obra(s)</strong>
+            </div>
+          </div>
+          <button onclick="closeModal('auditModal'); checkAndShowBossTodayObras(false);" style="background:#f59e0b; color:#0f172a; border:none; border-radius:10px; padding:8px 10px; font-size:10.5px; font-weight:900; cursor:pointer; flex-shrink:0;">
+            🚧 Obras Hoy (${totalObrasCount})
+          </button>
+        </div>
+      `;
+      container.appendChild(headerBox);
+
+      const subFilterBar = document.createElement('div');
+      subFilterBar.className = 'subtab-bar';
+      subFilterBar.innerHTML = `
+        <button class="subtab-btn ${activeObrasSubFilter==='agendadas'?'active':''}" onclick="setObrasSubFilter('agendadas')">📅 Citas Agendadas</button>
+        <button class="subtab-btn ${activeObrasSubFilter==='realizadas'?'active':''}" onclick="setObrasSubFilter('realizadas')">✅ Obras Realizadas</button>
+        <button class="subtab-btn" onclick="setObrasSubFilter('porAgendar')">🧩 Por agendar</button>
+      `;
+      container.appendChild(subFilterBar);
+
+      if (sortedStreets.length === 0) {
+        container.innerHTML += `<div style="font-size:12px; color:#94a3b8; text-align:center; padding:20px;">
+          ${activeObrasSubFilter === 'realizadas'
+            ? 'Aún no hay ninguna obra marcada como "✅ Obra REALIZADA".'
+            : 'No tienes ninguna obra agendada con fecha todavía.<br><small style="color:#64748b;">Las captaciones en "SÍ" sin cita están en el botón 📞 Llamar.</small>'}
+        </div>`;
+        return;
+      }
+
+      sortedStreets.forEach((item, index) => {
+        const clusterEuros = item.totalM2 * 1.0;
+        const isClusterDense = item.houseCount >= 2;
+
+        const card = document.createElement('div');
+        card.className = 'obra-priority-card';
+        if (isClusterDense) {
+          card.style.border = '2px solid #f59e0b';
+          card.style.background = 'rgba(245, 158, 11, 0.12)';
+        }
+
+        let housesHtml = '';
+        item.clients.forEach(c => {
+          const isCom = c.type === 'comunidad';
+          const typeIcon = isCom ? '🏢 Comunidad' : '🏠 Vivienda';
+          const dateBadge = c.obraDate
+            ? `<span style="color:#fde047; font-weight:800;"> • 📅 ${formatDate(c.obraDate)}${c.obraTime ? ' ' + c.obraTime : ''}</span>`
+            : '';
+          const docsBadge = isCom
+            ? ` • <span style="color:${countComunidadDocs(c.comunidadDocs)===5?'#34d399':'#fca5a5'}; font-weight:800;">📋 Docs: ${countComunidadDocs(c.comunidadDocs)}/5</span>`
+            : '';
+
+          const cleanTelObra = (c.phone || '').replace(/\s+/g, '');
+          const firstCli = (c.name || '').trim() ? ` ${c.name.trim().split(' ')[0]}` : '';
+          const senderNameObra = typeof getDisplayAlias === 'function' ? getDisplayAlias(c.comercial) : c.comercial;
+          const firmaObra = `\n\n━━━━━━━━━━━━━━━━━━\n*KONSOR ENERGÍA* | Aislamiento Térmico & Certificación CAE\n👤 Gestor asignado: *${senderNameObra}*\n🏢 Oficina Central: Calle San Fermín, 43, Pamplona (Navarra)\n🌐 Web Oficial: https://konsorenergia.com\n🛡️ Programa Oficial: Certificados de Ahorro Energético (CAE) - Directiva (UE) 2023/1791`;
+
+          const waCitaUrl = cleanTelObra
+            ? `https://wa.me/34${cleanTelObra}?text=${encodeURIComponent(`Hola${firstCli}, soy *${senderNameObra}* de *Konsor Energía*.\n\nTe recuerdo los datos de tu cita reservada para la instalación del aislamiento térmico:\n\n📅 *Fecha:* ${formatDate(c.obraDate)}\n⏰ *Hora aproximada:* ${c.obraTime || '09:00'} h\n📍 *Dirección:* ${c.street}, ${item.town}\n\nGuarda este mensaje como recordatorio. Cualquier cosa, escríbeme directamente por aquí.${firmaObra}`)}`
+            : '';
+
+          const waPostUrl = cleanTelObra
+            ? `https://wa.me/34${cleanTelObra}?text=${encodeURIComponent(`Hola${firstCli}, soy *${senderNameObra}* de *Konsor Energía*.\n\n¡Muchas gracias por confiar en nuestro equipo para aislar tu vivienda en *${c.street}, ${item.town}*! Esperamos que disfrutes del confort y el ahorro energético.\n\nQueremos seguir siendo referentes en Navarra: si algún vecino, familiar o amigo quiere comprobar si su casa entra gratuita en el plan CAE, pásale mi contacto directamente.${firmaObra}`)}`
+            : '';
+
+          const waObraBtnHtml = cleanTelObra
+            ? (activeObrasSubFilter === 'agendadas'
+                ? `<a href="${waCitaUrl}" target="_blank" onclick="event.stopPropagation();" style="text-decoration:none; background:#d97706; color:#fff; border:1px solid #fbbf24; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:900; margin-left:5px; white-space:nowrap;">💬 Cita</a>`
+                : `<a href="${waPostUrl}" target="_blank" onclick="event.stopPropagation();" style="text-decoration:none; background:#0891b2; color:#fff; border:1px solid #22d3ee; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:900; margin-left:5px; white-space:nowrap;">⭐ Marca</a>`)
+            : '';
+
+          const completeBtnHtml = activeObrasSubFilter === 'agendadas'
+            ? `<button onclick="event.stopPropagation(); markObraAsRealizada(${c.zoneIdx}, ${c.clientIdx});" style="background:#059669; color:#fff; border:1px solid #34d399; border-radius:6px; padding:4px 7px; font-size:9.5px; font-weight:900; cursor:pointer; margin-left:5px; white-space:nowrap;">✅ Hecha</button>`
+            : '';
+
+          housesHtml += `
+            <div onclick="closeModal('auditModal'); openDumpModal(${c.zoneIdx});" style="cursor:pointer; font-size:11px; background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:6px; margin-top:4px; display:flex; justify-content:space-between; align-items:center;">
+              <span>${typeIcon}: <strong>${c.name || 'Cliente'}</strong> (${c.street}) - <small style="color:#a78bfa;">${c.comercial}</small>${dateBadge}${docsBadge}</span>
+              <div style="display:flex; align-items:center;">
+                <span style="color:#34d399; font-weight:800; margin-left:6px; white-space:nowrap;">${c.m2Val} m²</span>
+                ${waObraBtnHtml}
+                ${completeBtnHtml}
+              </div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; font-weight:900; color:#ffffff;">
+              #${index + 1} 📍 ${item.town} - ${item.streetDisplay}
+            </span>
+            <span style="background:#059669; color:#fff; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px;">
+              ${item.totalM2} m² (${clusterEuros.toFixed(2)} €)
+            </span>
+          </div>
+
+          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
+            ${isClusterDense ? `<strong style="color:#fde047;">🔥 CLÚSTER DE PROXIMIDAD (${item.houseCount} OBRAS EN LA MISMA CALLE)</strong>` : `1 obra de ${item.totalM2} m²`}
+          </div>
+
+          ${housesHtml}
+        `;
+
+        container.appendChild(card);
+      });
+
+      // Cuadro de vigilancia resumida del Equipo Mikel (solo visible para Andrei)
+      if (currentUserName === 'Andrei (Jefe)') {
+        const mikelTeam = getActiveTeamUsers(true);
+        let mkDoors = 0;
+        let mkSi = 0;
+        let mkM2Bruto = 0;
+        let mkM2Realizado = 0;
+        const mkActiveDaysSet = new Set();
+
+        savedZones.forEach(z => {
+          if (!mikelTeam.includes(z.comercial)) return;
+          const st = z.stats || {};
+          const zDate = z.dumpDate || z.date;
+          if (zDate) mkActiveDaysSet.add(`${z.comercial}_${zDate}`);
+          mkDoors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
+          mkSi += (st.si || 0);
+
+          if (z.clients) {
+            z.clients.forEach(c => {
+              if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
+              const m2Val = getM2NumericValue(c.m2);
+              mkM2Bruto += m2Val;
+              if (c.obraStatus === 'realizada') mkM2Realizado += m2Val;
+            });
+          }
+        });
+
+        const mkShifts = savedShifts.filter(sh => mikelTeam.includes(sh.user));
+        let mkAvgHoursDay = '0.0';
+        if (mkShifts.length > 0) {
+          const sumHours = mkShifts.reduce((acc, sh) => acc + getShiftEffectiveHours(sh), 0);
+          mkAvgHoursDay = (sumHours / mkShifts.length).toFixed(1);
+        }
+
+        const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
+        const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
+
+
+      }
+    }
+
+    let ficheroGeoCache = {};
+    try { ficheroGeoCache = JSON.parse(localStorage.getItem('konsor_geo_cache') || '{}'); } catch (e) {}
+
+    function geoKeyFor(street, town) {
+      return `${(street || '').toLowerCase().trim()}|${(town || '').toLowerCase().trim()}`;
+    }
+
+    function distKm(a, b) {
+      const R = 6371, rad = Math.PI / 180;
+      const dLat = (b.lat - a.lat) * rad;
+      const dLon = (b.lon - a.lon) * rad;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    function getPendingFichas() {
+      const list = [];
+      savedZones.forEach((z, zIdx) => {
+        if (isMikelTeamMember(z.comercial)) return;
+        (z.clients || []).forEach((c, cIdx) => {
+          if (!isClientValidFilled(c)) return;
+          if (c.obraStatus && c.obraStatus !== 'a_poner') return;
+          list.push({
+            town: (z.town || 'Navarra').trim(),
+            street: (c.street || '').trim(),
+            name: c.name || 'Cliente',
+            m2: getM2NumericValue(c.m2),
+                        comercial: z.comercial,
+            phone: c.phone || '',
+            callStatus: c.callStatus || 'pendiente',
+            zIdx, cIdx
+          });
+        });
+      });
+      return list;
+    }
+
+    function findDayForN(n) {
+      const counts = countObrasByDate();
+      const d = new Date(getTomorrowISO() + 'T12:00:00');
+      for (let i = 0; i < 150; i++) {
+        const iso = getLocalDateISO(d);
+        if (d.getDay() !== 0 && (counts[iso] || 0) + n <= 4) return iso;
+        d.setDate(d.getDate() + 1);
+      }
+      return null;
+    }
+
+    async function geocodeTownFichas(townName, btn) {
+      if (btn) { btn.innerText = '⏳ Calculando...'; btn.disabled = true; }
+      const items = getPendingFichas().filter(it => it.town === townName && it.street);
+      for (const it of items) {
+        const key = geoKeyFor(it.street, townName);
+        if (ficheroGeoCache[key]) continue;
+        try {
+          const cands = await queryCartoCiudadNavarra(`${it.street} ${townName}`);
+          const best = (cands || []).find(c => (c.town || '').toLowerCase().includes(townName.toLowerCase())) || (cands || [])[0];
+          ficheroGeoCache[key] = best ? { lat: best.lat, lon: best.lon } : { fail: true };
+        } catch (e) {}
+      }
+      try { localStorage.setItem('konsor_geo_cache', JSON.stringify(ficheroGeoCache)); } catch (e) {}
+      renderPorAgendarView();
+    }
+
+    function groupByProximity(items) {
+      const pts = [];
+      const noGeo = [];
+      items.forEach(it => {
+        const g = ficheroGeoCache[geoKeyFor(it.street, it.town)];
+        if (g && !g.fail) pts.push({ it, lat: g.lat, lon: g.lon });
+        else noGeo.push(it);
+      });
+      pts.sort((a, b) => a.lon - b.lon);
+      const groups = [];
+      while (pts.length) {
+        let cur = pts.shift();
+        const group = [{ ...cur, dPrev: null }];
+        while (group.length < 4 && pts.length) {
+          let bi = 0, bd = Infinity;
+          pts.forEach((p, i) => {
+            const d = distKm(cur, p);
+            if (d < bd) { bd = d; bi = i; }
+          });
+          cur = pts.splice(bi, 1)[0];
+          group.push({ ...cur, dPrev: bd });
+        }
+        groups.push(group);
+      }
+      return { groups, noGeo };
+    }
+
+    function renderPorAgendarView() {
+      const container = document.getElementById('auditContainer');
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pending = getPendingFichas();
+      const byTown = {};
+      pending.forEach(it => { (byTown[it.town] = byTown[it.town] || []).push(it); });
+      const towns = Object.keys(byTown).sort((a, b) => byTown[b].length - byTown[a].length);
+
+      let html = `
+        <div class="subtab-bar">
+          <button class="subtab-btn" onclick="setObrasSubFilter('agendadas')">📅 Citas Agendadas</button>
+          <button class="subtab-btn" onclick="setObrasSubFilter('realizadas')">✅ Obras Realizadas</button>
+          <button class="subtab-btn active" onclick="setObrasSubFilter('porAgendar')">🧩 Por agendar</button>
+        </div>
+        <div style="background:rgba(37,99,235,0.16); border:1px solid #60a5fa; border-radius:12px; padding:9px 10px; margin-bottom:10px; font-size:11px; color:#dbeafe;">
+          Fichas captadas <strong>sin cita</strong> (${pending.length}), por pueblo. Pulsa <strong>Calcular cercanía</strong> para agruparlas de 4 en 4 según lo cerca que están las calles.
+        </div>
+      `;
+
+      if (towns.length === 0) {
+        html += `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">No hay fichas pendientes de cita.</div>`;
+        container.innerHTML = html;
+        return;
+      }
+
+      towns.forEach(town => {
+        const items = byTown[town];
+        const missing = items.filter(it => it.street && !ficheroGeoCache[geoKeyFor(it.street, town)]).length;
+        const totalM2 = items.reduce((a, it) => a + it.m2, 0);
+        const safeTown = town.replace(/'/g, "\\'");
+        html += `
+          <div class="audit-card" style="cursor:default; border-left:4px solid #38bdf8;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+              <strong style="font-size:13px; color:#38bdf8;">📍 ${esc(town)} · ${items.length} ficha(s) · ${totalM2} m²</strong>
+              ${missing > 0 ? `<button onclick="geocodeTownFichas('${safeTown}', this)" style="background:#0284c7; border:1px solid #38bdf8; color:#fff; font-size:10px; font-weight:900; padding:5px 8px; border-radius:7px; cursor:pointer; white-space:nowrap;">📍 Calcular cercanía</button>` : ''}
+            </div>
+        `;
+
+        const { groups, noGeo } = groupByProximity(items);
+        groups.forEach((g, gi) => {
+          const gM2 = g.reduce((a, p) => a + p.it.m2, 0);
+          const day = findDayForN(g.length);
+          const stops = g.map(p => `${p.it.street}, ${p.it.town}`);
+          const routeUrl = buildMultiStopMapsUrl(stops);
+          html += `
+            <div style="background:rgba(0,0,0,0.28); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:7px 9px; margin-top:7px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:11px; font-weight:900; color:#fde047;">
+                <span>🧩 Grupo ${gi + 1} · ${g.length} obra(s) · ${gM2} m²</span>
+                <a href="${routeUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; background:#2563eb; border:1px solid #60a5fa; color:#fff; font-size:9.5px; font-weight:900; padding:3px 7px; border-radius:6px;">🧭 Ruta</a>
+              </div>
+              <div style="font-size:10px; color:#a7f3d0; margin:2px 0 4px 0;">${day ? '📅 Primer día con hueco para todo el grupo: <strong>' + formatDate(day) + '</strong>' : 'Sin día libre próximo'}</div>
+          `;
+          g.forEach(p => {
+            const far = p.dPrev !== null && p.dPrev > 1.5;
+            const distTxt = p.dPrev === null ? 'Inicio' : (p.dPrev < 1 ? Math.round(p.dPrev * 1000) + ' m del anterior' : p.dPrev.toFixed(1) + ' km del anterior');
+                        const stIcon = p.it.callStatus === 'ya_llamado' ? '🟡' : (p.it.callStatus === 'esperando_confirmacion' ? '🟣' : '🔴');
+            const boxId = `pa_box_${p.it.zIdx}_${p.it.cIdx}`;
+            const dateId = `sched_date_pa_${p.it.zIdx}_${p.it.cIdx}`;
+            const timeId = `sched_time_pa_${p.it.zIdx}_${p.it.cIdx}`;
+            const startDay = day || findFreeObraDay(getTomorrowISO(), 1);
+            const cleanPh = (p.it.phone || '').replace(/\s+/g, '');
+            html += `
+              <div style="background:rgba(255,255,255,0.05); padding:6px 7px; border-radius:6px; margin-top:3px;">
+                <div style="font-size:11px; display:flex; justify-content:space-between; gap:6px;">
+                  <span>${stIcon} <strong>${esc(p.it.name)}</strong> · ${esc(p.it.street)} <small style="color:#94a3b8;">(${esc(p.it.comercial)})</small></span>
+                  <span style="white-space:nowrap; color:${far ? '#fca5a5' : '#94a3b8'}; font-weight:800;">${far ? '⚠️ ' : ''}${distTxt} · ${p.it.m2} m²</span>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                  ${cleanPh ? `<a href="tel:${cleanPh}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:6px 4px; border-radius:7px; font-size:10.5px; font-weight:800;">📞 Llamar</a>` : `<span style="flex:1; text-align:center; font-size:10px; color:#fde047; padding:6px 4px;">Sin teléfono</span>`}
+                  <button onclick="togglePaBox('${boxId}')" style="flex:1.2; border:1px solid #34d399; background:#059669; color:#fff; padding:6px 4px; border-radius:7px; font-size:10.5px; font-weight:900; cursor:pointer;">📅 Citar</button>
+                </div>
+                <div id="${boxId}" style="display:none; flex-direction:column; gap:6px; background:rgba(5,150,105,0.16); border:1px solid #34d399; border-radius:9px; padding:8px; margin-top:6px;">
+                  <div class="grid-row-2" style="margin-bottom:0;">
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                      <div style="display:flex; gap:3px; align-items:center;">
+                        <button type="button" onclick="moveObraDay('${dateId}', -1)" style="background:#1e293b; border:1px solid #34d399; color:#fff; border-radius:7px; padding:6px 8px; font-weight:900; cursor:pointer;">◀</button>
+                        <input type="date" id="${dateId}" class="input-field" value="${startDay}" style="padding:6px 4px;" onchange="updateObraDayInfo('${dateId}')">
+                        <button type="button" onclick="moveObraDay('${dateId}', 1)" style="background:#1e293b; border:1px solid #34d399; color:#fff; border-radius:7px; padding:6px 8px; font-weight:900; cursor:pointer;">▶</button>
+                      </div>
+                      <div id="${dateId}_info" style="font-size:9.5px; color:#a7f3d0; font-weight:800;">${obraDayInfoText(startDay)}</div>
+                    </div>
+                    <select id="${timeId}" class="select-field" style="padding:6px 8px;">${obraSlotOptionsForDate(startDay)}</select>
+                  </div>
+                  <input type="email" id="pa_email_${p.it.zIdx}_${p.it.cIdx}" class="input-field" placeholder="✉️ Correo electrónico del cliente" value="${String((savedZones[p.it.zIdx].clients[p.it.cIdx].email) || '').replace(/"/g, '&quot;')}" style="padding:6px 8px;">
+                  <input type="text" id="pa_dni_${p.it.zIdx}_${p.it.cIdx}" class="input-field" placeholder="🪪 DNI / NIE del cliente" maxlength="10" value="${String((savedZones[p.it.zIdx].clients[p.it.cIdx].dni) || '').replace(/"/g, '&quot;')}" style="padding:6px 8px; text-transform:uppercase;">
+                  <button onclick="confirmFromPorAgendar(${p.it.zIdx}, ${p.it.cIdx}, '${dateId}', '${timeId}')" style="width:100%; padding:8px; border:none; border-radius:8px; background:#10b981; color:#0f172a; font-size:11px; font-weight:900; cursor:pointer;">✅ Confirmar Cita de Obra</button>
+                </div>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        });
+
+        if (noGeo.length > 0) {
+          html += `<div style="font-size:10px; color:#94a3b8; margin-top:6px;">Sin ubicar todavía (${noGeo.length}): ${noGeo.map(it => esc(it.street || it.name)).join(' · ')}</div>`;
+        }
+        html += `
+            ${(() => {
+              const todayIso = getTodayISO();
+              const done = [];
+              savedZones.forEach(zz => {
+                if (isMikelTeamMember(zz.comercial) || (zz.town || 'Navarra').trim() !== town) return;
+                (zz.clients || []).forEach(cc => {
+                  if (cc.obraStatus === 'agendada' && cc.obraDate && cc.obraDate >= todayIso && isClientValidFilled(cc)) done.push(cc);
+                });
+              });
+              if (done.length === 0) return '';
+              done.sort((a, b) => (a.obraDate + a.obraTime).localeCompare(b.obraDate + b.obraTime));
+              return `<div style="margin-top:8px; background:rgba(16,185,129,0.12); border:1px solid #34d399; border-radius:9px; padding:6px 8px;">
+                <div style="font-size:10px; font-weight:900; color:#6ee7b7; text-transform:uppercase; margin-bottom:3px;">✅ Ya agendadas en este pueblo (${done.length})</div>
+                ${done.map(cc => `<div style="font-size:10.5px; color:#e2e8f0; margin-top:2px;">📅 ${formatDate(cc.obraDate)} · ⏰ ${obraSlotLabel(cc.obraTime)} · <strong>${esc(cc.name || 'Cliente')}</strong> · ${esc(cc.street)}</div>`).join('')}
+              </div>`;
+            })()}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function togglePaBox(boxId) {
+  toggleInlineScheduleBox(boxId);
+}
+        async function confirmFromPorAgendar(zIdx, cIdx, dateId, timeId) {
+      const c0 = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
+      if (!c0) return;
+      const key = `${zIdx}_${cIdx}`;
+      const em = (document.getElementById('pa_email_' + key)?.value || '').trim();
+      const dni = (document.getElementById('pa_dni_' + key)?.value || '').trim().toUpperCase();
+      if (dni && !isValidDni(dni)) {
+        alert("⚠️ El DNI/NIE no parece válido. Revisa los números y la letra.");
+        return;
+      }
+      if (em) c0.email = em;
+      if (dni) c0.dni = dni;
+      const fuEm = document.getElementById('fu_email_' + key);
+      if (fuEm) fuEm.value = c0.email || '';
+      const fuDni = document.getElementById('fu_dni_' + key);
+      if (fuDni) fuDni.value = c0.dni || '';
+
+      await confirmScheduleFromFollowUp(zIdx, cIdx, dateId, timeId);
+      const c = savedZones[zIdx] && savedZones[zIdx].clients && savedZones[zIdx].clients[cIdx];
+      if (c && c.obraStatus === 'agendada') renderPorAgendarView();
+    }
+
+    let activityLog = [];
+
+    async function logActivity(type, text, owner) {
+      try {
+        if (!currentUserName || isMikelTeamMember(currentUserName)) return;
+        if (!Array.isArray(activityLog)) activityLog = [];
+        activityLog.push({
+          id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+          t: Date.now(),
+          user: currentUserName,
+          owner: owner || currentUserName,
+          type,
+          text
+        });
+        const limit = Date.now() - 45 * 24 * 3600 * 1000;
+        activityLog = activityLog.filter(a => a.t >= limit).slice(-250);
+        const event = activityLog[activityLog.length-1];
+        if (!await saveAndSync('comercial_activity', activityLog)) return;
+        return event;
+      } catch (e) {}
+    }
+
+    function activityForMe() {
+      const isBossMe = currentUserName === 'Andrei (Jefe)';
+      return (Array.isArray(activityLog) ? activityLog : [])
+        .filter(a => isBossMe ? true : (a.owner === currentUserName && a.user !== currentUserName))
+        .slice()
+        .sort((x, y) => y.t - x.t);
+    }
+
+    function updateMiPlanBadge() {
+            if (currentUserName === 'Andrei (Jefe)') {
+        const boton = document.getElementById('btnCommercialPlan');
+        if (boton) boton.textContent = '📋 Trabajo del día';
+        return;
+      }
+      const btn = document.getElementById('btnCommercialPlan');
+      if (!btn || !currentUserName || isMikelTeamMember(currentUserName)) return;
+      const seen = parseInt(localStorage.getItem('konsor_activity_seen_' + currentUserName) || '0', 10);
+      const n = activityForMe().filter(a => a.t > seen && a.user !== currentUserName).length;
+      btn.innerHTML = n > 0
+  ? `📋 Trabajo del día <span style="background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:9px; margin-left:3px;">${n}</span>`
+  : '📋 Trabajo del día';
+    }
+
+    function buildMiPlanActivityHtml() {
+      const seenKey = 'konsor_activity_seen_' + currentUserName;
+      const seen = parseInt(localStorage.getItem(seenKey) || '0', 10);
+      const list = activityForMe().slice(0, 40);
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const colors = { ficha: '#38bdf8', hoja: '#60a5fa', llamada: '#fde047', cita: '#fbbf24', obra: '#34d399', cancelada: '#f87171' };
+      const isBossMe = currentUserName === 'Andrei (Jefe)';
+      const newCount = list.filter(a => a.t > seen && a.user !== currentUserName).length;
+
+      let rows = list.map(a => {
+        const isNew = a.t > seen && a.user !== currentUserName;
+        const when = new Date(a.t).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const who = a.user === currentUserName ? 'Tú' : getDisplayAlias(a.user);
+        return `
+          <div style="border-left:3px solid ${colors[a.type] || '#94a3b8'}; background:${isNew ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)'}; border-radius:7px; padding:5px 8px; margin-top:4px; font-size:10.5px; color:#e2e8f0;">
+            <div style="display:flex; justify-content:space-between; gap:6px;">
+              <strong style="color:#fff;">${esc(who)}${isNew ? ' <span style="background:#ef4444; color:#fff; font-size:8.5px; padding:1px 5px; border-radius:5px;">NUEVO</span>' : ''}</strong>
+              <span style="color:#94a3b8; font-size:9.5px;">${when}</span>
+            </div>
+            <div>${esc(a.text)}</div>
+          </div>`;
+      }).join('');
+
+      if (!rows) rows = `<div style="font-size:11px; color:#94a3b8; padding:6px;">${isBossMe ? 'Todavía no hay actividad registrada. Irá apareciendo según se use la app.' : 'No tienes avisos nuevos.'}</div>`;
+
+      localStorage.setItem(seenKey, String(Date.now()));
+      setTimeout(() => { try { updateMiPlanBadge(); } catch (e) {} }, 0);
+
+      const title = isBossMe ? '🔔 Actividad del equipo' : '🔔 Avisos para ti';
+      return `
+        <div style="background:rgba(30,41,59,0.9); border:1px solid rgba(251,191,36,0.45); border-radius:12px; padding:9px 10px; margin-bottom:10px;">
+          <div style="font-size:10px; font-weight:900; color:#fde047; text-transform:uppercase;">${title}${newCount ? ' · ' + newCount + ' nueva(s)' : ''}</div>
+          <div style="max-height:260px; overflow-y:auto;">${rows}</div>
+        </div>`;
+    }
+
+    function buildMyObrasHtml() {
+      const esc = s => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const up = [], done = [], canc = [];
+      savedZones.forEach(z => {
+        if (z.comercial !== currentUserName) return;
+        (z.clients || []).forEach(c => {
+          if (!isClientValidFilled(c)) return;
+          if (c.obraStatus === 'agendada') up.push({ z, c });
+          else if (c.obraStatus === 'realizada') done.push({ z, c });
+          else if ((c.obraStatus === 'a_poner' || !c.obraStatus) && c.cancelInfo) canc.push({ z, c });
+        });
+      });
+      up.sort((a, b) => ((a.c.obraDate || '') + (a.c.obraTime || '')).localeCompare((b.c.obraDate || '') + (b.c.obraTime || '')));
+      done.sort((a, b) => (b.c.statusChangedAt || 0) - (a.c.statusChangedAt || 0));
+
+      if (up.length + done.length + canc.length === 0) return '';
+
+      const line = (it, color, extra) => `
+        <div style="font-size:10.5px; color:#e2e8f0; background:rgba(0,0,0,0.25); border-left:3px solid ${color}; border-radius:6px; padding:5px 7px; margin-top:4px;">
+          <strong>${esc(it.c.name || 'Cliente')}</strong> · ${esc(it.c.street)} · ${esc(it.z.town)}<br>${extra}
+        </div>`;
+
+      let html = `<div style="background:rgba(30,41,59,0.9); border:1px solid rgba(52,211,153,0.45); border-radius:12px; padding:9px 10px; margin-bottom:10px;">
+        <div style="font-size:10px; font-weight:900; color:#6ee7b7; text-transform:uppercase;">🏗️ Mis obras</div>`;
+
+      if (canc.length) {
+        html += `<div style="font-size:10px; font-weight:900; color:#fca5a5; margin-top:6px;">❌ CANCELADAS (${canc.length}) · vuelven a estar pendientes de nueva cita</div>`;
+        canc.forEach(it => {
+          const ci = it.c.cancelInfo || {};
+          html += line(it, '#ef4444', `<span style="color:#fca5a5;">Era el ${formatDate(ci.date)} · Motivo: ${esc(ci.reason)}</span>`);
+        });
+      }
+      if (up.length) {
+        html += `<div style="font-size:10px; font-weight:900; color:#fde047; margin-top:6px;">📅 PRÓXIMAS (${up.length})</div>`;
+        up.forEach(it => {
+          html += line(it, '#f59e0b', `📅 ${citaDateLong(it.c.obraDate)} · ⏰ ${obraSlotLabel(it.c.obraTime)}`);
+        });
+      }
+      if (done.length) {
+        html += `<div style="font-size:10px; font-weight:900; color:#6ee7b7; margin-top:6px;">✅ HECHAS (${done.length}${done.length > 8 ? ', últimas 8' : ''})</div>`;
+        done.slice(0, 8).forEach(it => {
+          html += line(it, '#34d399', `✅ Obra realizada · ${getM2NumericValue(it.c.m2)} m²`);
+        });
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    async function cancelObra(zIdx, cIdx) {
+      const z = savedZones[zIdx];
+      const c = z && z.clients && z.clients[cIdx];
+      if (!c) return;
+      const reason = (prompt("❌ ¿Por qué se cancela la obra?\n(ej: los técnicos no pueden, cliente no estaba, problema en la cubierta)", '') || '').trim();
+      if (reason.length < 3) {
+        alert("⚠️ Escribe el motivo para guardar la cancelación.");
+        return;
+      }
+      const oldDate = c.obraDate || '';
+      const oldTime = c.obraTime || '';
+      c.obraStatus = 'a_poner';
+      c.cancelInfo = { reason, date: oldDate, time: oldTime, at: Date.now() };
+      c.obraDate = '';
+      c.obraTime = '';
+      c.crmUploaded = false;
+      c.statusChangedAt = Date.now();
+      z._updatedAt = Date.now();
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+      logActivity('cancelada', `❌ Obra cancelada: ${c.name || 'Cliente'} · ${z.town || ''} (era el ${formatDate(oldDate)}). Motivo: ${reason}`, z.comercial);
+      renderFollowUpsModal();
+    }
+
+    function validateDniField(el) {
+      const v = (el.value || '').trim();
+      if (!v) { el.style.borderColor = ''; return; }
+      if (v.length < 9) { el.style.borderColor = '#f59e0b'; return; }
+      el.style.borderColor = isValidDni(v) ? '#10b981' : '#ef4444';
+    }
+
+    function openNoteModal(zoneIdx) {
+      selectedZoneIndexForNote = zoneIdx;
+      document.getElementById('modalNoteText').value = savedZones[zoneIdx].bossNote || '';
+      document.getElementById('noteModal').classList.add('active');
+    }
+
+    async function saveBossNoteFromModal() {
+      if (selectedZoneIndexForNote === null) return;
+
+      const text = document.getElementById('modalNoteText').value.trim();
+      savedZones[selectedZoneIndexForNote].bossNote = text;
+      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+
+      closeModal('noteModal');
+      renderCurrentAuditView();
+    }
+
+    function renderPueblosAudit() {
+      const container = document.getElementById('auditContainer');
+      container.innerHTML = '';
+
+      const townsMap = {};
+
+      savedZones.forEach(z => {
+        if (isMikelTeamMember(z.comercial) || z.isNoAptoZone) return;
+        const t = z.town || 'Sin pueblo asignado';
+        if (!townsMap[t]) {
+          townsMap[t] = {
+            name: t,
+            tocadas: 0, no: 0, ausente: 0, papelito: 0, si: 0, yaAislado: 0,
+            obrasPuestas: 0, obrasRealizadas: 0, obrasNoAptas: 0,
+            m2TotalSi: 0,
+            seedZonesWithObras: new Set()
+          };
+        }
+
+        const tm = townsMap[t];
+        const st = z.stats || {};
+        tm.no += st.no || 0;
+        tm.ausente += st.ausente || 0;
+        tm.papelito += st.papelito || 0;
+        tm.yaAislado += st.yaAislado || 0;
+        tm.si += st.si || 0;
+        tm.tocadas += (st.no||0) + (st.ausente||0) + (st.papelito||0) + (st.si||0);
+
+        if (z.clients && z.clients.some(c => (c.obraStatus === 'agendada' || c.obraStatus === 'realizada') && isClientValidFilled(c))) {
+          tm.seedZonesWithObras.add(z.sectorName || z.id);
+        }
+        if (z.clients) {
+          z.clients.forEach(c => {
+            if (c.obraStatus === 'no_apto') {
+              tm.obrasNoAptas += 1;
+              return;
+            }
+            if (!isClientValidFilled(c)) return;
+            let m2Val = getM2NumericValue(c.m2);
+            tm.m2TotalSi += m2Val;
+
+            if (c.obraStatus === 'agendada') tm.obrasPuestas += 1;
+            else if (c.obraStatus === 'realizada') tm.obrasRealizadas += 1;
+          });
+        }
+      });
+
+      const townKeys = Object.keys(townsMap);
+      let completedCount = 0;
+
+      townKeys.forEach(tName => {
+        if (completedTowns.includes(tName)) completedCount++;
+      });
+
+      const summaryCard = document.createElement('div');
+      summaryCard.style.background = 'linear-gradient(135deg, #0891b2 0%, #155e75 100%)';
+      summaryCard.style.border = '1px solid #67e8f9';
+      summaryCard.style.borderRadius = '14px';
+      summaryCard.style.padding = '14px';
+      summaryCard.style.marginBottom = '12px';
+
+      summaryCard.innerHTML = `
+        <div style="font-size:11px; font-weight:800; color:#cff4fc; text-transform:uppercase;">🏘️ PROGRESO GENERAL DE NAVARRA</div>
+        <div style="font-size:22px; font-weight:900; color:#ffffff; margin:4px 0;">${completedCount} / ${townKeys.length} Pueblos Finalizados</div>
+        <div style="font-size:11px; color:#e0f2fe;">
+          Estado acumulado histórico por municipio.
+        </div>
+      `;
+      container.appendChild(summaryCard);
+
+      // Resumen territorial conjunto sin duplicar ni modificar sectores.
+      if (currentUserName === 'Andrei (Jefe)') {
+        const territorios = new Map();
+        const propios = savedZones.filter(z=>!z.isNoAptoZone);
+        const externos = sectoresMikelSupervision.filter(z=>
+          Array.isArray(z.points) && z.points.length>=3
+        );
+
+        for (const z of [...propios,...externos]) {
+          const pueblo=String(z.town||'Sin municipio').trim();
+          const clave=ComercialCore.norm(pueblo);
+          if (!territorios.has(clave)) territorios.set(clave,{
+            pueblo,sectores:[],si:0,no:0,ausente:0,papelito:0
+          });
+          const t=territorios.get(clave);
+          t.sectores.push(z);
+          for (const k of ['si','no','ausente','papelito'])
+            t[k]+=Number(z.stats?.[k])||0;
+        }
+
+        const panel=document.createElement('div');
+        panel.className='audit-card';
+        const encabezado=document.createElement('h3');
+        encabezado.textContent='🗺️ Municipios · ambos equipos';
+        panel.appendChild(encabezado);
+
+        for(const t of [...territorios.values()].sort(
+          (x,y)=>x.pueblo.localeCompare(y.pueblo,'es')
+        )){
+          const terminado=t.sectores.filter(z=>
+            z.status==='completada'
+          ).length;
+          const detalle=document.createElement('details');
+          detalle.style.cssText=
+            'padding:9px;border-bottom:1px solid #475569';
+
+          const titulo=document.createElement('summary');
+          titulo.style.cursor='pointer';
+          titulo.textContent=
+            t.pueblo+' · '+terminado+'/'+t.sectores.length+
+            ' sectores terminados';
+          detalle.appendChild(titulo);
+
+          const resumen=document.createElement('p');
+          resumen.style.fontSize='12px';
+          resumen.textContent=
+            'Interesados: '+t.si+' · No: '+t.no+
+            ' · Ausentes: '+t.ausente+
+            ' · Información: '+t.papelito;
+          detalle.appendChild(resumen);
+
+          for(const z of t.sectores){
+            const linea=document.createElement('div');
+            linea.style.cssText='font-size:11px;padding:5px 0';
+            linea.textContent=
+              (z.status==='completada'?'✅ ':'🟡 ')+
+              (z.sectorName||'Sector')+' · '+
+              (z.comercial||'Responsable pendiente');
+            detalle.appendChild(linea);
+          }
+          panel.appendChild(detalle);
+        }
+        container.insertBefore(panel,summaryCard.nextSibling);
+      }
+
+
+      townKeys.forEach((tName) => {
+        const tm = townsMap[tName];
+        const isCompleted = completedTowns.includes(tName);
+        const conversionRatio = tm.tocadas > 0 ? Math.round((tm.si / tm.tocadas) * 100) : 0;
+        const totalFacturadoPueblo = tm.m2TotalSi * 1.0;
+
+        const card = document.createElement('div');
+        card.className = 'audit-card';
+        card.style.cursor = 'default';
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#38bdf8; font-size:14px;">📍 ${tName}</strong>
+            <button onclick="toggleTownCompletion('${tName}')" style="padding:4px 10px; border-radius:8px; border:none; font-size:10px; font-weight:800; cursor:pointer; background:${isCompleted?'#059669':'#d97706'}; color:#fff;">
+              ${isCompleted ? '✅ COMPLETADO' : '🟡 MARCAR FINALIZADO'}
+            </button>
+          </div>
+
+          <div style="font-size:10.5px; background:rgba(0,0,0,0.28); padding:6px 8px; border-radius:8px; margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🌱 Zonas con Obras Semilla: <strong style="color:#fde047;">${tm.seedZonesWithObras.size} / 5 zonas</strong> (${tm.obrasRealizadas} hechas)</span>
+            <span style="color:${tm.yaAislado >= 15 ? '#fca5a5' : '#94a3b8'}; font-weight:800;">🧱 Ya aislado: ${tm.yaAislado}</span>
+          </div>
+          <div style="font-size:10px; color:#34d399; font-weight:800; margin-top:4px;">
+            ${tm.yaAislado >= 20
+              ? '⚠️ Pueblo muy trabajado por competencia: mandar solo 1 comercial de repaso.'
+              : (tm.seedZonesWithObras.size >= 4
+                ? '🔥 ¡Pueblo sembrado! Listo para meter equipo en caliente alrededor de las obras.'
+                : '🎯 Recomendación: repartir en 5 zonas y cerrar 2-3 obras semilla por zona.')}
+          </div>
+          <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
+            🚪 Puertas Útiles: <strong>${tm.tocadas}</strong> (Sí: ${tm.si} | Info: ${tm.papelito} | Ausente: ${tm.ausente} | No: ${tm.no})
+          </div>
+
+          <div style="font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; margin-top:4px;">
+            <span>Efectividad: <strong>${conversionRatio}% Sí</strong></span>
+            <span>📅 Citas: <strong>${tm.obrasPuestas}</strong> | ✅ Hechas: <strong>${tm.obrasRealizadas}</strong></span>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px; font-size:11px;">
+            <span style="color:#fca5a5;">🚫 Caídas Técnicas: <strong>${tm.obrasNoAptas}</strong></span>
+            <span style="color:#34d399; font-weight:900;">Potencial: ${totalFacturadoPueblo.toFixed(2)} € (${tm.m2TotalSi} m²)</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Cuadro de vigilancia resumida del Equipo Mikel (solo visible para Andrei)
+      if (currentUserName === 'Andrei (Jefe)') {
+        const mikelTeam = getActiveTeamUsers(true);
+        let mkDoors = 0;
+        let mkSi = 0;
+        let mkM2Bruto = 0;
+        let mkM2Realizado = 0;
+        const mkActiveDaysSet = new Set();
+
+        savedZones.forEach(z => {
+          if (!mikelTeam.includes(z.comercial)) return;
+          const st = z.stats || {};
+          const zDate = z.dumpDate || z.date;
+          if (zDate) mkActiveDaysSet.add(`${z.comercial}_${zDate}`);
+          mkDoors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
+          mkSi += (st.si || 0);
+
+          if (z.clients) {
+            z.clients.forEach(c => {
+              if (c.obraStatus === 'no_apto' || !isClientValidFilled(c)) return;
+              const m2Val = getM2NumericValue(c.m2);
+              mkM2Bruto += m2Val;
+              if (c.obraStatus === 'realizada') mkM2Realizado += m2Val;
+            });
+          }
+        });
+
+        const mkShifts = savedShifts.filter(sh => mikelTeam.includes(sh.user));
+        let mkAvgHoursDay = '0.0';
+        if (mkShifts.length > 0) {
+          const sumHours = mkShifts.reduce((acc, sh) => acc + getShiftEffectiveHours(sh), 0);
+          mkAvgHoursDay = (sumHours / mkShifts.length).toFixed(1);
+        }
+
+        const mkPersonDays = Math.max(1, mkActiveDaysSet.size);
+        const mkAvgDoorsDay = Math.round(mkDoors / mkPersonDays);
+
+
+      }
+    }
+
+    async function toggleTownCompletion(townName) {
+      if (currentUserName !== 'Andrei (Jefe)') return;
+      if (window.KonsorBridge?.busy) {
+        alert('Hay un guardado pendiente.');
+        return;
+      }
+
+      const actual=completedTowns.includes(townName);
+      const sectores=[
+        ...savedZones.filter(z=>
+          !z.isNoAptoZone &&
+          ComercialCore.norm(z.town)===ComercialCore.norm(townName)
+        ),
+        ...sectoresMikelSupervision.filter(z=>
+          ComercialCore.norm(z.town)===ComercialCore.norm(townName)
+        )
+      ];
+      const pendientes=sectores.filter(z=>
+        z.status!=='completada'
+      ).length;
+
+      const mensaje=actual
+        ? '¿Reabrir el pueblo '+townName+'?'
+        : '¿Confirmas que TODO el pueblo '+townName+
+          ' está revisado?\nSectores registrados: '+sectores.length+
+          '\nSectores pendientes: '+pendientes+
+          '\nEsto no modifica los sectores individuales.';
+
+      if(!confirm(mensaje))return;
+
+      const propuesta=actual
+        ? completedTowns.filter(t=>t!==townName)
+        : [...completedTowns,townName];
+
+      if(!await saveAndSync(
+        'comercial_completed_towns',propuesta
+      ))return;
+
+      completedTowns=propuesta;
+      renderPueblosAudit();
+      actualizarAgrupacionTerritorial();
+      if (map) renderAllSavedZones();
+    }
+
+    function toggleDetailPanel(panelId) {
+      const el = document.getElementById(panelId);
+      if (el) el.classList.toggle('open');
+    }
+
+    /* =====================================================================
+       MOTOR SENSORIAL 2027: SONIDOS, VIBRACIÓN Y NOTIFICACIONES MÓVILES
+       ===================================================================== */
+    let sharedAudioCtx = null;
+    let isIosAudioUnlocked = false;
+
+    function unlockIosAudioEngine() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+        if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+        if (!isIosAudioUnlocked) {
+          const buf = sharedAudioCtx.createBuffer(1, 1, 22050);
+          const src = sharedAudioCtx.createBufferSource();
+          src.buffer = buf;
+          src.connect(sharedAudioCtx.destination);
+          src.start(0);
+          isIosAudioUnlocked = true;
+        }
+      } catch (e) {}
+    }
+
+    function playToneSchedule(type) {
+      if (!sharedAudioCtx) return;
+      const now = sharedAudioCtx.currentTime;
+
+      if (type === 'tap') {
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(620, now);
+        osc.frequency.exponentialRampToValueAtTime(920, now + 0.055);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      } else if (type === 'success') {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const o = sharedAudioCtx.createOscillator();
+          const g = sharedAudioCtx.createGain();
+          o.type = 'triangle';
+          o.frequency.setValueAtTime(freq, now + i * 0.065);
+          g.gain.setValueAtTime(0.28, now + i * 0.065);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.065 + 0.24);
+          o.connect(g);
+          g.connect(sharedAudioCtx.destination);
+          o.start(now + i * 0.065);
+          o.stop(now + i * 0.065 + 0.25);
+        });
+      } else if (type === 'alert') {
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(360, now);
+        osc.frequency.setValueAtTime(280, now + 0.12);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+    }
+
+    let iosHapticSwitchEl = null;
+
+    function triggerNativeHapticPulse(type = 'tap') {
+      if (appPrefs.vibrate === false) return;
+
+      // 1. Android / navegadores estándar
+      if (navigator.vibrate) {
+        if (type === 'tap') navigator.vibrate(15);
+        else if (type === 'success') navigator.vibrate([35, 55, 90]);
+        else if (type === 'alert') navigator.vibrate([70, 50, 70]);
+        return;
+      }
+
+      // 2. iPhone (iOS Taptic Engine mediante <input type="checkbox" switch>)
+      try {
+        if (!iosHapticSwitchEl) {
+          const label = document.createElement('label');
+          label.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+          const inp = document.createElement('input');
+          inp.type = 'checkbox';
+          inp.setAttribute('switch', '');
+          label.appendChild(inp);
+          document.body.appendChild(label);
+          iosHapticSwitchEl = label;
+        }
+        iosHapticSwitchEl.click();
+        if (type === 'success' || type === 'alert') {
+          setTimeout(() => { try { iosHapticSwitchEl.click(); } catch (e) {} }, 85);
+        }
+      } catch (e) {}
+    }
+
+    function triggerHapticAndSound(type = 'tap') {
+      triggerNativeHapticPulse(type);
+
+      if (appPrefs.sound === false) return;
+
+      try {
+        unlockIosAudioEngine();
+        if (!sharedAudioCtx) return;
+        if (sharedAudioCtx.state === 'suspended') {
+          sharedAudioCtx.resume().then(() => playToneSchedule(type));
+        } else {
+          playToneSchedule(type);
+        }
+      } catch (e) {}
+    }
+
+    document.addEventListener('touchstart', unlockIosAudioEngine, { passive: true });
+
+    function showCelebrationToast(msg) {
+      const old = document.querySelector('.celebration-toast');
+      if (old) old.remove();
+      const toast = document.createElement('div');
+      toast.className = 'celebration-toast';
+      toast.innerText = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3200);
+    }
+
+    let pushRegAttempted = false;
+    function ensurePushRegistered() {
+      if (pushRegAttempted) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const userKey = sessionStorage.getItem('auth_user_key');
+      if (!userKey || isMikelTeamMember(currentUserName) || typeof window.enablePushForUser !== 'function') return;
+      pushRegAttempted = true;
+      window.enablePushForUser(userKey, currentUserName);
+    }
+
+    async function requestMobileNotifications() {
+      if (isMikelTeamMember(currentUserName)) return;
+      triggerHapticAndSound('tap');
+      const userKey = sessionStorage.getItem('auth_user_key');
+      if (!userKey) return;
+      if (typeof window.enablePushForUser !== 'function') {
+        alert("⏳ Espera unos segundos a que cargue la app y vuelve a pulsar.");
+        return;
+      }
+      const r = await window.enablePushForUser(userKey, currentUserName);
+      if (r.ok) {
+        triggerHapticAndSound('success');
+        showCelebrationToast('✅ Avisos activados en este móvil');
+        openUserProfileModal();
+      } else if (r.reason === 'unsupported') {
+        alert("ℹ️ Este móvil no admite avisos desde aquí. En iPhone: Compartir → Añadir a pantalla de inicio, y abre la app desde ese icono.");
+      } else if (r.reason === 'denied') {
+        alert("⚠️ Has rechazado el permiso. Hay que activarlo en los ajustes del móvil para esta app.");
+      } else {
+        alert("⚠️ No se pudo activar: " + (r.msg || r.reason));
+      }
+    }
+
+    
+    function sendLocalMobileNotification(title, bodyText) {
+      if (isMikelTeamMember(currentUserName)) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      try {
+        new Notification(title, {
+          body: bodyText,
+          tag: 'konsor-navarra-alert',
+          renotify: true
+        });
+      } catch (e) {}
+    }
+
+    // Feedback táctil y sonoro sutil en cualquier botón de la interfaz
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('button, .tab-btn, .subtab-btn');
+      if (btn && !btn.classList.contains('btn-modal-save')) {
+        triggerHapticAndSound('tap');
+      }
+    }, true);
+
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    async function repairNoAptoSiCounts() {
+      let fixed = 0;
+      savedZones.forEach(z => {
+        if (!z.clients || z.clients.length === 0 || !z.stats) return;
+        const valid = z.clients.filter(c => isClientValidFilled(c)).length;
+        if (valid === 0) return;
+        const apto = z.clients.filter(c => isClientValidFilled(c) && c.obraStatus !== 'no_apto').length;
+        if ((z.stats.si || 0) !== apto) {
+          z.stats.si = apto;
+          z._updatedAt = Date.now();
+          fixed++;
+        }
+      });
+      if (fixed > 0 && !await saveAndSync('comercial_custom_zones', savedZones)) return 0;
+      return fixed;
+    }
+
+    async function openComplianceModal() {
+      const n = await repairNoAptoSiCounts();
+      openComplianceModalBase();
+      if (n > 0) setTimeout(() => alert(`🛠️ He corregido el contador de SÍ en ${n} zona(s): las fichas no aptas ya no cuentan como SÍ.`), 300);
+    }
+
+    function openComplianceModalBase() {
+      let modal = document.getElementById('complianceModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'complianceModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `<div class="modal-card"><div class="modal-header-sticky"><div class="modal-header"><span>🕵️ Control de Cumplimiento</span><button style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;" onclick="closeModal('complianceModal')">✕</button></div></div><div class="modal-scrollable-content" id="complianceModalBody"></div></div>`;
+        document.body.appendChild(modal);
+      }
+      const localIso = (ms) => new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      const now = Date.now();
+      const stats = {};
+      const getS = (k) => stats[k] || (stats[k] = { name: getDisplayAlias(k), fichas: 0, mismoDia: 0, tarde: 0, siSinFicha: 0, over48: 0, esperandoSinMotivo: 0, citasSinCrm: 0, puerta: 0, llamada: 0, exterior: 0 });
+
+      savedZones.forEach(z => {
+        if (!z.comercial || isMikelTeamMember(z.comercial)) return;
+        const s = getS(z.comercial);
+        const zDate = z.dumpDate || z.date || '';
+        let valid = 0;
+        (z.clients || []).forEach(c => {
+          if (!isClientValidFilled(c)) return;
+          valid++;
+          s.fichas++;
+          const createdIso = c.createdAt ? localIso(c.createdAt) : '';
+          if (createdIso && zDate) { if (createdIso <= zDate) s.mismoDia++; else s.tarde++; }
+          if (c.origen === 'llamada_cliente') s.llamada++; else if (c.origen === 'exterior') s.exterior++; else s.puerta++;
+          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+            const st = c.callStatus || 'pendiente';
+            const ref = st === 'pendiente' ? (c.createdAt || z.id || now) : (c.statusChangedAt || c.createdAt || z.id || now);
+            if (now - ref >= 48 * 3600000) s.over48++;
+            if (st === 'esperando_confirmacion' && !c.waitReason) s.esperandoSinMotivo++;
+          }
+          if (needsCrmUpload(c)) s.citasSinCrm++;
+        });
+        const reported = (z.stats && z.stats.si) || 0;
+        if (reported > valid) s.siSinFicha += (reported - valid);
+      });
+
+      const rows = Object.keys(stats).map(k => {
+        const s = stats[k];
+        const tot = s.mismoDia + s.tarde;
+        const pct = tot > 0 ? Math.round(s.mismoDia * 100 / tot) : null;
+        const pctColor = pct === null ? '#94a3b8' : (pct >= 90 ? '#34d399' : (pct >= 60 ? '#fde047' : '#f87171'));
+        const flag = (n, txt) => n > 0 ? `<div style="color:#fca5a5; font-weight:800;">🚨 ${n} ${txt}</div>` : '';
+        const msg = encodeURIComponent(`Hola ${s.name}, revisa tu app: tienes pendientes (fichas por subir, llamadas de más de 48h o citas sin subir a la CRM). Ponte al día hoy, por favor.`);
+        return `
+          <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:11px; color:#e2e8f0;">
+            <div style="display:flex; justify-content:space-between; font-weight:900; font-size:12px;">
+              <span>🏃 ${s.name}</span>
+              <span style="color:${pctColor};">${pct === null ? 'Sin datos' : pct + '% fichas el mismo día'}</span>
+            </div>
+            <div style="color:#94a3b8; margin:3px 0;">Fichas: ${s.fichas} · Puerta ${s.puerta} · Cliente llamó ${s.llamada} · Exterior ${s.exterior}</div>
+            ${flag(s.siSinFicha, 'SÍ declarados sin ficha subida')}
+            ${flag(s.over48, 'fichas con +48h sin seguimiento')}
+            ${flag(s.esperandoSinMotivo, 'en Esperando sin motivo')}
+            ${flag(s.citasSinCrm, 'citas sin confirmar en la CRM')}
+            <a href="https://wa.me/?text=${msg}" target="_blank" style="display:inline-block; margin-top:5px; background:#059669; color:#fff; padding:4px 9px; border-radius:7px; font-size:10px; font-weight:800; text-decoration:none;">💬 Recordatorio por WhatsApp</a>
+          </div>`;
+      }).join('');
+
+      document.getElementById('complianceModalBody').innerHTML = rows || '<div style="padding:14px; color:#94a3b8;">Aún no hay datos de comerciales.</div>';
+      modal.classList.add('active');
+    }
+
+    // La navegación gestual se centraliza exclusivamente en navegacion-ios.js.
+
+    function resetMapNorth() {
+      if (map && typeof map.setBearing === 'function') {
+        map.setBearing(0);
+      }
+      const needle = document.getElementById('compassNeedleIcon');
+      if (needle) needle.style.transform = 'rotate(0deg)';
+    }
+
+    function centerOnUser() {
+      cnvGpsFollow = true;
+      requestReliableGps(true);
+    }
+
+    window.onload = () => {
+      applyAppVisualSettings();
+      // El acceso lo inicia authFinishLogin tras validar la cuenta de Firebase.
+    };
+
+  

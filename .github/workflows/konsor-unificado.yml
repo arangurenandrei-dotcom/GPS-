@@ -1,0 +1,33 @@
+name: KONSOR - Validación de arquitectura
+on:
+  push:
+    branches:
+      - desarrollo/konsor-unificado-2026-11-22
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Descargar código e historia para comparar la extracción
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar integridad de la extracción original
+        run: node tests/verificar-extraccion.cjs
+      - name: Comprobar esquema y permisos de interfaz
+        run: node tests/verificar-arquitectura.cjs
+      - name: Ejecutar pruebas de regresión
+        run: node --test tests/*.test.cjs
+      - name: Comprobar Inicio comercial en navegador real (móvil y PC)
+        run: |
+          npm install --no-save --no-package-lock puppeteer-core@24
+          node tests/smoke-navegador.cjs
