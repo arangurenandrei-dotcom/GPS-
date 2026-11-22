@@ -53,7 +53,7 @@ h+='<section class="kt-card"><span class="eyebrow">ALMACÉN · MATERIAL PREPARAD
 h+='<div class="kt-inputs"><label>Kg por saco<input id="ktBag" type="number" min="0.01" step="0.5" value="'+material.bagKg+'"></label><label>Consumo kg/m²<input id="ktUse" type="number" min="0.01" step="0.1" value="'+material.kgPerM2+'"></label><label>Margen %<input id="ktMargin" type="number" min="0" max="50" step="1" value="'+material.marginPct+'"></label></div>';
 h+='<label class="kt-spare">Sacos extra recomendados para incidencias<input id="ktSpare" type="number" min="0" max="30" step="1" value="'+material.spareBags+'"></label>';
 h+='<div class="kt-warning"><b>Valores ficticios.</b> El producto real tendrá sus parámetros definidos por responsable técnico. Fórmula: redondear hacia arriba [m² × consumo kg/m² × (1 + margen) ÷ kg/saco]. El técnico solo comprueba la carga física.</div>';
-h+='<div class="kt-subtitle">MATERIAL POR VIVIENDA</div>'+p.rows.map((x,i)=>row(x,i,s)).join('');
+h+='<details class="kt-detail-toggle"><summary>Ver sacos calculados por vivienda</summary><div class="kt-subtitle">MATERIAL POR VIVIENDA</div>'+p.rows.map((x,i)=>row(x,i,s)).join('')+'</details>';
 h+='<div class="kt-total"><strong>'+(p.total+material.spareBags)+' sacos recomendados</strong><small>'+p.total+' sacos calculados para las obras + '+material.spareBags+' sacos extra de reserva. '+p.kg.toFixed(1).replace('.',',')+' kg teóricos antes del margen.</small></div></section>';
 }else{
 h+='<section class="kt-card"><span class="eyebrow">INVENTARIO DE LA CUADRILLA</span><h2>'+remaining(s)+' sacos disponibles</h2><p>Cargados: '+(s.baseBags+s.extraBags)+' · Utilizados: '+used+'. El recuento físico prevalece sobre esta estimación.</p>';
@@ -73,7 +73,7 @@ h+='</section>';
 if(s.finished){
 h+='<section class="kt-card"><span class="eyebrow">BALANCE AL TERMINAR</span><h2>Jornada técnica completada</h2><p>Sacos cargados: '+(s.baseBags+s.extraBags)+' · Consumidos: '+used+' · Sobrantes: '+remaining(s)+'.</p><button class="kt-secondary" id="ktRestart">Reiniciar prueba de esta cuadrilla</button></section>';
 }
-h+='<div class="kt-subtitle">INSTALACIONES ASIGNADAS</div>'+p.rows.map((x,i)=>row(x,i,s)).join('');
+h+='<details class="kt-detail-toggle"><summary>Ver todas las instalaciones asignadas ('+p.rows.length+')</summary><div class="kt-subtitle">INSTALACIONES DEL DÍA</div>'+p.rows.map((x,i)=>row(x,i,s)).join('')+'</details>';
 h+='<div class="kt-warning">Todo este recorrido utiliza clientes y materiales ficticios. La versión definitiva necesitará catálogo de productos, órdenes autorizadas, fotos almacenadas, validaciones y permisos de servidor.</div></div>';
 return h;
 }
