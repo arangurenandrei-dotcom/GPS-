@@ -75,6 +75,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
  .modalbody{padding:19px 18px}
 }
 @media(max-width:850px){.auth-intro{display:none}#auth{display:flex;min-height:100dvh;align-items:center;justify-content:center;padding:24px 16px}.auth-box{max-width:520px;padding:27px 20px 19px;border-radius:30px;box-shadow:0 20px 70px #1e375c16}.auth-roles{max-height:55dvh}.auth-box h2{font-size:29px}}</style>
+<link rel="stylesheet" href="./tecnico-demo.css">
 </head>
 <body>
 <div id="auth">
@@ -122,6 +123,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 <div class="buildinglayout"><section class="viz"><div class="visuallabel" id="vizlabel">VISTA GENERAL · CINCO PLANTAS</div><div id="vizbody"></div></section><aside class="inspector" id="inspector"></aside></div>
 </div>
 <div class="toast" id="toast" aria-live="polite"></div>
+<script src="./tecnico-demo.js"></script>
 <script>
 (function(){
 'use strict';
@@ -182,7 +184,9 @@ var jobs=[
 {id:'K-0021',name:'María Ejemplo',address:'Calle del Ejemplo 12',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Documentación',state:'Revisión pendiente',m2:86,docs:3,cost:'2.100 €',income:'3.100 €',date:'25/11'},
 {id:'K-0022',name:'Javier Prueba',address:'Calle Ficticia 9',town:'Funes',service:'Aislamiento de desván',team:'B',owner:'otro',crew:'C2',office:'O2',finance:'F2',stage:'Instalación',state:'Instalación agendada',m2:74,docs:1,cost:'1.760 €',income:'2.800 €',date:'26/11'},
 {id:'K-0023',name:'Carmen Demo',address:'Avenida Inventada 3',town:'Noáin',service:'Aerotermia · estudio',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Viabilidad',state:'Estudio previo',m2:110,docs:0,cost:'Por estudiar',income:'Por estudiar',date:'27/11'},
-{id:'K-0024',name:'Pablo Simulado',address:'Plaza Modelo 5',town:'Peralta',service:'Aislamiento de cubierta',team:'C',owner:'otro',crew:'C3',office:'O1',finance:'F1',stage:'Cobro',state:'Cobro pendiente',m2:95,docs:5,cost:'2.300 €',income:'3.700 €',date:'24/11'}
+{id:'K-0024',name:'Pablo Simulado',address:'Plaza Modelo 5',town:'Peralta',service:'Aislamiento de cubierta',team:'C',owner:'otro',crew:'C3',office:'O1',finance:'F1',stage:'Cobro',state:'Cobro pendiente',m2:95,docs:5,cost:'2.300 €',income:'3.700 €',date:'24/11'},
+{id:'K-0025',name:'Marta Ficticia',address:'Calle de Prueba 8',town:'Oteiza',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Instalación',state:'Obra prevista',m2:82,docs:0,cost:'Por determinar',income:'Por determinar',date:'23/11'},
+{id:'K-0026',name:'Jorge de Ejemplo',address:'Calle de Prueba 19',town:'Funes',service:'Aislamiento de buhardilla',team:'A',owner:'com',crew:'C1',office:'O1',finance:'F1',stage:'Instalación',state:'Obra prevista',m2:66,docs:0,cost:'Por determinar',income:'Por determinar',date:'23/11'}
 ];
 var state={role:'jeq',view:'inicio',step:{},checked:{},shift:{},promptShown:{},notices:{},tasks:{},prefs:{},activityTab:'inbox',record:null,recordTab:'cliente',building:false,floor:null,room:null,search:'',lastNav:'inicio',selectedPhoto:''};
 function user(){return roles.find(function(r){return r.id===state.role})||roles[0]}
@@ -295,6 +299,7 @@ state.step[state.role]=n+1;closeModal();render();toast('Paso validado en la demo
 
 function openTool(name){
 if(/Edificio/.test(name)){openBuilding();return}
+if(rgroup()==='técnicos'&&/Órdenes|Materiales|Ruta de instalaciones|Parte técnico|Incidencias|Fotograf|Fotos/.test(name)){setView('trabajo');return}
 if(/Expedientes|Bandeja|Fichas|Captación|Fotograf|Fotos/.test(name)){if(/Fotos|Fotograf/.test(name)){openNote(name,'Para el técnico, aquí aparecería la cámara, las fotos obligatorias y su orden de trabajo. En esta demo puedes abrir la pestaña Documentos de una ficha y elegir un archivo solo para visualizar su nombre.');return}setView('expedientes');return}
 if(/Mapa|Sectores|Catastro|Ruta/.test(name)){openNote(name,'Botón preparado en el diseño. Tal como pediste, el mapa y el cálculo de rutas no necesitan funcionar todavía.');return}
 if(/Estadísticas|Indicadores|Equipos|personas|Comisiones|rentabilidad/i.test(name)&&user().boss){setView('equipo');return}
@@ -305,8 +310,9 @@ function renderHome(){
 var u=user(),c=cfg[rgroup()],step=getProgress(),num=c.steps.length;
 var next=step<num?c.steps[step]:'Todo al día por ahora';
 var desc=step<num?stepDescription(rgroup(),step):'Has revisado todos los pasos de esta demostración.';
+if(rgroup()==='técnicos'){var techNext=window.KonsorDemoTecnicos.next({role:state.role,shift:shiftStatus(),jobs:jobs});next=techNext.title;desc=techNext.detail;}
 if(shiftStatus()==='lunch'){next='Tu pausa sigue activa';desc='Cuando vuelvas a trabajar, reanuda la jornada para que el registro sea correcto.'}
-else if(shiftStatus()==='off'&&u.id!=='ceo'&&step===0){next=rgroup()==='comercial'&&u.boss?'Tienes 3 sectores sin volcar':'Prepara tu jornada';desc=rgroup()==='comercial'&&u.boss?'Empieza por el más antiguo y continúa el trabajo de Oficina.':'Consulta tus tareas y registra el inicio cuando vayas a trabajar.'}
+else if(rgroup()!=='técnicos'&&shiftStatus()==='off'&&u.id!=='ceo'&&step===0){next=rgroup()==='comercial'&&u.boss?'Tienes 3 sectores sin volcar':'Prepara tu jornada';desc=rgroup()==='comercial'&&u.boss?'Empieza por el más antiguo y continúa el trabajo de Oficina.':'Consulta tus tareas y registra el inicio cuando vayas a trabajar.'}
 var opts={
 comercial:[['Mi jornada','Ruta, actividad y fichaje','calendar','jornada'],['Mapa','Satélite, GPS y Catastro','map','Mapa y Catastro'],['Oficina','Volcados, llamadas y citas','home','Llamadas y seguimiento'],['Resultados','Tu progreso y clasificación','chart','equipo']],
 técnicos:[['Mi jornada','Fichaje e instalaciones','calendar','jornada'],['Órdenes','Trabajos de tu cuadrilla','list','Órdenes de trabajo'],['Ruta','Visitas y desplazamientos','map','Ruta de instalaciones'],['Partes y fotos','Evidencias y materiales','camera','expedientes']],
@@ -327,6 +333,7 @@ return home;
 
 
 function renderWork(){
+if(rgroup()==='técnicos')return window.KonsorDemoTecnicos.html({role:state.role,shift:shiftStatus(),jobs:jobs});
 var c=cfg[rgroup()],step=getProgress(),num=c.steps.length;
 var h='<header class="kn-guidehead"><button data-nav="inicio" aria-label="Volver">'+icon('chevron')+'</button><div><div class="eyebrow">'+E(rgroup()).toUpperCase()+' · RECORRIDO GUIADO</div><h1>Mi jornada y trabajo</h1></div></header>';
 h+='<div class="kn-guidebox"><div class="eyebrow">TU GUÍA</div><h2>'+(step<num?'Siguiente acción del día':'Recorrido revisado')+'</h2><p>'+(step<num?E(c.steps[step]):'Has completado todos los controles de demostración.')+'</p>'+(step<num?'<button class="kn-primary" style="width:100%" data-step="'+step+'">Continuar mi recorrido '+icon('arrow')+'</button>':'<button class="secondary" id="resetFlow">Reiniciar demostración</button>')+'</div>';
@@ -385,6 +392,7 @@ $('main').querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(
 $('main').querySelectorAll('[data-building]').forEach(function(b){b.onclick=openBuilding});
 if($('fileSearch')){$('fileSearch').oninput=function(e){state.search=e.target.value;var focus=this.selectionStart;var newlist=assigned().filter(function(j){return (j.id+' '+j.name+' '+j.town+' '+j.service).toLocaleLowerCase('es').includes(state.search.toLocaleLowerCase('es'))});$('fileCards').innerHTML=newlist.length?newlist.map(function(j){return '<button class="filecard" data-job="'+j.id+'"><div class="avatar">'+icon('file')+'</div><div style="flex:1;min-width:0"><strong>'+j.id+' · '+E(j.name)+'</strong><small>'+E(j.town)+' · '+E(j.service)+'</small></div><span class="chip">'+E(j.stage)+'</span>'+icon('chevron','sm')+'</button>'}).join(''):'<div class="empty">Sin coincidencias.</div>';$('fileCards').querySelectorAll('[data-job]').forEach(function(b){b.onclick=function(){openRecord(b.dataset.job)}})}} 
 if($('resetFlow'))$('resetFlow').onclick=function(){state.step[state.role]=0;render()};
+if(rgroup()==='técnicos'&&state.view==='trabajo')window.KonsorDemoTecnicos.mount({role:state.role,shift:shiftStatus(),jobs:jobs,openShift:showShiftPanel,rerender:render,toast:toast});
 if($('homeActivity'))$('homeActivity').onclick=function(){openActivity('inbox')};
 if($('homeSettings'))$('homeSettings').onclick=returnLogin;
 if($('nextRecommended'))$('nextRecommended').onclick=function(){if(shiftStatus()==='lunch')showShiftPanel();else if(rgroup()==='comercial'&&user().boss&&shiftStatus()==='off'&&getProgress()===0)openTool('Llamadas y seguimiento');else setView('trabajo')};
