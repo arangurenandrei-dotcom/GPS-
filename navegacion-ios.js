@@ -60,13 +60,20 @@ function scan(){
  }
 }
 function schedule(){if(!scheduled){scheduled=true;queueMicrotask(scan);}}
+function resetHistory(){trail=[];topSeen=null;}
 function back(){
  if(locked)return;
  const el=current();if(!el)return;
  locked=true;
  try{
   const inside=ownBack(el);
-  if(inside){if(!inside.disabled)inside.click();return;}
+  if(inside){
+   if(!inside.disabled){
+    inside.click();
+    if(!isVisible(el))resetHistory();
+   }
+   return;
+  }
   // Si una subpantalla reemplazó a su propietaria, recuperar esa pantalla.
   const index=trail.lastIndexOf(el);
   const parent=trail.slice(0,Math.max(index,0)).reverse().find(candidate=>candidate.isConnected);
@@ -78,18 +85,19 @@ function back(){
   }
   // El módulo de Dirección tiene retorno propio a su planta.
   if(el.classList.contains('kd-overlay')){
-   const native=nativeButton(el,'back');if(native&&!native.disabled){native.click();return;}
+   const native=nativeButton(el,'back');if(native&&!native.disabled){native.click();resetHistory();return;}
   }
   // Volver desde la lista de llamadas a Oficina, no saltar a Inicio.
   if(el.id==='konsorOfficeCallV2'){
-   close(el);window.openCnOffice?.();return;
+   close(el);resetHistory();window.openCnOffice?.();return;
   }
   // Territorio vuelve al panel de Dirección cuando es su propietario.
   if(el.id==='cnTerritorio'){
-   close(el);window.openKonsorDirection?.();return;
+   close(el);resetHistory();window.openKonsorDirection?.();return;
   }
   // No hay subnivel: cerrar la sección actual y mostrar la vista de origen.
   close(el);
+  resetHistory();
   if(el.id==='cnOficina'||el.id==='konsorResultsV3')window.cnvShowHome?.();
  }finally{locked=false;queueMicrotask(scan);}
 }
@@ -97,7 +105,7 @@ function closeTop(){
  if(locked)return;
  const el=current();if(!el)return;
  locked=true;
- try{close(el);}
+ try{close(el);resetHistory();}
  finally{locked=false;queueMicrotask(scan);}
 }
 window.konsorGoBack=back;
