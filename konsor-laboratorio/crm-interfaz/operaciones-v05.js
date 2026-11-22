@@ -182,9 +182,9 @@ function officeOpen(ctx,id){
  const s=assoc(id),st=status(j);
  ctx.modal('OFICINA · EXPEDIENTE',j.id,officeCaseHTML(ctx,j),()=>{
   const get=id=>document.getElementById(id);
-  if(get('opAskTech'))get('opAskTech').onclick=()=>{const miss=missing(j.id);if(!miss.length)return;corrections[j.id]={field:miss[0],jobId:id,crew:j.crew,done:false};ctx.closeModal();ctx.rerender();ctx.toast('Tarea ficticia creada en Técnicos, vinculada al expediente')};
-  if(get('opReview'))get('opReview').onclick=()=>{if(missing(j.id).length||!docs[j.id].techDone)return ctx.toast('Bloqueo: faltan evidencias o instalación');s.reviewed=true;ctx.closeModal();ctx.rerender();ctx.toast('Revisión completada. Preparar documentos para firma.')};
-  if(get('opBadPhoto'))get('opBadPhoto').onclick=()=>{docs[j.id].despues=false;corrections[j.id]={field:'despues',jobId:id,crew:j.crew,done:false};s.reviewed=false;ctx.closeModal();ctx.rerender();ctx.toast('Nueva foto solicitada al técnico por falta de legibilidad (demo)')};
+  if(get('opAskTech'))get('opAskTech').onclick=()=>{const miss=missing(j.id);if(!miss.length)return;corrections[j.id]={field:miss[0],jobId:id,crew:j.crew,done:false};section.oficina='waiting';ctx.closeModal();ctx.rerender();ctx.toast('Tarea ficticia creada en Técnicos, vinculada al expediente')};
+  if(get('opReview'))get('opReview').onclick=()=>{if(missing(j.id).length||!docs[j.id].techDone)return ctx.toast('Bloqueo: faltan evidencias o instalación');s.reviewed=true;section.oficina='send';ctx.closeModal();ctx.rerender();ctx.toast('Revisión completada. El paquete de envío está preparado en Enviar.')};
+  if(get('opBadPhoto'))get('opBadPhoto').onclick=()=>{docs[j.id].despues=false;corrections[j.id]={field:'despues',jobId:id,crew:j.crew,done:false};s.reviewed=false;section.oficina='waiting';ctx.closeModal();ctx.rerender();ctx.toast('Nueva foto solicitada al técnico por falta de legibilidad (demo)')};
   if(get('opExternal'))get('opExternal').onclick=()=>ctx.toast('En producción se configurará la URL legal utilizada por Oficina.');
   if(get('opDocument'))get('opDocument').onchange=function(){
    const files=Array.from(this.files||[]);
@@ -198,11 +198,11 @@ function officeOpen(ctx,id){
    const valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
    if(!valid||!s.fileNames?.length){get('opCaseError').innerHTML='<div class="ops-error">Bloqueado: falta un correo válido en la ficha central o no se ha seleccionado ningún PDF. Actualiza la ficha si el destinatario es incorrecto.</div>';return}
    if(missing(j.id).length||!s.reviewed)return ctx.toast('Documentación pendiente de revisión');
-   s.email=email;s.sent=true;s.daysPassed=0;s.signature='waiting';ctx.closeModal();ctx.rerender();ctx.toast('Envío SIMULADO al email de la ficha. No se ha enviado correo ni almacenado ningún archivo.');
+   s.email=email;s.sent=true;s.daysPassed=0;s.signature='waiting';section.oficina='waiting';ctx.closeModal();ctx.rerender();ctx.toast('Envío SIMULADO al email de la ficha. No se ha enviado correo ni almacenado ningún archivo.');
  };
-  if(get('opAdvance'))get('opAdvance').onclick=()=>{s.daysPassed+=4;officeOpen(ctx,id);ctx.rerender()};
-  if(get('opSigGood'))get('opSigGood').onclick=()=>{s.signature='good';ctx.closeModal();ctx.rerender();ctx.toast('Documento firmado correcto según registro simulado')};
-  if(get('opSigWrong'))get('opSigWrong').onclick=()=>{s.signature='wrong';ctx.closeModal();ctx.rerender();ctx.toast('Generada alerta para llamar por firma incorrecta')};
+  if(get('opAdvance'))get('opAdvance').onclick=()=>{s.daysPassed+=4;section.oficina='pending';officeOpen(ctx,id);ctx.rerender()};
+  if(get('opSigGood'))get('opSigGood').onclick=()=>{s.signature='good';section.oficina='done';ctx.closeModal();ctx.rerender();ctx.toast('Documento firmado correcto según registro simulado')};
+  if(get('opSigWrong'))get('opSigWrong').onclick=()=>{s.signature='wrong';section.oficina='pending';ctx.closeModal();ctx.rerender();ctx.toast('Generada alerta para llamar por firma incorrecta')};
   if(get('opCalled'))get('opCalled').onclick=()=>{s.contactAttempts++;ctx.closeModal();ctx.rerender();ctx.toast('Llamada anotada; seguirá pendiente hasta recibir documentos correctos')};
  });
 }
@@ -360,7 +360,7 @@ function action(ctx,kind,id){
  if(kind==='fix'){
   const t=corrections[id];if(!t||t.done||ctx.group!=='técnicos'||t.crew!=='C1')return;
   modal(ctx,'Subsanar '+id,'<p class="ops-muted">Falta: '+E(names[t.field])+'. En producción se adjuntaría una foto o documento real al expediente, y Oficina recibiría una alerta.</p><button class="ops-primary" id="opFixNow">Simular evidencia recibida →</button>',()=>{
-   const b=get('opFixNow');if(b)b.onclick=()=>{docs[id][t.field]=true;t.done=true;ctx.closeModal();ctx.rerender();ctx.toast('Oficina ya puede revisar la evidencia ficticia')};
+   const b=get('opFixNow');if(b)b.onclick=()=>{docs[id][t.field]=true;t.done=true;section.oficina='pending';ctx.closeModal();ctx.rerender();ctx.toast('Oficina ya puede revisar la evidencia ficticia')};
   });return;
  }
  if(kind==='payYes'||kind==='payNo'){
