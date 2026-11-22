@@ -220,33 +220,41 @@ function payStatus(x){return x==='yes'?'Recibido según trabajador':x==='no'?'No
 function workerHTML(ctx){
  const line=salaried.find(x=>x.id===ctx.role),p=paymentEntry(ctx.role,ctx);
  if(!line)return '<div class="ops-note">No existe ficha de colaborador para este perfil.</div>';
- let html=header('MI REMUNERACIÓN · AUTÓNOMOS','Seguimiento de mi pago','KONSOR calcula cuánto corresponde, pero no realiza pagos ni emite facturas fiscales.');
- html+=tiles([[line.type==='commission'?'Comisión: 1 € / m²':'Importe mensual fijo',euro(p.amount)],['Periodo',salaryPeriod],['Estado',payStatus(p.status)]]);
+ let html=header('MI REMUNERACIÓN · COLABORADORES','Seguimiento de mi pago','Honorario o comisión calculada. Solo tienes que confirmar si recibiste el pago.');
+ html+=tiles([[line.type==='commission'?'Comisión · 1 €/m²':'Honorario fijo mensual',euro(p.amount)],['Estado actual',payStatus(p.status)]]);
+ html+='<div class="ops-feature"><span class="eyebrow">DEL 1 AL 5 DE '+E(monthPay.toUpperCase())+'</span><h2>¿Has recibido tu pago?</h2><p>Corresponde a '+E(salaryPeriod)+'. Tu respuesta informa a Administración; no realiza transferencias ni verifica el banco.</p>'+
+ '<div class="ops-caseactions"><button class="ops-primary" data-ops="payYes" data-id="'+E(ctx.role)+'">Sí, recibido</button><button class="ops-secondary" data-ops="payNo" data-id="'+E(ctx.role)+'">Todavía no</button></div></div>';
  if(line.type==='commission'){
   const rows=commissions(ctx);
-  html+=heading('DESGLOSE DE COMISIONES','1 €/m² de buhardilla o desván');
-  html+='<div class="ops-list">'+rows.map(x=>card(x.id+' · '+x.m2+' m²',x.service+' · Equipo '+x.team,[],euro(x.cents))).join('')+'</div>';
-  html+='<div class="ops-note">El ejemplo calcula exactamente 1 € por cada m² registrado en viviendas de buhardilla/desván asignadas al comercial. No incluye otros servicios. La condición de devengo se configurará con el acuerdo real, sin cálculos fiscales.</div>';
+  html+='<details class="ops-explain"><summary>Ver de dónde salen mis '+euro(p.amount)+' de comisiones</summary><div class="ops-queue">'+rows.map(x=>'<div class="ops-brief-line"><span>'+E(x.id)+' · '+x.m2+' m² de buhardilla</span><strong>'+euro(x.cents)+'</strong></div>').join('')+'</div><p>Fórmula: 1 € por m² computable del comercial. Devengo contractual por definir antes de producción.</p></details>';
  }
- html+='<div class="ops-feature"><div class="eyebrow">CONFIRMACIÓN DE RECEPCIÓN</div><h2>¿Has recibido tu pago?</h2><p>Pago de '+E(salaryPeriod)+' previsto entre el día 1 y el 5 de '+E(monthPay)+'. Tu respuesta es un aviso a Administración, no una verificación bancaria.</p><div class="ops-caseactions"><button class="ops-primary" data-ops="payYes" data-id="'+E(ctx.role)+'">Sí, recibido</button><button class="ops-secondary" data-ops="payNo" data-id="'+E(ctx.role)+'">Todavía no</button></div><div class="ops-note">Respuesta actual: '+E(payStatus(p.status))+'</div></div>';
+ html+='<details class="ops-explain"><summary>¿Para qué sirve esta confirmación?</summary><p>Si el día 5 sigues sin confirmar, KONSOR avisa a Administración y al CEO para que consulten al responsable externo de pagos. No hace contabilidad ni nóminas.</p></details>';
  return html;
 }
 function financeHTML(ctx){
- const pay=salarySummary(ctx),an=anomalies();
+ const pay=salarySummary(ctx),an=anomalies(),which=section.administración;
  const payRows=pay.rows.filter(x=>['jadm','adm'].includes(ctx.role)||ctx.role==='ceo'||x.id===ctx.role);
- let html=header('ADMINISTRACIÓN · SEGUIMIENTO','Pagos y gastos de empresa','La gestoría o el responsable externo ejecuta los pagos. KONSOR calcula las remuneraciones, pregunta si se han recibido y detecta gastos excepcionales.');
- html+=tiles([['Total colaboradores',pay.rows.length],['A confirmar',pay.unconfirmed.length],['Han indicado no cobrado',pay.unpaid.length],['Gastos corporativos',euro(spending())]]);
- html+='<div class="ops-feature"><div class="eyebrow">SIMULAR FECHA DE PAGO</div><h2>Día '+simulatedPayDay+' · '+monthPay+'</h2><p>Los pagos están previstos del 1 al 5. El día 5 KONSOR crea alertas para Dirección si alguien dice que no ha cobrado o no ha confirmado.</p><div class="ops-caseactions">'+[1,3,5,6].map(n=>'<button class="ops-secondary" data-ops="payday" data-id="'+n+'">Día '+n+'</button>').join('')+'</div></div>';
- if(pay.atRisk.length&&simulatedPayDay>=5)html+='<div class="ops-error"><b>Revisar con responsable de pagos:</b> '+pay.atRisk.length+' colaboradores todavía sin confirmación positiva en el día '+simulatedPayDay+'.</div>';
- html+=heading('PAGOS A COLABORADORES','Sin nóminas ni transferencias');
- html+='<div class="ops-list">'+payRows.map(x=>card(x.name,x.type==='commission'?'Comisión de buhardilla · 1 €/m²':'Honorario fijo mensual',
- [['Ver cálculo','paymentDetail',x.id]],euro(x.amount)+' · '+payStatus(x.status))).join('')+'</div>';
- html+=heading('TARJETAS, VIA-T Y COMIDAS','Gasto de empresa: no se resta al trabajador');
- html+='<div class="ops-list">'+spend.map(x=>{
-  const est=fuelEstimate(x),suspect=an.some(t=>t.id===x.id),note=est!==null?' · Consumo esperado '+euro(est)+' (distancia/consumo ficticios)':'';
-  return card(x.name,x.kind+' · '+x.source+note,[['Revisar registro','expense',x.id]],euro(x.cents)+(suspect?' · Revisar exceso':''));}).join('')+'</div>';
- if(an.length)html+='<div class="ops-error">Posibles desviaciones en combustible: '+an.map(x=>x.name+' '+euro(x.cents)+' frente a '+euro(x.estimate)).join('; ')+'. Verificar kilómetros reales, repostajes y uso autorizado antes de concluir que hay un gasto indebido.</div>';
- html+='<div class="ops-note">El control de tarjetas, consumo y VIA-T requerirá importaciones de proveedores y distancias reales o confirmadas. No existe conexión bancaria, fiscal ni con la gestoría en esta demo.</div>';
+ let html=header('ADMINISTRACIÓN · CONTROL OPERATIVO','Pagos y gastos','Remuneraciones preparadas, confirmaciones de trabajadores y consumos corporativos. Solo revisar excepciones.');
+ html+=tiles([['Personal',pay.rows.length],['Sin confirmar',pay.unconfirmed.length],['Han indicado no cobrado',pay.unpaid.length],['Gastos de empresa',euro(spending())]]);
+ html+=sectionTabs('administración',[['payments','Pagos'],['expenses','Gastos'],['alerts','Incidencias · '+(an.length+pay.atRisk.length)]]);
+ if(which==='payments'){
+  html+='<div class="ops-feature"><div class="eyebrow">PERIODO DE PAGO</div><h2>Día '+simulatedPayDay+' · '+E(monthPay)+'</h2><p>La gestoría o el responsable externo paga. KONSOR verifica las respuestas del personal entre el 1 y el 5.</p><div class="ops-caseactions">'+[1,3,5,6].map(d=>'<button class="ops-secondary" data-ops="payday" data-id="'+d+'">Día '+d+'</button>').join('')+'</div></div>';
+  html+=heading('QUIÉN HA COBRADO Y CUÁNTO','Estado declarado por cada persona');
+  html+='<div class="ops-queue ops-list">'+payRows.map(x=>card(x.name,x.type==='commission'?'1 €/m² de buhardilla':'Honorario fijo mensual',[['Ver cálculo','paymentDetail',x.id]],euro(x.amount)+' · '+payStatus(x.status))).join('')+'</div>';
+  html+='<details class="ops-explain"><summary>¿Qué se hace si el día 5 falta un pago?</summary><p>La app avisará al responsable de Administración y al CEO. El pago se resolverá con la gestoría o persona encargada. KONSOR no realiza la transferencia.</p></details>';
+ }else if(which==='expenses'){
+  html+=block({title:'Gasto corporativo: '+euro(spending()),desc:'Se registra en la empresa. Combustible, VIA-T y comidas autorizadas no se descuentan del honorario del trabajador.'});
+  html+=heading('CONSUMOS POR VEHÍCULO Y CATEGORÍA','Importes ficticios');
+  html+='<div class="ops-queue ops-list">'+spend.map(x=>{
+   const estimate=fuelEstimate(x),flag=an.some(t=>t.id===x.id);
+   return card(x.name,x.kind+(estimate!==null?' · Estimado '+euro(estimate):''),[['Ver movimiento','expense',x.id]],euro(x.cents)+(flag?' · Revisar':''));}).join('')+'</div>';
+  html+='<details class="ops-explain"><summary>¿Cómo se calculan las desviaciones?</summary><p>Se compara el importe con km recorridos, consumo estimado y precio del combustible. En producción se usarán movimientos y trayectos contrastados. Un exceso estimado nunca demuestra por sí solo un uso indebido.</p></details>';
+ }else{
+  const flags=[...an.map(x=>({title:'Revisar combustible · '+x.name,desc:'Registrado '+euro(x.cents)+' frente a '+euro(x.estimate)+' esperado. Comprobar ruta, repostajes, precio y vehículo.',kind:'expense',id:x.id})),
+   ...pay.atRisk.map(x=>({title:'Pago sin confirmar · '+x.name,desc:'Día '+simulatedPayDay+': '+payStatus(x.status)+'. Consultar al responsable de pagos externo.',kind:'paymentDetail',id:x.id}))];
+  html+=heading('ALERTAS CON EXPLICACIÓN','Qué ha ocurrido y qué revisar');
+  html+='<div class="ops-queue ops-list">'+(flags.length?flags.map(x=>card(x.title,x.desc,[['Ver detalle',x.kind,x.id]],'Pendiente de revisión')).join(''):'<div class="ops-empty">No hay incidencias detectadas para esta fecha.</div>')+'</div>';
+ }
  return html;
 }
 function paymentDetail(ctx,id){
@@ -255,21 +263,35 @@ function paymentDetail(ctx,id){
  ctx.modal('ADMINISTRACIÓN · COLABORADOR',x.name,'<div class="ops-callout"><b>Importe estimado: '+euro(p.amount)+'</b><p>'+(x.type==='fixed'?'Honorario fijo configurado':'1 € por m² de buhardilla/desván asociado al comercial')+'</p></div><div class="ops-note">Periodo: '+salaryPeriod+' · Respuesta del trabajador: '+payStatus(p.status)+'. Día de aviso: '+simulatedPayDay+'.</div><div class="ops-note">Si no hay confirmación positiva a fecha 5, se avisa a Dirección y al responsable externo de pagos. No se ejecutan operaciones bancarias desde KONSOR.</div>',()=>{});
 }
 function ceoHTML(ctx){
- const econ=economic(ctx),pay=salarySummary(ctx),an=anomalies(),officeStatus=officeAnalysis(ctx);
- let html=header('DIRECCIÓN GENERAL · CONTROL','Situación de KONSOR','Solo información para decidir: ingresos, costes, pagos a trabajadores, gastos corporativos y posibles desviaciones. Sin sustituir al contable.');
- html+=tiles([['Ingresos previstos registrados',euro(econ.revenue)],['Costes directos estimados',euro(econ.jobCost)],['Honorarios/Comisiones previstos',euro(econ.salary)],['Gastos de tarjetas y VIA-T',euro(econ.expense)]]);
- html+='<div class="ops-note"><b>Seguimiento de pagos:</b> día '+simulatedPayDay+' de '+monthPay+'. <button class="ops-secondary" data-ops="payday" data-id="1">Simular día 1</button> <button class="ops-secondary" data-ops="payday" data-id="5">Simular día 5</button></div>';
- html+='<div class="ops-feature"><div class="eyebrow">RESULTADO PROVISIONAL · ESCENARIO DE DEMO</div><h2>'+euro(econ.result)+'</h2><p>Ingresos previstos − costes directos estimados − remuneraciones configuradas − gastos corporativos ilustrativos. No equivale a beneficio neto contable ni a saldo bancario.</p><div class="ops-note">'+econ.missingPrices+' expedientes sin precio/coste cerrado: excluidos del cálculo. El resultado no permite afirmar rentabilidad real de la empresa.</div></div>';
- html+=heading('DE DÓNDE VIENEN LOS INGRESOS','Expedientes con precio registrado');
- html+='<div class="ops-list">'+econ.priced.map(j=>card(j.id+' · '+j.town,j.service,[['Abrir ficha','record',j.id]],euro(money(j.income)))).join('')+'</div>';
- html+=heading('PAGOS A CADA TRABAJADOR','Previsto del 1 al 5 de '+monthPay);
- html+='<div class="ops-list">'+pay.rows.map(x=>card(x.name,x.type==='fixed'?'Importe fijo':'Comisión 1 €/m²',[['Ver detalle','paymentDetail',x.id]],euro(x.amount)+' · '+payStatus(x.status))).join('')+'</div>';
- if(simulatedPayDay>=5&&pay.atRisk.length)html+='<div class="ops-error"><b>Alerta a Dirección:</b> '+pay.atRisk.length+' trabajadores sin confirmar recepción el día '+simulatedPayDay+'. Contacta con la gestoría o el responsable de pagos.</div>';
- html+=heading('EN QUÉ SE GASTA EL DINERO','Tarjetas, combustible, peajes, comidas');
- html+='<div class="ops-list">'+econ.categories.map(([name,amount])=>card(name,'Total clasificado',[['Consultar movimientos','expensesOpen',name]],euro(amount))).join('')+'</div>';
- html+=heading('INCIDENCIAS QUE REQUIEREN ACTUACIÓN','Desviaciones, no acusaciones');
- html+='<div class="ops-list">'+(an.length?an.map(x=>card(x.name,'Estimado '+euro(x.estimate)+' · Registrado '+euro(x.cents),[['Ver control','expense',x.id]],'Verificar '+euro(x.excess))):[card('Sin anomalías detectadas','Los datos son un ejemplo y no provienen de tarjetas reales.',[],'')]).join('')+'</div>';
- html+='<div class="ops-note">No mostrar ranking de comerciales al CEO como pantalla central: el responsable de Comercial controla productividad y el CEO ve coste, pagos, ingresos y riesgos. En esta demo los ingresos y costes abarcan solo algunos expedientes, mientras los honorarios representan un periodo completo: la comparación no es un P&L empresarial validado.</div>';
+ const econ=economic(ctx),pay=salarySummary(ctx),an=anomalies(),which=section.dirección;
+ let html=header('DIRECCIÓN · CENTRO DE MANDO','Situación de KONSOR','Información útil para tomar decisiones, con origen de cada cifra, explicación y posibles acciones.');
+ html+=tiles([['Ingresos previstos',euro(econ.revenue)],['Costes de obras',euro(econ.jobCost)],['Remuneraciones',euro(econ.salary)],['Tarjetas y VIA-T',euro(econ.expense)]]);
+ html+=sectionTabs('dirección',[['overview','Resumen'],['income','Ingresos'],['people','Pagos'],['spending','Gastos']]);
+ if(which==='overview'){
+  html+='<div class="ops-desk-columns"><div><article class="ops-feature"><span class="eyebrow">ESCENARIO · NO CONTABLE</span><h2>'+euro(econ.result)+'</h2><p>Ingresos previstos registrados − costes estimados de obras − remuneraciones del periodo − gastos corporativos. <b>No es beneficio contable ni saldo bancario.</b></p></article>';
+  html+='<div class="ops-prompt"><div class="ops-prompt-number">!</div><div><strong>Hay '+econ.missingPrices+' expedientes sin precios/costes completos</strong><p>Antes de proyectar rentabilidad real, solicitar los importes que faltan y evitar comparar periodos distintos.</p></div></div></div>';
+  html+='<div><div class="ops-heading"><strong>EN QUÉ INTERVENIR</strong></div>';
+  if(simulatedPayDay>=5&&pay.atRisk.length)html+='<div class="ops-alert"><b>Pagos del personal:</b> '+pay.atRisk.length+' sin confirmación positiva el día '+simulatedPayDay+'. Consultar con Administración y la gestoría.</div>';
+  if(an.length)html+='<div class="ops-prompt"><div class="ops-prompt-number">'+an.length+'</div><div><strong>Movimiento(s) de combustible a revisar</strong><p>Contrastarlos con kilómetros, consumo, repostajes y justificantes antes de tomar medidas.</p><button class="ops-secondary" data-ops="viewSection" data-id="spending">Ver gastos y causas</button></div></div>';
+  html+='<details class="ops-explain"><summary>¿Qué significan estas cantidades?</summary><p>Ingresos previstos: valor económico supuesto de expedientes con importes. Costes: gastos directos estimados de esos trabajos. Remuneraciones: importes fijos y comisiones de un periodo. Gastos corporativos: tarjetas, peajes y comidas ficticios. Las bases temporales y la cobertura no coinciden; el resultado solo ilustra la función futura.</p></details></div></div>';
+ }else if(which==='income'){
+  html+=block({title:'Ingresos registrados: '+euro(econ.revenue),desc:'Detalle de cada expediente con importes supuestos. Las obras sin cifras no entran en este cálculo.'});
+  html+=heading('PROCEDENCIA Y COSTE DIRECTO','Desglose por obra');
+  html+='<div class="ops-queue ops-list">'+econ.priced.map(j=>card(j.id+' · '+j.town,'Ingreso '+E(j.income)+' · Coste directo '+E(j.cost),[['Abrir ficha','record',j.id]],j.service)).join('')+'</div>';
+  html+='<details class="ops-explain"><summary>¿Qué se podría mejorar?</summary><p>Completar costes faltantes, comparar por tipo de obra y separar presupuestado de ejecutado. Solo así se podrán detectar márgenes desviados con fundamento.</p></details>';
+ }else if(which==='people'){
+  html+=block({title:'Remuneraciones: '+euro(econ.salary),desc:'Honorarios fijos para departamentos y 1 € por m² de buhardilla en Comercial. La gestoría realiza los pagos.'});
+  html+='<div class="ops-caseactions">'+[1,5].map(d=>'<button class="ops-secondary" data-ops="payday" data-id="'+d+'">Simular día '+d+'</button>').join('')+'</div>';
+  if(simulatedPayDay>=5&&pay.atRisk.length)html+='<div class="ops-alert"><b>Acción:</b> '+pay.atRisk.length+' personas sin confirmar pago. Hablar con Administración o gestoría.</div>';
+  html+=heading('A QUIÉN Y CUÁNTO','Verificación del propio trabajador');
+  html+='<div class="ops-queue ops-list">'+pay.rows.map(x=>card(x.name,x.type==='fixed'?'Honorario fijo':'Comisión 1 €/m²',[['Ver cálculo','paymentDetail',x.id]],euro(x.amount)+' · '+payStatus(x.status))).join('')+'</div>';
+ }else{
+  html+=block({title:'Gastos corporativos: '+euro(econ.expense),desc:'Tarjetas de empresa, combustible, VIA-T, comidas y otros conceptos. Estos consumos no se descuentan de las remuneraciones.'});
+  html+=heading('DESTINO DEL GASTO','Por categoría');
+  html+='<div class="ops-queue ops-list">'+econ.categories.map(([kind,amount])=>card(kind,'Movimientos clasificados',[['Ver registros','expensesOpen',kind]],euro(amount))).join('')+'</div>';
+  if(an.length)html+='<div class="ops-alert">Posible desviación en '+an.length+' movimiento(s) de combustible. Comprobar kilómetros, consumo y precio. No implica irregularidad demostrada.</div>';
+  html+='<details class="ops-explain"><summary>¿Qué acciones puede recomendar KONSOR?</summary><p>Contrastar los trayectos previstos con los realizados, comprobar los litros y precios de repostaje, detectar duplicados y corregir asignaciones erróneas antes de atribuir costes o valorar rendimiento.</p></details>';
+ }
  return html;
 }
 function bossHTML(ctx){
@@ -331,6 +353,7 @@ function extraRecord(ctx,j,tab){
 function modal(ctx,title,html,callback){ctx.modal('KONSOR · DEMOSTRACIÓN',title,html,callback)}
 function action(ctx,kind,id){
  const j=ctx.jobs.find(x=>x.id===id); const get=x=>document.getElementById(x);
+ if(kind==='viewSection'&&ctx.role==='ceo'&&['overview','income','people','spending'].includes(id)){section.dirección=id;ctx.rerender();return}
  if(kind==='work')return ctx.nav('trabajo');
  if(kind==='record'&&j&&ctx.canSee(j))return ctx.openRecord(id);
  if(kind==='officeCase'&&j&&canOffice(ctx,j))return officeOpen(ctx,id);
@@ -359,6 +382,11 @@ function action(ctx,kind,id){
 function mount(ctx){
  context=ctx;
  document.querySelectorAll('[data-ops]').forEach(b=>b.onclick=()=>action(ctx,b.dataset.ops,b.dataset.id));
+ document.querySelectorAll('[data-ops-view]').forEach(b=>b.onclick=()=>{
+  const parts=String(b.dataset.opsView||'').split(':');
+  if(parts.length!==2||!Object.prototype.hasOwnProperty.call(section,parts[0]))return;
+  section[parts[0]]=parts[1];ctx.rerender();
+ });
 }
 function tests(){return {docs,office,corrections,receipt,spend,salaried,get day(){return simulatedPayDay},get expenses(){return anomalies()},salarySummary,economic,officeAnalysis,commissions,missing,paymentEntry,status,officeOpen,action,techCompleted}};
 window.KonsorDemoOperaciones={officeHTML,adminHTML:financeHTML,ceoHTML,bossHTML,workerHTML,next,extraRecord,techInbox,activityTasks,mount,commissions,officeAnalysis,financeAnalysis:(ctx)=>({expenses:spending(),remunerations:salarySummary(ctx),estimated:economic(ctx)}),tests,action,techCompleted};
