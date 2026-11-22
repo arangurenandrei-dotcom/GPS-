@@ -161,3 +161,20 @@ test('el gesto desde un control de entrada no interfiere con formularios',()=>{
  const n=navigation; // mantenemos la aserción del caso normal en la prueba del gesto.
  assert.equal(clicks,0);
 });
+
+test('regresión: Clientes → Oficina → Inicio no reabre la pantalla de Clientes',()=>{
+ const {window,surface,flush}=navigation();
+ let homes=0;
+ const office=surface('cnOficina',1);
+ const clients=surface('konsorOfficeCallV2',2);
+ window.openCnOffice=()=>{office.active=true;};
+ window.cnvShowHome=()=>homes++;
+ clients.active=true;flush();
+ window.konsorGoBack();flush();
+ assert.equal(clients.active,false);
+ assert.equal(office.active,true);
+ window.konsorGoBack();flush();
+ assert.equal(office.active,false,'Oficina debe cerrarse');
+ assert.equal(clients.active,false,'Gestión de clientes no debe reabrirse');
+ assert.equal(homes,1,'Debe volver a Inicio una sola vez');
+});
