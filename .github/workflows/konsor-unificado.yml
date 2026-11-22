@@ -27,3 +27,7 @@ jobs:
         run: node tests/verificar-arquitectura.cjs
       - name: Ejecutar pruebas de regresión
         run: node --test tests/*.test.cjs
+      - name: Comprobar Inicio comercial en navegador real (móvil y PC)
+        run: |
+          npm install --no-save --no-package-lock puppeteer-core@24
+          node tests/smoke-navegador.cjs
