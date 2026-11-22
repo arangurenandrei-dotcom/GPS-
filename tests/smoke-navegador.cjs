@@ -144,6 +144,31 @@ async function main(){
    await page.click('#km-flow .cn-global-close');
    assert.equal(await page.evaluate(()=>!!document.querySelector('#km-flow')),false,
       label+' la X del asistente no lo cierra');
+   await page.evaluate(()=>window.openCnOffice());
+   await page.waitForSelector('#cnOficina .cn-global-back',{timeout:10000});
+   const officeHeader=await page.evaluate(()=>{
+     const h=document.querySelector('#cnOficina .cn-office-header');
+     const a=h.querySelector('.cn-global-back').getBoundingClientRect();
+     const t=h.querySelector('.cn-nav-title').getBoundingClientRect();
+     const b=h.querySelector('.cn-global-close').getBoundingClientRect();
+     return {noOverlap:a.right<t.left&&t.right<b.left,
+       originalHidden:getComputedStyle(h.querySelector('.cn-office-exit')).display==='none'};
+   });
+   assert.ok(officeHeader.noOverlap&&officeHeader.originalHidden,
+     label+' Oficina tiene título solapado o cierre duplicado');
+   await page.click('#cnOficina .cn-global-close');
+   assert.equal(await page.evaluate(()=>document.getElementById('cnOficina').classList.contains('active')),false,
+      label+' la X de Oficina no cierra');
+   await page.evaluate(()=>window.openCnCallQueue());
+   await page.waitForSelector('#konsorOfficeCallV2 .cn-global-back',{timeout:10000});
+   await page.click('#konsorOfficeCallV2 .cn-global-back');
+   const returnedToOffice=await page.evaluate(()=>
+     document.getElementById('cnOficina').classList.contains('active')&&
+     !document.getElementById('konsorOfficeCallV2').classList.contains('active'));
+   assert.ok(returnedToOffice,label+' volver desde Gestión de clientes debe recuperar Oficina');
+   await page.click('#cnOficina .cn-global-back');
+   assert.equal(await page.evaluate(()=>document.getElementById('cnOficina').classList.contains('active')),false,
+      label+' la flecha de Oficina no vuelve a Inicio');
    if(role==='jefe'){
      await page.evaluate(()=>window.openKonsorDirection());
      await page.waitForSelector('#konsorDirectionHub .cn-global-back',{timeout:10000});
