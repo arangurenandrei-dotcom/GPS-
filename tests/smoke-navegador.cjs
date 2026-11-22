@@ -166,11 +166,21 @@ async function main(){
        const head=root.querySelector('.kd-head');
        const screens=[...document.querySelectorAll('.modal-overlay.active,.cnx-modal.active,.koc-overlay.active,.kr-overlay.active,.kd-overlay.active,.km-overlay,.cn-territorio.active,.cn-oficina.active,#konsor-csv-wizard')]
          .map(el=>({id:el.id,classes:el.className,display:getComputedStyle(el).display,zIndex:getComputedStyle(el).zIndex}));
+       const xButton=head.querySelector('.cn-global-close');
+       const rect=xButton.getBoundingClientRect();
+       const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+       const hit=document.elementFromPoint(x,y);
+       const hitInfo={tag:hit?.tagName,classes:hit?.className,id:hit?.id,
+          text:hit?.textContent?.slice(0,35),x,y,
+          buttonPointer:getComputedStyle(xButton).pointerEvents,
+          headerPointer:getComputedStyle(head).pointerEvents,
+          xRect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height},
+          hitSame:hit===xButton};
        const wasOpen=root.classList.contains('active');
        if(wasOpen)window.konsorCloseTop();
        const afterDirectClose=root.classList.contains('active');
        if(afterDirectClose)head.querySelector('.cn-nav-native-close')?.click();
-       return {closed:!wasOpen,clicked:window.__navDirectorClicks,
+       return {closed:!wasOpen,clicked:window.__navDirectorClicks,hitInfo,
          afterDirectClose,afterNativeClick:root.classList.contains('active'),
          native:!!head.querySelector('.cn-nav-native-close'),
          hiddenNative:getComputedStyle(head.querySelector('.cn-nav-native-close')).display,screens};
