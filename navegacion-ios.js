@@ -167,8 +167,10 @@ function init(){
   const dx=t.clientX-g.x,dy=t.clientY-g.y;
   if(dx>72&&Math.abs(dy)<65&&dx>Math.abs(dy)*1.5){
    if(e.cancelable)e.preventDefault();
-   // Exactamente la misma ruta de navegación para flecha y gesto.
-   back();
+   // El gesto activa el mismo control de Volver que muestra la cabecera.
+   const arrow=current()?.querySelector('.cn-global-nav .cn-global-back');
+   if(arrow&&!arrow.disabled)arrow.click();
+   else back();
   }
  },{passive:false});
  document.addEventListener('touchcancel',()=>gesture=null,{passive:true});
