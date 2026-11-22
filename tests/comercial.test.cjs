@@ -7,24 +7,36 @@ const os=require('node:os');
 const path=require('node:path');
 const core=require('../comercial-core.js');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+const legacy=fs.readFileSync(path.join(__dirname,'../app/legacy/comercial-app.js'),'utf8');
 function loadFunction(name,context={}){
- const start=html.indexOf('function '+name+'(');
+ const start=legacy.indexOf('function '+name+'(');
  assert.ok(start>=0,name);
  const sandbox={ComercialCore:core,...context};vm.createContext(sandbox);
  let end=start;
- while((end=html.indexOf('\n',end+1))>=0){
-  let compiled;try{compiled=new vm.Script('('+html.slice(start,end)+')');}catch{continue;}
+ while((end=legacy.indexOf('\n',end+1))>=0){
+  let compiled;try{compiled=new vm.Script('('+legacy.slice(start,end)+')');}catch{continue;}
   return compiled.runInContext(sandbox);
  }
  throw Error('Cannot extract '+name);
 }
-test('all inline scripts parse, including Firebase module',()=>{
+test('all extracted app scripts parse, including Firebase module',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'comercial-check-'));
- try{let i=0;for(const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)){
-  if(!m[2].trim())continue;
-  const file=path.join(dir,`${i++}.${/type="module"/.test(m[1])?'mjs':'cjs'}`);
-  fs.writeFileSync(file,m[2]);cp.execFileSync(process.execPath,['--check',file]);
- }}finally{fs.rmSync(dir,{recursive:true});}
+ try{
+  const scripts=[
+   ['app/legacy/comercial-app.js','cjs'],
+   ['app/legacy/firebase-init.js','mjs'],
+   ['app/legacy/limpieza-visual.js','cjs'],
+   ['app/core/konsor-modulos.js','cjs'],
+   ['app/core/modelo-fichas-v2.js','cjs']
+  ];
+  let i=0;
+  for(const [source,ext] of scripts){
+   assert.ok(html.includes(source),'El HTML debe referenciar el recurso legacy o el núcleo debe existir: '+source);
+   const file=path.join(dir,`${i++}.${ext}`);
+   fs.writeFileSync(file,fs.readFileSync(path.join(__dirname,'..',source),'utf8'));
+   cp.execFileSync(process.execPath,['--check',file]);
+  }
+ }finally{fs.rmSync(dir,{recursive:true});}
 });
 test('area accepts comma and old ranges; empty/invalid never invents 70',()=>{
  for(const v of ['',undefined,null,'abc',-1,Infinity,'22abc'])assert.equal(core.area(v),0);
