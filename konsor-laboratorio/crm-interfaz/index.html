@@ -76,6 +76,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 }
 @media(max-width:850px){.auth-intro{display:none}#auth{display:flex;min-height:100dvh;align-items:center;justify-content:center;padding:24px 16px}.auth-box{max-width:520px;padding:27px 20px 19px;border-radius:30px;box-shadow:0 20px 70px #1e375c16}.auth-roles{max-height:55dvh}.auth-box h2{font-size:29px}}</style>
 <link rel="stylesheet" href="./tecnico-demo.css">
+<link rel="stylesheet" href="./operaciones-demo.css">
 </head>
 <body>
 <div id="auth">
@@ -124,6 +125,7 @@ body.kn-home .topbar{display:none}body.kn-home .bottomnav{display:none}
 </div>
 <div class="toast" id="toast" aria-live="polite"></div>
 <script src="./tecnico-demo.js"></script>
+<script src="./operaciones-demo.js"></script>
 <script>
 (function(){
 'use strict';
@@ -198,6 +200,17 @@ function assigned(){return jobs.filter(canSee)}
 function defaultNav(){return [{id:'inicio',label:'Inicio',icon:'home'},{id:'trabajo',label:'Mi trabajo',icon:'list'},{id:'expedientes',label:'Expedientes',icon:'folder'},{id:'agenda',label:'Agenda',icon:'calendar'},{id:'herramientas',label:'Herramientas',icon:'tools'}].concat(user().boss?[{id:'equipo',label:'Equipo y estadísticas',icon:'chart'}]:[])}
 function actions(row){return row.map(function(it){return '<button class="tool" data-tool="'+E(it[0])+'">'+icon(it[1])+' '+E(it[0])+'</button>'}).join('')}
 function titleBlock(k,h,p){return '<div class="greet"><div><span class="eyebrow">'+E(k)+'</span><h1>'+E(h)+'</h1><p>'+E(p)+'</p></div><span class="chip green">● DEMOSTRACIÓN</span></div>'}
+
+function opsContext(){
+ return {role:state.role,group:rgroup(),jobs:jobs,visible:assigned(),canSee:canSee,openRecord:openRecord,nav:setView,toast:toast,rerender:render,closeModal:closeModal,
+   modal:function(kicker,title,content,after){
+     $('modalKicker').textContent=kicker;$('modalTitle').textContent=title;
+     $('modalContent').innerHTML=content;$('overlay').classList.add('active');
+     if(typeof after==='function')after();
+   }
+ };
+}
+
 function renderNav(){
 var items=defaultNav();
 $('sideNav').innerHTML=items.map(function(t){return '<button data-nav="'+t.id+'" class="side-link '+(state.view===t.id?'active':'')+'">'+icon(t.icon)+' '+t.label+'</button>'}).join('');
@@ -299,6 +312,8 @@ state.step[state.role]=n+1;closeModal();render();toast('Paso validado en la demo
 
 function openTool(name){
 if(/Edificio/.test(name)){openBuilding();return}
+if(rgroup()==='oficina'&&/Expedientes|Bandeja|Documentación|Revisiones|Subsanaciones|Comunidades/.test(name)){setView('trabajo');return}
+if(rgroup()==='administración'&&/Facturas|Cobros|pagos|Tickets|gastos|Flota|peajes|Comisiones|Tesorería/.test(name)){setView('trabajo');return}
 if(rgroup()==='técnicos'&&/Órdenes|Materiales|Ruta de instalaciones|Parte técnico|Incidencias|Fotograf|Fotos/.test(name)){setView('trabajo');return}
 if(/Expedientes|Bandeja|Fichas|Captación|Fotograf|Fotos/.test(name)){if(/Fotos|Fotograf/.test(name)){openNote(name,'Para el técnico, aquí aparecería la cámara, las fotos obligatorias y su orden de trabajo. En esta demo puedes abrir la pestaña Documentos de una ficha y elegir un archivo solo para visualizar su nombre.');return}setView('expedientes');return}
 if(/Mapa|Sectores|Catastro|Ruta/.test(name)){openNote(name,'Botón preparado en el diseño. Tal como pediste, el mapa y el cálculo de rutas no necesitan funcionar todavía.');return}
@@ -311,8 +326,9 @@ var u=user(),c=cfg[rgroup()],step=getProgress(),num=c.steps.length;
 var next=step<num?c.steps[step]:'Todo al día por ahora';
 var desc=step<num?stepDescription(rgroup(),step):'Has revisado todos los pasos de esta demostración.';
 if(rgroup()==='técnicos'){var techNext=window.KonsorDemoTecnicos.next({role:state.role,shift:shiftStatus(),jobs:jobs});next=techNext.title;desc=techNext.detail;}
+if(['oficina','administración','dirección'].includes(rgroup())){var opNext=window.KonsorDemoOperaciones.next(opsContext());if(opNext){next=opNext.title;desc=opNext.detail}}
 if(shiftStatus()==='lunch'){next='Tu pausa sigue activa';desc='Cuando vuelvas a trabajar, reanuda la jornada para que el registro sea correcto.'}
-else if(rgroup()!=='técnicos'&&shiftStatus()==='off'&&u.id!=='ceo'&&step===0){next=rgroup()==='comercial'&&u.boss?'Tienes 3 sectores sin volcar':'Prepara tu jornada';desc=rgroup()==='comercial'&&u.boss?'Empieza por el más antiguo y continúa el trabajo de Oficina.':'Consulta tus tareas y registra el inicio cuando vayas a trabajar.'}
+else if(rgroup()==='comercial'&&shiftStatus()==='off'&&u.id!=='ceo'&&step===0){next=rgroup()==='comercial'&&u.boss?'Tienes 3 sectores sin volcar':'Prepara tu jornada';desc=rgroup()==='comercial'&&u.boss?'Empieza por el más antiguo y continúa el trabajo de Oficina.':'Consulta tus tareas y registra el inicio cuando vayas a trabajar.'}
 var opts={
 comercial:[['Mi jornada','Ruta, actividad y fichaje','calendar','jornada'],['Mapa','Satélite, GPS y Catastro','map','Mapa y Catastro'],['Oficina','Volcados, llamadas y citas','home','Llamadas y seguimiento'],['Resultados','Tu progreso y clasificación','chart','equipo']],
 técnicos:[['Mi jornada','Fichaje e instalaciones','calendar','jornada'],['Órdenes','Trabajos de tu cuadrilla','list','Órdenes de trabajo'],['Ruta','Visitas y desplazamientos','map','Ruta de instalaciones'],['Partes y fotos','Evidencias y materiales','camera','expedientes']],
@@ -321,19 +337,24 @@ administración:[['Facturas','Emisión y revisión','file','expedientes'],['Cobr
 dirección:[['Departamentos','Equipos y personas','users','equipo'],['Expedientes','Estado global de obras','folder','expedientes'],['Resultados','Costes y rentabilidad','chart','equipo'],['Edificio','Centro de Operaciones','building','edificio']]
 };
 var action=shiftStatus()==='lunch'?'jornada':rgroup()==='comercial'&&u.boss&&shiftStatus()==='off'&&step===0?'Llamadas y seguimiento':'trabajo';
+if(rgroup()==='dirección')action='dirección';
 var home='<header class="kn-header"><div class="kn-brand"><div class="logo-mark">K</div><div><h2>KONSOR</h2><small>ESPACIO DE TRABAJO</small></div></div><div class="kn-head-actions"><button id="homeActivity" aria-label="Abrir centro de actividad">'+icon('calendar','lg')+'</button><button id="homeSettings" aria-label="Cambiar usuario">'+icon('user','lg')+'</button></div></header>';
 home+='<div class="kn-welcome"><div class="eyebrow">'+(u.boss?'PANEL DE RESPONSABLE':'MI ESPACIO')+'</div><h1>'+greeting()+'</h1><p>'+E(u.person)+'</p></div>';
-home+='<section class="kn-next"><div class="kn-iconbox">'+icon('home','lg')+'</div><div class="eyebrow">SIGUIENTE PASO RECOMENDADO</div><h2>'+E(next)+'</h2><p>'+E(desc)+'</p><button class="kn-primary" id="nextRecommended">'+(action==='trabajo'?'Continuar mi recorrido':action==='jornada'?'Revisar jornada':'Ir a Oficina')+' '+icon('arrow')+'</button></section>';
+home+='<section class="kn-next"><div class="kn-iconbox">'+icon('home','lg')+'</div><div class="eyebrow">SIGUIENTE PASO RECOMENDADO</div><h2>'+E(next)+'</h2><p>'+E(desc)+'</p><button class="kn-primary" id="nextRecommended">'+(action==='trabajo'?'Abrir mi trabajo':action==='jornada'?'Revisar jornada':action==='dirección'?'Ver situación de la empresa':'Ir a Oficina')+' '+icon('arrow')+'</button></section>';
 home+='<div class="kn-section"><strong>TU TRABAJO</strong><span>Accesos principales</span></div><div class="kn-tiles">'+opts[rgroup()].map(function(t,i){return '<button class="kn-tile" data-quick="'+i+'"><div class="symbol">'+icon(t[2],'lg')+'</div><div><strong>'+E(t[0])+'</strong><small>'+E(t[1])+'</small></div></button>'}).join('')+'</div>';
 if(u.boss)home+='<div class="kn-management"><div><span class="eyebrow">GESTIÓN DEL EQUIPO</span><h3>Dirección</h3><p>Planificación, territorio, supervisión y análisis.</p></div><button class="secondary" data-nav="equipo">Abrir dirección</button></div>';
 home+='<div class="kn-section" style="margin-top:29px"><strong>EDIFICIO KONSOR</strong><span>Consulta visual</span></div><div class="kn-management" style="background:#fff;margin-top:0"><div><h3 style="margin-top:0">Toda la empresa en un edificio</h3><p>Consulta puestos y agentes; vuelve a la aplicación para trabajar.</p></div><button class="secondary" data-building="open">'+icon('building')+' Ver edificio</button></div>';
+if(rgroup()==='comercial'){var cm=window.KonsorDemoOperaciones.commissions(opsContext());home+='<div class="kn-management" style="background:#fff"><div><div class="eyebrow">COMISIONES · HIPÓTESIS</div><h3>'+cm.reduce(function(s,x){return s+x.cents},0).toLocaleString('es-ES',{style:'currency',currency:'EUR'})+'</h3><p>Estimación de '+cm.reduce(function(s,x){return s+x.m2},0)+' m² ejecutados, a 1 €/m² de ejemplo. No es pago confirmado.</p></div><button class="secondary" data-nav="'+(u.boss?'equipo':'expedientes')+'">Ver desglose</button></div>'}
 home+='<footer class="kn-footer"><span>KONSOR · DEMOSTRACIÓN</span><span>Sin datos sincronizados</span></footer>';
 return home;
 }
 
 
 function renderWork(){
-if(rgroup()==='técnicos')return window.KonsorDemoTecnicos.html({role:state.role,shift:shiftStatus(),jobs:jobs});
+if(rgroup()==='técnicos')return window.KonsorDemoOperaciones.techInbox(opsContext())+window.KonsorDemoTecnicos.html({role:state.role,shift:shiftStatus(),jobs:jobs});
+if(rgroup()==='oficina')return window.KonsorDemoOperaciones.officeHTML(opsContext());
+if(rgroup()==='administración')return window.KonsorDemoOperaciones.adminHTML(opsContext());
+if(rgroup()==='dirección')return window.KonsorDemoOperaciones.ceoHTML(opsContext());
 var c=cfg[rgroup()],step=getProgress(),num=c.steps.length;
 var h='<header class="kn-guidehead"><button data-nav="inicio" aria-label="Volver">'+icon('chevron')+'</button><div><div class="eyebrow">'+E(rgroup()).toUpperCase()+' · RECORRIDO GUIADO</div><h1>Mi jornada y trabajo</h1></div></header>';
 h+='<div class="kn-guidebox"><div class="eyebrow">TU GUÍA</div><h2>'+(step<num?'Siguiente acción del día':'Recorrido revisado')+'</h2><p>'+(step<num?E(c.steps[step]):'Has completado todos los controles de demostración.')+'</p>'+(step<num?'<button class="kn-primary" style="width:100%" data-step="'+step+'">Continuar mi recorrido '+icon('arrow')+'</button>':'<button class="secondary" id="resetFlow">Reiniciar demostración</button>')+'</div>';
@@ -375,6 +396,7 @@ h+='<div class="stepgrid">'+c.tools.map(function(t){return '<button class="stepc
 }
 function renderTeam(){
 var u=user();if(!u.boss)return renderHome();
+return window.KonsorDemoOperaciones.bossHTML(opsContext());
 var h=titleBlock('RESPONSABLE · ESTADÍSTICAS','Control de '+(u.id==='ceo'?'KONSOR':rgroup()),'Indicadores, equipo y pendientes. En este prototipo todos los valores son de ejemplo.');
 h+='<div class="metrics"><div class="metric">'+icon('users')+'<strong>'+(u.id==='ceo'?'5':'3')+'</strong><span>Áreas representadas</span></div><div class="metric">'+icon('folder')+'<strong>'+assigned().length+'</strong><span>Expedientes ficticios visibles</span></div><div class="metric">'+icon('bell')+'<strong>2</strong><span>Avisos de ejemplo</span></div><div class="metric">'+icon('chart')+'<strong>—</strong><span>Rentabilidad no conectada</span></div></div>';
 h+='<div class="split"><div class="card pad"><h2>Ámbito supervisado</h2>'+[1,2,3].map(function(i){return '<div class="list-row"><div class="avatar">'+icon('users')+'</div><div class="label-group"><strong>'+(u.id==='ceo'?'Departamento':'Equipo')+' '+i+'</strong><small>Asignaciones y estadísticas ficticias</small></div><span class="chip">Sincronización pendiente</span></div>'}).join('')+'</div><div class="card pad"><h2>Revisión del responsable</h2><p class="small muted">El jefe podrá analizar rendimientos, asignar trabajo, detectar retrasos y validar la planificación sin acceder a datos fuera de su ámbito.</p><button class="primary" data-nav="trabajo">Abrir asistente de planificación '+icon('arrow','sm')+'</button></div></div>';return h;
@@ -393,6 +415,7 @@ $('main').querySelectorAll('[data-building]').forEach(function(b){b.onclick=open
 if($('fileSearch')){$('fileSearch').oninput=function(e){state.search=e.target.value;var focus=this.selectionStart;var newlist=assigned().filter(function(j){return (j.id+' '+j.name+' '+j.town+' '+j.service).toLocaleLowerCase('es').includes(state.search.toLocaleLowerCase('es'))});$('fileCards').innerHTML=newlist.length?newlist.map(function(j){return '<button class="filecard" data-job="'+j.id+'"><div class="avatar">'+icon('file')+'</div><div style="flex:1;min-width:0"><strong>'+j.id+' · '+E(j.name)+'</strong><small>'+E(j.town)+' · '+E(j.service)+'</small></div><span class="chip">'+E(j.stage)+'</span>'+icon('chevron','sm')+'</button>'}).join(''):'<div class="empty">Sin coincidencias.</div>';$('fileCards').querySelectorAll('[data-job]').forEach(function(b){b.onclick=function(){openRecord(b.dataset.job)}})}} 
 if($('resetFlow'))$('resetFlow').onclick=function(){state.step[state.role]=0;render()};
 if(rgroup()==='técnicos'&&state.view==='trabajo')window.KonsorDemoTecnicos.mount({role:state.role,shift:shiftStatus(),jobs:jobs,openShift:showShiftPanel,rerender:render,toast:toast});
+if(['técnicos','oficina','administración','dirección'].includes(rgroup())&&state.view==='trabajo'||state.view==='equipo'&&user().boss)window.KonsorDemoOperaciones.mount(opsContext());
 if($('homeActivity'))$('homeActivity').onclick=function(){openActivity('inbox')};
 if($('homeSettings'))$('homeSettings').onclick=returnLogin;
 if($('nextRecommended'))$('nextRecommended').onclick=function(){if(shiftStatus()==='lunch')showShiftPanel();else if(rgroup()==='comercial'&&user().boss&&shiftStatus()==='off'&&getProgress()===0)openTool('Llamadas y seguimiento');else setView('trabajo')};
@@ -463,6 +486,7 @@ case 'instalación':body='<div class="fieldgrid">'+field('Cuadrilla asignada',j.
 case 'documentos':body='<div class="docslot">'+icon('file')+' Documentación del expediente <span class="chip">'+j.docs+' referencias demo</span></div><div class="docslot">'+icon('camera')+' Fotografías del técnico <span class="chip amber">Por revisar</span></div><div class="docslot">'+icon('shield')+' Firmas y validación CAE <span class="chip">Pendiente</span></div><div class="card pad" style="margin-top:12px"><strong>Vista previa de archivo local</strong><p class="small muted">Puedes elegir una foto para comprobar cómo se mostraría el nombre. No se sube a ningún servidor ni se guarda.</p><input id="demoFile" type="file" accept="image/*,.pdf" style="max-width:100%;font-size:11px"><div id="filename" class="small muted" style="margin-top:9px"></div></div>';break;
 case 'economía':body='<div class="fieldgrid">'+field('Ingreso previsto',j.income)+field('Coste estimado',j.cost)+field('Factura','No emitida en demo')+field('Cobro confirmado','No')+field('Rentabilidad real','Sin datos contables')+field('Comisiones','Sin liquidación')+'</div>';break;
 }
+body+=window.KonsorDemoOperaciones.extraRecord(opsContext(),j,state.recordTab);
 $('recordPanel').innerHTML=body;
 if($('demoFile'))$('demoFile').onchange=function(e){var f=e.target.files&&e.target.files[0];$('filename').textContent=f?'Archivo seleccionado: '+f.name+' · Solo visible en tu dispositivo.':''};
 $('overlay').classList.add('active');
