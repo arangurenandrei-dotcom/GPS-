@@ -6812,16 +6812,7 @@ function renderBossPlan() {
       return true;
     }
 
-    async function updateClientCallStatusOld(zoneIdx, clientIdx, newCallStatus) {
-      const z = savedZones[zoneIdx];
-      if (!z || !z.clients || !z.clients[clientIdx]) return;
-      z.clients[clientIdx].callStatus = newCallStatus;
-      z.clients[clientIdx].statusChangedAt = Date.now();
-      z._updatedAt = Date.now();
-      if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
-      renderFollowUpsModal();
-    }
-
+    
     /* ===== FRANJAS DE OBRA, CITAS Y WHATSAPP AL CLIENTE ===== */
     const OBRA_SLOTS = [
       { start: '09:00', end: '11:00' },
@@ -8654,62 +8645,7 @@ function renderGlobalClientSearchResults() {
   }
 }
 
-    function renderGlobalClientSearchResultsOld() {
-      const q = (document.getElementById('globalClientQuery').value || '').toLowerCase().trim();
-      const container = document.getElementById('globalClientSearchResults');
-      const matches = [];
-
-      savedZones.forEach((z, zIdx) => {
-        if (isMikelTeamMember(z.comercial) !== isMikelTeamMember(currentUserName)) return;
-        if (currentUserRole === 'comercial' && z.comercial !== currentUserName) return;
-        if (!z.clients) return;
-
-        z.clients.forEach((c, cIdx) => {
-          const hay = `${c.name || ''} ${c.phone || ''} ${c.street || ''} ${z.town || ''} ${z.comercial || ''}`.toLowerCase();
-          if (!q || hay.includes(q)) {
-            matches.push({ zone: z, zoneIdx: zIdx, client: c, clientIdx: cIdx });
-          }
-        });
-      });
-
-      if (matches.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:20px; color:#94a3b8; font-size:12px;">No se encontraron fichas con "${q}".</div>`;
-        return;
-      }
-
-      let html = '';
-      matches.slice(0, 40).forEach(m => {
-        const c = m.client;
-        const z = m.zone;
-        const isCom = c.type === 'comunidad';
-        const docsCount = isCom ? countComunidadDocs(c.comunidadDocs) : 0;
-        const cleanPhone = (c.phone || '').replace(/\s+/g, '');
-
-        html += `
-          <div class="audit-card" style="cursor:pointer;" onclick="closeModal('globalSearchModal'); openDumpModal(${m.zoneIdx});">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="font-size:12.5px; color:#fff;">${isCom ? '🏢' : '🏠'} ${c.name || 'Cliente sin nombre'}</strong>
-              <span style="font-size:10px; font-weight:800; color:#34d399;">${getM2NumericValue(c.m2)} m²</span>
-            </div>
-            <div style="font-size:11px; color:#cbd5e1;">📍 ${c.street || 'Sin calle'} • <strong>${z.town}</strong></div>
-            <div style="font-size:10px; color:#94a3b8;">🏗️ Año: ${c.buildYear || '≤ 2006'} | 🚪 Acceso: ${formatAccessDisplay(c)}</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#94a3b8; margin-top:2px;">
-              <span>📞 ${c.phone || 'Sin tel'} | 👤 ${z.comercial}</span>
-              ${isCom ? `<span style="color:#a78bfa; font-weight:800;">📋 Docs CAE: ${docsCount}/5</span>` : ''}
-            </div>
-            ${cleanPhone ? `
-              <div style="display:flex; gap:6px; margin-top:4px;" onclick="event.stopPropagation();">
-                <a href="tel:${cleanPhone}" style="flex:1; text-align:center; text-decoration:none; background:#2563eb; color:#fff; padding:5px; border-radius:7px; font-size:10.5px; font-weight:800;">📞 Llamar</a>
-                <a href="https://wa.me/34${cleanPhone}" target="_blank" style="flex:1; text-align:center; text-decoration:none; background:#059669; color:#fff; padding:5px; border-radius:7px; font-size:10.5px; font-weight:800;">💬 WhatsApp</a>
-              </div>
-            ` : ''}
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
-    }
-
+    
     /* =====================================================================
        ALERTA AL JEFE: OBRAS PROGRAMADAS PARA HOY + ENVÍO RECLAMO VECINOS
        ===================================================================== */
@@ -15237,69 +15173,7 @@ function openCommercialStatsModalLegacy() {
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     }
 
-    function exportOfficialCrmJsonPackageOld() {
-      const selectedMonthCrm = document.getElementById('auditMonthSelect')?.value || 'ALL';
-      const records = [];
-
-      savedZones.forEach(z => {
-        if (isMikelTeamMember(z.comercial) || !z.clients || z.clients.length === 0) return;
-        const zDate = z.dumpDate || z.date || '';
-        if (selectedMonthCrm !== 'ALL' && !zDate.startsWith(selectedMonthCrm)) return;
-
-        z.clients.forEach(c => {
-          if (!isClientValidFilled(c) || c.obraStatus === 'no_apto') return;
-          const m2Val = getM2NumericValue(c.m2);
-          const cteInfo = detectCteZoneFromCpAndTown(c.postalCode || '', z.town || '');
-
-          records.push({
-            fecha_captacion: zDate,
-            comercial_captador: getDisplayAlias(z.comercial),
-            comercial_id: z.comercial,
-            tipo_inmueble: c.type === 'comunidad' ? 'COMUNIDAD' : 'VIVIENDA_UNIFAMILIAR',
-            cliente_nombre: c.name || '',
-            telefono: (c.phone || '').replace(/\s+/g, ''),
-            email: c.email || '',
-            direccion: c.street || '',
-            municipio: z.town || '',
-            provincia: 'Navarra',
-            codigo_postal: c.postalCode || cteInfo.cp || '',
-            zona_climatica_cte: c.cteZone || cteInfo.cteZone || 'PENDIENTE_VERIFICAR',
-            anio_construccion: parseInt(c.buildYear) || null,
-            superficie_m2: m2Val,
-            tipo_acceso: formatAccessDisplay(c),
-            estado_expediente: c.obraStatus === 'agendada' ? 'CITA_AGENDADA' : (c.obraStatus === 'realizada' ? 'OBRA_REALIZADA' : 'CAPTACION_SI'),
-            agendar_web_calendar: c.obraStatus === 'agendada',
-            fecha_obra: c.obraDate || null,
-            hora_obra: c.obraTime || null,
-            documentacion_comunidad: c.type === 'comunidad' ? (c.comunidadDocs || {}) : null
-          });
-        });
-      });
-
-      if (records.length === 0) {
-        alert("⚠️ No hay fichas válidas en el periodo seleccionado para exportar al CRM.");
-        return;
-      }
-
-      const payload = {
-        origen_app: "Konsor_Campo_Navarra_v2027",
-        exportado_en: new Date().toISOString(),
-        periodo: selectedMonthCrm,
-        total_fichas: records.length,
-        fichas: records
-      };
-
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Parte_CRM_Konsor_${selectedMonthCrm}_${getTodayISO()}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      triggerHapticAndSound('success');
-    }
-
+    
     function exportReportToCSV() {
       const headers = [
         'Fecha', 'Comercial', 'Pueblo', 'Sector', 'Tipo Inmueble',
@@ -17298,28 +17172,7 @@ function openCommercialStatsModalLegacy() {
       }
     }
 
-    async function requestMobileNotificationsOld() {
-      if (isMikelTeamMember(currentUserName)) return;
-      triggerHapticAndSound('tap');
-      if (!('Notification' in window)) {
-        alert("ℹ️ En iPhone, asegúrate de tener la app añadida a la Pantalla de Inicio (Compartir → Añadir a pantalla de inicio) para recibir notificaciones.");
-        return;
-      }
-      const perm = await Notification.requestPermission();
-      const btn = document.getElementById('btnEnableNotifs');
-      if (perm === 'granted') {
-        if (btn) {
-          btn.style.background = 'rgba(16,185,129,0.25)';
-          btn.style.borderColor = '#34d399';
-          btn.innerText = '🔔✓';
-        }
-        triggerHapticAndSound('success');
-        sendLocalMobileNotification('Konsor Energía • Navarra', '✅ Notificaciones activadas. Te avisaremos al instante de nuevos SÍ y obras de hoy.');
-      } else {
-        alert("⚠️ Permiso de notificaciones denegado en el navegador.");
-      }
-    }
-
+    
     function sendLocalMobileNotification(title, bodyText) {
       if (isMikelTeamMember(currentUserName)) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
