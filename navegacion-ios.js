@@ -155,29 +155,39 @@ function init(){
  });
  document.addEventListener('touchstart',e=>{
   gesture=null;
-  const surface=current();
+  const overlay=current();
+  const mapMode=!overlay&&document.body?.classList?.contains('cnv-map-active');
+  const surface=overlay||(mapMode?document.getElementById('cnvMapToolbar'):null);
   if(!surface||e.touches.length!==1)return;
   const t=e.touches[0];
-  if(t.clientX>44)return;
-  if(e.target.closest('#map,.leaflet-container,input,textarea,select,[role=slider],.cnv-map-toolbar,[data-no-swipe],.swiper,.scroll-horizontal'))return;
-  gesture={x:t.clientX,y:t.clientY,surface};
+  // La vista de Mapa reserva solo 24 px; el resto sigue sirviendo para desplazar Leaflet.
+  if(t.clientX>(mapMode?24:44))return;
+  const excluded=mapMode?'input,textarea,select,[role=slider],[data-no-swipe]':
+   '#map,.leaflet-container,input,textarea,select,[role=slider],.cnv-map-toolbar,[data-no-swipe],.swiper,.scroll-horizontal';
+  if(e.target.closest(excluded))return;
+  gesture={x:t.clientX,y:t.clientY,surface,mapMode};
  },{passive:true});
+ function gestureMatches(g){
+  return g.mapMode?(!current()&&document.body?.classList?.contains('cnv-map-active')):current()===g.surface;
+ }
  document.addEventListener('touchmove',e=>{
   if(!gesture)return;
-  if(e.touches.length!==1||current()!==gesture.surface){gesture=null;return;}
+  if(e.touches.length!==1||!gestureMatches(gesture)){gesture=null;return;}
   const t=e.touches[0],dx=t.clientX-gesture.x,dy=t.clientY-gesture.y;
   if(dx>22&&dx>Math.abs(dy)*1.45&&e.cancelable)e.preventDefault();
  },{passive:false});
  document.addEventListener('touchend',e=>{
   if(!gesture)return;
   const g=gesture;gesture=null;
-  const t=e.changedTouches[0];if(!t||current()!==g.surface)return;
+  const t=e.changedTouches[0];if(!t||gestureMatches(g)===false)return;
   const dx=t.clientX-g.x,dy=t.clientY-g.y;
   if(dx>72&&Math.abs(dy)<65&&dx>Math.abs(dy)*1.5){
    if(e.cancelable)e.preventDefault();
-   // El gesto activa el mismo control de Volver que muestra la cabecera.
-   const arrow=current()?.querySelector('.cn-global-nav .cn-global-back');
+   // Flecha y gesto ejecutan exactamente la misma acción.
+   const arrow=g.mapMode?document.querySelector('.cnv-map-head .cnv-map-back'):
+    current()?.querySelector('.cn-global-nav .cn-global-back');
    if(arrow&&!arrow.disabled)arrow.click();
+   else if(g.mapMode)window.cnvShowHome?.();
    else back();
   }
  },{passive:false});
