@@ -1327,7 +1327,7 @@ function openUserProfileModal() {
         ['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName);
       const normalizeImport=s=>String(s||'').trim().normalize('NFD')
         .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
-      const allowedImportZone=z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&
+      const allowedImportZone=z=>z&&!z.isLegacyPortfolio&&!z.isSingleHouse&&!z.isNoAptoZone&&
         isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName)&&
         (isChief||z.comercial===currentUserName);
       window.konsorImportCsvWizard({
@@ -2219,6 +2219,7 @@ function renderIosPrimaryNavigation(area='commercial'){
   ['Resultados','chart',()=>window.openCnResults?.(),true]
  ]:direction?[
   ['Territorio','building',()=>window.openCnTerritory?.(),true],
+  ['Clientes antiguos','contact',()=>window.openKonsorLegacyPortfolio?.(),true],
   ['Importar fichas','contact',abrirImportadorTerritorialKonsor,true],
   ['Mi equipo','users',openTeamManagementMenu,true],
   ['Comerciales','contact',openPeopleManagement,true],
@@ -11007,6 +11008,7 @@ function konsorNextSectorNumber(town) {
 
       const viewerIsMikelTeam = isMikelTeamMember(currentUserName);
       savedZones.forEach((z, idx) => {
+        if(z.isLegacyPortfolio)return; // Cartera histórica no tiene sector dibujado.
         if (isMikelTeamMember(z.comercial) !== viewerIsMikelTeam) return;
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
           return;
@@ -13112,7 +13114,7 @@ function konsorNextSectorNumber(town) {
       const daysSet = new Set();
 
       savedZones.forEach(z => {
-        if (z.comercial !== userName || z.isNoAptoZone) return;
+        if (z.comercial !== userName || z.isNoAptoZone || z.isLegacyPortfolio) return;
         const zDate = z.dumpDate || z.date || '';
         if (monthYm && !zDate.startsWith(monthYm)) return;
         if (zDate) daysSet.add(zDate);
@@ -15023,7 +15025,7 @@ function openCommercialStatsModalLegacy() {
       const datesSet = new Set();
 
       savedZones.forEach(z => {
-        if (z.comercial !== currentUserName || z.isNoAptoZone) return;
+        if (z.comercial !== currentUserName || z.isNoAptoZone || z.isLegacyPortfolio) return;
         const st = z.stats || {};
         const zDate = z.dumpDate || z.date || '';
 
