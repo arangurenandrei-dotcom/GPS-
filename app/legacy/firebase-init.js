@@ -49,6 +49,12 @@
  window.callAgendarObraEquipo = httpsCallable(functionsEu, 'agendarObraEquipo');
  window.vincularObraExistenteKonsor = httpsCallable(functionsEu, 'vincularObraExistenteKonsor');
 
+ // Funciones seguras de comunicación interdepartamental; se activan tras despliegue.
+ window.crearMensajePlantaKonsor = httpsCallable(functionsEu, 'crearMensajePlantaKonsor');
+ window.listarMensajesPlantaKonsor = httpsCallable(functionsEu, 'listarMensajesPlantaKonsor');
+ window.actualizarMensajePlantaKonsor = httpsCallable(functionsEu, 'actualizarMensajePlantaKonsor');
+ window.configurarMargenesPlantaKonsor = httpsCallable(functionsEu, 'configurarMargenesPlantaKonsor');
+
     window.authApi = {
       async register(email, pass, name) {
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
