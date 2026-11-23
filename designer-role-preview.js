@@ -13,8 +13,8 @@ const roles=[
  {id:"ceo",name:"CEO",subtitle:"Dirección general",icon:"chart"}
 ];
 const spaces={
- ceo:{hero:"Supervisar el funcionamiento de KONSOR",detail:"Consulta el rendimiento, las prioridades y los costes de toda la empresa.",
-  actions:[["Producción","Resultados y obras","chart"],["Equipos","Áreas y responsables","users"],["Economía","Gastos y previsiones","wallet"],["Prioridades","Incidencias y decisiones","list"]]},
+ ceo:{hero:"Supervisar lo importante de cada planta",detail:"Recibe únicamente incidencias críticas, tareas escaladas y decisiones que requieren Dirección.",
+  actions:[["Alertas críticas","Incidencias escaladas de todas las plantas","chart"],["Instrucciones","Crear tareas para cualquier planta","users"],["Márgenes y plazos","Configurar umbrales de control","wallet"],["Seguimiento","Estado de tareas y decisiones","list"]]},
  oficina:{hero:"Preparar los expedientes de obra",detail:"Revisa las citas confirmadas, documentos pendientes y expedientes que necesitan atención.",actions:[]},
  tecnicos:{hero:"Preparar la siguiente obra",detail:"Consulta los trabajos asignados y completa cada intervención paso a paso.",actions:[]}
 };
@@ -106,7 +106,8 @@ function profileSettings(){
  else window.openUserProfileModal?.();
 }
 function notifications(){
- if(chosen==="oficina"||chosen==="tecnicos"||chosen==="ceo"){
+ if(chosen==="ceo"){window.KonsorPlantMessages?.open?.("ceo");return;}
+ if(chosen==="oficina"||chosen==="tecnicos"){
   window.KonsorDepartmentNotices?.open?.(chosen);return;
  }
  const overlay=document.getElementById(VIEW);
@@ -252,24 +253,26 @@ function open(id){
  e("strong","","TU TRABAJO",label);e("span","","Accesos principales",label);
  const grid=e("div","cnv-home-grid kdp-role-grid",undefined,section);
  if(id==="tecnicos"){
-  actionTile(grid,"Mi jornada","Ruta, obras y cierre del día","calendar",activate,true);
+  actionTile(grid,"Mi jornada","Ruta, obras y cierre del día","calendar",activate);
+  actionTile(grid,"Mensajes de plantas","Instrucciones, incidencias y confirmaciones","folder",()=>window.KonsorPlantMessages?.open?.("tecnicos"));
  }else if(id==="oficina"){
   actionTile(grid,"Mi jornada","Documentos, revisiones y tramitación","calendar",activate);
   actionTile(grid,"Citas y llamadas","Acceso secundario a agenda y nuevas reservas","calendar",openOfficeBookings);
+  actionTile(grid,"Mensajes de plantas","Solicitudes de Técnicos y Dirección","folder",()=>window.KonsorPlantMessages?.open?.("oficina"));
   actionTile(grid,"Nuevo cliente","Registrar lead sin sector ni planificación territorial","users",()=>openOfficeNewLead(section));
   actionTile(grid,"Clientes","Buscar y consultar fichas","office",()=>officeBrowser(section,id,false));
   actionTile(grid,"Archivador","Total leads, nuevos, haciendo, por llegar y terminados","folder",()=>officeBrowser(section,id,true),true);
  }else{
   data.actions.forEach(([name,detail,ico])=>actionTile(grid,name,detail,
    ico==="calendar"?"calendar":ico==="map"?"map":ico==="folder"?"office":"results",
-   ()=>{const hint=e("p","kdp-empty","Esta función de "+role.name+" todavía no está operativa. Se conectará tras validar permisos y backend.",section);hint.setAttribute("role","status");}));
+   ()=>window.KonsorPlantMessages?.open?.("ceo")));
  }
  if(id==="tecnicos"||id==="oficina"){
   e("p","kdp-explainer","Los clientes y las citas se consultan desde Firebase. Las fases técnicas y los cierres documentales permanecen sujetos a validación.",section);
  }
  const footer=e("div","cnv-home-footer",undefined,section);
  e("span","","KONSOR",footer);
- e("span","",(id==="tecnicos"||id==="oficina")?"KONSOR · DATOS CONECTADOS":"VISTA DE DISEÑO · SIN DATOS OPERATIVOS",footer);
+ e("span","",(id==="tecnicos"||id==="oficina")?"KONSOR · DATOS CONECTADOS":"KONSOR · DIRECCIÓN",footer);
  return true;
 }
 // Compatibilidad con llamadas antiguas: no insertar pestañas en el Inicio.
