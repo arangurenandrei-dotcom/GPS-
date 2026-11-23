@@ -31,7 +31,7 @@ async function markIndependent(client,status,el){
  }catch(err){alert("No se ha guardado la llamada: "+(err.message||err));if(el)el.disabled=false;}
 }
 function historicalSection(body){
- const records=visibleIndependent(),ready=records.filter(c=>c.legacyReviewStatus==="lista"&&c.callStatus==="pendiente"&&/^[6789]\d{8}$/.test(String(c.phone||"").replace(/\D/g,""))).sort((a,b)=>norm(a.locality).localeCompare(norm(b.locality),"es")||norm(a.street).localeCompare(norm(b.street),"es"));
+ const records=visibleIndependent(),ready=records.filter(c=>c.legacyReviewStatus==="lista"&&c.callStatus==="pendiente"&&/^[6789]\d{8}$/.test(String(c.phone||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,""))).sort((a,b)=>norm(a.locality).localeCompare(norm(b.locality),"es")||norm(a.street).localeCompare(norm(b.street),"es"));
  const wrap=card(body);title(wrap,"Clientes antiguos · llamadas",ready.length+" pendientes · "+records.length+" fichas independientes de sectores");
  if(independentLoading)e("p","koc-muted","Consultando la cartera histórica…",wrap);
  if(independentError)e("p","koc-error","No se pudo leer la cartera histórica: "+independentError,wrap);
@@ -50,6 +50,18 @@ function historicalSection(body){
   });
  });
  if(!ready.length&&!independentLoading)e("p","koc-muted","No hay clientes antiguos independientes por llamar. Los pendientes de completar siguen en Clientes antiguos.",wrap);
+ const followups=records.filter(c=>c.legacyReviewStatus==="lista"&&["ya_llamado","esperando_confirmacion"].includes(c.callStatus));
+ if(followups.length){
+  const container=e("details","koc-closed",undefined,wrap);
+  e("summary","","Clientes antiguos en seguimiento ("+followups.length+")",container);
+  followups.forEach(c=>{
+   const detail=card(container);
+   e("strong","",c.name+" · "+c.locality+" · "+c.street,detail);
+   e("p","koc-muted",c.callStatus==="esperando_confirmacion"?"Pendiente de respuesta o seguimiento":"Ya llamado",detail);
+   detail.append(button("Volver a poner en llamadas",function(){markIndependent(c,"pendiente",this);},"koc-quiet"));
+   detail.append(button("Abrir ficha",()=>{document.getElementById(ID)?.classList.remove("active");window.openKonsorLegacyClient?.(c.id);},"koc-quiet"));
+  });
+ }
  const postponed=records.filter(c=>c.legacyReviewStatus!=="lista").length;
  if(postponed)e("p","koc-muted",postponed+" ficha(s) todavía pendientes de completar.",wrap);
 }
@@ -804,7 +816,7 @@ async function markWhatsApp(){
 }
 window.openCnCallQueue=function(){
  clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";view="list";
- draw();loadIndependentHistorical().then(()=>draw()).catch(()=>draw());
+ draw();loadIndependentHistorical().then(()=>{if(view==="list")draw();}).catch(()=>{if(view==="list")draw();});
 };
 window.openKonsorOfficeClients=window.openCnCallQueue;
 })();
