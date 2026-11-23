@@ -47,6 +47,26 @@ function render(container){
   el("p","ktf-notice","La sesión de Firebase aún no ha cargado las fichas. No se muestran obras ni se crean datos de ejemplo.",main);
   return;
  }
+ const key=sessionStorage.getItem("auth_user_key");
+ const permittedOwner=key==="jefe"?z=>!String(z.comercial||"").startsWith("Mikel"):z=>false;
+ const review=root.KonsorTechnicalFlow.pendingVerification(savedZones,permittedOwner);
+ const refresh=el("button","ktf-open-agenda","Actualizar obras desde Firebase",main);
+ refresh.type="button";refresh.onclick=async()=>{
+  refresh.disabled=true;
+  try{await root.KonsorBridge.refresh(true);render(container);}
+  catch(err){refresh.disabled=false;el("p","ktf-notice","No se ha podido actualizar: "+(err.message||err),main);}
+ };
+ if(review.length){
+  const warning=el("section","ktf-detail",undefined,main);
+  el("strong","","Citas pendientes de verificar · "+review.length,warning);
+  el("p","ktf-notice","Estas fichas constan con estado de obra agendada, pero les falta una fecha válida o equipo. No se han borrado ni se cuentan como intervenciones listas hasta verificar el evento original.",warning);
+  for(const item of review.slice(0,12)){
+   const line=el("div","ktf-step",undefined,warning);
+   const labels=el("div","ktf-step-text",undefined,line);
+   el("strong","",item.street+" · "+item.location,labels);
+   el("small","",item.name+" · "+item.reason,labels);
+  }
+ }
  const summary=root.KonsorTechnicalFlow.recommend(list,today());
  const metrics=el("div","ktf-metrics",undefined,main);
  card(metrics,"Agendadas",summary.scheduled,"");
@@ -56,7 +76,7 @@ function render(container){
  el("strong","","SECUENCIA GUIADA",head2);
  el("span","",list.length+" obras en ficha",head2);
  if(!list.length){
-  el("p","ktf-notice","No hay obras asociadas a las fichas visibles de tu equipo. Comprueba la vinculación de Calendar; este recorrido no inventa reservas.",main);
+  el("p","ktf-notice",review.length?"No hay instalaciones listas para ruta hasta verificar las reservas indicadas arriba.":"No hay obras con fecha verificada en las fichas visibles. Comprueba la vinculación de Google Calendar desde Oficina; este recorrido no inventa reservas.",main);
   return;
  }
  let selected=summary.next?.id||list[0].id;
