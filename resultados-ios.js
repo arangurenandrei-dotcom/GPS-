@@ -2,29 +2,6 @@
 (function(){
 "use strict";
 let period="month",date="",tab="mine",metric="captadas",scope="me",request=0;
-let historicalIndependent=[],historicalLoading=false,historicalError="",historicalUserUid="",historicalRequest=0;
-async function loadHistorical(){
- const uid=window.auth?.currentUser?.uid||"";
- const token=++historicalRequest;
- if(historicalUserUid!==uid){historicalIndependent=[];historicalUserUid=uid;}
- historicalLoading=true;historicalError="";
- try{
-  if(!uid)throw Error("Inicia sesión para consultar clientes antiguos.");
-  if(typeof window.listarClientesAntiguos!=="function"){historicalIndependent=[];return;}
-  const r=await window.listarClientesAntiguos({});
-  if(r.data?.ok!==true||!Array.isArray(r.data.rows))throw Error("Firebase no ha confirmado la cartera.");
-  if(token!==historicalRequest||window.auth?.currentUser?.uid!==uid)return;
-  historicalIndependent=r.data.rows;
- }catch(e){
-  if(token===historicalRequest)historicalError=e.message||String(e);
- }finally{
-  if(token===historicalRequest){
-   historicalLoading=false;
-   const modal=document.getElementById("konsorResultsV3");
-   if(modal?.classList.contains("active")&&tab==="mine")render();
-  }
- }
-}
 const $=window.KonsorUI.el;
 const btn=(t,fn,cls="")=>{const b=$("button","kr-btn "+cls,t);b.type="button";b.onclick=fn;return b;};
 const fmt=n=>Number(n||0).toLocaleString("es-ES",{maximumFractionDigits:1});
@@ -53,7 +30,7 @@ function caption(parent,text){return $("p","kr-note",text,parent);}
 function open(which="mine"){
  if(!date)date=today();
  tab=which==="league"?"league":"mine";
- const o=panel();o.classList.add("active");render();loadHistorical();
+ const o=panel();o.classList.add("active");render();
 }
 async function league(container){
  const token=++request;
@@ -114,43 +91,9 @@ function render(){
  const title=$("section","kr-section-title",undefined,main);
  $("h3","",scope==="team"?"Resultados del equipo":"Mi actividad",title);
  caption(title,r[0]+" — "+r[1]);
- // Los registros históricos no son captaciones nuevas. Se informa su stock aparte,
- // incluso cuando todavía no se ha realizado ninguna llamada o faltan datos técnicos.
- const portfolio=$("section","kr-panel",undefined,main);
- $("h3","","Cartera histórica · pendiente de llamadas",portfolio);
- caption(portfolio,"Viviendas antiguas ya registradas, independientemente del período seleccionado. No son nuevas captaciones ni obras confirmadas.");
- const snapshot=window.KonsorPortfolioResults?.summary(
-  typeof savedZones!=="undefined"?savedZones:[],users,historicalIndependent,
-  {team:scope==="team"&&teamAllowed(),uid:window.auth?.currentUser?.uid||""}
- );
- if(!snapshot){
-  caption(portfolio,"El módulo de resultados históricos no está disponible en esta versión.");
- }else{
-  const gridHistoric=$("div","kr-grid",undefined,portfolio);
-  stat(gridHistoric,"Clientes sin llamar",fmt(snapshot.sinLlamar),"incluye fichas sin datos técnicos");
-  stat(gridHistoric,"m² sin llamar",fmt(snapshot.m2SinLlamar)+" m²","superficie neta anotada");
-  stat(gridHistoric,"Clientes antiguos registrados",fmt(snapshot.total),"toda la cartera histórica visible");
-  stat(gridHistoric,"Superficie histórica registrada",fmt(snapshot.m2Total)+" m²",snapshot.conM2+" fichas con m²");
-  if(snapshot.porCompletar)caption(portfolio,snapshot.porCompletar+" fichas con revisión pendiente. Se muestran sin exigir año, CP o zona CTE.");
-  if(snapshot.total>snapshot.conM2)caption(portfolio,(snapshot.total-snapshot.conM2)+" fichas sin superficie registrada; no se les han estimado metros.");
-  if(snapshot.towns.length){
-   const streets=$("details","kr-closed",undefined,portfolio);
-   $("summary","","Ver clientes y m² por pueblo",streets);
-   const table=$("div","kr-details",undefined,streets);
-   snapshot.towns.forEach(t=>{
-    const row=$("div","kr-detail",undefined,table);
-    $("span","",t.name+" · "+t.uncalled+" sin llamar",row);
-    $("b","",fmt(t.m2)+" m²",row);
-   });
-  }
- }
- if(typeof window.listarClientesAntiguos!=="function")caption(portfolio,"La lectura de fichas independientes de sectores todavía no está activada en esta versión.");
- if(historicalLoading)caption(portfolio,"Actualizando los clientes antiguos independientes desde Firebase…");
- if(historicalError)caption(portfolio,"No se ha podido comprobar la cartera independiente de Firebase: "+historicalError+". Las cifras anteriores solo incluyen los datos históricos visibles en sectores.");
-
  const grid=$("div","kr-grid",undefined,main);
- stat(grid,"Captaciones nuevas",fmt(m.validas),"fichas nuevas no descartadas");
- stat(grid,"Superficie captada nueva",fmt(m.m2Captado)+" m²","excluye cartera histórica");
+ stat(grid,"Captaciones",fmt(m.validas),"fichas no descartadas");
+ stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
  stat(grid,"Obras agendadas",fmt(m.citas),fmt(m.m2Citas)+" m² previstos");
  stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
  const chart=$("section","kr-panel",undefined,main);
