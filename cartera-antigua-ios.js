@@ -13,6 +13,9 @@ const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial=
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
+const isSectorless=z=>!!(z?.isSingleHouse&&z?.isSectorlessCapture);
+const captureStats=r=>({si:r==="si"?1:0,no:r==="no"?1:0,ausente:r==="ausente"?1:0,papelito:r==="papelito"?1:0});
+const callable=x=>isSectorless(x.z)?x.c.callStatus!=="bloqueada"&&x.c.captacionRespuesta==="si":x.c.legacyReviewStatus==="lista";
 const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
 window.konsorIsHistoricalClient=c=>inPortfolio(c);
 window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(inPortfolio);
@@ -80,21 +83,28 @@ async function commit(candidate){
  const check=syncState();
  if(check.kind!=="ready")throw Error(check.message);
  // Validar ANTES de enviar: el servidor rechaza IDs con %, espacios o caracteres fuera de ASCII.
- // El CRM histórico solo modifica fichas dentro de zonas que el servidor ya conoce.
- // Nunca se crean contenedores virtuales ni se trasladan fichas a un ID de zona nuevo.
+ // Conserva los sectores existentes. Solo permite registrar viviendas individuales
+ // sin polígono, usando el modelo de fichas V2 ya existente.
  const previous=zs(),originalIds=new Set(previous.map(z=>String(z.id)));
- if(candidate.length!==previous.length||candidate.some(z=>!originalIds.has(String(z.id))))
-  throw Error("Se ha detectado un intento de crear una zona. Operación cancelada por seguridad.");
+ // Únicamente se acepta una vivienda individual con pueblo, sin sector.
+ const added=candidate.filter(z=>!originalIds.has(String(z.id)));
+ if(candidate.length!==previous.length+added.length||
+    previous.some(z=>!candidate.some(x=>String(x.id)===String(z.id)))||
+    added.length>1||
+    added.some(z=>!isSectorless(z)||z.comercial!==current()||
+      !Array.isArray(z.points)||z.points.length!==0||
+      z.singlePoint!==null||!Array.isArray(z.clients)||z.clients.length!==1))
+  throw Error("Operación cancelada: no se permite crear ni eliminar sectores desde esta pantalla.");
  await window.KonsorBridge.save("comercial_custom_zones",candidate);
  savedZones=candidate;
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
 }
 function portfolioEntries(){
- const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)))out.push({z,zi,c,ci});});});
+ const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)||isSectorless(z)))out.push({z,zi,c,ci});});});
  return out.sort((a,b)=>(a.c.legacyReviewStatus==="lista")-(b.c.legacyReviewStatus==="lista")||String(a.z.town).localeCompare(String(b.z.town),"es"));
 }
 function sourceEntries(){
- const out=[];zs().forEach((z,zi)=>{if(isPort(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
+ const out=[];zs().forEach((z,zi)=>{if(isPort(z)||isSectorless(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
 }
 function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImportKey||[x.c.name,x.c.street,x.c.phone,x.ci].join("|"));}
 function showBackup(selected){
@@ -141,29 +151,25 @@ function sel(parent,label,currentValue,options){
  element.value=currentValue||"";return element;
 }
 function validateReady(d){
- const bad=[];
- if(!d.name)bad.push("nombre");if(!d.street)bad.push("calle");if(!d.locality||d.locality==="Localidad pendiente")bad.push("pueblo");
- if(!/^[6789]\d{8}$/.test(phone(d.phone)))bad.push("teléfono válido");
- if(!/^31\d{3}$/.test(String(d.postalCode||"")))bad.push("código postal de Navarra");
- if(!Number.isInteger(Number(d.buildYear))||Number(d.buildYear)<1800||Number(d.buildYear)>new Date().getFullYear())bad.push("año");
- if(numeric(d.m2Total)===null||Number(d.m2Total)<=5)bad.push("superficie total");
- if(!/^[DE][123]$/.test(d.cteZone))bad.push("CTE D/E");
- if(d.captacionRespuesta!=="si")bad.push("respuesta «Sí»");
- if(Number(d.buildYear)>2006)bad.push("año posterior a 2006");
- if(d.m2<(d.type==="urbanizacion"?50:60))bad.push("superficie neta mínima");
- if(d.type==="comunidad")bad.push("revisión específica de comunidad");
- if(d.obraStatus==="no_apto")bad.push("estado no apto");
- return bad;
+ const missing=[];
+ if(!d.name)missing.push("nombre");
+ if(!d.street)missing.push("dirección");
+ if(!d.locality)missing.push("pueblo");
+ if(!/^[6789]\d{8}$/.test(phone(d.phone)))missing.push("teléfono válido");
+ if(d.captacionRespuesta!=="si")missing.push("respuesta «Sí»");
+ return missing;
 }
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
- if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
+ if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z)||isSectorless(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
- const box=card(page,c?"Completar ficha histórica":"Nuevo cliente antiguo","Sin dibujo de pueblos o sectores. Guarda pendiente o confirma que está lista para llamadas.");
+ const box=card(page,c?"Completar ficha de captación":"Nueva captación sin sector","Mismos datos y seguimiento que una captación normal. Pueblo obligatorio; sin dibujar sectores.");
  const fields=E("div","kha-grid",undefined,box);
  const name=f(fields,"Nombre y apellidos",c?.name||"");
  const telephone=f(fields,"Teléfono",c?.phone||"","tel");
  const town=f(fields,"Pueblo",c?.locality||z?.town||"");
+ const today=typeof getTodayISO==="function"?getTodayISO():new Date().toLocaleDateString("sv-SE");
+ const captured=f(fields,"Fecha de captación",c?.captureDate||z?.date||today,"date");
  const street=f(fields,"Calle y número",c?.street||"");
  const postal=f(fields,"Código postal",c?.postalCode||"");
  const year=f(fields,"Año de construcción",c?.buildYear||"","number");
@@ -262,43 +268,70 @@ function editor(page){
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
  async function save(ready,button){
-  const d={name:name.value.trim(),phone:telephone.value.trim(),locality:town.value.trim(),street:street.value.trim(),
-   postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
-   captacionRespuesta:answer.value,observaciones:note.value.trim(),m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
-  if(!(d.name||d.phone||d.street)){showError("Introduce al menos un nombre, teléfono o dirección.");return;}
-  if(!d.locality){showError("Debes indicar un pueblo para guardar.");return;}
-  if(d.m2===null&&c?.m2!==undefined)d.m2=c.m2;
-  const pending=ready?validateReady(d):[];
-  if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
-  if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita histórica; no se puede reiniciar como llamada pendiente.");return;}
-  button.disabled=true;
-  try{
-   const data=structuredClone(zs()),stamp=Date.now();
-   if(c){
-    const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
-    if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone))||oldZone.id!==currentEdit.zoneId||String(oldClient.clientUid)!==String(currentEdit.uid))throw Error("La ficha ha cambiado. Vuelve a abrirla.");
+ const d={name:name.value.trim(),phone:telephone.value.trim(),locality:town.value.trim(),street:street.value.trim(),
+  postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
+  captureDate:captured.value.trim(),captacionRespuesta:answer.value,observaciones:note.value.trim(),
+  m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
+ if(!(d.name||d.phone||d.street)){showError("Introduce al menos nombre, teléfono o dirección.");return;}
+ if(!d.locality){showError("Debes indicar un pueblo.");return;}
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(d.captureDate)||!Number.isFinite(Date.parse(d.captureDate+"T12:00:00"))||d.captureDate>today){
+  showError("Selecciona una fecha de captación válida, no posterior a hoy.");return;
+ }
+ if(d.m2===null&&c?.m2!==undefined)d.m2=c.m2;
+ const pending=ready?validateReady(d):[];
+ if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
+ if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita; no puede reiniciarse.");return;}
+ button.disabled=true;
+ try{
+  const data=structuredClone(zs()),stamp=Date.now();
+  if(c){
+   const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
+   if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone)||isSectorless(oldZone))||
+      String(oldZone.id)!==String(currentEdit.zoneId)||String(oldClient.clientUid)!==String(currentEdit.uid))
+    throw Error("La ficha ha cambiado. Vuelve a abrirla.");
+   if(isSectorless(oldZone)){
+    // Una vivienda sin sector conserva el mismo modelo de ficha normal.
+    // No se marca como «histórica» a efectos de estadísticas.
+    const update={...oldClient,...d,sectorlessCapture:true,
+      callStatus:ready?(oldClient.callStatus==="bloqueada"?"pendiente":oldClient.callStatus||"pendiente")
+        :(oldClient.callStatus==="pendiente"?"bloqueada":oldClient.callStatus||"bloqueada"),
+      updatedAt:stamp};
+    oldZone.clients[currentEdit.ci]=update;
+    oldZone.town=d.locality;oldZone.date=d.captureDate;oldZone.dumpDate=d.captureDate;
+    oldZone.sectorName="🏠 "+d.street;oldZone.stats=captureStats(d.captacionRespuesta);
+   }else{
+    // Compatibilidad con fichas antiguas que ya estaban guardadas en sectores.
     const updated={...oldClient,...d,legacyPortfolio:true,importedLegacy:true,legacyReviewStatus:ready?"lista":"pendiente",
-     legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
+      legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
     if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
     if(ready&&(!oldClient.callStatus||["pendiente_visita","no_interesado","descartado"].includes(oldClient.callStatus)))updated.callStatus="pendiente";
-    // Actualiza la misma ficha, en la misma zona del servidor.
-    // El pueblo introducido se guarda dentro del cliente, no traslada documentos.
     oldZone.clients[currentEdit.ci]=updated;
-    oldZone._updatedAt=stamp;
-   }else{
-    const dst=existingZone(data,current(),d.locality);
-    if(!dst)throw Error("Todavía no existe un contenedor de datos de tu perfil para ese pueblo. La creación totalmente independiente requiere soporte del servidor; no se creará un sector ficticio.");
-    if(data.some(z=>access(z)&&(z.clients||[]).some(old=>
-      N(old.street)===N(d.street)&&N(old.locality||z.town)===N(d.locality)&&phone(old.phone)===phone(d.phone)&&d.street&&phone(d.phone).length===9)))
-     throw Error("Parece que ya existe ese cliente con la misma dirección y teléfono.");
-    dst.clients.push({...d,clientUid:"hist_"+(crypto.randomUUID?.()||String(stamp)+Math.random().toString(36).slice(2)),
-     importedLegacy:true,legacyPortfolio:true,legacyReviewStatus:ready?"lista":"pendiente",legacyReviewedAt:ready?stamp:null,
-     legacyReviewedBy:ready?current():"",callStatus:"pendiente",createdAt:stamp,statusChangedAt:stamp});
-    dst._updatedAt=stamp;
    }
-   await commit(data);screen="list";currentEdit=null;notice=ready?"Ficha guardada y habilitada para llamadas.":"Ficha guardada en pendientes.";render();
-  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
- }
+   oldZone._updatedAt=stamp;
+  }else{
+   if(data.some(z=>access(z)&&(z.clients||[]).some(old=>
+      N(old.street)===N(d.street)&&N(old.locality||z.town)===N(d.locality)&&
+      phone(old.phone)===phone(d.phone)&&d.street&&phone(d.phone).length===9)))
+    throw Error("Parece que ya existe ese cliente con la misma dirección y teléfono.");
+   // Mismo documento individual usado por «Nueva ficha» de KONSOR.
+   // La vivienda no está asignada a un sector, no tiene polígono y no
+   // genera porcentajes de cobertura ni conteos de sectores.
+   let id=Date.now();while(data.some(z=>String(z.id)===String(id)))id++;
+   const client={...d,clientUid:"f_"+crypto.randomUUID(),sectorlessCapture:true,
+     origen:"puerta",callStatus:ready?"pendiente":"bloqueada",
+     createdAt:Date.parse(d.captureDate+"T12:00:00"),updatedAt:stamp,statusChangedAt:stamp};
+   data.push({id,isSingleHouse:true,isSectorlessCapture:true,singlePoint:null,
+     date:d.captureDate,dumpDate:d.captureDate,town:d.locality,
+     sectorName:"🏠 "+d.street,comercial:current(),bossNote:"",pendingNote:"",
+     status:"completada",points:[],stats:captureStats(d.captacionRespuesta),
+     clients:[client],_updatedAt:stamp});
+  }
+  await commit(data);
+  screen="list";currentEdit=null;
+  notice=ready?"Captación guardada y habilitada para llamadas.":"Captación guardada, datos pendientes.";
+  activeTown=N(d.locality);activeStreet=streetBase(d.street).key;render();
+ }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
+}
  actions.append(B("Guardar pendiente",function(){save(false,this);}));
  actions.append(B("Guardar y habilitar llamadas",function(){save(true,this);},true));
 }
@@ -371,11 +404,11 @@ function listScreen(page){
  const actions=buttons(page);
  actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
  actions.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
- const summary=card(page,"Cartera histórica",total+" fichas · "+groups.length+" pueblos. Los datos históricos no se contabilizan como captación nueva.");
+ const summary=card(page,"Captaciones registradas",total+" fichas · "+groups.length+" pueblos. Las viviendas sin sector también son captaciones normales.");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
- E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus!=="lista").length,stats);
- E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus==="lista").length,stats);
+ E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
+ E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(callable).length,stats);
  const search=E("input","kha-search",undefined,page);
  search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
  const body=E("div","",undefined,page);
@@ -454,7 +487,7 @@ function listScreen(page){
   if(activeStreet&&!town.streets.has(activeStreet))activeStreet="";
   if(!activeStreet){
    for(const road of streets){
-    const ready=road.clients.filter(x=>x.c.legacyReviewStatus==="lista").length;
+    const ready=road.clients.filter(callable).length;
     const row=B("",()=>{activeTown=town.key;activeStreet=road.key;renderGroups();});
     row.className="kha-rowitem";
     const names=E("span","",undefined,row);
@@ -468,8 +501,8 @@ function listScreen(page){
    E("h3","",street?.label||"",body);
    for(const x of street?.clients||[]){
     const item=card(body,x.c.name||"Cliente sin nombre",[x.c.street||"Dirección pendiente",x.c.phone].filter(Boolean).join(" · "));
-    E("span",x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",
-      x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de completar",item);
+    E("span",callable(x)?"kha-tag good":"kha-tag",
+      callable(x)?"Lista para llamadas":"Pendiente de completar",item);
     p(item,"Año: "+(x.c.buildYear||"pendiente")+" · Superficie neta: "+(x.c.m2??"pendiente")+" m² · CTE: "+(x.c.cteZone||"pendiente"));
     item.append(B("Abrir ficha · Catastro y datos",()=>{
       screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
