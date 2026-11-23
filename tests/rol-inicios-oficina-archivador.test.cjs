@@ -43,7 +43,7 @@ test('Inicio técnico una sola tarjeta; Oficina tres, con mismo armazón y contr
  assert.ok(design.includes('Mi jornada","Ruta, obras y cierre del día"'));
  assert.ok(design.includes('Mi jornada","Documentos, revisiones y tramitación"'));
  assert.ok(design.includes('Clientes","Buscar y consultar fichas"'));
- assert.ok(design.includes('Archivador","Nuevos, haciendo, por llegar y terminados"'));
+ assert.ok(design.includes('Archivador","Total leads, nuevos, haciendo, por llegar y terminados"'));
  assert.ok(design.includes('kdp-single-tile'));
  assert.ok(!design.includes('kdp-preview-tile'));
 });
@@ -60,7 +60,7 @@ test('CSS premium real de Comercial aplicado también a las cuatro áreas',()=>{
  assert.ok(!css.includes('body.cnv-home-active #cnvHome'));
 });
 test('No hay escritura en el archivador y se carga antes del selector de áreas',()=>{
- assert.ok(html.includes('oficina-archivador.js?v=1'));
+ assert.ok(html.includes('oficina-archivador.js?v=2'));
  assert.ok(html.indexOf('oficina-archivador.js')<html.indexOf('designer-role-preview.js'));
  for(const s of ['saveAndSync(','KonsorBridge.save(','localStorage.setItem(','fetch('])assert.ok(!archiveSrc.includes(s),s);
 });
