@@ -10028,7 +10028,19 @@ function renderCommercialWorkDay() {
       }
     }
 
-        /* ===== CITA → CRM OBLIGATORIA + SEGUIMIENTO ===== */
+        // Las captaciones por puerta sin sector abren la MISMA ficha técnica individual.
+    window.konsorOpenFullUnassignedClient = function(clientUid){
+      const zi=savedZones.findIndex(z=>z?.isSingleHouse&&z?.unassignedSector&&
+        (z.clients||[]).some(c=>c?.clientUid===clientUid&&c?.captacionSinSector));
+      if(zi<0)return false;
+      const z=savedZones[zi];
+      if(z.comercial!==currentUserName && currentUserRole!=="jefe")return false;
+      if(isMikelTeamMember(z.comercial)!==isMikelTeamMember(currentUserName))return false;
+      void openSingleHouseModal(null,null,zi);
+      return true;
+    };
+
+    /* ===== CITA → CRM OBLIGATORIA + SEGUIMIENTO ===== */
     function buildCrmRecord(c, ctx) {
       const m2Val = getM2NumericValue(c.m2);
       const cteInfo = detectCteZoneFromCpAndTown(c.postalCode || '', ctx.town || '');
@@ -10320,7 +10332,12 @@ const labelStreet = clientObj.street ||
         z.town = townVal;
         z.sectorName = sectorTitle;
         z.comercial = comercialVal;
-        z.stats = { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 };
+        z.stats = z.unassignedSector
+          ? {no:clientObj.captacionRespuesta==='no'?1:0,
+             ausente:clientObj.captacionRespuesta==='ausente'?1:0,
+             papelito:clientObj.captacionRespuesta==='papelito'?1:0,
+             si:clientObj.captacionRespuesta==='si'&&clientObj.obraStatus!=='no_apto'?1:0}
+          : { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 };
         z.clients = [clientObj];
       } else {
         savedZones.push({
