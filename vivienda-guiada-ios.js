@@ -93,7 +93,7 @@ function render(){
   field(ui,"Número de plantas",".client-floors","number");
   if(get(".client-num-attics"))field(ui,"Viviendas de última planta",".client-num-attics","number");
   const result=$("div","cn-house-summary",undefined,ui);
-  summary(result,"Superficie neta estimada",get(".client-m2")?.value?get(".client-m2").value+" m²":null);
+  summary(result,"Superficie neta estimada (total − 5 m²)",get(".client-m2")?.value?get(".client-m2").value+" m²":null);
   summary(result,"CTE",get(".client-cte-zone")?.value);
   const year=Number(get(".client-build-year")?.value)||0;
   const cte=get(".client-cte-zone")?.value||"";
