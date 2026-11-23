@@ -622,7 +622,7 @@ function draw(opts={}){
   nav(body,"Volver al cliente",()=>{view="client";draw();});
   title(body,"Asociar obra del calendario","Usa la reserva que ya existe en Google Calendar. No crearemos otra cita ni otro cliente.");
   const form=card(body);
-  e("p","koc-muted","Comprueba que el evento pertenece exactamente a esta vivienda antes de asociarlo. KONSOR no recibe aún el ID del evento para verificarlo automáticamente.",form);
+  e("p","koc-muted","El servidor comprobará la cita exacta de Google Calendar, su teléfono y dirección, antes de asociarla. No se permite ocupar otro hueco.",form);
   const facts=card(form);
   [["Cliente",c.name||"Pendiente"],["Dirección",c.street],["Pueblo",z.town],["Teléfono",c.phone||"Pendiente"]].forEach(([k,v])=>{
    const row=e("div","koc-fact",undefined,facts);e("span","",k,row);e("strong","",v,row);
@@ -660,23 +660,27 @@ function draw(opts={}){
      ((url&&x.c.calendarEventUrl===url)||
      (x.c.obraDate===when&&x.c.obraTime===slot&&Number(x.c.obraEquipoInstalacion)===crew)));
    if(other){message.textContent="Ya hay otra ficha agendada en ese evento o en el mismo equipo, día y hora. Revísala antes de asociar.";return;}
+   if(typeof window.vincularObraExistenteKonsor!=="function"){
+    message.textContent="La verificación del servidor todavía no está instalada. No se ha modificado la ficha.";
+    return;
+   }
    busy=true;
-   const old={...row.c},oldZone=row.z._updatedAt;
-   Object.assign(row.c,{
-    obraStatus:"agendada",obraDate:when,obraTime:slot,obraEquipoInstalacion:crew,
-    callStatus:"citas",nextContactAt:null,statusChangedAt:Date.now(),
-    calendarBookingOrigin:"google_calendar_existing",calendarEventUrl:url,
-    calendarLinkVerifiedByUserAt:Date.now(),updatedAt:Date.now()
-   });
-   row.z._updatedAt=Date.now();
+   message.textContent="Verificando evento original y asociando la ficha sin crear otra reserva…";
    try{
-    if(!await saveAndSync("comercial_custom_zones",savedZones))throw Error("Firebase no confirmó el guardado.");
-    message.textContent="Obra existente asociada a esta ficha. No se ha creado otro evento.";
+    const response=await window.vincularObraExistenteKonsor({
+     clientUid:row.c.clientUid,zoneId:row.z.id,rev:row.c.rev,
+     date:when,time:slot,team:crew,
+     phone:row.c.phone,street:row.c.street,town:row.z.town,eventUrl:url
+    });
+    if(response.data?.ok!==true||!response.data.eventId)throw Error("El servidor no ha confirmado el vínculo.");
+    const synced=await window.KonsorBridge?.refresh?.(true);
+    if(synced!==true)throw Error("El vínculo está confirmado en el servidor, pero la pantalla no se pudo actualizar. Cierra y abre KONSOR sin repetir la operación.");
+    const updated=resolve();
+    if(!updated||!booked(updated))throw Error("El vínculo está confirmado en el servidor. Vuelve a abrir la ficha para cargarlo.");
     view="whatsapp";draw();
    }catch(err){
-    Object.keys(row.c).forEach(k=>{if(!(k in old))delete row.c[k];});
-    Object.assign(row.c,old);row.z._updatedAt=oldZone;
-    message.textContent="No se ha asociado la obra: "+(err.message||"Error");
+    message.textContent="No se pudo confirmar la vinculación: "+(err.message||"Error")+
+     ". No cambies de equipo ni repitas una reserva nueva.";
    }finally{busy=false;}
   },"koc-primary"));
   return;
