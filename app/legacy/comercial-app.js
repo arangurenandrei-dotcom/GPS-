@@ -8239,6 +8239,9 @@ function managementClientState(c) {
   if (c.obraStatus === 'no_apto') return 'no_apto';
   if (c.obraStatus === 'realizada') return 'realizada';
   if (c.obraStatus === 'agendada') return 'agendada';
+  /* KONSOR_SINGLE_FILE_STATE_BEGIN */
+  if (['no_interesado','descartado'].includes(c.callStatus)) return 'no_interesado';
+  /* KONSOR_SINGLE_FILE_STATE_END */
   if((c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")return "revisar";
 
   if (c.callStatus === 'esperando_confirmacion') {
@@ -8345,7 +8348,10 @@ function renderGlobalClientSearchResults() {
     ['esperando', '🟣 Esperando'],
     ['agendada', '📅 Con cita'],
     ['realizada', '✅ Obra hecha'],
-    ['no_apto', '🚫 No aptos']
+    ['no_apto', '🚫 No aptos'],
+    /* KONSOR_SINGLE_FILE_FILTER_BEGIN */
+    ['no_interesado', 'No quiere continuar']
+    /* KONSOR_SINGLE_FILE_FILTER_END */
   ];
 
   const zoneDefs = [
@@ -8685,6 +8691,7 @@ function renderGlobalClientSearchResults() {
       }
     }
 
+    /* KONSOR_SINGLE_FILE_ACTIONS_BEGIN */
     if(isClients){
       // Una sola ficha, múltiples acciones. No abre otro registro.
       const flow=window.KonsorSingleFileWorkflow?.status?.(c,z);
@@ -8738,6 +8745,7 @@ function renderGlobalClientSearchResults() {
         });
       }
     }
+    /* KONSOR_SINGLE_FILE_ACTIONS_END */
     card.append(title, status, detail, actions);
     container.appendChild(card);
   });
