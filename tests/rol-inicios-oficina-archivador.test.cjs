@@ -17,8 +17,10 @@ test('Archivador consulta la ficha única y mantiene las cuatro categorías',()=
  const result=a.clients([z]);
  assert.equal(result.length,4);
  assert.equal(result[0].id,'a');
- assert.deepEqual(Array.from(a.groups,x=>x.id),['nuevos','haciendo','por_llegar','terminados']);
+ assert.deepEqual(Array.from(a.groups,x=>x.id),['total_leads','nuevos','haciendo','por_llegar','terminados']);
  assert.equal(a.stage(z.clients[0]),'nuevos');
+ assert.equal(a.stage({obraStatus:'a_poner'}),'total_leads');
+ assert.equal(a.belongs(a.clients([z])[0],'total_leads'),true);
  assert.equal(a.stage(z.clients[1]),'por_llegar');
  assert.equal(a.stage(z.clients[2]),'haciendo');
  assert.equal(a.stage(z.clients[3]),'terminados');
@@ -61,4 +63,18 @@ test('No hay escritura en el archivador y se carga antes del selector de áreas'
  assert.ok(html.includes('oficina-archivador.js?v=1'));
  assert.ok(html.indexOf('oficina-archivador.js')<html.indexOf('designer-role-preview.js'));
  for(const s of ['saveAndSync(','KonsorBridge.save(','localStorage.setItem(','fetch('])assert.ok(!archiveSrc.includes(s),s);
+});
+
+test('Total leads incluye contactos no agendados; Nuevos exige cita con fecha',()=>{
+ const zones=[{id:'of1',town:'Ayegui',clients:[
+  {clientUid:'f1',name:'Pendiente',phone:'600111111',obraStatus:'a_poner'},
+  {clientUid:'f2',name:'Con cita',phone:'600222222',obraStatus:'agendada',obraDate:'2026-11-28',obraTime:'11:00',obraEquipoInstalacion:2},
+  {clientUid:'f3',name:'Sin fecha',phone:'600333333',obraStatus:'agendada'}
+ ]}];
+ const rows=a.clients(zones);
+ assert.equal(rows.filter(x=>a.belongs(x,'total_leads')).length,3);
+ assert.equal(rows.filter(x=>a.belongs(x,'nuevos')).length,1);
+ assert.ok(a.displayDate(rows[1]).includes('11:00'));
+ assert.ok(a.displayDate(rows[1]).includes('Equipo 2'));
+ assert.ok(a.displayDate(rows[0]).includes('Sin cita'));
 });
