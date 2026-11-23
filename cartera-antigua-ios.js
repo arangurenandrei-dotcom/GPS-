@@ -268,43 +268,70 @@ function editor(page){
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
  async function save(ready,button){
-  const d={name:name.value.trim(),phone:telephone.value.trim(),locality:town.value.trim(),street:street.value.trim(),
-   postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
-   captacionRespuesta:answer.value,observaciones:note.value.trim(),m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
-  if(!(d.name||d.phone||d.street)){showError("Introduce al menos un nombre, teléfono o dirección.");return;}
-  if(!d.locality){showError("Debes indicar un pueblo para guardar.");return;}
-  if(d.m2===null&&c?.m2!==undefined)d.m2=c.m2;
-  const pending=ready?validateReady(d):[];
-  if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
-  if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita histórica; no se puede reiniciar como llamada pendiente.");return;}
-  button.disabled=true;
-  try{
-   const data=structuredClone(zs()),stamp=Date.now();
-   if(c){
-    const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
-    if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone))||oldZone.id!==currentEdit.zoneId||String(oldClient.clientUid)!==String(currentEdit.uid))throw Error("La ficha ha cambiado. Vuelve a abrirla.");
+ const d={name:name.value.trim(),phone:telephone.value.trim(),locality:town.value.trim(),street:street.value.trim(),
+  postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
+  captureDate:captured.value.trim(),captacionRespuesta:answer.value,observaciones:note.value.trim(),
+  m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
+ if(!(d.name||d.phone||d.street)){showError("Introduce al menos nombre, teléfono o dirección.");return;}
+ if(!d.locality){showError("Debes indicar un pueblo.");return;}
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(d.captureDate)||!Number.isFinite(Date.parse(d.captureDate+"T12:00:00"))||d.captureDate>today){
+  showError("Selecciona una fecha de captación válida, no posterior a hoy.");return;
+ }
+ if(d.m2===null&&c?.m2!==undefined)d.m2=c.m2;
+ const pending=ready?validateReady(d):[];
+ if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
+ if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita; no puede reiniciarse.");return;}
+ button.disabled=true;
+ try{
+  const data=structuredClone(zs()),stamp=Date.now();
+  if(c){
+   const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
+   if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone)||isSectorless(oldZone))||
+      String(oldZone.id)!==String(currentEdit.zoneId)||String(oldClient.clientUid)!==String(currentEdit.uid))
+    throw Error("La ficha ha cambiado. Vuelve a abrirla.");
+   if(isSectorless(oldZone)){
+    // Una vivienda sin sector conserva el mismo modelo de ficha normal.
+    // No se marca como «histórica» a efectos de estadísticas.
+    const update={...oldClient,...d,sectorlessCapture:true,
+      callStatus:ready?(oldClient.callStatus==="bloqueada"?"pendiente":oldClient.callStatus||"pendiente")
+        :(oldClient.callStatus==="pendiente"?"bloqueada":oldClient.callStatus||"bloqueada"),
+      updatedAt:stamp};
+    oldZone.clients[currentEdit.ci]=update;
+    oldZone.town=d.locality;oldZone.date=d.captureDate;oldZone.dumpDate=d.captureDate;
+    oldZone.sectorName="🏠 "+d.street;oldZone.stats=captureStats(d.captacionRespuesta);
+   }else{
+    // Compatibilidad con fichas antiguas que ya estaban guardadas en sectores.
     const updated={...oldClient,...d,legacyPortfolio:true,importedLegacy:true,legacyReviewStatus:ready?"lista":"pendiente",
-     legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
+      legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
     if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
     if(ready&&(!oldClient.callStatus||["pendiente_visita","no_interesado","descartado"].includes(oldClient.callStatus)))updated.callStatus="pendiente";
-    // Actualiza la misma ficha, en la misma zona del servidor.
-    // El pueblo introducido se guarda dentro del cliente, no traslada documentos.
     oldZone.clients[currentEdit.ci]=updated;
-    oldZone._updatedAt=stamp;
-   }else{
-    const dst=existingZone(data,current(),d.locality);
-    if(!dst)throw Error("Todavía no existe un contenedor de datos de tu perfil para ese pueblo. La creación totalmente independiente requiere soporte del servidor; no se creará un sector ficticio.");
-    if(data.some(z=>access(z)&&(z.clients||[]).some(old=>
-      N(old.street)===N(d.street)&&N(old.locality||z.town)===N(d.locality)&&phone(old.phone)===phone(d.phone)&&d.street&&phone(d.phone).length===9)))
-     throw Error("Parece que ya existe ese cliente con la misma dirección y teléfono.");
-    dst.clients.push({...d,clientUid:"hist_"+(crypto.randomUUID?.()||String(stamp)+Math.random().toString(36).slice(2)),
-     importedLegacy:true,legacyPortfolio:true,legacyReviewStatus:ready?"lista":"pendiente",legacyReviewedAt:ready?stamp:null,
-     legacyReviewedBy:ready?current():"",callStatus:"pendiente",createdAt:stamp,statusChangedAt:stamp});
-    dst._updatedAt=stamp;
    }
-   await commit(data);screen="list";currentEdit=null;notice=ready?"Ficha guardada y habilitada para llamadas.":"Ficha guardada en pendientes.";render();
-  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
- }
+   oldZone._updatedAt=stamp;
+  }else{
+   if(data.some(z=>access(z)&&(z.clients||[]).some(old=>
+      N(old.street)===N(d.street)&&N(old.locality||z.town)===N(d.locality)&&
+      phone(old.phone)===phone(d.phone)&&d.street&&phone(d.phone).length===9)))
+    throw Error("Parece que ya existe ese cliente con la misma dirección y teléfono.");
+   // Mismo documento individual usado por «Nueva ficha» de KONSOR.
+   // La vivienda no está asignada a un sector, no tiene polígono y no
+   // genera porcentajes de cobertura ni conteos de sectores.
+   let id=Date.now();while(data.some(z=>String(z.id)===String(id)))id++;
+   const client={...d,clientUid:"f_"+crypto.randomUUID(),sectorlessCapture:true,
+     origen:"puerta",callStatus:ready?"pendiente":"bloqueada",
+     createdAt:Date.parse(d.captureDate+"T12:00:00"),updatedAt:stamp,statusChangedAt:stamp};
+   data.push({id,isSingleHouse:true,isSectorlessCapture:true,singlePoint:null,
+     date:d.captureDate,dumpDate:d.captureDate,town:d.locality,
+     sectorName:"🏠 "+d.street,comercial:current(),bossNote:"",pendingNote:"",
+     status:"completada",points:[],stats:captureStats(d.captacionRespuesta),
+     clients:[client],_updatedAt:stamp});
+  }
+  await commit(data);
+  screen="list";currentEdit=null;
+  notice=ready?"Captación guardada y habilitada para llamadas.":"Captación guardada, datos pendientes.";
+  activeTown=N(d.locality);activeStreet=streetBase(d.street).key;render();
+ }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
+}
  actions.append(B("Guardar pendiente",function(){save(false,this);}));
  actions.append(B("Guardar y habilitar llamadas",function(){save(true,this);},true));
 }
