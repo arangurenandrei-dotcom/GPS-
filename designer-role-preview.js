@@ -8,23 +8,15 @@
 const CHOOSER="konsorAreaChooser",VIEW="konsorDesignerPreview";
 const roles=[
  {id:"comercial",name:"Comercial",subtitle:"Captación y clientes",icon:"briefcase"},
- {id:"ceo",name:"CEO",subtitle:"Dirección general",icon:"chart"},
- {id:"jefe",name:"Jefe de área",subtitle:"Planificación y equipo",icon:"users"},
- {id:"oficina",name:"Oficina",subtitle:"Expedientes y seguimiento",icon:"folder"},
- {id:"tecnicos",name:"Técnicos",subtitle:"Ejecución de obras",icon:"wrench"},
- {id:"trabajador",name:"Trabajador",subtitle:"Jornada y tareas",icon:"clock"}
+ {id:"tecnicos",name:"Técnicos",subtitle:"Instalaciones y obras",icon:"wrench"},
+ {id:"oficina",name:"Oficina",subtitle:"Expedientes y documentos",icon:"folder"},
+ {id:"ceo",name:"CEO",subtitle:"Dirección general",icon:"chart"}
 ];
 const spaces={
  ceo:{hero:"Supervisar el funcionamiento de KONSOR",detail:"Consulta el rendimiento, las prioridades y los costes de toda la empresa.",
   actions:[["Producción","Resultados y obras","chart"],["Equipos","Áreas y responsables","users"],["Economía","Gastos y previsiones","wallet"],["Prioridades","Incidencias y decisiones","list"]]},
- jefe:{hero:"Organizar el trabajo del equipo",detail:"Planifica las jornadas y revisa los resultados y las incidencias de tu área.",
-  actions:[["Planificar","Asignar trabajo y equipos","calendar"],["Territorio","Zonas y repartos","map"],["Seguimiento","Tareas y avisos","list"],["Resultados","Rendimiento del equipo","chart"]]},
- oficina:{hero:"Continuar con los expedientes",detail:"Comprueba documentos y gestiona las obras pendientes de cierre.",
-  actions:[["Expedientes","Documentos pendientes","folder"],["Obras","Agendadas y ejecutadas","calendar"],["Llamadas","Clientes por contactar","phone"],["Incidencias","Revisiones y bloqueos","list"]]},
- tecnicos:{hero:"Preparar la siguiente obra",detail:"Consulta los trabajos asignados y completa cada intervención paso a paso.",
-  actions:[["Mis obras","Dirección y horarios","calendar"],["Documentación","Requisitos de la vivienda","folder"],["Fotos","Antes y después","camera"],["Resultado","Realizada, aplazada o no","check"]]},
- trabajador:{hero:"Empezar mi jornada",detail:"Sigue las tareas asignadas y comunica cualquier incidencia.",
-  actions:[["Mi jornada","Entrada, pausa y salida","clock"],["Mis tareas","Trabajo guiado","list"],["Avisos","Recordatorios","bell"],["Incidencias","Problemas y solicitudes","wrench"]]}
+ oficina:{hero:"Continuar con los expedientes",detail:"Comprueba documentos y gestiona las obras pendientes de cierre.",actions:[]},
+ tecnicos:{hero:"Preparar la siguiente obra",detail:"Consulta los trabajos asignados y completa cada intervención paso a paso.",actions:[]}
 };
 const e=(tag,cls,txt,parent)=>{
  const el=document.createElement(tag);
@@ -78,7 +70,7 @@ function showChooser(){
  e("p","","Utiliza una sola cuenta para acceder a tu trabajo y revisar el diseño de cada área.",content);
  const grid=e("div","kdp-choice-grid",undefined,content);
  roles.forEach(role=>roleTile(grid,role));
- e("p","kdp-chooser-note","Comercial es tu trabajo habitual. Las áreas aún no desarrolladas se muestran como prototipos sin acceso adicional a datos.",content);
+ e("p","kdp-chooser-note","Las cuatro áreas comparten la misma estética. Los jefes IA se añadirán dentro de los departamentos cuando sus procesos estén terminados.",content);
  if(chosen!==null||previous){
   button("Volver al espacio actual",()=>remove(CHOOSER),content,"kdp-chooser-cancel");
  }
