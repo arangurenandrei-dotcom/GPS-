@@ -149,6 +149,88 @@ function editor(page){
  const year=f(fields,"Año de construcción",c?.buildYear||"","number");
  const total=f(fields,"Superficie total (m²)",c?.m2Total??"","number");total.min="0";total.step="0.1";
  const zone=sel(fields,"Zona CTE",c?.cteZone||"",[["","Pendiente"],["D1","D1"],["D2","D2"],["D3","D3"],["E1","E1"],["E2","E2"],["E3","E3"]]);
+ const geo=window.konsorLegacyGeo;
+ const geoPanel=card(box,"Dirección y Catastro","El código postal se consulta por calle y número exactos. La zona CTE se propone automáticamente cuando el CP está reconocido.");
+ const geoActions=buttons(geoPanel);
+ const geoFeedback=E("p","kha-muted","",geoPanel);
+ const geoOptions=E("div","",undefined,geoPanel);
+ let geoRequest=0,postalAutomated=false,zoneManual=false;
+ function setCteFromCp(force=false){
+  const result=geo?.cte?.(postal.value,town.value);
+  if(result?.cteZone&&(!zoneManual||force)){zone.value=result.cteZone;zoneManual=false;}
+  else if(!result?.cteZone&&!zoneManual){zone.value="";}
+  if(!result?.cteZone&&String(postal.value||"").trim())
+   geoFeedback.textContent="Código postal anotado, pero sin correspondencia CTE verificada en KONSOR. Revisa manualmente la zona antes de llamar.";
+  return result;
+ }
+ zone.addEventListener("change",()=>{zoneManual=true;});
+ postal.addEventListener("change",()=>{postalAutomated=false;zoneManual=false;setCteFromCp(true);});
+ async function searchPostal(force=false){
+  const address=street.value.trim(),municipality=town.value.trim(),token=++geoRequest;
+  if(!address||!municipality||(!force&&postal.value.trim()&&!postalAutomated))return;
+  if(!geo?.postal){geoFeedback.textContent="El módulo de direcciones no está disponible. Introduce el CP manualmente.";return;}
+  geoFeedback.textContent="Buscando calle y portal exactos en CartoCiudad…";
+  geoOptions.replaceChildren();
+  const original=JSON.stringify([address,municipality]);
+  const result=await geo.postal(address,municipality).catch(()=>({status:"error",message:"No se pudo consultar CartoCiudad."}));
+  if(token!==geoRequest||original!==JSON.stringify([street.value.trim(),town.value.trim()]))return;
+  const apply=match=>{
+   postal.value=match.cp;postalAutomated=true;zoneManual=false;
+   const cte=setCteFromCp(true);
+   geoFeedback.textContent="CP verificado por dirección: "+match.cp+
+    (cte?.cteZone?" · Zona CTE orientativa: "+cte.cteZone:" · Zona CTE pendiente de confirmar")+
+    ". Comprueba la clasificación CTE antes de cerrar la ficha.";
+  };
+  if(result.status==="ok"&&result.matches?.length===1){apply(result.matches[0]);return;}
+  if(result.status==="ambiguous"&&result.matches?.length){
+   geoFeedback.textContent=result.message;
+   const chooser=E("select","kha-search",undefined,geoOptions);
+   const start=E("option","","Selecciona el código postal correcto",chooser);start.value="";
+   result.matches.forEach((match,i)=>{const opt=E("option","",match.label,chooser);opt.value=String(i);});
+   chooser.onchange=()=>{if(chooser.value!=="")apply(result.matches[Number(chooser.value)]);};
+   return;
+  }
+  geoFeedback.textContent=result.message||"No se ha podido confirmar el portal. Introduce el CP manualmente.";
+ }
+ const postalBtn=B("Detectar CP y zona CTE",()=>{searchPostal(true);});
+ geoActions.append(postalBtn);
+ street.addEventListener("blur",()=>{searchPostal(false);});
+ town.addEventListener("blur",()=>{searchPostal(false);});
+ if(!postal.value.trim()&&street.value.trim()&&town.value.trim())
+  Promise.resolve().then(()=>{if(document.getElementById(ID))searchPostal(false);});
+ else if(postal.value.trim()&&!zone.value.trim())setCteFromCp();
+ const cadastralBtn=B("Consultar Catastro oficial",async()=>{
+  const address=street.value.trim(),municipality=town.value.trim(),token=++geoRequest;
+  geoOptions.replaceChildren();
+  geoFeedback.textContent="Buscando la parcela de "+address+", "+municipality+"…";
+  if(!geo?.cadastre){geoFeedback.textContent="Consulta catastral no disponible.";return;}
+  cadastralBtn.disabled=true;
+  try{
+   const result=await geo.cadastre(address,municipality);
+   if(token!==geoRequest)return;
+   if(result.status!=="ok"||!result.matches?.length){geoFeedback.textContent=result.message||"Parcela no localizada.";return;}
+   geoFeedback.textContent=result.matches.length===1?"Dirección localizada; abre la ficha oficial.":"Hay varias coincidencias: selecciona el portal correcto.";
+   let chosen=result.matches[0];
+   if(result.matches.length>1){
+    const selector=E("select","kha-search",undefined,geoOptions);
+    result.matches.forEach((m,i)=>{const o=E("option","",m.label,selector);o.value=String(i);});
+    selector.onchange=()=>{chosen=result.matches[Number(selector.value)];renderOfficial();};
+   }
+   const official=E("div","kha-actions",undefined,geoOptions);
+   async function renderOfficial(){
+    official.replaceChildren();
+    const current=chosen;
+    const url=await geo.cadastreUrl(current.lat,current.lon);
+    if(token!==geoRequest||chosen!==current)return;
+    const anchor=E("a","",url.official?"Abrir ficha oficial de Catastro":"Ver parcela en IDENA",official);
+    anchor.href=url.url;anchor.target="_blank";anchor.rel="noopener noreferrer";
+    p(official,url.official?"Consulta año y superficie en la ficha oficial y regístralos aquí.":"No hubo ficha directa; comprueba el punto en el visor oficial de IDENA.");
+   }
+   await renderOfficial();
+  }catch(e){geoFeedback.textContent="No se ha podido consultar Catastro. Revisa la dirección e inténtalo de nuevo.";}
+  finally{cadastralBtn.disabled=false;}
+ });
+ geoActions.append(cadastralBtn);
  const answer=sel(box,"Respuesta comercial",c?.captacionRespuesta||"si",[["si","Sí, interesado"],["no","No interesado"],["ausente","Ausente"],["papelito","Papelito"]]);
  const note=f(box,"Observaciones",c?.observaciones||"","textarea");
  const result=card(box,"Superficie neta","Solo se restan 5 m² fijos al total; las plantas no afectan al cálculo.");
@@ -175,7 +257,7 @@ function editor(page){
    if(c){
     const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
     if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone))||oldZone.id!==currentEdit.zoneId||String(oldClient.clientUid)!==String(currentEdit.uid))throw Error("La ficha ha cambiado. Vuelve a abrirla.");
-    const updated={...oldClient,...d,legacyReviewStatus:ready?"lista":"pendiente",
+    const updated={...oldClient,...d,legacyPortfolio:true,importedLegacy:true,legacyReviewStatus:ready?"lista":"pendiente",
      legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
     if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
     if(ready&&(!oldClient.callStatus||["pendiente_visita","no_interesado","descartado"].includes(oldClient.callStatus)))updated.callStatus="pendiente";
