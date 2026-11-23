@@ -2055,7 +2055,7 @@ function abrirCentroJornadaCN(vista='jornada') {
   const hoy=getTodayISO();
   const mios=savedZones.map((z,idx)=>({z,idx})).filter(x=>
     x.z.comercial===currentUserName && !x.z.isSingleHouse &&
-    !x.z.isNoAptoZone && !x.z.isHotMission);
+    !x.z.isNoAptoZone && !x.z.isLegacyPortfolio && !x.z.isHotMission);
   const abiertos=mios.filter(x=>x.z.status!=='completada');
   const antiguos=abiertos.filter(x=>x.z.date && x.z.date<hoy);
   const deHoy=abiertos.filter(x=>x.z.date===hoy);
@@ -3538,7 +3538,7 @@ function renderGroupedAppointments() {
         groupedNode('p', `${c.street}\n${z.town}\n${getDisplayAlias(z.comercial)}`,
           cell, 'white-space:pre-line;font-size:11px;color:#cbd5e1;line-height:1.5;margin:6px 0;');
         const phone = String(c.phone || '').replace(/[^\d+]/g, '');
-        if (/^\+?\d{7,15}$/.test(phone)) {
+        if (/^\+?\d{7,15}$/.test(phone) && state !== 'revisar') {
           const a = groupedNode('a', '📞 Llamar', cell,
             'display:block;text-align:center;padding:9px;background:#2563eb;color:#fff;' +
             'text-decoration:none;border-radius:8px;font-size:11px;font-weight:800;margin-bottom:6px;');
@@ -8180,6 +8180,7 @@ function setGlobalFichaFilter(key) {
 }
 
 function managementClientState(c) {
+  if((c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")return "revisar";
   if (c.obraStatus === 'no_apto') return 'no_apto';
   if (c.obraStatus === 'realizada') return 'realizada';
   if (c.obraStatus === 'agendada') return 'agendada';
@@ -8220,6 +8221,7 @@ function managementOpenZone(id, onMap) {
   }
 
   closeModal('globalSearchModal');
+  if(z.isLegacyPortfolio){window.openKonsorLegacyPortfolio?.();return;}
 
   if (onMap) {
     focusMapOnTownOrZone(z.town, zIdx);
@@ -8277,10 +8279,11 @@ function renderGlobalClientSearchResults() {
     });
   });
 
-  const sectors = zones.filter(z => !z.isSingleHouse);
+  const sectors = zones.filter(z => !z.isSingleHouse && !z.isLegacyPortfolio);
 
   const clientDefs = [
     ['all', '📋 Todos'],
+    ['revisar', '📝 Fichas por completar'],
     ['pendiente', '🔴 Sin llamar'],
     ['llamado', '🟡 Ya llamados'],
     ['esperando', '🟣 Esperando'],
@@ -8598,7 +8601,7 @@ function renderGlobalClientSearchResults() {
         .replace(/\D/g, '')
         .replace(/^00/, '');
 
-      if (/^\+?\d{7,15}$/.test(phone)) {
+      if (/^\+?\d{7,15}$/.test(phone) && state !== 'revisar') {
         [
           ['📞 Llamar', 'tel:' + phone],
           [
@@ -10571,7 +10574,7 @@ function konsorNextSectorNumber(town) {
     function suggestSectorDateFor(comercial) {
       const today = getTodayISO();
       const queued = savedZones.filter(z => z && z.comercial === comercial &&
-        !z.isSingleHouse && !z.isNoAptoZone && !z.isHotMission &&
+        !z.isSingleHouse && !z.isNoAptoZone && !z.isLegacyPortfolio && !z.isHotMission &&
         z.status !== 'completada' && /^\\d{4}-\\d{2}-\\d{2}$/.test(z.date || '') &&
         z.date >= today).map(z => z.date).sort();
       const latest = queued.length ? queued[queued.length - 1] : null;
@@ -15331,7 +15334,7 @@ function openCommercialStatsModalLegacy() {
         let totalNo = 0;
 
         savedZones.forEach(z => {
-          if (!mikelUsers.includes(z.comercial) || z.isNoAptoZone) return;
+          if (!mikelUsers.includes(z.comercial) || z.isNoAptoZone || z.isLegacyPortfolio) return;
           const st = z.stats || {};
           totalSi += (st.si || 0);
           totalNo += (st.no || 0);
@@ -16748,7 +16751,7 @@ function openCommercialStatsModalLegacy() {
       const townsMap = {};
 
       savedZones.forEach(z => {
-        if (isMikelTeamMember(z.comercial) || z.isNoAptoZone) return;
+        if (isMikelTeamMember(z.comercial) || z.isNoAptoZone || z.isLegacyPortfolio) return;
         const t = z.town || 'Sin pueblo asignado';
         if (!townsMap[t]) {
           townsMap[t] = {
