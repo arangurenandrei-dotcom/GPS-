@@ -91,6 +91,7 @@ async function link(req){
    crmKonsorVerifiedAt:Date.now(),calendarEventUrl:strip(data.eventUrl).slice(0,1000),
    statusChangedAt:Date.now(),updatedAt:Date.now()};
   tx.update(fichaRef,{datos:updated,rev:row.rev+1});
+  tx.set(db.doc('estado_trabajo/andrei'),{updatedAt:Date.now()},{merge:true});
   if(!prior)tx.create(claimRef,{fichaId,eventId,teamId:'andrei',createdByUid:uid,createdAt:Date.now()});
   result={ok:true,linked:true,eventId,alreadyLinked:false};
  });
