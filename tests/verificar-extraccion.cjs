@@ -51,8 +51,29 @@ const actualCommercial=read('app/legacy/comercial-app.js');
 // Verificar que SOLO cambia la función de estadísticas sobre esa base real.
 const mainBase='88e52cdd689f3a8026f6e587f466feb28a6bfb20';
 const baseMotor=execFileSync('git',['show',mainBase+':app/legacy/comercial-app.js'],{cwd:root,encoding:'utf8',maxBuffer:10*1024*1024});
-assert.equal(withoutMetrics(actualCommercial),withoutMetrics(baseMotor),
- 'Se modificó el motor comercial fuera del cálculo de captaciones auditado');
+function removeSingleFileChanges(source){
+ const pairs=[
+  ['/* KONSOR_SINGLE_FILE_ACTIONS_BEGIN */','/* KONSOR_SINGLE_FILE_ACTIONS_END */'],
+  ['/* KONSOR_SINGLE_FILE_STATE_BEGIN */','/* KONSOR_SINGLE_FILE_STATE_END */'],
+  ['/* KONSOR_SINGLE_FILE_FILTER_BEGIN */','/* KONSOR_SINGLE_FILE_FILTER_END */']
+ ];
+ for(const [begin,end] of pairs){
+  const a=source.indexOf(begin),b=source.indexOf(end,a+begin.length);
+  assert.ok(a>=0&&b>a,'No se ha localizado el cambio aprobado '+begin);
+  assert.equal(source.indexOf(begin,a+1),-1,'El cambio '+begin+' aparece repetido');
+  // Cada bloque tiene una nueva línea anterior y posterior.
+  source=source.slice(0,a)+source.slice(b+end.length);
+ }
+ // Restaurar exactamente el salto de línea original alrededor de cada bloque.
+ source=source.replace(/\n    \n    card\.append\(title, status, detail, actions\);/,
+  '\n    card.append(title, status, detail, actions);');
+ source=source.replace(/\n  \n\n  if \(c\.callStatus === 'esperando_confirmacion'\)/,
+  '\n\n  if (c.callStatus === \'esperando_confirmacion\')');
+ source=source.replace(/\n    \n  \];/,'\n  ];');
+ return source;
+}
+assert.equal(withoutMetrics(removeSingleFileChanges(actualCommercial)),withoutMetrics(baseMotor),
+ 'Se modificó el motor comercial fuera de los cambios aprobados de ficha única');
 const firebaseCurrent=read('app/legacy/firebase-init.js');
 const approvedFirebaseAddition=" window.vincularObraExistenteKonsor = httpsCallable(functionsEu, 'vincularObraExistenteKonsor');\n";
 assert.equal((firebaseCurrent.match(/window\.vincularObraExistenteKonsor\s*=/g)||[]).length,1,
