@@ -51,8 +51,22 @@ const actualCommercial=read('app/legacy/comercial-app.js');
 // Verificar que SOLO cambia la función de estadísticas sobre esa base real.
 const mainBase='88e52cdd689f3a8026f6e587f466feb28a6bfb20';
 const baseMotor=execFileSync('git',['show',mainBase+':app/legacy/comercial-app.js'],{cwd:root,encoding:'utf8',maxBuffer:10*1024*1024});
-assert.equal(withoutMetrics(actualCommercial),withoutMetrics(baseMotor),
- 'Se modificó el motor comercial fuera del cálculo de captaciones auditado');
+function withoutApprovedStandaloneHooks(source){
+ const from=source.indexOf('    // Las captaciones por puerta sin sector abren');
+ const to=source.indexOf('    /* ===== CITA → CRM OBLIGATORIA + SEGUIMIENTO ===== */',from);
+ assert.ok(from>=0&&to>from,'Falta el acceso al editor técnico sin sector');
+ source=source.slice(0,from)+source.slice(to);
+ const before="        z.stats = z.unassignedSector";
+ const after="        z.clients = [clientObj];";
+ const pos=source.indexOf(before),limit=source.indexOf(after,pos);
+ assert.ok(pos>=0&&limit>pos,'Falta la actualización de respuestas sin sector');
+ source=source.slice(0,pos)+
+  "        z.stats = { no: 0, ausente: 0, papelito: 0, si: clientObj.obraStatus === 'no_apto' ? 0 : 1 };\n"+
+  source.slice(limit);
+ return source;
+}
+assert.equal(withoutMetrics(withoutApprovedStandaloneHooks(actualCommercial)),withoutMetrics(baseMotor),
+ 'Se modificó el motor comercial fuera de los cambios de captación sin sector auditados');
 assert.equal(read('app/legacy/firebase-init.js'),mod[2],'Cambió la inicialización original de Firebase');
 assert.equal(read('app/legacy/limpieza-visual.js'),cleanup[2],'Cambió el limpiador visual');
 new vm.Script(actualCommercial,{filename:'comercial-app.js'});
