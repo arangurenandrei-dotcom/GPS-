@@ -13,7 +13,7 @@ const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial=
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
-const inPortfolio=c=>!!c?.legacyPortfolio||!!c?.isLegacyClient;
+const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
 window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(c=>c?.legacyPortfolio===true);
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
@@ -29,8 +29,8 @@ const portId=(owner,town)=>{
  const slug=N(town).replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,30)||"sin_localidad";
  return "hist_"+slug+"_"+hash.toString(16).padStart(8,"0");
 };
-let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="";
-const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}';
+let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="",activeTown="",activeStreet="";
+const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}';
 function start(){
  let root=document.getElementById(ID);
  if(!root){root=E("div","",undefined,document.body);root.id=ID;E("style","",CSS,root);root.onclick=ev=>{if(ev.target===root)root.remove();};}
@@ -237,35 +237,106 @@ function moveScreen(page){
  moveBtn.disabled=!chosen.length||health.kind!=="ready";box.append(moveBtn);
  p(box,"Se conservan todas las fichas en su ubicación técnica original. No se eliminarán los sectores ni se cambiará la zona de ningún cliente.");
 }
+
+function streetBase(address){
+ const raw=String(address||"").trim();
+ if(!raw)return {key:"sin_calle",label:"Dirección por completar"};
+ // Captura el último número de portal, conservando números que forman parte del nombre de la calle.
+ const found=raw.match(/^(.*?)(?:[,\s]+(?:n(?:[º°o.]|[úu]m\.?)?\s*)?(\d+)\s*(?:bis|ter|[a-z])?)(?:\s*[,;/].*)?$/iu);
+ const label=(found?.[1]||raw).trim().replace(/[,;]$/,"").trim()||raw;
+ const key=N(label).replace(/^(?:c\/|c\.|calle|cl|kalea|avenida|avda|av\.|paseo|plaza|pza)\s+/,"");
+ return {key:key||"sin_calle",label};
+}
+function groupsByTown(){
+ const map=new Map();
+ portfolioEntries().forEach(x=>{
+  const name=String(x.c.locality||x.z.town||"").trim()||"Localidad pendiente";
+  const key=N(name);
+  if(!map.has(key))map.set(key,{key,name,clients:[],streets:new Map()});
+  const group=map.get(key);
+  group.clients.push(x);
+  const street=streetBase(x.c.street);
+  if(!group.streets.has(street.key))group.streets.set(street.key,{...street,clients:[]});
+  group.streets.get(street.key).clients.push(x);
+ });
+ return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,"es"));
+}
+function navButton(parent,text,action){
+ const n=B(text,action);n.classList.add("kha-navigation");parent.append(n);return n;
+}
 function listScreen(page){
- const rows=portfolioEntries(),actions=buttons(page);
+ const groups=groupsByTown(),total=groups.reduce((n,g)=>n+g.clients.length,0);
+ const actions=buttons(page);
  actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
- actions.append(B("Recuperar fichas de sectores",()=>{screen="move";includeManual=false;notice="";selection=new Set(sourceEntries().filter(x=>x.detected).map(key));render();}));
- const status=card(page,"Mi cartera","Clientes antiguos organizados por ficha, sin exigir mapas ni sectores. Sus vínculos internos con Firebase se conservan.");
- const countReady=rows.filter(x=>x.c.legacyReviewStatus==="lista").length;
- E("span","kha-tag","Por completar: "+(rows.length-countReady),status);E("span","kha-tag good","Listos para llamar: "+countReady,status);
- if(notice)p(status,notice,"kha-alert");
- const search=E("input","kha-search",undefined,page);search.type="search";search.placeholder="Buscar nombre, pueblo, teléfono o calle";search.value=query;
- const results=E("div","",undefined,page);
- function drawRows(){
-  query=search.value;results.replaceChildren();
-  const match=rows.filter(x=>!query||N([x.c.name,x.c.street,x.c.phone,x.c.locality,x.z.town].join(" ")).includes(N(query)));
-  if(!match.length)p(results,rows.length?"No hay coincidencias.":"La cartera está vacía. Puedes recuperar fichas que ya importaste o añadir un cliente directamente.");
-  match.forEach(x=>{
-   const item=card(results,x.c.name||x.c.street||"Cliente sin nombre",[x.z.town,x.c.street,x.c.phone].filter(Boolean).join(" · "));
-   E("span",x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de revisar",item);
-   p(item,"Año: "+(x.c.buildYear||"pendiente")+" · m² netos: "+(x.c.m2??"pendiente")+" · CTE: "+(x.c.cteZone||"pendiente"));
-   item.append(B("Abrir y completar ficha",()=>{screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};notice="";render();},true));
+ actions.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
+ const summary=card(page,"Cartera histórica",total+" fichas · "+groups.length+" pueblos. Los datos históricos no se contabilizan como captación nueva.");
+ if(notice)p(summary,notice,"kha-alert");
+ const stats=E("div","kha-row",undefined,summary);
+ E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus!=="lista").length,stats);
+ E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus==="lista").length,stats);
+ const search=E("input","kha-search",undefined,page);
+ search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
+ const body=E("div","",undefined,page);
+ const renderGroups=()=>{
+  query=search.value;body.replaceChildren();
+  if(!groups.length){p(body,"Los clientes importados por CSV aparecerán aquí directamente, sin traslado. También puedes incorporar fichas manuales.");return;}
+  const q=N(query);
+  let available=groups;
+  if(q){
+   const filtered=groups.map(g=>{
+    const clients=g.clients.filter(x=>N([g.name,x.c.name,x.c.street,x.c.phone].join(" ")).includes(q));
+    return {...g,clients,streets:new Map([...g.streets].map(([k,v])=>[k,{...v,clients:v.clients.filter(x=>clients.includes(x))}]).filter(([k,v])=>v.clients.length))};
+   }).filter(g=>g.clients.length);
+   available=filtered;
+  }
+  if(!available.length){p(body,"No hay coincidencias.");return;}
+  const tabbar=E("div","kha-tabs",undefined,body);
+  const selected=available.some(g=>g.key===activeTown)?activeTown:available[0].key;
+  available.forEach(g=>{
+   const btnTab=B(g.name+" · "+g.clients.length,()=>{activeTown=g.key;activeStreet="";renderGroups();});
+   btnTab.className="kha-tab"+(g.key===selected?" selected":"");
+   tabbar.append(btnTab);
   });
- }
- search.oninput=drawRows;drawRows();
+  const town=available.find(g=>g.key===selected);
+  if(!town)return;
+  E("h3","",town.name+" · Calles",body);
+  p(body,"Elige una calle para consultar sus viviendas. No necesitas dibujar sectores ni agruparlas manualmente.");
+  const streets=[...town.streets.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
+  if(activeStreet&&!town.streets.has(activeStreet))activeStreet="";
+  if(!activeStreet){
+   for(const road of streets){
+    const ready=road.clients.filter(x=>x.c.legacyReviewStatus==="lista").length;
+    const row=B("",()=>{activeTown=town.key;activeStreet=road.key;renderGroups();});
+    row.className="kha-rowitem";
+    const names=E("span","",undefined,row);
+    E("strong","",road.label,names);
+    p(names,road.clients.length+" fichas · "+ready+" listas para llamadas","kha-stat");
+    E("span","","›",row);body.append(row);
+   }
+  }else{
+   navButton(body,"‹ Volver a calles",()=>{activeStreet="";renderGroups();});
+   const street=town.streets.get(activeStreet);
+   E("h3","",street?.label||"",body);
+   for(const x of street?.clients||[]){
+    const item=card(body,x.c.name||"Cliente sin nombre",[x.c.street||"Dirección pendiente",x.c.phone].filter(Boolean).join(" · "));
+    E("span",x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",
+      x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de completar",item);
+    p(item,"Año: "+(x.c.buildYear||"pendiente")+" · Superficie neta: "+(x.c.m2??"pendiente")+" m² · CTE: "+(x.c.cteZone||"pendiente"));
+    item.append(B("Abrir ficha · Catastro y datos",()=>{
+      screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
+      notice="";render();
+    },true));
+   }
+  }
+ };
+ search.oninput=renderGroups;renderGroups();
 }
 function render(){
  const page=start();
  if(!current()){p(page,"Inicia sesión para acceder a los clientes.");return;}
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
-window.openKonsorLegacyPortfolio=function(){screen="list";query="";notice="";render();};
+window.openKonsorLegacyPortfolio=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
 window.openKonsorLegacyClient=function(clientUid){
  const entry=portfolioEntries().find(x=>String(x.c.clientUid)===String(clientUid));
  if(!entry){screen="list";notice="La ficha antigua no se encuentra; actualiza la lista.";render();return;}
