@@ -1819,9 +1819,11 @@ function openUserProfileModal() {
       updateShiftUI();
       initMap();
       window.cnvStart?.();
+      /* KONSOR_CREATOR_LOGIN_CHOOSER_BEGIN */
       // Selector posterior a la autenticación, nunca dentro de Inicio.
       // La sesión conserva su verdadero rol y permisos de Firebase.
       if (userVal === 'jefe') window.konsorDesigner?.showChooser?.();
+      /* KONSOR_CREATOR_LOGIN_CHOOSER_END */
       setTimeout(()=>window.konsorMotor?.checkLunch?.(),1700);
       if (currentUserName === 'Andrei (Jefe)') {
         void cargarSectoresMikelSupervision();
