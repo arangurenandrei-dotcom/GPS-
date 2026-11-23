@@ -19,6 +19,13 @@ window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.cl
 window.konsorPerformanceStats=z=>{
  const raw=z?.stats||{};
  if(!Array.isArray(z?.clients)||!z.clients.some(inPortfolio))return raw;
+ // Un sector formado solo por históricos no representa captación nueva.
+ if(window.konsorIsHistoricalOnlySector(z)){
+  const empty={...raw};
+  for(const k of ["si","no","ausente","papelito","yaAislado","siContactables","siNoContactables"])
+   empty[k]=0;
+  return empty;
+ }
  const stats={...raw};
  const tally={si:0,no:0,ausente:0,papelito:0};
  for(const c of z.clients)if(inPortfolio(c)&&Object.hasOwn(tally,c.captacionRespuesta))tally[c.captacionRespuesta]++;
