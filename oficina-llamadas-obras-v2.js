@@ -12,7 +12,37 @@ const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+
 const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const owns=z=>z&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial))&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName))&&(z.comercial===currentUserName||(currentUserRole==="jefe"&&scope==="team"));
 const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
-function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
+function rawRows(){
+ return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?
+ (z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]);
+}
+function duplicateKey(i){
+ // No se identifican personas por su nombre: dos "Alfonso" pueden ser distintos.
+ const p=String(i.c.phone||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,"");
+ const normalize=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+ const town=normalize(i.z.town||i.c.locality),address=normalize(i.c.street);
+ return /^[6789]\d{8}$/.test(p)&&town&&address?p+"|"+town+"|"+address:null;
+}
+function duplicateGroups(){
+ const map=new Map();
+ for(const i of rawRows()){const key=duplicateKey(i);if(!key)continue;if(!map.has(key))map.set(key,[]);map.get(key).push(i);}
+ return [...map.values()].filter(x=>x.length>1);
+}
+function all(){
+ const result=[],groups=new Map();
+ for(const i of rawRows()){
+  const key=duplicateKey(i);
+  if(!key){result.push(i);continue;}
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(i);
+ }
+ for(const entries of groups.values()){
+  // Una cita confirmada prevalece sobre la copia sin llamar.
+  entries.sort((a,b)=>Number(booked(b))-Number(booked(a))||Number(b.c.updatedAt||0)-Number(a.c.updatedAt||0)||a.zi-b.zi);
+  result.push(entries[0]);
+ }
+ return result.sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);
+}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
 // La revisión técnica no debe impedir la PRIMERA llamada a un captado en puerta.
@@ -255,7 +285,7 @@ async function findClusterDay(body,host,indicator,automatic=false){
  if(!options.length){indicator.textContent="No se pudieron verificar fechas. Mantengo el día actual; no se ofrecen huecos sin confirmar disponibilidad.";return;}
  // Primero completar el día anterior viable, evitando abrir otro mientras sea posible.
  // En esa fecha, aprovechar el equipo con más huecos compatibles y continuidad.
- options.sort((a,b)=>(a.safe===0)-(b.safe===0)||a.dayIndex-b.dayIndex||b.safe-a.safe||b.maxRun-a.maxRun||b.alreadyBusy-a.alreadyBusy||a.team-b.team);
+ options.sort((a,b)=>(a.safe===0)-(b.safe===0)||Number(a.team!==2)-Number(b.team!==2)||Number(b.alreadyBusy>0)-Number(a.alreadyBusy>0)||a.dayIndex-b.dayIndex||b.safe-a.safe||b.maxRun-a.maxRun);
  const best=options[0],target=Math.min(4,rows.length);
  if(best.safe===0){clusterPlanNotice="No se han encontrado franjas con proximidad verificable en los "+checked+" días consultados. No recomendaré desplazamientos sin conocer las ubicaciones de las otras obras.";indicator.textContent=clusterPlanNotice;return;}
  const msg=best.safe>=target?"Jornada agrupable de cuatro viviendas":"Completar primera jornada compatible";
@@ -492,7 +522,16 @@ function draw(opts={}){
   title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
   const counts=e("div","koc-counts",undefined,body);
   [["Fichas",items.length],["Por llamar",todo.length],["Citas y obras",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
-  const controls=e("div","koc-refresh-actions",undefined,body);
+  const duplicates=duplicateGroups();
+ if(duplicates.length){
+  const note=card(body);title(note,"Posibles fichas duplicadas",duplicates.length+" coincidencia(s) con mismo teléfono, municipio y dirección. Ninguna ficha se ha borrado.");
+  duplicates.slice(0,10).forEach(group=>{
+   e("p","koc-muted",(group[0].c.name||"Cliente")+" · "+group[0].c.street+" · "+group[0].z.town+
+    (group.some(booked)?" · Ya hay una cita confirmada":" · Revisa las fichas"),note);
+  });
+  note.append(button("Revisar posibles duplicados",()=>{r.classList.remove("active");window.openCnClients?.();},"koc-quiet"));
+ }
+ const controls=e("div","koc-refresh-actions",undefined,body);
   controls.append(button("Actualizar datos",async()=>{
    const note=e("p","koc-muted","Comprobando sincronización con Firebase…",body);
    try{await window.KonsorBridge?.refresh?.();}catch(err){note.textContent="No se pudo sincronizar: "+(err.message||err);return;}
@@ -568,30 +607,62 @@ function draw(opts={}){
    body.append(button("Acepta · Agendar obra",()=>{chosenDate=plannedChoice?.key===item.key?plannedChoice.date:clusterFocus?clusterDate:tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw({preferred:plannedChoice?.key===item.key?plannedChoice:null});},"koc-primary"));
    body.append(button("No contesta · Volver a llamar",()=>saveCall("ya_llamado"),""));
    body.append(button("Necesita pensarlo",()=>{view="waiting";draw();},""));
+   body.append(button("Programar llamada con aviso",()=>{view="waiting";draw();},"koc-quiet"));
    body.append(button("No está interesado",()=>saveCall("no_interesado"),"koc-quiet"));
   }
   body.append(button("Saltar sin modificar",next,"koc-quiet"));return;
  }
  if(view==="waiting"){
   nav(body,"Volver a la llamada",()=>{view="client";draw();});
-  title(body,"Programar seguimiento","¿Qué necesita decidir el cliente?");
+  title(body,"Recordatorio de contacto","Selecciona el día y la hora exactos para volver a llamar o escribir al cliente.");
   const form=card(body);
   e("label","","Motivo o comentario",form);
-  const note=e("textarea","koc-input",undefined,form);note.rows=3;note.placeholder="Ej.: consultarlo con su pareja";note.value=c.waitReason||"";
-  e("label","","Próxima acción en 48 horas",form);
+  const note=e("textarea","koc-input",undefined,form);note.rows=3;note.placeholder="Ej.: llamar para confirmar la obra";note.value=c.waitReason||"";
+  e("label","","Próxima acción",form);
   const type=e("select","koc-input",undefined,form);
-  [["llamar","Volver a llamar"],["whatsapp","Enviar WhatsApp"]].forEach(([v,t])=>{const op=e("option","",t,type);op.value=v;});
+  [["llamar","Llamar al cliente"],["whatsapp","Escribir WhatsApp"]].forEach(([v,t])=>{const op=e("option","",t,type);op.value=v;});
   type.value=c.waitType||"llamar";
-  form.append(button("Guardar seguimiento",async()=>{
-   if(note.value.trim().length<3){alert("Indica brevemente qué queda pendiente.");return;}
-   if(busy)return;busy=true;
-   const row=resolve();if(!row){busy=false;return;}
-   const old={...row.c},up=row.z._updatedAt;
-   Object.assign(row.c,{callStatus:"esperando_confirmacion",waitReason:note.value.trim(),waitType:type.value,statusChangedAt:Date.now(),nextContactAt:Date.now()+48*3600*1000});
-   row.c.callLog=[...(row.c.callLog||[]),{t:Date.now(),s:"esperando_confirmacion",r:row.c.waitReason}].slice(-20);
-   row.z._updatedAt=Date.now();
-   if(!await saveAndSync("comercial_custom_zones",savedZones)){Object.keys(row.c).forEach(k=>{if(!(k in old))delete row.c[k];});Object.assign(row.c,old);row.z._updatedAt=up;alert("No se ha guardado el seguimiento.");}
-   else next();busy=false;
+  const whenBox=e("div","koc-reminder-date",undefined,form);
+  const defaultDue=Number(c.nextContactAt)>Date.now()?new Date(Number(c.nextContactAt)):new Date(tomorrow()+"T10:00:00");
+  const localDate=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+  e("label","","Día del aviso",whenBox);
+  const dateInput=e("input","koc-input",undefined,whenBox);dateInput.type="date";dateInput.min=today();dateInput.value=localDate(defaultDue);
+  e("label","","Hora del aviso",whenBox);
+  const timeInput=e("input","koc-input",undefined,whenBox);timeInput.type="time";timeInput.value=String(defaultDue.getHours()).padStart(2,"0")+":"+String(defaultDue.getMinutes()).padStart(2,"0");
+  const feedback=e("p","koc-muted","El aviso se programará en KONSOR. Para recibirlo en el iPhone debes tener activadas las notificaciones de KONSOR.",form);
+  form.append(button("Guardar seguimiento y crear aviso",async()=>{
+   if(busy)return;
+   const comment=note.value.trim();
+   if(comment.length<3){feedback.textContent="Escribe el motivo del recordatorio.";return;}
+   if(!dateInput.value||!timeInput.value){feedback.textContent="Selecciona día y hora.";return;}
+   const dueAt=new Date(dateInput.value+"T"+timeInput.value+":00").getTime();
+   if(!Number.isFinite(dueAt)||dueAt<=Date.now()){feedback.textContent="El aviso debe ser para una fecha y hora futuras.";return;}
+   const row=resolve();if(!row)return;
+   if(typeof window.konsorScheduleCallReminder!=="function"){
+    feedback.textContent="El centro de notificaciones no está conectado. No se ha cambiado la ficha.";
+    return;
+   }
+   busy=true;
+   const previous={...row.c},updatedAt=row.z._updatedAt;
+   try{
+    Object.assign(row.c,{callStatus:"esperando_confirmacion",waitReason:comment,waitType:type.value,statusChangedAt:Date.now(),nextContactAt:dueAt});
+    row.c.callLog=[...(row.c.callLog||[]),{t:Date.now(),s:"esperando_confirmacion",r:comment}].slice(-20);
+    row.z._updatedAt=Date.now();
+    if(!await saveAndSync("comercial_custom_zones",savedZones))throw Error("No se ha confirmado el seguimiento en Firebase.");
+   }catch(err){
+    Object.keys(row.c).forEach(k=>{if(!(k in previous))delete row.c[k];});
+    Object.assign(row.c,previous);row.z._updatedAt=updatedAt;feedback.textContent=err.message||"No se pudo guardar.";busy=false;return;
+   }
+   try{
+    await window.konsorScheduleCallReminder({
+     title:(type.value==="llamar"?"Llamar a ":"WhatsApp a ")+(row.c.name||"Cliente"),
+     body:[comment,row.z.town,row.c.street].filter(Boolean).join(" · "),dueAt
+    });
+    busy=false;next();
+   }catch(err){
+    busy=false;feedback.textContent="Seguimiento guardado para "+dateInput.value+" "+timeInput.value+
+     ", pero el aviso NO se ha confirmado: "+(err.message||"Error")+". Revisa Avisos antes de crearlo otra vez.";
+   }
   },"koc-primary"));
   return;
  }
@@ -655,7 +726,8 @@ function draw(opts={}){
  else body.append(button("Siguiente cliente",next,"koc-primary"));
 }
 }
- async function availableChoices(item,d){
+ function priority(o){return o.team===2?(o.bookedSameTown?0:o.bookedDay?1:2):(o.bookedSameTown?3:o.bookedDay?4:5);}
+async function availableChoices(item,d){
  const data=await consultarKonsorFecha(d);
  const old=typeof routeRecords==="function"?routeRecords(d):[];
  const choices=[];
@@ -665,9 +737,12 @@ function draw(opts={}){
   if(slot?.libre!==true||localBusy)return;
   const fit=slotRouteFit(item,d,team,slotIdx,data,old);
   if(!fit.ok)return;
-  choices.push({date:d,time:from,to,team,rank:fit.category,label:fit.category===0?"Encaja con la siguiente obra":fit.category===1?"Completar localidad":"Jornada nueva",detail:fit.reason});
+  const already=old.filter(x=>Number(x.c?.obraEquipoInstalacion)===team&&x.slot>=0);
+   const neighbors=already.filter(x=>sameTown(x,item)).length;
+   choices.push({date:d,time:from,to,team,rank:fit.category,bookedDay:already.length,bookedSameTown:neighbors,
+    label:neighbors?"Completar equipo "+team+" · mismo municipio":already.length?"Completar jornada del equipo "+team:team===2?"Prioridad Equipo 2":"Alternativa Equipo 3",detail:fit.reason});
  }));
- return choices.sort((a,b)=>a.rank-b.rank||a.time.localeCompare(b.time)||a.team-b.team);
+ return choices.sort((a,b)=>priority(a)-priority(b)||a.rank-b.rank||a.time.localeCompare(b.time));
 }
 async function recommendDays(item,body){
  const panel=body.querySelector("#koc-recommendations");if(!panel)return;
@@ -679,7 +754,7 @@ async function recommendDays(item,body){
   const results=await Promise.allSettled(days.map(d=>availableChoices(item,d)));
   if(ticket!==seq||view!=="calendar"||resolve()?.key!==item.key)return;
   const options=results.flatMap((r,i)=>r.status==="fulfilled"?r.value.map(v=>({...v,day:i})):[])
-   .sort((a,b)=>a.day-b.day||a.rank-b.rank||a.time.localeCompare(b.time)).slice(0,8);
+   .sort((a,b)=>priority(a)-priority(b)||a.day-b.day||a.rank-b.rank||a.time.localeCompare(b.time)).slice(0,8);
   panel.replaceChildren();
   if(!options.length){e("p","koc-muted","No hay propuestas verificadas para los próximos siete días. Prueba otra fecha manualmente.",panel);return;}
   options.forEach(o=>{
@@ -705,7 +780,7 @@ async function loadSlots(board,info,preferred=null){
   const item=resolve();if(!item)return;
   const options=await availableChoices(item,d);
   if(ticket!==seq||view!=="calendar")return;
-  const ordered=preferred?options.sort((a,b)=>(a.time===preferred.time&&a.team===preferred.team?-1:0)-(b.time===preferred.time&&b.team===preferred.team?-1:0)):options;
+  const ordered=preferred?options.sort((a,b)=>Number(b.time===preferred.time&&b.team===preferred.team)-Number(a.time===preferred.time&&a.team===preferred.team)||priority(a)-priority(b)):options;
   ordered.forEach(o=>{
    const b=button(o.time+"–"+o.to+" · Equipo "+o.team,()=>{
     selectedSlot=o.time;selectedTeam=o.team;
@@ -715,7 +790,7 @@ async function loadSlots(board,info,preferred=null){
    e("small","",o.label,b);board.append(b);
    if(preferred&&preferred.time===o.time&&preferred.team===o.team)b.click();
   });
-  info.textContent=ordered.length?ordered.length+" franjas verificadas y ordenadas por proximidad; revisa el desplazamiento antes de confirmar.":"No hay equipos disponibles. Elige otro día.";
+  info.textContent=ordered.length?ordered.length+" franjas verificadas. Se prioriza completar el Equipo 2 y sus jornadas existentes, siempre que la ruta sea compatible.":"No hay equipos disponibles. Elige otro día.";
  }catch(err){if(ticket===seq)info.textContent="No se ha podido comprobar KONSOR: "+(err.message||"Error de conexión")+". No se puede reservar sin verificar.";}
 }
 

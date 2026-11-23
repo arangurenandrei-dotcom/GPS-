@@ -16,7 +16,7 @@ function zone(id,n,legacy=false){
  return {id,town:'Ayegui',comercial:'Andrei (Jefe)',isSingleHouse:true,
   isLegacyPortfolio:legacy,points:[],
   clients:Array.from({length:n},(_,i)=>({
-   clientUid:id+'-'+i,name:'Contacto '+i,phone:'600123456',street:'Mayor '+i,
+   clientUid:id+'-'+i,name:'Contacto '+i,phone:'600123456',street:'Mayor '+id+' '+i,
    captacionRespuesta:'si',callStatus:'pendiente',
    importedLegacy:legacy,legacyReviewStatus:legacy?'pendiente':undefined,obraStatus:'a_poner'
   }))};

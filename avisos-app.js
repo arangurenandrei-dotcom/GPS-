@@ -108,6 +108,16 @@
  function badge(){if(bell){const n=notices.filter(n=>!n.resolvedAt&&((isTask(n)&&!(n.context?.reminderId&&reminders.some(r=>r.id===n.context.reminderId)))||(!isTask(n)&&!n.readAt))).length+reminders.filter(r=>r.assignment&&r.to===me?.name&&r.enabled&&!r.completedAt&&!r.confirmedAt).length;bell.textContent='🔔'+(n?' '+n:'');bell.setAttribute('aria-label',`${n} avisos o tareas pendientes`);}}
  function open(target){if(!me)return;mount();if(['inbox','tasks','preferences'].includes(target))tab=target;modal.classList.add('active');render();}
  window.openNotificationsCenterV2=open;
+ // Oficina reutiliza la función existente del backend de avisos.
+ window.konsorScheduleCallReminder=async function({title,body,dueAt}){
+  if(!api||!me)throw Error("Centro de avisos no conectado. Comprueba la sesión.");
+  if(!Number.isFinite(dueAt)||dueAt<=Date.now())throw Error("Elige un aviso futuro.");
+  const response=await api.call('guardarRecordatorio',{assignment:false,
+   title:String(title||"Llamar al cliente").slice(0,120),
+   body:String(body||"").slice(0,1500),to:me.key,dueAt,repeat:'none',enabled:true});
+  if(response?.ok===false)throw Error("No se ha confirmado el recordatorio.");
+  return response;
+ };
  function render(){if(!body||!me)return;status.textContent='';body.replaceChildren();modal.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.tab===tab));
   if(tab==='preferences')renderPreferences();else if(tab==='tasks')renderTasks();else renderInbox();
  }
