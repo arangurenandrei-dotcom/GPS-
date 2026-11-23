@@ -15,7 +15,7 @@ const roles=[
 const spaces={
  ceo:{hero:"Supervisar el funcionamiento de KONSOR",detail:"Consulta el rendimiento, las prioridades y los costes de toda la empresa.",
   actions:[["Producción","Resultados y obras","chart"],["Equipos","Áreas y responsables","users"],["Economía","Gastos y previsiones","wallet"],["Prioridades","Incidencias y decisiones","list"]]},
- oficina:{hero:"Continuar con los expedientes",detail:"Comprueba documentos y gestiona las obras pendientes de cierre.",actions:[]},
+ oficina:{hero:"Preparar los expedientes de obra",detail:"Revisa las citas confirmadas, documentos pendientes y expedientes que necesitan atención.",actions:[]},
  tecnicos:{hero:"Preparar la siguiente obra",detail:"Consulta los trabajos asignados y completa cada intervención paso a paso.",actions:[]}
 };
 const e=(tag,cls,txt,parent)=>{
@@ -162,7 +162,7 @@ function officeBrowser(section,id,archive){
    found.forEach(x=>{
     const card=e("div","kdp-record",undefined,results);
     e("strong","",x.name+" · "+x.street,card);
-    e("small","",x.town+" · "+(x.status||"Sin obra agendada"),card);
+    e("small","",x.town+" · "+window.KonsorOfficeArchive.displayDate(x),card);
     const foot=e("div","kdp-record-actions",undefined,card);
     if(x.phone)button("Llamar",()=>{window.location.href="tel:"+x.phone.replace(/[^0-9+]/g,"");},foot,"cnv-glass");
     button("Gestionar cita",()=>openExistingOfficeClient(x),foot,"cnv-glass");
@@ -173,23 +173,22 @@ function officeBrowser(section,id,archive){
  }
  const list=e("div","kdp-archive-tabs",undefined,section);
  const results=e("div","kdp-records",undefined,section);
- let active="nuevos";
+ let active="total_leads";
  function draw(){
   list.replaceChildren();results.replaceChildren();
   window.KonsorOfficeArchive.groups.forEach(g=>{
-   const count=rows.filter(x=>x.group===g.id).length;
+   const count=rows.filter(x=>window.KonsorOfficeArchive.belongs(x,g.id)).length;
    const b=button(g.title+" · "+count,()=>{active=g.id;draw();},list,active===g.id?"cnv-glass kdp-archive-active":"cnv-glass");
    b.setAttribute("aria-pressed",String(active===g.id));
   });
   const group=window.KonsorOfficeArchive.groups.find(g=>g.id===active);
   e("p","kdp-explainer",group.description,results);
-  const found=rows.filter(x=>x.group===active).slice(0,100);
+  const found=rows.filter(x=>window.KonsorOfficeArchive.belongs(x,active)).slice(0,100);
   if(!found.length){e("p","kdp-empty","Todavía no hay expedientes en esta categoría.",results);return;}
   found.forEach(x=>{
    const card=e("div","kdp-record",undefined,results);
    e("strong","",x.street+" · "+x.town,card);
-   e("small","",x.name+" · "+(x.date||"Fecha pendiente")+
-    (x.status?" · "+x.status:""),card);
+   e("small","",x.name+" · "+window.KonsorOfficeArchive.displayDate(x),card);
    const actions=e("div","kdp-record-actions",undefined,card);
    button("Abrir ficha",()=>openExistingOfficeClient(x),actions,"cnv-glass");
   });
@@ -253,10 +252,10 @@ function open(id){
   actionTile(grid,"Mi jornada","Ruta, obras y cierre del día","calendar",activate,true);
  }else if(id==="oficina"){
   actionTile(grid,"Mi jornada","Documentos, revisiones y tramitación","calendar",activate);
-  actionTile(grid,"Citas y llamadas","Consultar agenda y reservar instalaciones","calendar",openOfficeBookings);
+  actionTile(grid,"Citas y llamadas","Acceso secundario a agenda y nuevas reservas","calendar",openOfficeBookings);
   actionTile(grid,"Nuevo cliente","Registrar lead sin sector ni planificación territorial","users",()=>openOfficeNewLead(section));
   actionTile(grid,"Clientes","Buscar y consultar fichas","office",()=>officeBrowser(section,id,false));
-  actionTile(grid,"Archivador","Nuevos, haciendo, por llegar y terminados","folder",()=>officeBrowser(section,id,true),true);
+  actionTile(grid,"Archivador","Total leads, nuevos, haciendo, por llegar y terminados","folder",()=>officeBrowser(section,id,true),true);
  }else{
   data.actions.forEach(([name,detail,ico])=>actionTile(grid,name,detail,
    ico==="calendar"?"calendar":ico==="map"?"map":ico==="folder"?"office":"results",
