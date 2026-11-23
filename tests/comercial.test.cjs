@@ -44,14 +44,15 @@ test('area accepts comma and old ranges; empty/invalid never invents 70',()=>{
  for(const v of ['',undefined,null,'abc',-1,Infinity,'22abc'])assert.equal(core.area(v),0);
  assert.equal(core.area('80,25'),80.25);assert.equal(core.area('60-80'),70);
 });
-test('attic formula and invalid inputs',()=>{
- assert.equal(core.attic(110,2).net,48);assert.equal(core.attic(260,2).net,119);
- assert.equal(core.attic(180,2).net,81);
+test('attic: restar 5 m² al total, sin descuentos por plantas ni porcentajes',()=>{
+ assert.equal(core.attic(110,2).net,105);
+ assert.equal(core.attic(260,2).net,255);
+ assert.equal(core.attic(180,2).net,175);
  for(const v of [0,-1,1.5,''])assert.equal(core.attic(100,v),null);
  assert.equal(core.attic(3,1,100,100).net,0);
- assert.equal(core.attic(200,2,50,45).net,38);
- assert.equal(core.attic(200,2,50,0).net,50);
- assert.equal(core.attic(200,2,101,25),null);
+ assert.equal(core.attic(200,2,50,45).net,195);
+ assert.equal(core.attic(200,2,50,0).net,195);
+ assert.equal(core.attic(200,2,101,25).net,195);
 });
 test('calendar dates reject rollover',()=>{
  assert.ok(core.date('2024-02-29'));assert.ok(!core.date('2026-02-29'));
@@ -262,7 +263,7 @@ test('compact calculator recalculates and clears a stale result after invalid in
   '.client-attic-coverage':{value:'100'},'.client-attic-wall':{value:'25'},'.client-m2':{value:''}};
  const box={querySelector:s=>fields[s]};
  const calculate=loadFunction('calculateClientAttic',{isMikelTeamMember:()=>false,currentUserName:'Andrei'});
- calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,90);
+ calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,195);
  fields['.client-floors'].value='';calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,'');
 });
 
