@@ -52,7 +52,7 @@ async function post(req){
 }
 async function list(req){
  const me=await identity(req),db=getFirestore();
- const to=me.plant;
+ const requested=trim(req.data?.plant),to=me.owner&&PLANTS.includes(requested)?requested:me.plant;
  // Consultas limitadas, sin índices compuestos ni acceso directo del cliente.
  const [received,sent]=await Promise.all([
   db.collection('konsor_plant_tasks').where('to','==',to).limit(300).get(),
