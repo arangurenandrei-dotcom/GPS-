@@ -187,6 +187,10 @@ function officeBrowser(section,id,archive){
   });
   const group=window.KonsorOfficeArchive.groups.find(g=>g.id===active);
   e("p","kdp-explainer",group.description,results);
+  if(active==="nuevos"){
+   const review=rows.filter(x=>x.bookingNeedsReview);
+   if(review.length)e("p","kdp-empty",review.length+" ficha(s) con estado de obra agendada pero sin fecha válida. Aparecen aquí para no perderlas: entra en la ficha y vincula o verifica la cita original de Google Calendar.",results);
+  }
   const found=rows.filter(x=>window.KonsorOfficeArchive.belongs(x,active)).slice(0,100);
   if(!found.length){e("p","kdp-empty","Todavía no hay expedientes en esta categoría.",results);return;}
   found.forEach(x=>{
@@ -194,7 +198,7 @@ function officeBrowser(section,id,archive){
    e("strong","",x.street+" · "+x.town,card);
    e("small","",x.name+" · "+window.KonsorOfficeArchive.displayDate(x),card);
    const actions=e("div","kdp-record-actions",undefined,card);
-   button("Abrir ficha",()=>openExistingOfficeClient(x),actions,"cnv-glass");
+   button(x.bookingNeedsReview?"Verificar cita":"Abrir ficha",()=>openExistingOfficeClient(x),actions,"cnv-glass");
   });
  }
  draw();
