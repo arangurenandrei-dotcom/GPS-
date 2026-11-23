@@ -8685,6 +8685,59 @@ function renderGlobalClientSearchResults() {
       }
     }
 
+    if(isClients){
+      // Una sola ficha, múltiples acciones. No abre otro registro.
+      const flow=window.KonsorSingleFileWorkflow?.status?.(c,z);
+      if(flow){
+        status.textContent=flow.label;
+        const next=document.createElement('p');
+        next.textContent="Siguiente paso: "+flow.next;
+        next.style.cssText="font-size:12px;color:#64748b;line-height:1.45;margin:6px 0;";
+        card.appendChild(next);
+        const missing=window.KonsorSingleFileWorkflow.outstanding(c,z);
+        if(missing.length){
+          const hint=document.createElement('p');
+          hint.textContent="Datos pendientes: "+missing.join(", ");
+          hint.style.cssText="font-size:11px;color:#64748b;line-height:1.35;margin:4px 0;";
+          card.appendChild(hint);
+        }
+      }
+      button(actions,'Gestionar llamada / ficha',false,()=>{
+        if(!c.clientUid){alert('Esta ficha no tiene identificador estable. Ábrela desde su zona antes de continuar.');return;}
+        if(typeof window.konsorOpenExistingClientInOffice!=='function'){
+          alert('El recorrido de Oficina todavía no está disponible.');return;
+        }
+        const opened=window.konsorOpenExistingClientInOffice(z.id,c.clientUid);
+        if(opened)closeModal('globalSearchModal');
+        else alert('No se ha podido localizar la ficha en Oficina. Actualiza KONSOR antes de continuar.');
+      });
+      if(!['agendada','agendada_historica','realizada'].includes(c.obraStatus)&&
+          !['no_interesado','descartado'].includes(c.callStatus)&&c.obraStatus!=='no_apto'){
+        button(actions,'No quiere continuar',false,async()=>{
+          if(!confirm('¿Confirmas que este cliente no quiere continuar? Se conservará su captación y su historial.'))return;
+          const reason=prompt('Motivo (obligatorio). Ej.: ya no quiere la obra, precio o cambio de opinión:','');
+          if(reason===null)return;
+          if(!reason.trim()){alert('Indica el motivo del rechazo.');return;}
+          try{
+            if(!window.KonsorBridge?.save||window.KonsorBridge.busy)throw Error('No hay sincronización disponible o existe un guardado pendiente.');
+            const zi=savedZones.findIndex(x=>String(x.id)===String(z.id));
+            const ci=zi<0?-1:savedZones[zi].clients.indexOf(c);
+            if(zi<0||ci<0)throw Error('La ficha ha cambiado. Vuelve a cargarla.');
+            const candidate=structuredClone(savedZones),old=candidate[zi].clients[ci],stamp=Date.now();
+            if(['agendada','agendada_historica','realizada'].includes(old.obraStatus))
+              throw Error('Este cliente ya tiene una obra. Usa el recorrido de gestión de obras para cancelarla o reprogramarla.');
+            old.callStatus='no_interesado';old.closureReason=reason.trim().slice(0,500);
+            old.nextContactAt=null;old.statusChangedAt=stamp;old.updatedAt=stamp;
+            old.callLog=[...(Array.isArray(old.callLog)?old.callLog:[]),{t:stamp,s:'no_interesado',r:old.closureReason}].slice(-20);
+            candidate[zi]._updatedAt=stamp;
+            await window.KonsorBridge.save('comercial_custom_zones',candidate);
+            savedZones=candidate;
+            window.cnvRefreshHome?.();window.konsorMotor?.refresh?.();
+            renderGlobalClientSearchResults();
+          }catch(err){alert('No se ha confirmado el cambio: '+(err.message||err));}
+        });
+      }
+    }
     card.append(title, status, detail, actions);
     container.appendChild(card);
   });
