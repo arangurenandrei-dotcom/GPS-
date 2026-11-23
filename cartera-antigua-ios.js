@@ -39,8 +39,19 @@ function portZones(candidate,owner,town){
   status:"completada",date:"",clients:[],stats:{si:0,no:0,ausente:0,papelito:0},createdAt:Date.now(),_updatedAt:Date.now()};candidate.push(z);}
  return z;
 }
+function syncState(){
+ const bridge=window.KonsorBridge;
+ if(!bridge?.save)return {kind:"missing",message:"El módulo de guardado no se ha cargado. Cierra la aplicación y vuelve a abrirla desde el inicio."};
+ const st=bridge.state?.();
+ if(st?.failed)return {kind:"failed",message:"Existe un cambio anterior sin confirmar en Firestore. No se moverá ninguna ficha hasta recuperar la sincronización."};
+ if(st?.pending>0)return {kind:"pending",message:"Hay "+st.pending+" guardado(s) en curso. Es necesario que terminen antes de mover fichas."};
+ if(st&&!st.connected)return {kind:"offline",message:st.authenticated?"La sesión de Firebase todavía no está preparada. Comprueba la conexión y recupera la sincronización.":"No hay sesión iniciada en Firebase."};
+ if(bridge.busy)return {kind:"pending",message:"Hay un guardado pendiente. No se puede iniciar otro traslado todavía."};
+ return {kind:"ready",message:"Guardado disponible."};
+}
 async function commit(candidate){
- if(!window.KonsorBridge?.save||window.KonsorBridge.busy)throw Error("No hay conexión de guardado o hay una operación pendiente.");
+ const check=syncState();
+ if(check.kind!=="ready")throw Error(check.message);
  await window.KonsorBridge.save("comercial_custom_zones",candidate);
  savedZones=candidate;
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
@@ -181,6 +192,22 @@ function moveScreen(page){
  page.append(B("‹ Volver",()=>{screen="list";render();}));
  const rows=sourceEntries(),chosen=rows.filter(x=>selection.has(key(x)));
  const box=card(page,"Recuperar fichas de sectores","Por defecto aparecen seleccionadas las fichas que llegaron por CSV. Revisa cuáles quieres trasladar. No se borran sectores.");
+ const health=syncState();
+ if(health.kind!=="ready"){
+  const alertBox=card(box,"Guardado bloqueado",health.message);
+  if(health.kind==="failed"||health.kind==="offline"){
+   const recoverBtn=B("Recuperar sincronización",async()=>{
+    recoverBtn.disabled=true;
+    try{
+     if(typeof window.KonsorBridge?.recover!=="function")throw Error("La recuperación no está cargada. Abre la versión más reciente de KONSOR.");
+     await window.KonsorBridge.recover();
+     // Recuperar puede cambiar el orden de las zonas: nunca reutilizar índices de una selección anterior.
+     selection.clear();notice="Sincronización revisada. Vuelve a marcar las fichas y confirma el traslado.";render();
+    }catch(e){notice="No se ha confirmado la recuperación: "+(e.message||e);render();}
+   },true);
+   alertBox.append(recoverBtn);
+  }else if(health.kind==="pending")alertBox.append(B("Comprobar de nuevo",()=>{notice="";render();}));
+ }
  const actions=buttons(box);
  actions.append(B(includeManual?"Solo importadas":"Mostrar también las manuales",()=>{includeManual=!includeManual;render();}));
  actions.append(B("Descargar copia JSON",()=>showBackup(chosen)));
@@ -195,7 +222,7 @@ function moveScreen(page){
  });
  if(notice)p(box,notice,"kha-alert");
  const moveBtn=B("Trasladar fichas seleccionadas",async()=>{moveBtn.disabled=true;try{await migrate();}catch(err){notice=err.message||String(err);render();}finally{moveBtn.disabled=false;}},true);
- moveBtn.disabled=!chosen.length;box.append(moveBtn);
+ moveBtn.disabled=!chosen.length||health.kind!=="ready";box.append(moveBtn);
  p(box,"Las fichas se trasladan juntas en un único guardado. Los sectores quedan intactos salvo por la retirada de los clientes seleccionados.");
 }
 function listScreen(page){
