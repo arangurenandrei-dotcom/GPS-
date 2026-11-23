@@ -11020,7 +11020,7 @@ function konsorNextSectorNumber(town) {
 
       const viewerIsMikelTeam = isMikelTeamMember(currentUserName);
       savedZones.forEach((z, idx) => {
-        if(z.isLegacyPortfolio)return; // Cartera histórica no tiene sector dibujado.
+        if(z.isLegacyPortfolio||window.konsorIsHistoricalOnlySector?.(z))return; // Archivo histórico: no dibujar un sector artificial.
         if (isMikelTeamMember(z.comercial) !== viewerIsMikelTeam) return;
         if (currentUserRole === 'comercial' && z.comercial !== currentUserName) {
           return;
