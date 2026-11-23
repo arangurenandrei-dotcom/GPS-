@@ -26,10 +26,6 @@ function metric(parent,title,num){
 }
 function render(container){
  if(!container)return;
- if(window.KonsorGuidedDesign?.office){
-  window.KonsorGuidedDesign.office(container);
-  return;
- }
  if(!container)return;
  container.querySelector("#konsorOfficeLive")?.remove();
  const panel=add("section","ktf-wrapper",undefined,container);panel.id="konsorOfficeLive";
@@ -38,7 +34,7 @@ function render(container){
  add("span","","Revisión guiada",title);
  const list=rows();
  if(list===null){
-  add("p","ktf-notice","Las fichas autorizadas todavía no están disponibles. Esta pantalla no crea expedientes de ejemplo ni los marca como completos.",panel);
+  add("p","ktf-notice","Conectando con las fichas de Firebase. No se han creado expedientes de ejemplo.",panel);
   return;
  }
  const info=root.KonsorOfficeFlow.totals(list);
