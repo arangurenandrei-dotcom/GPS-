@@ -117,6 +117,19 @@ function contentRows(){
   return window.KonsorOfficeArchive.clients(savedZones,z=>!String(z.comercial||"").startsWith("Mikel"));
  }catch(_){return null;}
 }
+function openOfficeBookings(){
+ if(!permitted())return false;
+ if(typeof window.openCnCallQueue!=="function"){window.alert?.("La agenda real de KONSOR no está disponible.");return false;}
+ window.openCnCallQueue();
+ const agenda=document.getElementById("konsorOfficeCallV2");
+ if(agenda)agenda.style.zIndex="20090";
+ return true;
+}
+function openOfficeNewLead(section){
+ if(!permitted()||typeof window.KonsorOfficeLeads?.open!=="function")return false;
+ window.KonsorOfficeLeads.open(section,returnHome("oficina"));
+ return true;
+}
 function returnHome(id){return ()=>open(id);}
 function officeBrowser(section,id,archive){
  section.replaceChildren();
@@ -228,6 +241,8 @@ function open(id){
   actionTile(grid,"Mi jornada","Ruta, obras y cierre del día","calendar",activate,true);
  }else if(id==="oficina"){
   actionTile(grid,"Mi jornada","Documentos, revisiones y tramitación","calendar",activate);
+  actionTile(grid,"Citas y llamadas","Consultar agenda y reservar instalaciones","calendar",openOfficeBookings);
+  actionTile(grid,"Nuevo cliente","Registrar lead sin sector ni planificación territorial","users",()=>openOfficeNewLead(section));
   actionTile(grid,"Clientes","Buscar y consultar fichas","office",()=>officeBrowser(section,id,false));
   actionTile(grid,"Archivador","Nuevos, haciendo, por llegar y terminados","folder",()=>officeBrowser(section,id,true),true);
  }else{
@@ -236,11 +251,11 @@ function open(id){
    ()=>{const hint=e("p","kdp-empty","Esta función de "+role.name+" todavía no está operativa. Se conectará tras validar permisos y backend.",section);hint.setAttribute("role","status");}));
  }
  if(id==="tecnicos"||id==="oficina"){
-  e("p","kdp-explainer","El trabajo guiado incluye simulación segura. Los expedientes reales se consultan sin alterar su estado.",section);
+  e("p","kdp-explainer","Los clientes y las citas se consultan desde Firebase. Las fases técnicas y los cierres documentales permanecen sujetos a validación.",section);
  }
  const footer=e("div","cnv-home-footer",undefined,section);
  e("span","","KONSOR",footer);
- e("span","",(id==="tecnicos"||id==="oficina")?"VISTA DE DISEÑO · DATOS EN SOLO LECTURA":"VISTA DE DISEÑO · SIN DATOS OPERATIVOS",footer);
+ e("span","",(id==="tecnicos"||id==="oficina")?"KONSOR · DATOS CONECTADOS":"VISTA DE DISEÑO · SIN DATOS OPERATIVOS",footer);
  return true;
 }
 // Compatibilidad con llamadas antiguas: no insertar pestañas en el Inicio.
