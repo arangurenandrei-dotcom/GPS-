@@ -13,7 +13,7 @@ const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+
 const localISO=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
 const isoOf=ms=>ms?localISO(new Date(Number(ms))):"";
 const zones=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
-const territory=()=>zones().filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!z.isLegacyPortfolio&&myTeam(z));
+const territory=()=>zones().filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!z.isLegacyPortfolio&&!window.konsorIsHistoricalOnlySector?.(z)&&myTeam(z));
 const own=()=>territory().filter(z=>z.comercial===me());
 const validClient=c=>!!c&&(c.name||c.phone||c.street);
 const clients=team=> (team?territory():own()).flatMap(z=>(z.clients||[]).filter(c=>validClient(c)&&!((c.importedCsv||c.importedLegacy||c.legacyPortfolio||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")).map(c=>({c,z})));
@@ -133,7 +133,7 @@ function officeState(){
  const calls=cc.filter(({c})=>dueCall(c)&&!waitDue(c));
  const deferred=cc.filter(({c})=>isContact(c)&&!booked(c)&&!rejected(c)&&Number(c.nextContactAt)>Date.now());
  const town=new Map();
- for(const z of list){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
+ for(const z of list){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(window.konsorPerformanceStats?.(z)?.si??z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
  return {pending,needFix,waits,calls,deferred,cc,town:[...town.values()]};
 }
 async function leagueSummary(){
