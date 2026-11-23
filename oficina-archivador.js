@@ -6,7 +6,7 @@
 const trim=v=>String(v??"").trim();
 const norm=v=>trim(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const booked=c=>["agendada","agendada_historica"].includes(c?.obraStatus);
-const validDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||""))&&new Date(v+"T12:00:00Z").toISOString().slice(0,10)===v;
+const validDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||""))&&Number.isFinite(Date.parse(v+"T12:00:00Z"))&&new Date(v+"T12:00:00Z").toISOString().slice(0,10)===v;
 const scheduled=c=>booked(c)&&validDate(c.obraDate);
 function stage(c){
  if(c.expedienteCerradoAt)return "terminados";
