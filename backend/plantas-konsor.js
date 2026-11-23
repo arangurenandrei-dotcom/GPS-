@@ -24,7 +24,7 @@ async function identity(req){
 }
 function viewAllowed(plant,item){
  return item?.teamId==='andrei'&&
- (plant==='ceo'?(item.to==='ceo'&&item.priority==='critical'):item.to===plant||item.from===plant);
+ (plant==='ceo'?(item.from==='ceo'||item.to==='ceo'&&item.priority==='critical'):item.to===plant||item.from===plant);
 }
 function safeTask(d,id){return {
  id,from:d.from,to:d.to,title:d.title,detail:d.detail||'',priority:d.priority,
