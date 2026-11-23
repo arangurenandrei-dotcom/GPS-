@@ -13,6 +13,9 @@ const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial=
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
+const isSectorless=z=>!!(z?.isSingleHouse&&z?.isSectorlessCapture);
+const captureStats=r=>({si:r==="si"?1:0,no:r==="no"?1:0,ausente:r==="ausente"?1:0,papelito:r==="papelito"?1:0});
+const callable=x=>isSectorless(x.z)?x.c.callStatus!=="bloqueada"&&x.c.captacionRespuesta==="si":x.c.legacyReviewStatus==="lista";
 const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
 window.konsorIsHistoricalClient=c=>inPortfolio(c);
 window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(inPortfolio);
@@ -83,18 +86,25 @@ async function commit(candidate){
  // El CRM histórico solo modifica fichas dentro de zonas que el servidor ya conoce.
  // Nunca se crean contenedores virtuales ni se trasladan fichas a un ID de zona nuevo.
  const previous=zs(),originalIds=new Set(previous.map(z=>String(z.id)));
- if(candidate.length!==previous.length||candidate.some(z=>!originalIds.has(String(z.id))))
-  throw Error("Se ha detectado un intento de crear una zona. Operación cancelada por seguridad.");
+ // Únicamente se acepta una vivienda individual con pueblo, sin sector.
+ const added=candidate.filter(z=>!originalIds.has(String(z.id)));
+ if(candidate.length!==previous.length+added.length||
+    previous.some(z=>!candidate.some(x=>String(x.id)===String(z.id)))||
+    added.length>1||
+    added.some(z=>!isSectorless(z)||z.comercial!==current()||
+      !Array.isArray(z.points)||z.points.length!==0||
+      z.singlePoint!==null||!Array.isArray(z.clients)||z.clients.length!==1))
+  throw Error("Operación cancelada: no se permite crear ni eliminar sectores desde esta pantalla.");
  await window.KonsorBridge.save("comercial_custom_zones",candidate);
  savedZones=candidate;
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
 }
 function portfolioEntries(){
- const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)))out.push({z,zi,c,ci});});});
+ const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)||isSectorless(z)))out.push({z,zi,c,ci});});});
  return out.sort((a,b)=>(a.c.legacyReviewStatus==="lista")-(b.c.legacyReviewStatus==="lista")||String(a.z.town).localeCompare(String(b.z.town),"es"));
 }
 function sourceEntries(){
- const out=[];zs().forEach((z,zi)=>{if(isPort(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
+ const out=[];zs().forEach((z,zi)=>{if(isPort(z)||isSectorless(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
 }
 function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImportKey||[x.c.name,x.c.street,x.c.phone,x.ci].join("|"));}
 function showBackup(selected){
@@ -141,29 +151,25 @@ function sel(parent,label,currentValue,options){
  element.value=currentValue||"";return element;
 }
 function validateReady(d){
- const bad=[];
- if(!d.name)bad.push("nombre");if(!d.street)bad.push("calle");if(!d.locality||d.locality==="Localidad pendiente")bad.push("pueblo");
- if(!/^[6789]\d{8}$/.test(phone(d.phone)))bad.push("teléfono válido");
- if(!/^31\d{3}$/.test(String(d.postalCode||"")))bad.push("código postal de Navarra");
- if(!Number.isInteger(Number(d.buildYear))||Number(d.buildYear)<1800||Number(d.buildYear)>new Date().getFullYear())bad.push("año");
- if(numeric(d.m2Total)===null||Number(d.m2Total)<=5)bad.push("superficie total");
- if(!/^[DE][123]$/.test(d.cteZone))bad.push("CTE D/E");
- if(d.captacionRespuesta!=="si")bad.push("respuesta «Sí»");
- if(Number(d.buildYear)>2006)bad.push("año posterior a 2006");
- if(d.m2<(d.type==="urbanizacion"?50:60))bad.push("superficie neta mínima");
- if(d.type==="comunidad")bad.push("revisión específica de comunidad");
- if(d.obraStatus==="no_apto")bad.push("estado no apto");
- return bad;
+ const missing=[];
+ if(!d.name)missing.push("nombre");
+ if(!d.street)missing.push("dirección");
+ if(!d.locality)missing.push("pueblo");
+ if(!/^[6789]\d{8}$/.test(phone(d.phone)))missing.push("teléfono válido");
+ if(d.captacionRespuesta!=="si")missing.push("respuesta «Sí»");
+ return missing;
 }
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
- if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
+ if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z)||isSectorless(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
  const box=card(page,c?"Completar ficha histórica":"Nuevo cliente antiguo","Sin dibujo de pueblos o sectores. Guarda pendiente o confirma que está lista para llamadas.");
  const fields=E("div","kha-grid",undefined,box);
  const name=f(fields,"Nombre y apellidos",c?.name||"");
  const telephone=f(fields,"Teléfono",c?.phone||"","tel");
  const town=f(fields,"Pueblo",c?.locality||z?.town||"");
+ const today=typeof getTodayISO==="function"?getTodayISO():new Date().toLocaleDateString("sv-SE");
+ const captured=f(fields,"Fecha de captación",c?.captureDate||z?.date||today,"date");
  const street=f(fields,"Calle y número",c?.street||"");
  const postal=f(fields,"Código postal",c?.postalCode||"");
  const year=f(fields,"Año de construcción",c?.buildYear||"","number");
