@@ -5,15 +5,21 @@
 "use strict";
 const trim=v=>String(v??"").trim();
 const norm=v=>trim(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const scheduled=c=>["agendada","agendada_historica"].includes(c?.obraStatus)&&/^\d{4}-\d{2}-\d{2}$/.test(String(c.obraDate||""));
 function stage(c){
  if(c.expedienteCerradoAt)return "terminados";
  if(["aplazada","no_realizada"].includes(c.obraStatus))return "haciendo";
- if(["realizada"].includes(c.obraStatus)){
-  if(c.documentosVerificadosAt||c.documentosCompletosAt)return "haciendo";
-  return "por_llegar";
- }
- if(["agendada","agendada_historica"].includes(c.obraStatus))return "nuevos";
- return "nuevos";
+ if(c.obraStatus==="realizada")return (c.documentosVerificadosAt||c.documentosCompletosAt)?"haciendo":"por_llegar";
+ if(scheduled(c))return (c.documentosVerificadosAt||c.documentosCompletosAt)?"por_llegar":"nuevos";
+ return "total_leads";
+}
+function belongs(row,group){return group==="total_leads"||row.group===group;}
+function displayDate(row){
+ if(!row.date)return "Sin cita de obra";
+ const d=new Date(row.date+"T12:00:00");
+ if(Number.isNaN(d.getTime()))return "Fecha pendiente de verificar";
+ const label=d.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+ return "Obra: "+label+(row.time?" · "+row.time:" · Franja pendiente")+(row.team?" · Equipo "+row.team:" · Equipo pendiente");
 }
 function clients(zones,allow){
  const seen=new Set(),out=[];
@@ -26,7 +32,8 @@ function clients(zones,allow){
    out.push({id,zoneId:String(z.id),name:trim(c.name)||"Titular pendiente",
     street:trim(c.street)||"Dirección pendiente",town:trim(z.town||c.locality)||"Pueblo pendiente",
     phone:trim(c.phone),date:trim(c.obraDate),time:trim(c.obraTime),
-    status:trim(c.obraStatus),group:stage(c),
+    status:trim(c.obraStatus),group:stage(c),team:Number(c.obraEquipoInstalacion)||null,
+    scheduled:scheduled(c),
     hasDocumentCheck:!!(c.documentosVerificadosAt||c.documentosCompletosAt),
     archived:!!c.expedienteCerradoAt});
   }
@@ -34,11 +41,12 @@ function clients(zones,allow){
  return out;
 }
 const groups=Object.freeze([
- {id:"nuevos",title:"Nuevos",description:"Obras agendadas pendientes de preparación"},
- {id:"haciendo",title:"Haciendo",description:"Incidencias, tramitación y revisiones en curso"},
- {id:"por_llegar",title:"Por llegar",description:"Pendientes de documentos o información"},
+ {id:"total_leads",title:"Total leads",description:"Todos los contactos y fichas de KONSOR, con o sin cita"},
+ {id:"nuevos",title:"Nuevos",description:"Solo citas de obra confirmadas que necesitan preparar expediente"},
+ {id:"haciendo",title:"Haciendo",description:"Obras con incidencia o expediente en revisión"},
+ {id:"por_llegar",title:"Por llegar",description:"Documentación pendiente o expediente listo a la espera de ejecución"},
  {id:"terminados",title:"Terminados",description:"Expedientes con cierre confirmado"}
 ]);
 function find(rows,q){const term=norm(q);return !term?rows:rows.filter(r=>norm([r.name,r.street,r.town,r.phone].join(" ")).includes(term));}
-w.KonsorOfficeArchive=Object.freeze({clients,groups,find,stage});
+w.KonsorOfficeArchive=Object.freeze({clients,groups,find,stage,scheduled,belongs,displayDate});
 })(window);
