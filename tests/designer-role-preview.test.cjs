@@ -77,7 +77,7 @@ test('nadie fuera del perfil fundador puede abrir el selector ni vistas de otros
 test('la selección no modifica roles, permisos ni datos',()=>{
  const ctx=load();
  assert.equal(ctx.win.konsorDesigner.open('tecnicos'),true);
- assert.ok(labels(ctx.body.children[0]).includes('Fotografías antes y después'));
+ assert.ok(labels(ctx.body.children[0]).includes('Antes y después'));
  for(const key of ['KonsorBridge.save','setProfile(','sessionStorage.setItem','fetch('])
   assert.equal(source.includes(key),false,key);
  assert.equal(/currentUserRole\s*=(?!=)/.test(source),false);
