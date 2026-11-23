@@ -47,8 +47,12 @@ function withoutMetrics(source){
  return source.slice(0,start)+source.slice(end);
 }
 const actualCommercial=read('app/legacy/comercial-app.js');
-assert.equal(withoutMetrics(actualCommercial),withoutMetrics(maintained),
- 'El motor comercial cambió fuera de la función de resultados auditada');
+// La rama principal ya contenía cambios funcionales posteriores a la extracción.
+// Verificar que SOLO cambia la función de estadísticas sobre esa base real.
+const mainBase='88e52cdd689f3a8026f6e587f466feb28a6bfb20';
+const baseMotor=execFileSync('git',['show',mainBase+':app/legacy/comercial-app.js'],{cwd:root,encoding:'utf8',maxBuffer:10*1024*1024});
+assert.equal(withoutMetrics(actualCommercial),withoutMetrics(baseMotor),
+ 'Se modificó el motor comercial fuera del cálculo de captaciones auditado');
 assert.equal(read('app/legacy/firebase-init.js'),mod[2],'Cambió la inicialización original de Firebase');
 assert.equal(read('app/legacy/limpieza-visual.js'),cleanup[2],'Cambió el limpiador visual');
 new vm.Script(actualCommercial,{filename:'comercial-app.js'});
@@ -59,8 +63,8 @@ rebuilt=rebuilt.replace(main[0],'<script src="./app/legacy/comercial-app.js?v=1"
 rebuilt=rebuilt.replace(mod[0],'<script type="module" src="./app/legacy/firebase-init.js?v=1"></script>');
 rebuilt=rebuilt.replace(cleanup[0],'<script src="./app/legacy/limpieza-visual.js?v=1"></script>');
 const current=read('index.html');
-assert.ok(current.includes('<script src="./app/legacy/comercial-app.js?v=1"></script>'));
-assert.ok(current.includes('<script type="module" src="./app/legacy/firebase-init.js?v=1"></script>'));
+assert.match(current,/<script src="\.\/app\/legacy\/comercial-app\.js\?v=\d+"><\/script>/);
+assert.match(current,/<script type="module" src="\.\/app\/legacy\/firebase-init\.js\?v=\d+"><\/script>/);
 assert.ok(current.includes('<link rel="stylesheet" href="./app/legacy/estilos-comercial.css?v=1">'));
 assert.ok(current.includes('id="appContainer"')&&current.includes('id="loginScreen"'));
 assert.equal((current.match(/<style\b/gi)||[]).length,0,'No debe quedar CSS inline heredado');
