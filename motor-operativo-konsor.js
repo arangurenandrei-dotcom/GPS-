@@ -24,10 +24,10 @@ const isContact=c=>!c.captacionRespuesta||c.captacionRespuesta==="si";
 const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!c.phone?.trim()||!!c.captacionInvalida);
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
 const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
-const unfinished=z=>z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&!z.streetCompletedAt;
-const pendingDump=z=>!!z.streetCompletedAt&&!z.dumpDate||
+const unfinished=z=>!window.konsorIsHistoricalOnlySector?.(z)&&z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&!z.streetCompletedAt;
+const pendingDump=z=>!window.konsorIsHistoricalOnlySector?.(z)&&((!!z.streetCompletedAt&&!z.dumpDate)||
  (!z.streetStartedAt&&z.status==="en_proceso"&&z.date&&z.date<today()&&!z.dumpDate&&
- ["si","no","ausente","papelito"].some(k=>Number(z.stats?.[k])>0));
+ ["si","no","ausente","papelito"].some(k=>Number(z.stats?.[k])>0)));
 const sorted=rows=>rows.slice().sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")||String(a.town).localeCompare(String(b.town)));
 function nextSector(){return sorted(own().filter(unfinished)).sort((a,b)=> {
  const priority=z=>z.date&&z.date<today()?0:z.date===today()?1:2;
