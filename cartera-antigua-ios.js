@@ -49,6 +49,22 @@ const portId=(owner,town)=>{
  return "hist_"+slug+"_"+hash.toString(16).padStart(8,"0");
 };
 let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="",activeTown="",activeStreet="";
+let independentRecords=[],independentLoading=false,independentError="",newIndependentDraftId="";
+async function reloadIndependent(){
+ independentLoading=true;independentError="";
+ try{
+  if(typeof window.listarClientesAntiguos!=="function")throw Error("La cartera histórica del servidor aún no está disponible.");
+  const response=await window.listarClientesAntiguos({});
+  if(response.data?.ok!==true||!Array.isArray(response.data.rows))throw Error("No se ha confirmado la lectura de la cartera histórica.");
+  independentRecords=response.data.rows;
+ }catch(e){independentError=e.message||String(e);throw e;}
+ finally{independentLoading=false;}
+}
+function independentEntries(){
+ return independentRecords.map(c=>({z:{id:null,town:c.locality,comercial:c.ownerName,sectorName:"Clientes antiguos"},zi:-1,c:{...c,clientUid:c.id},ci:-1,independent:true}));
+}
+function allHistoricalEntries(){return portfolioEntries().concat(independentEntries());}
+window.konsorIndependentHistoricalRecords=()=>independentRecords.slice();
 const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}';
 function start(){
  let root=document.getElementById(ID);
@@ -141,23 +157,21 @@ function sel(parent,label,currentValue,options){
  element.value=currentValue||"";return element;
 }
 function validateReady(d){
- const bad=[];
- if(!d.name)bad.push("nombre");if(!d.street)bad.push("calle");if(!d.locality||d.locality==="Localidad pendiente")bad.push("pueblo");
- if(!/^[6789]\d{8}$/.test(phone(d.phone)))bad.push("teléfono válido");
- if(!/^31\d{3}$/.test(String(d.postalCode||"")))bad.push("código postal de Navarra");
- if(!Number.isInteger(Number(d.buildYear))||Number(d.buildYear)<1800||Number(d.buildYear)>new Date().getFullYear())bad.push("año");
- if(numeric(d.m2Total)===null||Number(d.m2Total)<=5)bad.push("superficie total");
- if(!/^[DE][123]$/.test(d.cteZone))bad.push("CTE D/E");
- if(d.captacionRespuesta!=="si")bad.push("respuesta «Sí»");
- if(Number(d.buildYear)>2006)bad.push("año posterior a 2006");
- if(d.m2<(d.type==="urbanizacion"?50:60))bad.push("superficie neta mínima");
- if(d.type==="comunidad")bad.push("revisión específica de comunidad");
- if(d.obraStatus==="no_apto")bad.push("estado no apto");
- return bad;
+ const missing=[];
+ if(!d.name)missing.push("nombre");
+ if(!d.street)missing.push("calle y número");
+ if(!d.locality)missing.push("pueblo");
+ if(!/^[6789]\d{8}$/.test(phone(d.phone)))missing.push("teléfono válido");
+ if(d.captacionRespuesta!=="si")missing.push("respuesta «Sí»");
+ // Los datos técnicos quedan pendientes, sin bloquear la gestión de llamadas.
+ return missing;
 }
 function editor(page){
- const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
- if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
+ const independentEdit=!!currentEdit?.independentId;
+ const record=independentEdit?independentRecords.find(x=>x.id===currentEdit.independentId):null;
+ const z=independentEdit?null:currentEdit?zs()[currentEdit.zi]:null,c=independentEdit?record:z?.clients?.[currentEdit?.ci];
+ if(independentEdit&&!c){screen="list";notice="La ficha ha cambiado. Recarga la cartera.";render();return;}
+ if(currentEdit&&!independentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
  const box=card(page,c?"Completar ficha histórica":"Nuevo cliente antiguo","Sin dibujo de pueblos o sectores. Guarda pendiente o confirma que está lista para llamadas.");
  const fields=E("div","kha-grid",undefined,box);
