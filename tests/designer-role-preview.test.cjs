@@ -99,3 +99,16 @@ test('Inicio no incluye pestañas; el selector se llama después del login',()=>
  assert.ok(start.indexOf('window.cnvStart?.()')<start.indexOf('window.konsorDesigner?.showChooser?.()'));
  assert.ok(css.includes('.kdp-chooser')&&css.includes('.kdp-role-home'));
 });
+
+test('Oficina abre la agenda operativa existente sin duplicar fichas',()=>{
+ const ctx=load();
+ let opens=0;ctx.win.openCnCallQueue=()=>{opens++;};
+ assert.equal(ctx.win.konsorDesigner.open('oficina'),true);
+ const screen=ctx.body.children.find(x=>x.id==='konsorDesignerPreview');
+ const action=flattened(screen).find(x=>x.tag==='button'&&labels(x).includes('Citas y llamadas'));
+ assert.ok(action,'Falta acceso a citas de Oficina');
+ action.onclick();
+ assert.equal(opens,1);
+ assert.equal(ctx.body.children.find(x=>x.id==='konsorDesignerPreview'),undefined);
+ assert.equal(source.includes('saveAndSync('),false,'El selector no debe guardar datos');
+});
