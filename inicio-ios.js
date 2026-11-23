@@ -103,6 +103,7 @@ function showHome(){
   const access=btn("Abrir dirección",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.(),"cnv-home-management-button");
   director.append(access);
  }
+ window.konsorDesigner?.mount?.(section);
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
