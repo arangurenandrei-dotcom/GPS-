@@ -12,7 +12,7 @@ function andrei(){return me()==="Andrei (Jefe)";}
 function hasSession(){return Boolean(me()&&document.getElementById("appContainer")?.style.display!=="none");}
 function myZones(){
  if(typeof savedZones==="undefined"||!Array.isArray(savedZones))return [];
- return savedZones.filter(z=>z&&z.comercial===me()&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse);
+ return savedZones.filter(z=>z&&z.comercial===me()&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse&&!z.isLegacyPortfolio);
 }
 function info(){
  const zones=myZones(),today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
