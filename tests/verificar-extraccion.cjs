@@ -37,10 +37,21 @@ function removeUnused(source,name){
 }
 const obsolete=['updateClientCallStatusOld','renderGlobalClientSearchResultsOld','exportOfficialCrmJsonPackageOld','requestMobileNotificationsOld'];
 const maintained=obsolete.reduce(removeUnused,main[2]);
-assert.equal(read('app/legacy/comercial-app.js'),maintained,'El motor comercial cambió fuera de la limpieza auditada');
+// El motor conserva la extracción original salvo la función de resultados de
+// captaciones, auditada por tests/captaciones-historicas-metricas.test.cjs.
+// El resto del motor sigue siendo byte a byte idéntico al refactor de base.
+function withoutMetrics(source){
+ const start=source.indexOf('function personalStatsMetrics(user, from, to) {');
+ const end=source.indexOf('function openCommercialStatsModal()',start);
+ assert.ok(start>=0&&end>start,'No se localiza la función de métricas');
+ return source.slice(0,start)+source.slice(end);
+}
+const actualCommercial=read('app/legacy/comercial-app.js');
+assert.equal(withoutMetrics(actualCommercial),withoutMetrics(maintained),
+ 'El motor comercial cambió fuera de la función de resultados auditada');
 assert.equal(read('app/legacy/firebase-init.js'),mod[2],'Cambió la inicialización original de Firebase');
 assert.equal(read('app/legacy/limpieza-visual.js'),cleanup[2],'Cambió el limpiador visual');
-new vm.Script(maintained,{filename:'comercial-app.js'});
+new vm.Script(actualCommercial,{filename:'comercial-app.js'});
 new vm.Script(cleanup[2],{filename:'limpieza-visual.js'});
 let rebuilt=original.replace(styles[0][0],'<link rel="stylesheet" href="./app/legacy/estilos-comercial.css?v=1">');
 rebuilt=rebuilt.replace(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/gi,'');
