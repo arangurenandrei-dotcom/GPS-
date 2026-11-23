@@ -13,18 +13,23 @@ let sesion;
 let dejarSenal;
 
 async function iniciar() {
-  const { staging, firebase } = __CONFIG_KONSOR__;
+  const { staging, preview, firebase } = __CONFIG_KONSOR__;
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
   const hosting = [firebase.projectId + '.web.app', firebase.authDomain].includes(location.hostname);
-  if ((staging && !hosting) || (!staging && !local)) {
+  if ((staging && !hosting) || (!staging && !preview && !local) || (preview && !window.isSecureContext)) {
     throw Error('Esta compilación solo está habilitada en su entorno Firebase de pruebas.');
   }
 
   const app = initializeApp(firebase);
   const auth = getAuth(app);
-  const db = initializeFirestore(app, { localCache: memoryLocalCache() });
-  const functions = getFunctions(app, 'europe-west1');
-  if (!staging) {
+  const db = initializeFirestore(app, {
+    localCache: memoryLocalCache(),
+    ...(preview && { host: location.host, ssl: location.protocol === 'https:', experimentalForceLongPolling: true })
+  });
+  const functions = getFunctions(app, preview ? location.origin + '/__konsor/functions' : 'europe-west1');
+  if (preview) {
+    connectAuthEmulator(auth, location.origin, { disableWarnings: true });
+  } else if (!staging) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9109', { disableWarnings: true });
     connectFirestoreEmulator(db, '127.0.0.1', 8183);
     connectFunctionsEmulator(functions, '127.0.0.1', 5003);

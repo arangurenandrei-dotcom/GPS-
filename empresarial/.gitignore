@@ -1,5 +1,6 @@
 node_modules/
 .datos-emulador/
+.datos-vista-previa/
 /public/assets/
 /dist/
 /firebase-pruebas.local.json

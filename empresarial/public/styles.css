@@ -1,3 +1,5 @@
+#loginScreen #authNameWrap:has(#authName:disabled) { display: none !important; }
+
 #konsorOperaciones {
   position: fixed;
   inset: 0;

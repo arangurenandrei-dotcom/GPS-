@@ -43,6 +43,10 @@ Pasaron las 11 comprobaciones de `npm test` con Node 22, Java 21 y los emuladore
 
 También pasaron las dos verificaciones de arquitectura, las 85 comprobaciones de regresión y la navegación de la entrada comercial anterior en Chromium móvil y escritorio. El ejercicio utilizó cuentas y datos de prueba en emuladores. La validación de IAM, índices y despliegue en KONSOR-Pruebas queda pendiente del acceso al proyecto cloud.
 
+## Vista previa web de Codex
+
+`npm run preview` desde `empresarial/` arranca Emulator Suite con sus datos de vista previa en `.datos-vista-previa/` y sirve la aplicación en el puerto **3000**. Configura una vista HTTP para ese único puerto. El navegador accede a los recursos y a las rutas de Auth, Functions y escucha de Firestore bajo la misma dirección de la vista previa. Los servicios de Emulator Suite escuchan en loopback y usan el proyecto de prueba `demo-konsor-empresarial`. La compilación para esta modalidad admite localhost y las vistas servidas por HTTPS.
+
 ## Conectar KONSOR-Pruebas a Codex
 
 El nombre visible **KONSOR-Pruebas** identifica el proyecto. Sigue pendiente su ID real y la identidad autorizada. Una persona administradora del proyecto puede ejecutar la preparación siguiente.

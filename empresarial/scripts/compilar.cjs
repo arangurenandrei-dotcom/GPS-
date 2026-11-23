@@ -7,6 +7,8 @@ const { carpeta, configuracionPruebas } = require('./config-pruebas.cjs');
 const { proyectoEmulador } = require('../server/entorno.cjs');
 
 const staging = process.argv.includes('--staging');
+const preview = process.argv.includes('--preview');
+if (staging && preview) throw Error('Selecciona una sola modalidad de compilación.');
 const raiz = path.resolve(carpeta, '..');
 const salida = path.join(carpeta, 'dist');
 const moduloLegacy = '<script type="module" src="./app/legacy/firebase-init.js?v=1"></script>';
@@ -16,11 +18,15 @@ if (!html.includes(moduloLegacy) || !html.includes(avisosLegacy)) {
   throw Error('La entrada comercial cambió. Revisa los puntos de integración.');
 }
 const firebase = staging ? configuracionPruebas() : { projectId: proyectoEmulador, apiKey: 'konsor-emulator-only' };
-const integrado = html.replace(moduloLegacy, '<script type="module" src="./integracion.js"></script>')
+let integrado = html.replace(moduloLegacy, '<script type="module" src="./integracion.js"></script>')
   .replace(avisosLegacy, '')
   .replaceAll('https://unpkg.com/leaflet@1.9.4/dist/', './vendor/leaflet/')
   .replace('https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js', './vendor/leaflet/leaflet-rotate-src.js')
   .replace('</head>', '<link rel="stylesheet" href="./operaciones-empresariales.css">\n</head>');
+if (preview) {
+  integrado = integrado.replace(/<title>[^<]+<\/title>/, '<title>KONSOR · Vista previa de pruebas</title>')
+    .replace('</head>', '<link rel="icon" href="data:,">\n</head>');
+}
 fs.mkdirSync(salida, { recursive: true });
 const recursos = [...html.matchAll(/\b(?:src|href)="(?!https?:|#)([A-Za-z0-9./_-]+)(?:\?[^"]*)?"/g)]
   .map(([, url]) => url.replace(/^\.\//, ''))
@@ -56,6 +62,6 @@ buildSync({
   entryPoints: [path.join(carpeta, 'client/integracion.js')], outfile: path.join(salida, 'integracion.js'),
   bundle: true, platform: 'browser', format: 'esm',
   minify: staging,
-  define: { __CONFIG_KONSOR__: JSON.stringify({ staging, firebase }) },
+  define: { __CONFIG_KONSOR__: JSON.stringify({ staging, preview, firebase }) },
   logLevel: 'info'
 });

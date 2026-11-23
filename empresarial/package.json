@@ -7,6 +7,7 @@
   },
   "scripts": {
     "build": "node scripts/compilar.cjs",
+    "preview": "node scripts/compilar.cjs --preview && KONSOR_AISLAR_IA=1 firebase emulators:exec --only auth,firestore,functions,hosting --project demo-konsor-empresarial --import=.datos-vista-previa --export-on-exit=.datos-vista-previa 'node scripts/vista-previa.cjs'",
     "deploy:staging": "node scripts/desplegar-pruebas.cjs",
     "dev": "npm run build && firebase emulators:start --only auth,firestore,functions,hosting --project demo-konsor-empresarial --import=.datos-emulador --export-on-exit=.datos-emulador",
     "ceo": "node scripts/alta-ceo.cjs",
