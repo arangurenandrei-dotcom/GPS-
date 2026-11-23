@@ -38,7 +38,15 @@ function removeUnused(source,name){
 const obsolete=['updateClientCallStatusOld','renderGlobalClientSearchResultsOld','exportOfficialCrmJsonPackageOld','requestMobileNotificationsOld'];
 const maintained=obsolete.reduce(removeUnused,main[2]);
 assert.equal(read('app/legacy/comercial-app.js'),maintained,'El motor comercial cambió fuera de la limpieza auditada');
-assert.equal(read('app/legacy/firebase-init.js'),mod[2],'Cambió la inicialización original de Firebase');
+// Los tres callables de cartera histórica son la única extensión autorizada al módulo Firebase.
+const firebaseAdditions=[
+ " window.listarClientesAntiguos = httpsCallable(functionsEu, 'listarClientesAntiguos');\n",
+ " window.guardarClienteAntiguo = httpsCallable(functionsEu, 'guardarClienteAntiguo');\n",
+ " window.actualizarLlamadaClienteAntiguo = httpsCallable(functionsEu, 'actualizarLlamadaClienteAntiguo');\n"
+];
+let originalFirebase=read('app/legacy/firebase-init.js');
+firebaseAdditions.forEach(line=>{assert.ok(originalFirebase.includes(line),'No se ha incorporado el callable '+line);originalFirebase=originalFirebase.replace(line,'');});
+assert.equal(originalFirebase,mod[2],'Se modificó la inicialización de Firebase fuera de los tres callables autorizados');
 assert.equal(read('app/legacy/limpieza-visual.js'),cleanup[2],'Cambió el limpiador visual');
 new vm.Script(maintained,{filename:'comercial-app.js'});
 new vm.Script(cleanup[2],{filename:'limpieza-visual.js'});
@@ -49,7 +57,7 @@ rebuilt=rebuilt.replace(mod[0],'<script type="module" src="./app/legacy/firebase
 rebuilt=rebuilt.replace(cleanup[0],'<script src="./app/legacy/limpieza-visual.js?v=1"></script>');
 const current=read('index.html');
 assert.ok(current.includes('<script src="./app/legacy/comercial-app.js?v=1"></script>'));
-assert.ok(current.includes('<script type="module" src="./app/legacy/firebase-init.js?v=1"></script>'));
+assert.match(current,/<script type="module" src="\.\/app\/legacy\/firebase-init\.js\?v=\d+"><\/script>/);
 assert.ok(current.includes('<link rel="stylesheet" href="./app/legacy/estilos-comercial.css?v=1">'));
 assert.ok(current.includes('id="appContainer"')&&current.includes('id="loginScreen"'));
 assert.equal((current.match(/<style\b/gi)||[]).length,0,'No debe quedar CSS inline heredado');
