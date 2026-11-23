@@ -14,7 +14,8 @@ const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phon
 function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
-const pending=i=>!done(i)&&i.c.obraStatus!=="no_apto"&&!["no","ausente","papelito"].includes(i.c.captacionRespuesta);
+const legacyNeedsReview=c=>!!(c?.importedCsv||c?.importedLegacy||c?.legacyReviewStatus)&&c.legacyReviewStatus!=="lista";
+const pending=i=>!legacyNeedsReview(i.c)&&!done(i)&&i.c.obraStatus!=="no_apto"&&!["no","ausente","papelito"].includes(i.c.captacionRespuesta);
 const complete=i=>!!(i&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim())&&!i.c.captacionInvalida);
 const callable=i=>complete(i)&&pending(i)&&(!Number(i.c.nextContactAt)||Number(i.c.nextContactAt)<=Date.now());
 
@@ -491,6 +492,9 @@ function draw(opts={}){
   },"koc-quiet"));
   controls.append(button("Ver todas las fichas",()=>{
    r.classList.remove("active");window.openCnClients?.();
+  },"koc-quiet"));
+  controls.append(button("Clientes antiguos · revisar",()=>{
+   r.classList.remove("active");window.openKonsorLegacyPortfolio?.();
   },"koc-quiet"));
   if(currentUserRole==="jefe"){const s=e("select","koc-input",undefined,body);[["mine","Mis clientes"],["team","Todo mi equipo"]].forEach(([value,label])=>{const o=e("option","",label,s);o.value=value;});s.value=scope;s.onchange=()=>{scope=s.value;draw();};}
   const suggested=firstRecommended();
