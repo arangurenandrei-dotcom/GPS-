@@ -3,12 +3,17 @@
     "source": ".",
     "codebase": "empresarial",
     "runtime": "nodejs22",
-    "ignore": ["node_modules", "client", "public", "scripts", "test", ".*", "*-debug.log"]
+    "ignore": ["node_modules", "client", "public", "dist", "scripts", "test", ".*", "firebase-pruebas.local.json", "*-debug.log"],
+    "predeploy": "node scripts/validar-destino.cjs"
   },
-  "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
+  "firestore": {
+    "rules": "firestore.rules", "indexes": "firestore.indexes.json",
+    "predeploy": "node scripts/validar-destino.cjs"
+  },
   "hosting": {
-    "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": ["node scripts/validar-destino.cjs", "node scripts/compilar.cjs --staging"]
   },
   "emulators": {
     "singleProjectMode": true,

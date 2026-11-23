@@ -4,6 +4,7 @@ const { createHash } = require('node:crypto');
 const { FieldPath } = require('firebase-admin/firestore');
 const { departamentos, fases, transiciones, puedeLeer, acciones } = require('./flujo.cjs');
 const { evaluarParte, refEvaluacion, resumenIA } = require('./ia.cjs');
+const { crearComercial, claveComercial, senalar } = require('./comercial.cjs');
 
 const TAMANO = 25;
 const digest = (...args) => createHash('sha256').update(JSON.stringify(args)).digest('hex');
@@ -14,6 +15,7 @@ function crearApi({ db, auth, HttpsError, configIA }) {
   const equipos = db.collection('equipos');
   const expedientes = db.collection('expedientes');
   const auditoria = db.collection('auditoria');
+  const tareas = db.collection('tareas');
   const fail = (code, message) => { throw new HttpsError(code, message); };
 
   function id(value, label) {
@@ -30,6 +32,8 @@ function crearApi({ db, auth, HttpsError, configIA }) {
     }
     return value.trim();
   }
+
+  const comercial = crearComercial({ equipos, fail, id });
 
   function departamento(value) {
     if (typeof value !== 'string' || !Object.hasOwn(departamentos, value)) {
@@ -118,6 +122,15 @@ function crearApi({ db, auth, HttpsError, configIA }) {
     });
   }
 
+  function asignarTarea(tx, expediente, revision, fase, uid, responsable, equipoId, fecha) {
+    const tarea = tareas.doc(expediente.id + '-' + revision);
+    tx.create(tarea, {
+      expedienteId: expediente.id, equipoId, departamento: fases[fase].departamento,
+      fase, responsableUid: uid, responsable, estado: 'pendiente', fecha
+    });
+    return tarea.id;
+  }
+
   function resumen(doc) {
     const e = doc.data();
     return {
@@ -132,6 +145,9 @@ function crearApi({ db, auth, HttpsError, configIA }) {
 
   const metodos = {
     sesion: async (_tx, persona) => ({ persona, departamentos, fases }),
+
+    leerTrabajo: comercial.leerTrabajo,
+    guardarTrabajo: comercial.guardarTrabajo,
 
     listarEquipos: async (tx, persona, input) => {
       exigirCEO(persona);
@@ -170,7 +186,9 @@ function crearApi({ db, auth, HttpsError, configIA }) {
       }
       gestion(persona, equipoId, area, puesto);
       const nombre = texto(input.nombre, 'Nombre visible', 80);
-      return mutar(tx, persona, input, ['gestionarMiembro', equipoId, area, uid, puesto, activo, nombre], async () => {
+      const solicitado = claveComercial(input.legacyKey, area, puesto, fail);
+      if (solicitado && persona.puesto !== 'ceo') fail('permission-denied', 'Dirección asigna el vínculo comercial.');
+      return mutar(tx, persona, input, ['gestionarMiembro', equipoId, area, uid, puesto, activo, nombre, solicitado], async () => {
         const [equipo, anterior] = await tx.getAll(equipos.doc(equipoId), miembro);
         if (!equipo.exists) fail('not-found', 'El equipo no existe.');
         const previo = anterior.data();
@@ -179,28 +197,59 @@ function crearApi({ db, auth, HttpsError, configIA }) {
         }
         if (!previo && !activo) fail('not-found', 'No existe un alta que suspender.');
         if (activo) await cuentaActiva(uid);
-        tx.set(miembro, { equipoId, departamento: area, puesto, activo, nombre });
+        const legacyKey = solicitado ?? previo?.legacyKey ?? null;
+        if (previo?.legacyKey && previo.legacyKey !== legacyKey) {
+          fail('failed-precondition', 'El vínculo comercial conserva la titularidad de las fichas.');
+        }
+        if (legacyKey) {
+          const vinculo = equipo.ref.collection('vinculosComerciales').doc(legacyKey);
+          const asignado = (await tx.get(vinculo)).data();
+          if (asignado && asignado.uid !== uid) fail('already-exists', 'El perfil comercial ya está asignado en ese equipo.');
+          if (!asignado) tx.create(vinculo, { uid });
+        }
+        tx.set(miembro, { equipoId, departamento: area, puesto, activo, nombre, legacyKey });
         tx.create(auditoria.doc(), {
           accion: activo ? 'activar_miembro' : 'suspender_miembro', actorUid: persona.uid,
           miembroUid: uid, equipoId, departamento: area, puesto, fecha: new Date()
         });
+        senalar(tx, equipo.ref);
         return { uid, activo };
       });
     },
 
     crearExpediente: async (tx, persona, input) => {
       if (persona.departamento !== 'comercial') fail('permission-denied', 'El expediente se inicia en Comercial.');
-      const titulo = texto(input.titulo, 'Título', 120);
-      const referencia = texto(input.referencia ?? '', 'Referencia', 100, 0);
-      return mutar(tx, persona, input, ['crearExpediente', titulo, referencia], async operacionId => {
-        const ref = expedientes.doc(digest(persona.uid, operacionId));
+      const fichaId = id(input.fichaId, 'Ficha comercial');
+      return mutar(tx, persona, input, ['crearExpediente', fichaId], async () => {
+        const origen = await comercial.origen(tx, persona, fichaId);
+        const ref = expedientes.doc(digest('ficha', persona.equipoId, fichaId));
+        const previo = (await tx.get(ref)).data();
+        if (previo) {
+          if (!puedeLeer(persona, previo)) fail('permission-denied', 'El expediente ya tiene responsable en Comercial.');
+          return { id: ref.id, revision: previo.revision };
+        }
         const fecha = new Date();
+        let responsable = persona;
+        if (origen.ficha.propietario !== persona.legacyKey) {
+          const vinculo = (await tx.get(origen.equipo.collection('vinculosComerciales').doc(origen.ficha.propietario))).data();
+          if (vinculo) {
+            const perfil = (await tx.get(miembros.doc(vinculo.uid))).data();
+            if (perfil?.activo && perfil.equipoId === persona.equipoId && perfil.legacyKey === origen.ficha.propietario) {
+              responsable = { ...perfil, uid: vinculo.uid };
+            }
+          }
+        }
+        const tareaId = asignarTarea(tx, ref, 1, 'captacion', responsable.uid, responsable.nombre, persona.equipoId, fecha);
         tx.create(ref, {
-          equipoId: persona.equipoId, titulo, referencia, fase: 'captacion', revision: 1,
-          creadorUid: persona.uid, responsableUid: persona.uid, responsable: persona.nombre,
-          lectores: [persona.uid], departamentos: ['comercial'], actualizado: fecha
+          equipoId: persona.equipoId, titulo: 'Intervención ' + ref.id.slice(0, 8).toUpperCase(),
+          referencia: fichaId, fichaId, tareaId, fase: 'captacion', revision: 1,
+          creadorUid: persona.uid, responsableUid: responsable.uid, responsable: responsable.nombre,
+          lectores: [...new Set([persona.uid, responsable.uid])], departamentos: ['comercial'], actualizado: fecha
         });
+        tx.update(origen.ref, { expedienteId: ref.id });
         registrar(tx, ref, 1, persona, 'crear', 'captacion', fecha);
+        if (responsable.uid !== persona.uid) avisar(tx, responsable.uid, ref.id, 1, 'asignacion', 'captacion', fecha);
+        senalar(tx, origen.equipo);
         return { id: ref.id, revision: 1 };
       });
     },
@@ -232,7 +281,7 @@ function crearApi({ db, auth, HttpsError, configIA }) {
       return {
         ...resumen(doc), superficie: e.superficie ?? null,
         justificante: persona.departamento === 'administracion' ? e.justificante ?? null : null,
-        acciones: acciones(persona, e), historial, ia
+        acciones: acciones(persona, e), historial, ia, ficha: await comercial.proyeccion(tx, persona, e)
       };
     },
 
@@ -299,8 +348,13 @@ function crearApi({ db, auth, HttpsError, configIA }) {
           const fecha = new Date();
           const nuevaRevision = revision + 1;
           const subsanaciones = e.subsanaciones ?? 0;
+          const tareaActual = e.tareaId ? await tx.get(tareas.doc(e.tareaId)) : null;
+          if (tareaActual?.exists) tx.update(tareaActual.ref, {
+            estado: input.accion === 'reasignar' ? 'reasignada' : 'completada', resuelta: fecha
+          });
+          const tareaId = uid ? asignarTarea(tx, ref, nuevaRevision, fase, uid, responsable, e.equipoId, fecha) : null;
           tx.update(ref, {
-            fase, revision: nuevaRevision, actualizado: fecha, responsable, lectores,
+            fase, tareaId, revision: nuevaRevision, actualizado: fecha, responsable, lectores,
             responsableUid: uid ?? e.responsableUid,
             departamentos: [...new Set([...e.departamentos, area])],
             ...(superficie !== null && {
@@ -318,8 +372,39 @@ function crearApi({ db, auth, HttpsError, configIA }) {
             responsable, ...(motivo !== null && { motivo }), ...(superficie !== null && { superficie })
           });
           avisar(tx, uid ?? e.creadorUid, ref.id, nuevaRevision, uid ? 'asignacion' : 'cierre', fase, fecha);
+          senalar(tx, equipos.doc(e.equipoId));
           return { id: ref.id, revision: nuevaRevision };
         });
+    },
+
+    listarTareas: async (tx, persona, input) => {
+      if (persona.departamento === 'direccion') fail('permission-denied', 'Dirección consulta los indicadores.');
+      const scope = tareas.where('equipoId', '==', persona.equipoId);
+      const consulta = persona.puesto === 'jefe' && input.equipo === true
+        ? scope.where('departamento', '==', persona.departamento)
+        : scope.where('responsableUid', '==', persona.uid);
+      const estados = input.resueltas === true ? ['completada', 'reasignada'] : ['pendiente', 'en_curso'];
+      return pagina(tx, consulta.where('estado', 'in', estados), input.cursor, doc => {
+        const { expedienteId, estado, fase, responsable, fecha } = doc.data();
+        return { id: doc.id, expedienteId, estado, fase, responsable, fecha: fechaIso(fecha) };
+      });
+    },
+
+    iniciarTarea: async (tx, persona, input) => {
+      const ref = tareas.doc(id(input.id, 'Tarea'));
+      const tarea = (await tx.get(ref)).data();
+      if (!tarea || tarea.equipoId !== persona.equipoId || tarea.responsableUid !== persona.uid) {
+        fail('not-found', 'La tarea no está disponible.');
+      }
+      const caso = (await tx.get(expedientes.doc(tarea.expedienteId))).data();
+      if (caso?.tareaId !== ref.id || !['pendiente', 'en_curso'].includes(tarea.estado)) {
+        fail('failed-precondition', 'Esta tarea ya se ha resuelto.');
+      }
+      if (tarea.estado === 'pendiente') {
+        tx.update(ref, { estado: 'en_curso', inicio: new Date() });
+        senalar(tx, equipos.doc(tarea.equipoId));
+      }
+      return { estado: 'en_curso' };
     },
 
     listarAvisos: (tx, persona, input) => pagina(tx, avisos(persona.uid), input.cursor, doc => {
@@ -331,7 +416,10 @@ function crearApi({ db, auth, HttpsError, configIA }) {
       const ref = avisos(persona.uid).doc(id(input.id, 'Aviso'));
       const aviso = (await tx.get(ref)).data();
       if (!aviso) fail('not-found', 'El aviso no está disponible.');
-      if (!aviso.leido) tx.update(ref, { leido: true });
+      if (!aviso.leido) {
+        tx.update(ref, { leido: true });
+        if (persona.equipoId) senalar(tx, equipos.doc(persona.equipoId));
+      }
       return { leido: true };
     },
 

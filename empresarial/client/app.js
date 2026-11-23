@@ -1,14 +1,3 @@
-import { initializeApp } from 'firebase/app';
-import {
-  browserSessionPersistence, connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged,
-  setPersistence, signInWithEmailAndPassword, signOut
-} from 'firebase/auth';
-import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
-
-const main = document.querySelector('#app');
-const account = document.querySelector('#account');
-const nav = document.querySelector('#nav');
-
 const puestos = { trabajador: 'Trabajador', jefe: 'Jefe de departamento', ceo: 'Dirección general' };
 const accionesHistorial = {
   crear: 'Alta del expediente', derivar: 'Traspaso a Técnicos', entregar: 'Parte entregado',
@@ -18,9 +7,15 @@ const accionesHistorial = {
 const fecha = new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' });
 const formatoFecha = value => fecha.format(new Date(value));
 let sesion;
-let revisionSesion = 0;
-let auth;
-let callable;
+let main;
+let account;
+let nav;
+let api;
+let iniciarSalida;
+let abrirOriginal;
+let layout;
+let refresco;
+let cambioPendiente;
 
 function nodo(tag, attrs = {}, ...contenido) {
   const item = document.createElement(tag);
@@ -70,10 +65,6 @@ function enCurso(target, button, accion) {
   });
 }
 
-async function api(metodo, data = {}) {
-  return (await callable({ metodo, ...data })).data;
-}
-
 function mutacion(metodo) {
   let anterior;
   let id;
@@ -96,16 +87,18 @@ function formulario(texto, construir) {
       if (!submit.disabled) enCurso(aviso, submit, construir);
     }
   });
-  return { form, submit, aviso, append: (...campos) => form.append(...campos, submit, aviso) };
+  return { form, append: (...campos) => form.append(...campos, submit, aviso) };
 }
 
 function pantalla(titulo) {
   const destino = nodo('div', {}, encabezado(titulo));
   main.replaceChildren(destino);
+  cambioPendiente.hidden = true;
   return destino;
 }
 
 function abrir(titulo, cargar) {
+  refresco = () => abrir(titulo, cargar);
   const destino = pantalla(titulo);
   const aviso = estado();
   destino.append(aviso);
@@ -132,31 +125,16 @@ function paginador(contenedor, leer, pintar, vacio) {
   return cargar();
 }
 
-function login(registro = false) {
-  nav.hidden = true;
-  account.replaceChildren();
-  const destino = pantalla(registro ? 'Crear cuenta' : 'Acceder a Operaciones');
-  destino.className = 'auth';
-  const email = input({ type: 'email', required: '', autocomplete: 'email' });
-  const password = input({ type: 'password', required: '', minlength: 6,
-    autocomplete: registro ? 'new-password' : 'current-password' });
-  const form = formulario(registro ? 'Crear cuenta' : 'Iniciar sesión', () => registro
-    ? createUserWithEmailAndPassword(auth, email.value, password.value)
-    : signInWithEmailAndPassword(auth, email.value, password.value));
-  form.append(campo('Correo', email), campo('Contraseña', password));
-  destino.append(tarjeta(p('Usa una cuenta de este entorno local.', { class: 'meta' }), form.form,
-    boton(registro ? 'Volver al acceso' : 'Crear cuenta', () => login(!registro))));
-}
-
 function navegacion(id) {
   const botones = {
     expedientes: ['Expedientes', expedientes],
     indicadores: ['Indicadores', indicadores],
+    tareas: ['Tareas', tareas],
     avisos: ['Avisos', avisos],
     equipo: ['Equipo', equipo]
   };
   const persona = sesion.persona;
-  const paginas = [persona.departamento === 'direccion' ? 'indicadores' : 'expedientes', 'avisos'];
+  const paginas = persona.departamento === 'direccion' ? ['indicadores'] : ['expedientes', 'tareas', 'avisos'];
   if (['jefe', 'ceo'].includes(persona.puesto)) paginas.push('equipo');
   nav.hidden = false;
   nav.replaceChildren(...paginas.map(pagina => {
@@ -169,17 +147,6 @@ function navegacion(id) {
 
 function expedientes() {
   abrir('Expedientes', async destino => {
-    if (sesion.persona.departamento === 'comercial') {
-      const crear = mutacion('crearExpediente');
-      const titulo = input({ required: '', maxlength: 120 });
-      const referencia = input({ maxlength: 100 });
-      const form = formulario('Crear expediente', async () => {
-        const nuevo = await crear({ titulo: titulo.value, referencia: referencia.value });
-        if (destino.isConnected) detalle(nuevo.id);
-      });
-      form.append(campo('Título', titulo), campo('Referencia interna (opcional)', referencia));
-      destino.append(tarjeta(encabezado('Nuevo expediente', 'h2'), form.form));
-    }
     const lista = tarjeta(encabezado('Bandeja de expedientes', 'h2'));
     destino.append(lista);
     await paginador(lista, cursor => api('listarExpedientes', { cursor: cursor ?? null }), e => {
@@ -203,6 +170,7 @@ function detalle(id) {
     destino.append(nodo('div', { class: 'row controls' }, boton('Volver a expedientes', () => {
       navegacion('expedientes'); expedientes();
     }), boton('Actualizar', () => detalle(id))), tarjeta(encabezado(e.titulo, 'h2'), datos));
+    if (e.ficha) mostrarFicha(destino, e.ficha);
     if (e.ia) mostrarIA(destino, e.ia, id);
     if (e.acciones.length) {
       const actions = nodo('div', { class: 'row' });
@@ -223,6 +191,52 @@ function detalle(id) {
       if (evento.superficie) datos.append(p(evento.superficie.toLocaleString('es-ES') + ' m²'));
       return datos;
     }, 'El expediente todavía no tiene movimientos.');
+  });
+}
+
+function mostrarFicha(destino, ficha) {
+  const panel = tarjeta(encabezado('Ficha comercial', 'h2'), p('Revisión de origen ' + ficha.revision, { class: 'meta' }));
+  const datos = nodo('dl');
+  const campos = [
+    ['Dirección', ficha.direccion], ['Localidad', ficha.localidad], ['Código postal', ficha.codigoPostal],
+    ['Superficie estimada', ficha.superficieEstimada && ficha.superficieEstimada + ' m²'],
+    ['Contacto', ficha.contacto], ['Teléfono', ficha.telefono]
+  ];
+  for (const [etiqueta, valor] of campos) {
+    if (valor) datos.append(nodo('dt', {}, etiqueta), nodo('dd', {}, valor));
+  }
+  if (datos.childElementCount) panel.append(datos);
+  if (ficha.id) panel.append(boton('Abrir ficha comercial', () => abrirOriginal(ficha.id)));
+  destino.append(panel);
+}
+
+function tareas(equipo = false, resueltas = false) {
+  abrir('Tareas', async destino => {
+    const controles = nodo('div', { class: 'row controls' },
+      boton(resueltas ? 'Ver tareas abiertas' : 'Ver tareas resueltas', () => tareas(equipo, !resueltas)));
+    if (sesion.persona.puesto === 'jefe') {
+      controles.append(boton(equipo ? 'Ver mis tareas' : 'Ver tareas del departamento', () => tareas(!equipo, resueltas)));
+    }
+    const lista = tarjeta(encabezado(resueltas ? 'Resueltas' : 'Abiertas', 'h2'));
+    destino.append(controles, lista);
+    const estados = { pendiente: 'Pendiente', en_curso: 'En curso', completada: 'Completada', reasignada: 'Reasignada' };
+    await paginador(lista, cursor => api('listarTareas', { equipo, resueltas, cursor: cursor ?? null }), tarea => {
+      const abrir = boton(fase(tarea.fase), () => {
+        navegacion('expedientes');
+        detalle(tarea.expedienteId);
+      }, 'list-entry');
+      abrir.append(nodo('span', {}, tarea.responsable + ' · ' + estados[tarea.estado] + ' · ' + formatoFecha(tarea.fecha)));
+      const item = nodo('div', { class: 'card' }, abrir);
+      if (!equipo && tarea.estado === 'pendiente') {
+        const aviso = estado();
+        const comenzar = boton('Empezar tarea', () => enCurso(aviso, comenzar, async () => {
+          await api('iniciarTarea', { id: tarea.id });
+          if (destino.isConnected) tareas();
+        }));
+        item.append(comenzar, aviso);
+      }
+      return item;
+    }, 'Todavía no hay tareas.');
   });
 }
 
@@ -353,13 +367,21 @@ function directorio(destino, equipoId, departamento) {
   const uid = input({ required: '', maxlength: 128 });
   const nombre = input({ required: '', maxlength: 80 });
   const puesto = select([['trabajador', puestos.trabajador], ['jefe', puestos.jefe]]);
+  const legacy = select([
+    ['', 'Sin vincular'], ['jefe', 'Jefe Andrei'], ['jefe_mikel', 'Jefe Mikel'],
+    ...Array.from({ length: 5 }, (_, i) => ['comercial' + (i + 1), 'Comercial ' + (i + 1)]),
+    ...Array.from({ length: 5 }, (_, i) => ['mikel_com' + (i + 1), 'Mikel Com. ' + (i + 1)])
+  ]);
   const form = formulario('Dar de alta', async () => {
     await alta({ equipoId, departamento, uid: uid.value.trim(), nombre: nombre.value,
-      puesto: sesion.persona.puesto === 'ceo' ? puesto.value : 'trabajador', activo: true });
+      puesto: sesion.persona.puesto === 'ceo' ? puesto.value : 'trabajador', activo: true,
+      ...(sesion.persona.puesto === 'ceo' && departamento === 'comercial' && legacy.value && { legacyKey: legacy.value })
+    });
     if (panel.isConnected) directorio(destino, equipoId, departamento);
   });
   form.append(campo('UID de la cuenta', uid), campo('Nombre visible', nombre),
-    ...(sesion.persona.puesto === 'ceo' ? [campo('Puesto', puesto)] : []));
+    ...(sesion.persona.puesto === 'ceo' ? [campo('Puesto', puesto)] : []),
+    ...(sesion.persona.puesto === 'ceo' && departamento === 'comercial' ? [campo('Perfil comercial histórico', legacy)] : []));
   const lista = tarjeta(encabezado('Miembros', 'h2'));
   panel.append(form.form);
   destino.replaceChildren(panel, lista);
@@ -382,54 +404,54 @@ function directorio(destino, equipoId, departamento) {
   }, 'Aún no hay miembros en este departamento.').catch(errorApi => mostrarError(error, errorApi));
 }
 
-async function cambiarCuenta(user) {
-  const version = ++revisionSesion;
-  sesion = undefined;
-  if (!user) {
-    login();
-    return;
-  }
-  nav.hidden = true;
-  const salida = estado();
-  const salir = boton('Cerrar sesión', () => enCurso(salida, salir, () => signOut(auth)));
-  account.replaceChildren(salir, salida);
-  const destino = pantalla('Acceso a KONSOR');
-  const aviso = estado();
-  destino.append(aviso);
-  aviso.textContent = 'Comprobando tu perfil…';
-  try {
-    const perfil = await api('sesion');
-    if (version !== revisionSesion) return;
+export function montarOperaciones({ llamar, salir, fichaOriginal }) {
+  api = llamar;
+  iniciarSalida = salir;
+  abrirOriginal = fichaOriginal;
+  account = nodo('div', { class: 'ke-account' });
+  nav = nodo('nav', { 'aria-label': 'Operaciones' });
+  main = nodo('main', { class: 'ke-main', tabindex: '-1' });
+  cambioPendiente = boton('Cargar cambios del servidor', () => refresco?.());
+  cambioPendiente.hidden = true;
+  layout = nodo('section', { id: 'konsorOperaciones', hidden: '', 'aria-label': 'Operaciones de KONSOR' },
+    nodo('header', { class: 'ke-header' }, nodo('div', { class: 'ke-shell row' },
+      nodo('strong', { class: 'ke-brand' }, 'KONSOR'), account)),
+    nodo('div', { class: 'ke-shell' }, nav, cambioPendiente, main));
+  document.body.append(layout);
+
+  function abrirPanel(perfil, vista = null, fichaId = null, volver = null) {
     sesion = perfil;
-    account.prepend(nodo('span', {}, perfil.persona.nombre + ' · ' + perfil.departamentos[perfil.persona.departamento]));
-    const esDireccion = perfil.persona.departamento === 'direccion';
-    navegacion(esDireccion ? 'indicadores' : 'expedientes');
-    if (esDireccion) indicadores();
-    else expedientes();
-  } catch (error) {
-    if (version !== revisionSesion) return;
-    mostrarError(aviso, error);
-    if (error.code === 'functions/permission-denied') {
-      destino.append(p('Facilita este UID a tu responsable para que habilite tu acceso.'),
-        p('UID: '), nodo('code', {}, user.uid));
+    layout.hidden = false;
+    const avisoSalida = estado();
+    const salida = boton('Cerrar sesión', () => enCurso(avisoSalida, salida, iniciarSalida));
+    account.replaceChildren(nodo('span', {}, perfil.persona.nombre + ' · ' +
+      perfil.departamentos[perfil.persona.departamento]), salida, avisoSalida);
+    if (volver) account.insertBefore(boton('Volver a Comercial', volver), salida);
+    const inicial = vista || (perfil.persona.departamento === 'direccion' ? 'indicadores' : 'expedientes');
+    navegacion(inicial);
+    if (fichaId) {
+      const crear = mutacion('crearExpediente');
+      abrir('Expediente compartido', async destino => {
+        const caso = await crear({ fichaId });
+        if (destino.isConnected) detalle(caso.id);
+      });
+    } else ({ expedientes, indicadores, avisos, tareas, equipo })[inicial]();
+    main.focus();
+  }
+
+  return {
+    abrir: abrirPanel,
+    cerrar() {
+      layout.hidden = true;
+      main.replaceChildren();
+      sesion = undefined;
+    },
+    cambio() {
+      if (layout.hidden || !refresco) return;
+      // Mantiene la selección y los datos que ya se estén introduciendo.
+      if (main.querySelector('form') || main.contains(document.activeElement) && document.activeElement !== main) {
+        cambioPendiente.hidden = false;
+      } else refresco();
     }
-    destino.append(boton('Comprobar acceso', () => cambiarCuenta(user)));
-  }
+  };
 }
-
-async function iniciar() {
-  if (!['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
-    pantalla('Entorno de desarrollo').append(p('Abre la aplicación desde el servidor local de emuladores.'));
-    return;
-  }
-  const app = initializeApp({ projectId: 'demo-konsor-empresarial', apiKey: 'konsor-emulator-only' });
-  auth = getAuth(app);
-  connectAuthEmulator(auth, 'http://127.0.0.1:9109', { disableWarnings: true });
-  await setPersistence(auth, browserSessionPersistence);
-  const functions = getFunctions(app, 'europe-west1');
-  connectFunctionsEmulator(functions, '127.0.0.1', 5003);
-  callable = httpsCallable(functions, 'konsorEmpresarial');
-  onAuthStateChanged(auth, cambiarCuenta);
-}
-
-iniciar().catch(error => mostrarError(pantalla('Acceso a KONSOR').appendChild(estado()), error));

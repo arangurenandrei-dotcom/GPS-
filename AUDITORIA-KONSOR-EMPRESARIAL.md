@@ -1,5 +1,7 @@
 # KONSOR · Auditoría y primera entrega empresarial
 
+La fase posterior reutiliza la entrada comercial y amplía el mismo backend. [Integración y conexión de KONSOR-Pruebas](EMPRESARIAL-INTEGRACION.md)
+
 **23 de noviembre de 2026.** Repositorio `arangurenandrei-dotcom/GPS-`, base `703720d3` de `main`, rama `desarrollo/konsor-plataforma-empresarial`. Alcance de la auditoría: código y documentación versionados, puntos de entrada, persistencia, integraciones, flujos del laboratorio y pruebas. La configuración, las reglas, el código completo de las funciones desplegadas y los datos de producción quedan fuera del alcance verificable de este repositorio.
 
 ## Estado del sistema en la base auditada

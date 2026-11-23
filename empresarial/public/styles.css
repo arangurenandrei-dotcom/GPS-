@@ -1,57 +1,69 @@
-:root {
+#konsorOperaciones {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  overflow: auto;
   color: #172825;
   background: #f2f5f4;
   font: 16px/1.5 system-ui, sans-serif;
-  --accent: #174c40;
-  --border: #cddbd6;
+  --ke-accent: #174c40;
+  --ke-border: #cddbd6;
 }
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-body { margin: 0; }
-.shell { width: min(100% - 2rem, 67rem); margin-inline: auto; }
-.site-header { background: #112d26; color: white; padding-block: .9rem; }
-.header-row, #account { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
-.header-row { justify-content: space-between; }
-.brand { font-weight: 850; letter-spacing: .19em; }
-.site-header button { background: transparent; color: white; border-color: #8eaaa0; }
-nav { display: flex; flex-wrap: wrap; gap: .45rem; padding-block: 1.2rem .4rem; }
-nav button[aria-current="page"] { background: var(--accent); color: white; border-color: var(--accent); }
-main { padding-block: 1.3rem 3rem; }
-h1, h2, h3 { line-height: 1.2; margin: 0 0 .7rem; }
-h1 { font-size: clamp(1.75rem, 4vw, 2.4rem); }
-h2 { font-size: 1.3rem; }
-p { margin: .4rem 0 1rem; }
-button, input, select, textarea { font: inherit; }
-button, .card, input, select, textarea { border: 1px solid var(--border); border-radius: .55rem; }
-button, input, select, textarea { min-height: 44px; }
-button { padding: .5rem .85rem; background: white; color: var(--accent); font-weight: 650; cursor: pointer; }
-button:hover:not(:disabled) { border-color: var(--accent); }
-button:disabled { opacity: .55; cursor: wait; }
-button.primary { background: var(--accent); color: white; border-color: var(--accent); }
-:focus-visible { outline: 3px solid #a25800; outline-offset: 2px; }
-input, select, textarea { width: 100%; padding: .45rem .65rem; background: white; color: inherit; }
-.card { background: white; padding: 1.1rem; margin-bottom: .8rem; overflow-wrap: anywhere; }
-.auth { max-width: 29rem; margin-inline: auto; }
-.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
-.row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
-.controls { margin-bottom: .9rem; }
-form { display: grid; gap: .7rem; }
-form button { justify-self: start; }
-label { display: grid; gap: .25rem; font-weight: 600; }
-ul { padding: 0; list-style: none; }
-li { margin-block: .4rem; }
-.activity li { padding-block: .6rem; border-bottom: 1px solid var(--border); }
-.list-entry { width: 100%; text-align: left; }
-.list-entry span { display: block; font-size: .9rem; color: #3f5d53; font-weight: 450; }
-.meta { color: #3f5d53; }
-.issue { color: #92272a; font-weight: 650; }
-.count { color: var(--accent); font-size: 2rem; font-weight: 800; margin-bottom: 0; }
-dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem .9rem; margin: 1rem 0; }
-dt { font-weight: 650; }
-dd { margin: 0; }
-code { user-select: all; }
+#konsorOperaciones [hidden], #konsorOperaciones[hidden] { display: none !important; }
+#konsorOperaciones * { box-sizing: border-box; }
+#konsorOperaciones .ke-shell { width: min(100% - 2rem, 67rem); margin-inline: auto; }
+#konsorOperaciones .ke-header { background: #112d26; color: white; padding-block: .9rem; }
+#konsorOperaciones .ke-header .ke-shell { justify-content: space-between; }
+#konsorOperaciones .row, #konsorOperaciones .ke-account { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
+#konsorOperaciones .ke-brand { font-weight: 850; letter-spacing: .19em; }
+#konsorOperaciones .ke-header button { background: transparent; color: white; border-color: #8eaaa0; }
+#konsorOperaciones nav { display: flex; flex-wrap: wrap; gap: .45rem; padding-block: 1.2rem .4rem; }
+#konsorOperaciones nav button[aria-current="page"], #konsorOperaciones button.primary {
+  background: var(--ke-accent);
+  color: white;
+  border-color: var(--ke-accent);
+}
+#konsorOperaciones main { padding-block: 1.3rem 3rem; }
+#konsorOperaciones h1, #konsorOperaciones h2, #konsorOperaciones h3 { line-height: 1.2; margin: 0 0 .7rem; }
+#konsorOperaciones h1 { font-size: clamp(1.75rem, 4vw, 2.4rem); }
+#konsorOperaciones h2 { font-size: 1.3rem; }
+#konsorOperaciones p { margin: .4rem 0 .85rem; }
+#konsorOperaciones p:empty { display: none; }
+#konsorOperaciones button, #konsorOperaciones input, #konsorOperaciones select, #konsorOperaciones textarea {
+  font: inherit;
+  min-height: 44px;
+  border: 1px solid var(--ke-border);
+  border-radius: .55rem;
+}
+#konsorOperaciones button { padding: .5rem .85rem; background: white; color: var(--ke-accent); font-weight: 650; cursor: pointer; }
+#konsorOperaciones button:hover:not(:disabled) { border-color: var(--ke-accent); }
+#konsorOperaciones button:disabled { opacity: .55; cursor: wait; }
+#konsorOperaciones :focus-visible { outline: 3px solid #a25800; outline-offset: 2px; }
+#konsorOperaciones input, #konsorOperaciones select, #konsorOperaciones textarea {
+  width: 100%;
+  padding: .45rem .65rem;
+  background: white;
+  color: inherit;
+}
+#konsorOperaciones .card { background: white; padding: 1.1rem; margin-bottom: .8rem; overflow-wrap: anywhere; border: 1px solid var(--ke-border); border-radius: .55rem; }
+#konsorOperaciones .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
+#konsorOperaciones .controls { margin-bottom: .9rem; }
+#konsorOperaciones form { display: grid; gap: .7rem; }
+#konsorOperaciones form button { justify-self: start; }
+#konsorOperaciones label { display: grid; gap: .25rem; font-weight: 600; }
+#konsorOperaciones ul { padding: 0; list-style: none; }
+#konsorOperaciones li { margin-block: .4rem; }
+#konsorOperaciones .activity li { padding-block: .6rem; border-bottom: 1px solid var(--ke-border); }
+#konsorOperaciones .list-entry { width: 100%; text-align: left; }
+#konsorOperaciones .list-entry span { display: block; font-size: .9rem; color: #3f5d53; font-weight: 450; }
+#konsorOperaciones .meta { color: #3f5d53; }
+#konsorOperaciones .issue { color: #92272a; font-weight: 650; }
+#konsorOperaciones .count { color: var(--ke-accent); font-size: 2rem; font-weight: 800; margin-bottom: 0; }
+#konsorOperaciones dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem .9rem; margin: 1rem 0; }
+#konsorOperaciones dt { font-weight: 650; }
+#konsorOperaciones dd { margin: 0; }
 @media (max-width: 480px) {
-  .shell { width: calc(100% - 1.3rem); }
-  .card { padding: .85rem; }
-  dl { grid-template-columns: 1fr; }
+  #konsorOperaciones .ke-shell { width: calc(100% - 1.3rem); }
+  #konsorOperaciones .card { padding: .85rem; }
+  #konsorOperaciones dl { grid-template-columns: 1fr; }
 }

@@ -94,6 +94,9 @@ function showHome(){
  tile(grid,"Mapa","Satélite, GPS y Catastro","map",()=>showMap(true));
  tile(grid,"Oficina","Volcados, llamadas y citas","office",openOffice);
  tile(grid,"Resultados","Tu progreso y clasificación","results",()=>window.openCnResults?.());
+ if(window.KonsorIntegracion){
+  tile(grid,"Expedientes","Tareas, avisos y seguimiento","office",()=>window.KonsorIntegracion.operaciones());
+ }
  if(boss()){
   const director=el("section","cnv-home-management",undefined,section);
   const t=el("div","cnv-home-management-copy",undefined,director);

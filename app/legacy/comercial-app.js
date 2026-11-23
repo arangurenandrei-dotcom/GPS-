@@ -1674,6 +1674,7 @@ function openUserProfileModal() {
     }
 
     async function authFinishLogin(user) {
+      if (window.KonsorIntegracion) return window.KonsorIntegracion.abrirSesion(user);
       let prof = null;
       try {
         prof = await authWithDeadline(window.authApi.getProfile(user.uid), 'Lectura del perfil');
@@ -1853,7 +1854,7 @@ function openUserProfileModal() {
     function startProfilesWatch() {
       if (profilesWatchStarted) return;
       if (currentUserName !== 'Andrei (Jefe)') return;
-      if (!window.authApi) return;
+      if (!window.authApi?.watchProfiles) return;
       profilesWatchStarted = true;
       let first = true;
       window.authApi.watchProfiles(list => {
@@ -1872,6 +1873,7 @@ function openUserProfileModal() {
     }
 
     function openAccessAdminModal() {
+      if (window.KonsorIntegracion) return window.KonsorIntegracion.equipo();
       let modal = document.getElementById('accessAdminModal');
       if (!modal) {
         modal = document.createElement('div');

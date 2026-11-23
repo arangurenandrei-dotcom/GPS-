@@ -36,7 +36,13 @@ function removeUnused(source,name){
  return source.slice(0,m.index)+source.slice(found+1);
 }
 const obsolete=['updateClientCallStatusOld','renderGlobalClientSearchResultsOld','exportOfficialCrmJsonPackageOld','requestMobileNotificationsOld'];
-const maintained=obsolete.reduce(removeUnused,main[2]);
+const maintained=obsolete.reduce(removeUnused,main[2]).replace(
+ '    async function authFinishLogin(user) {',
+ '    async function authFinishLogin(user) {\n      if (window.KonsorIntegracion) return window.KonsorIntegracion.abrirSesion(user);')
+ .replace('      if (!window.authApi) return;\n      profilesWatchStarted = true;',
+  '      if (!window.authApi?.watchProfiles) return;\n      profilesWatchStarted = true;')
+ .replace('    function openAccessAdminModal() {',
+  '    function openAccessAdminModal() {\n      if (window.KonsorIntegracion) return window.KonsorIntegracion.equipo();');
 assert.equal(read('app/legacy/comercial-app.js'),maintained,'El motor comercial cambió fuera de la limpieza auditada');
 assert.equal(read('app/legacy/firebase-init.js'),mod[2],'Cambió la inicialización original de Firebase');
 assert.equal(read('app/legacy/limpieza-visual.js'),cleanup[2],'Cambió el limpiador visual');
@@ -56,4 +62,4 @@ assert.equal((current.match(/<style\b/gi)||[]).length,0,'No debe quedar CSS inli
 assert.ok(!current.includes('const CANONICAL_USER_NAMES = {'),'No debe duplicarse el motor viejo en index');
 assert.ok(current.indexOf('app/core/asistente-operativo.js')<current.indexOf('inicio-ios.js'),'El motor común debe cargar antes de Inicio');
 assert.ok(current.length<original.length/10,'El HTML no debe volver a crecer con lógica y CSS embebidos');
-console.log('OK: extracción exacta y verificable. 22 estilos, 3 scripts, sin cambios de lógica.');
+console.log('OK: extracción auditada y punto de entrada de la sesión integrada verificado.');

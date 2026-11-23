@@ -1,6 +1,8 @@
 node_modules/
 .datos-emulador/
 /public/assets/
+/dist/
+/firebase-pruebas.local.json
 *-debug.log
 .env*
 .runtimeconfig.json

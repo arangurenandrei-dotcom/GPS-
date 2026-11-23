@@ -8,8 +8,15 @@ service cloud.firestore {
     // bandejas/{uid}/avisos: entregas por destinatario y lectura.
     // miembros/{uid}/operaciones: recibos por usuario y operación.
     // control y auditoria: arranque de Dirección y altas de organización.
-    // El cliente usa exclusivamente la API autenticada. El Admin SDK valida
-    // el esquema y el ámbito en cada operación, incluidas las lecturas.
+    // La API autenticada controla los datos. El cliente observa solo el sello
+    // actualizado (timestamp sin datos del expediente) de su propio equipo.
+    function miembroActivoDe(equipoId) {
+      let perfil = get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data;
+      return perfil.activo == true && perfil.equipoId == equipoId;
+    }
+    match /equipos/{equipoId}/senales/actividad {
+      allow get: if request.auth != null && miembroActivoDe(equipoId);
+    }
     match /{path=**} {
       allow read, write: if false;
     }

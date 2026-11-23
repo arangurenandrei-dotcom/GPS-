@@ -7,13 +7,13 @@ const { HttpsError, onCall } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { crearApi } = require('./api.cjs');
 const { evaluarParte } = require('./ia.cjs');
+const { entornoActivo, proyectoDePruebas } = require('./entorno.cjs');
 
 const app = initializeApp();
-
-function aislado() {
-  return process.env.FUNCTIONS_EMULATOR === 'true' && process.env.GCLOUD_PROJECT === 'demo-konsor-empresarial' &&
-    process.env.FIREBASE_AUTH_EMULATOR_HOST === '127.0.0.1:9109' &&
-    process.env.FIRESTORE_EMULATOR_HOST === '127.0.0.1:8183';
+const destino = process.env.KONSOR_STAGING_PROJECT;
+const opciones = { region: 'europe-west1', timeoutSeconds: 60 };
+if (proyectoDePruebas(destino) && destino === process.env.GCLOUD_PROJECT) {
+  opciones.serviceAccount = 'konsor-operaciones@' + destino + '.iam.gserviceaccount.com';
 }
 
 function configuracionIA() {
@@ -21,19 +21,19 @@ function configuracionIA() {
   return apiKey && modelo && process.env.KONSOR_AISLAR_IA !== '1' ? { apiKey, modelo } : null;
 }
 
-exports.konsorEmpresarial = onCall({ region: 'europe-west1', timeoutSeconds: 60 }, async request => {
-  if (!aislado()) {
-    throw new HttpsError('failed-precondition', 'El núcleo empresarial está habilitado en el entorno aislado.');
+exports.konsorEmpresarial = onCall(opciones, async request => {
+  if (!entornoActivo(process.env)) {
+    throw new HttpsError('failed-precondition', 'El proyecto de pruebas no está habilitado.');
   }
   return crearApi({ db: getFirestore(app), auth: getAuth(app), HttpsError, configIA: configuracionIA() })(request);
 });
 
 exports.revisarParteKonsor = onDocumentCreated({
-  document: 'expedientes/{id}/historial/{evento}', region: 'europe-west1', timeoutSeconds: 60
+  ...opciones, document: 'expedientes/{id}/historial/{evento}'
 }, async event => {
   const config = configuracionIA();
   const movimiento = event.data?.data();
-  if (!aislado() || !config || movimiento?.accion !== 'entregar') return;
+  if (!entornoActivo(process.env) || !config || movimiento?.accion !== 'entregar') return;
   const db = getFirestore(app);
   await evaluarParte({ db, ref: db.collection('expedientes').doc(event.params.id), revision: movimiento.revision, config });
 });
