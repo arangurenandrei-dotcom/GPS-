@@ -7,13 +7,13 @@ const today=()=>typeof getTodayISO==="function"?getTodayISO():new Intl.DateTimeF
 let section="home";
 function zones(){
  if(!Array.isArray(savedZones))return [];
- return savedZones.map((z,idx)=>({z,idx})).filter(({z})=>z&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse&&(currentUserRole==="jefe"?typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial):z.comercial===currentUserName));
+ return savedZones.map((z,idx)=>({z,idx})).filter(({z})=>z&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse&&!z.isLegacyPortfolio&&(currentUserRole==="jefe"?typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial):z.comercial===currentUserName));
 }
 function clientRows(){
  return zones().flatMap(({z,idx})=>(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).map(c=>({c,z,idx})));
 }
 const booked=c=>["agendada","realizada"].includes(c.obraStatus);
-const excluded=c=>c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado","pendiente_visita"].includes(c.callStatus)||["no","ausente","papelito"].includes(c.captacionRespuesta);
+const excluded=c=>(!!(c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")||c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado","pendiente_visita"].includes(c.callStatus)||["no","ausente","papelito"].includes(c.captacionRespuesta);
 const complete=c=>!!(String(c.name||"").trim()&&String(c.phone||"").trim()&&String(c.street||"").trim());
 function state(){
  const zz=zones(),cc=clientRows(),open=zz.filter(x=>x.z.status!=="completada");
@@ -57,6 +57,8 @@ function render(){
  if(section==="home"){
   const flow=card(body,"ASISTENTE DE OFICINA","Trabaja sin buscar pestañas","Primero las hojas antiguas, después fichas, seguimientos y llamadas. Se comprueba el progreso después de cada guardado.");
   flow.append(btn("Continuar recorrido de Oficina",()=>{root().classList.remove("active");window.konsorMotor?.openOffice?.();},"primary"));
+  const legacy=card(body,"CARTERA HISTÓRICA","Clientes antiguos","Recupera las fichas de sectores, completa año y superficie y pásalas a llamadas cuando estén revisadas. Sin delimitar calles ni sectores.");
+  legacy.append(btn("Abrir clientes antiguos",()=>{root().classList.remove("active");window.openKonsorLegacyPortfolio?.();},"primary"));
   const lead=card(body,"TU SIGUIENTE ACCIÓN",s.unuploaded.length?"Hay "+s.unuploaded.length+" sectores que requieren revisión o volcado":s.incomplete.length?"Revisa "+s.incomplete.length+" fichas incompletas":s.pending.length?"Tienes "+s.pending.length+" clientes por gestionar":"Trabajo de Oficina al día",
    s.unuploaded.length?"Empieza por las calles ya terminadas y pendientes de volcar. Revisa después los sectores antiguos cuyo trabajo no conste como terminado.":s.incomplete.length?"Completa los datos esenciales antes de gestionar citas.":s.pending.length?"Continúa las llamadas hasta resolver la situación de cada cliente.":"Consulta las obras confirmadas o revisa el cierre.");
   lead.append(btn(s.unuploaded.length?"Volcar hojas pendientes":s.pending.length?"Continuar con clientes":"Ver agenda",()=>{if(s.unuploaded.length){section="volcados";render();}else if(s.pending.length)openCalls();else{section="agenda";render();}},"primary"));
