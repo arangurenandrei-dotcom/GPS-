@@ -51,7 +51,7 @@ async function main(){
    },{user,role});
    assert.ok(data.visible,label+' no muestra Inicio');
    assert.ok(data.next,label+' no muestra recomendación');
-   assert.equal(data.tiles,4,label+' debe conservar cuatro accesos');
+   assert.equal(data.tiles,5,label+' debe mostrar los cuatro accesos originales y Mensajes entre plantas');
    assert.equal(data.direction,role==='jefe',label+' permisos visuales Dirección');
    assert.ok(data.overflow<12,label+' desbordamiento lateral '+data.overflow);
    const resultados=await page.evaluate(()=>{
