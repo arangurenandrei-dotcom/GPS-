@@ -130,6 +130,16 @@ function openOfficeNewLead(section){
  window.KonsorOfficeLeads.open(section,returnHome("oficina"));
  return true;
 }
+function openExistingOfficeClient(item){
+ if(!permitted())return false;
+ if(typeof window.konsorOpenExistingClientInOffice!=="function"){
+  window.alert?.("La gestión de fichas no está disponible.");return false;
+ }
+ const ok=window.konsorOpenExistingClientInOffice(item.zoneId,item.id);
+ if(ok){const agenda=document.getElementById("konsorOfficeCallV2");if(agenda)agenda.style.zIndex="20090";}
+ else window.alert?.("La ficha ha cambiado. Actualiza los datos de Oficina y vuelve a buscarla.");
+ return ok;
+}
 function returnHome(id){return ()=>open(id);}
 function officeBrowser(section,id,archive){
  section.replaceChildren();
@@ -155,7 +165,7 @@ function officeBrowser(section,id,archive){
     e("small","",x.town+" · "+(x.status||"Sin obra agendada"),card);
     const foot=e("div","kdp-record-actions",undefined,card);
     if(x.phone)button("Llamar",()=>{window.location.href="tel:"+x.phone.replace(/[^0-9+]/g,"");},foot,"cnv-glass");
-    e("span","kdp-readonly","Ficha original · solo lectura",foot);
+    button("Gestionar cita",()=>openExistingOfficeClient(x),foot,"cnv-glass");
    });
   }
   query.addEventListener("input",draw);draw();
@@ -180,6 +190,8 @@ function officeBrowser(section,id,archive){
    e("strong","",x.street+" · "+x.town,card);
    e("small","",x.name+" · "+(x.date||"Fecha pendiente")+
     (x.status?" · "+x.status:""),card);
+   const actions=e("div","kdp-record-actions",undefined,card);
+   button("Abrir ficha",()=>openExistingOfficeClient(x),actions,"cnv-glass");
   });
  }
  draw();
