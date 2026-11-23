@@ -47,6 +47,14 @@ function withoutMetrics(source){
  return source.slice(0,start)+source.slice(end);
 }
 const actualCommercial=read('app/legacy/comercial-app.js');
+function removeCreatorSelector(source){
+ const start='      /* KONSOR_CREATOR_LOGIN_CHOOSER_BEGIN */';
+ const end='      /* KONSOR_CREATOR_LOGIN_CHOOSER_END */';
+ const i=source.indexOf(start),j=source.indexOf(end,i+start.length);
+ assert.ok(i>=0&&j>i,'No se encuentra el selector posterior al login');
+ assert.equal(source.indexOf(start,i+1),-1,'Se ha duplicado el acceso del creador');
+ return source.slice(0,i)+source.slice(j+end.length+1);
+}
 // La rama principal ya contenía cambios funcionales posteriores a la extracción.
 // Verificar que SOLO cambia la función de estadísticas sobre esa base real.
 const mainBase='88e52cdd689f3a8026f6e587f466feb28a6bfb20';
@@ -73,7 +81,7 @@ function removeSingleFileChanges(source){
   "['no_apto', '🚫 No aptos']\n  ];");
  return source;
 }
-assert.equal(withoutMetrics(removeSingleFileChanges(actualCommercial)),withoutMetrics(baseMotor),
+assert.equal(withoutMetrics(removeSingleFileChanges(removeCreatorSelector(actualCommercial))),withoutMetrics(baseMotor),
  'Se modificó el motor comercial fuera de los cambios aprobados de ficha única');
 const firebaseCurrent=read('app/legacy/firebase-init.js');
 const approvedFirebaseAddition=" window.vincularObraExistenteKonsor = httpsCallable(functionsEu, 'vincularObraExistenteKonsor');\n";
