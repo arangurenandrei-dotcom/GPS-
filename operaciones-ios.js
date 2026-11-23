@@ -7,7 +7,7 @@ const $=window.KonsorUI.el;
 const b=(txt,fn,kind)=>{const n=$("button","cnx-btn "+(kind||""),txt);n.type="button";n.addEventListener("click",fn);return n;};
 const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("es").trim();
 const isTeam=z=>typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName);
-const listZones=()=>Array.isArray(savedZones)?savedZones.map((z,idx)=>({z,idx})).filter(({z})=>z&&isTeam(z)&&(currentUserRole==="jefe"||z.comercial===currentUserName)):[];
+const listZones=()=>Array.isArray(savedZones)?savedZones.map((z,idx)=>({z,idx})).filter(({z})=>z&&!z.isLegacyPortfolio&&isTeam(z)&&(currentUserRole==="jefe"||z.comercial===currentUserName)):[];
 function page(type,title,subtitle){
  let overlay=document.getElementById("cnx-"+type);
  if(!overlay){
@@ -204,6 +204,8 @@ function openClientDetail(entry){
 let query="",scope="mine";
 function openClients(){
  const {body,close}=page("clientes","Buscar clientes","Busca por nombre, teléfono, calle, localidad o sector. Los resultados se consultan directamente.");
+ const historic=card(body,"CLIENTES ANTIGUOS","Cartera histórica","Completar fichas y habilitar llamadas, sin dibujar sectores.");
+ actions(historic,b("Abrir clientes antiguos",()=>{close();window.openKonsorLegacyPortfolio?.();},"primary"));
  const bar=$("div","cnx-searchbox",undefined,body);
  const input=$("input","cnx-search",undefined,bar);input.type="search";input.placeholder="Nombre, teléfono, calle o pueblo";input.value=query;
  if(currentUserRole==="jefe"){
