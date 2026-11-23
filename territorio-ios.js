@@ -31,10 +31,10 @@ function pueblos(){
   const descartados=p.sectores.filter(({z})=>z.precheck?.sectorStatus==="no_apto").length;
   const cerrados=terminados+descartados;
   const haciendo=p.sectores.filter(({z})=>z.status==="en_proceso"&&z.precheck?.sectorStatus!=="no_apto").length;
-  const si=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.si),0);
-  const no=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.no),0);
-  const ausente=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.ausente),0);
-  const papelito=p.sectores.reduce((sum,{z})=>sum+nval(z.stats?.papelito),0);
+  const si=p.sectores.reduce((sum,{z})=>sum+nval(window.konsorPerformanceStats?.(z)?.si ?? z.stats?.si),0);
+  const no=p.sectores.reduce((sum,{z})=>sum+nval(window.konsorPerformanceStats?.(z)?.no ?? z.stats?.no),0);
+  const ausente=p.sectores.reduce((sum,{z})=>sum+nval(window.konsorPerformanceStats?.(z)?.ausente ?? z.stats?.ausente),0);
+  const papelito=p.sectores.reduce((sum,{z})=>sum+nval(window.konsorPerformanceStats?.(z)?.papelito ?? z.stats?.papelito),0);
   const comerciales=[...new Set(p.sectores.map(({z})=>z.comercial).filter(Boolean))];
   const fechas=p.sectores.map(({z})=>z.date).filter(Boolean).sort();
   // El estado del pueblo depende SOLO de la captación de sus sectores.
@@ -179,7 +179,7 @@ function sectorCard(container,entry){
   const received=Number(z.assignmentReceivedAt)>0&&z.assignmentReceivedBy===z.comercial;
   el("p","cn-detail",z.status==="completada"?"Trabajo terminado":received?"Recibida por "+z.comercial+" · Pendiente de terminar":"Sin confirmar recepción del comercial",card);
  }
- const stats=z.stats||{};
+ const stats=window.konsorPerformanceStats?.(z)||z.stats||{};
  const doors=["si","no","ausente","papelito"].reduce((n,key)=>n+nval(stats[key]),0);
  el("p","cn-detail",doors+" puertas registradas · "+nval(stats.si)+" sí",card);
  const actions=el("div","cn-actions",undefined,card);
