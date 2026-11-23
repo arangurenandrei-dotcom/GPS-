@@ -98,7 +98,6 @@ function showHome(){
  tile(grid,"Mapa","Satélite, GPS y Catastro","map",()=>showMap(true));
  tile(grid,"Oficina","Volcados, llamadas y citas","office",openOffice);
  tile(grid,"Resultados","Tu progreso y clasificación","results",()=>window.openCnResults?.());
- tile(grid,"Mensajes entre plantas","Solicitudes y seguimiento con Oficina y Técnicos","office",()=>window.KonsorPlantMessages?.open?.("comercial"));
  if(boss()){
   const director=el("section","cnv-home-management",undefined,section);
   const t=el("div","cnv-home-management-copy",undefined,director);
@@ -109,6 +108,8 @@ function showHome(){
   director.append(access);
  }
 
+ const messageLink=btn("Mensajes entre plantas",()=>window.KonsorPlantMessages?.open?.("comercial"),"cnv-glass cnv-plant-messages-link");
+ messageLink.setAttribute("aria-label","Abrir mensajes de Comercial con otras plantas");section.append(messageLink);
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
