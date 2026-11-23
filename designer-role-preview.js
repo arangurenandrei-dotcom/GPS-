@@ -153,6 +153,16 @@ function officeBrowser(section,id,archive){
  e("span","cnv-eyebrow","OFICINA · "+(archive?"ARCHIVADOR":"CLIENTES"),bar);
  e("h1","kdp-internal-title",archive?"Archivador":"Buscar clientes",section);
  e("p","kdp-explainer","Se consulta la misma ficha original de KONSOR. Los datos y los estados no se modifican desde aquí.",section);
+ const refresh=button("Actualizar desde Firebase",async()=>{
+  refresh.disabled=true;refresh.textContent="Actualizando…";
+  try{
+   if(typeof window.KonsorBridge?.refresh!=="function")throw Error("Sin conexión con el servidor.");
+   await window.KonsorBridge.refresh(true);
+   officeBrowser(section,id,archive);
+  }catch(err){refresh.disabled=false;refresh.textContent="Reintentar actualización";
+   e("p","kdp-empty","No se ha confirmado la actualización: "+(err.message||err),section);
+  }
+ },section,"cnv-glass kdp-return");
  const rows=contentRows();
  if(rows===null){e("p","kdp-empty","Todavía no están disponibles los clientes autorizados de Firebase.",section);return;}
  if(!archive){
