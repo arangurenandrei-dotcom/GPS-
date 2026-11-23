@@ -117,6 +117,18 @@ function contentRows(){
   return window.KonsorOfficeArchive.clients(savedZones,z=>!String(z.comercial||"").startsWith("Mikel"));
  }catch(_){return null;}
 }
+function openOfficeBookings(){
+ // Usa la agenda operativa existente: una única ficha y los controles reales de
+ // disponibilidad / guardado. No crea un CRM alternativo ni reservas ficticias.
+ if(!permitted())return false;
+ if(typeof window.openCnCallQueue!=="function"){
+  window.alert?.("La agenda de KONSOR todavía no está cargada. Actualiza la aplicación y vuelve a intentarlo.");
+  return false;
+ }
+ remove(VIEW);
+ window.openCnCallQueue();
+ return true;
+}
 function returnHome(id){return ()=>open(id);}
 function officeBrowser(section,id,archive){
  section.replaceChildren();
@@ -228,6 +240,7 @@ function open(id){
   actionTile(grid,"Mi jornada","Ruta, obras y cierre del día","calendar",activate,true);
  }else if(id==="oficina"){
   actionTile(grid,"Mi jornada","Documentos, revisiones y tramitación","calendar",activate);
+  actionTile(grid,"Citas y llamadas","Consultar citas y agendar obras reales","calendar",openOfficeBookings);
   actionTile(grid,"Clientes","Buscar y consultar fichas","office",()=>officeBrowser(section,id,false));
   actionTile(grid,"Archivador","Nuevos, haciendo, por llegar y terminados","folder",()=>officeBrowser(section,id,true),true);
  }else{
