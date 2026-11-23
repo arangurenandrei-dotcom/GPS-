@@ -52,7 +52,7 @@ function portfolioEntries(){
 function sourceEntries(){
  const out=[];zs().forEach((z,zi)=>{if(isPort(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
 }
-function key(x){return x.zi+":"+x.ci;}
+function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImportKey||[x.c.name,x.c.street,x.c.phone,x.ci].join("|"));}
 function showBackup(selected){
  const rows=selected.map(x=>({pueblo:x.z.town,sector:x.z.sectorName,responsable:x.z.comercial,ficha:x.c}));
  const blob=new Blob([JSON.stringify({origen:"KONSOR",exportado:new Date().toISOString(),registros:rows},null,2)],{type:"application/json"});
@@ -115,7 +115,7 @@ function validateReady(d){
 }
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
- if(currentEdit&&(!z||!c||!isPort(z)||!access(z))){screen="list";render();return;}
+ if(currentEdit&&(!z||!c||!isPort(z)||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
  const box=card(page,c?"Completar ficha histórica":"Nuevo cliente antiguo","Sin dibujo de pueblos o sectores. Guarda pendiente o confirma que está lista para llamadas.");
  const fields=E("div","kha-grid",undefined,box);
@@ -152,7 +152,7 @@ function editor(page){
    const data=structuredClone(zs()),stamp=Date.now();
    if(c){
     const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
-    if(!oldClient||!isPort(oldZone)||!access(oldZone))throw Error("La ficha ha cambiado.");
+    if(!oldClient||!isPort(oldZone)||!access(oldZone)||oldZone.id!==currentEdit.zoneId||String(oldClient.clientUid)!==String(currentEdit.uid))throw Error("La ficha ha cambiado. Vuelve a abrirla.");
     const updated={...oldClient,...d,legacyReviewStatus:ready?"lista":"pendiente",
      legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
     if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
@@ -216,7 +216,7 @@ function listScreen(page){
    const item=card(results,x.c.name||x.c.street||"Cliente sin nombre",[x.z.town,x.c.street,x.c.phone].filter(Boolean).join(" · "));
    E("span",x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de revisar",item);
    p(item,"Año: "+(x.c.buildYear||"pendiente")+" · m² netos: "+(x.c.m2??"pendiente")+" · CTE: "+(x.c.cteZone||"pendiente"));
-   item.append(B("Abrir y completar ficha",()=>{screen="edit";currentEdit={zi:x.zi,ci:x.ci};notice="";render();},true));
+   item.append(B("Abrir y completar ficha",()=>{screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};notice="";render();},true));
   });
  }
  search.oninput=drawRows;drawRows();
