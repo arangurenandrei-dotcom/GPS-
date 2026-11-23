@@ -75,6 +75,10 @@ function showHome(){
  const topActions=el("div","cnv-home-top-actions",undefined,top);
  const alerts=btn("",()=>window.openNotificationsCenterV2?.(),"cnv-glass cnv-icon-action");alerts.append(icon("calendar"));alerts.title="Avisos";alerts.setAttribute("aria-label","Abrir avisos");topActions.append(alerts);
  const settings=btn("",()=>openUserProfileModal(),"cnv-glass cnv-icon-action");settings.append(icon("settings"));settings.title="Ajustes";settings.setAttribute("aria-label","Abrir ajustes");topActions.append(settings);
+ if(window.konsorDesigner?.permitted?.()){
+  const switchRole=btn("Cambiar área",()=>window.konsorDesigner.showChooser(),"cnv-glass kdp-switch");
+  switchRole.setAttribute("aria-label","Elegir otro espacio de trabajo");topActions.append(switchRole);
+ }
  const section=el("section","cnv-home-content",undefined,home);
  const welcome=el("div","cnv-home-welcome",undefined,section);
  el("span","cnv-eyebrow",boss()?"PANEL DE RESPONSABLE":"MI ESPACIO",welcome);
@@ -103,7 +107,7 @@ function showHome(){
   const access=btn("Abrir dirección",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.(),"cnv-home-management-button");
   director.append(access);
  }
- window.konsorDesigner?.mount?.(section);
+
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
