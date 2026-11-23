@@ -14526,10 +14526,13 @@ function personalStatsMetrics(user, from, to) {
   savedZones.forEach(z => {
     if (
       z.comercial !== user ||
-      z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)
+      z.isNoAptoZone
     ) return;
 
-    if (inside(z.dumpDate || z.date)) {
+    // Las respuestas agregadas siguen viniendo del sector cuando existe.
+    // Una ficha captada sin sector NO debe tener cobertura territorial inventada.
+    if (!z.isLegacyPortfolio && !window.konsorIsHistoricalOnlySector?.(z) &&
+        inside(z.dumpDate || z.date)) {
       const st = window.konsorPerformanceStats?.(z) || z.stats || {};
 
       const singleExternal =
@@ -14550,21 +14553,37 @@ function personalStatsMetrics(user, from, to) {
     }
 
     (z.clients || []).forEach(c => {
-      if (window.konsorIsHistoricalClient?.(c) || !isClientValidFilled(c)) return;
+      if (!isClientValidFilled(c)) return;
+      // La procedencia de una ficha no cambia su naturaleza de captación.
+      // "Sin llamar" pertenece al seguimiento telefónico y no anula el "Sí".
+      const historical = window.konsorIsHistoricalClient?.(c) === true;
 
       const captureDate =
         dateOf(c.createdAt) ||
         z.dumpDate ||
         z.date;
 
-      const area = personalStatsM2(c.m2);
+      const rawTotal = c.m2Total === null || c.m2Total === undefined ||
+        String(c.m2Total).trim() === "" ? NaN :
+        Number(String(c.m2Total).replace(",", "."));
+      const area = c.m2 !== null && c.m2 !== undefined &&
+        String(c.m2).trim() !== ""
+        ? personalStatsM2(c.m2)
+        : Number.isFinite(rawTotal) && rawTotal > 0
+          ? Math.max(0, rawTotal - 5) : 0;
 
       if (inside(captureDate)) {
+        // Las estadísticas del sector ya descuentan fichas antiguas, para no
+        // contarlas dos veces. Recuperamos las respuestas de esas fichas.
+        if (historical && ["si","no","ausente","papelito"].includes(c.captacionRespuesta))
+          m[c.captacionRespuesta]++;
         m.fichas++;
 
         if (c.obraStatus === 'no_apto') {
           m.noAptas++;
-        } else {
+        } else if (!historical || c.captacionRespuesta === 'si') {
+          // Solo una respuesta de captación "Sí" representa una oportunidad
+          // histórica válida, aunque falten los datos técnicos o una llamada.
           m.validas++;
           m.m2Captado += area;
           if (!area) m.sinM2++;
