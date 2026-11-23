@@ -87,19 +87,7 @@ const firebaseCurrent=read('app/legacy/firebase-init.js');
 const approvedFirebaseAddition=" window.vincularObraExistenteKonsor = httpsCallable(functionsEu, 'vincularObraExistenteKonsor');\n";
 assert.equal((firebaseCurrent.match(/window\.vincularObraExistenteKonsor\s*=/g)||[]).length,1,
  'El callable de vinculación debe estar definido una sola vez');
-const approvedPlantCallables=[
- "crearMensajePlantaKonsor","listarMensajesPlantaKonsor",
- "actualizarMensajePlantaKonsor","configurarMargenesPlantaKonsor"
-];
-let firebaseWithoutPlants=firebaseCurrent;
-for(const name of approvedPlantCallables){
- const definition=" window."+name+" = httpsCallable(functionsEu, '"+name+"');";
- assert.equal(firebaseWithoutPlants.split(definition).length,2,'Callable de planta ausente o repetido: '+name);
- firebaseWithoutPlants=firebaseWithoutPlants.replace(definition,'');
-}
-firebaseWithoutPlants=firebaseWithoutPlants.replace(
- '\n // Funciones seguras de comunicación interdepartamental; se activan tras despliegue.','');
-assert.equal(firebaseWithoutPlants.replace(approvedFirebaseAddition,''),mod[2],
+assert.equal(firebaseCurrent.replace(approvedFirebaseAddition,''),mod[2],
  'Cambió la inicialización de Firebase fuera del nuevo callable revisado');
 assert.equal(read('app/legacy/limpieza-visual.js'),cleanup[2],'Cambió el limpiador visual');
 new vm.Script(actualCommercial,{filename:'comercial-app.js'});
