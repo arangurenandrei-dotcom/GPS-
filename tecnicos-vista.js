@@ -35,10 +35,6 @@ function card(parent,title,value,detail){
 }
 function render(container){
  if(!container)return;
- if(window.KonsorGuidedDesign?.technician){
-  window.KonsorGuidedDesign.technician(container);
-  return;
- }
  if(!container)return;
  const existing=container.querySelector("#konsorTechnicalLive");
  existing?.remove();

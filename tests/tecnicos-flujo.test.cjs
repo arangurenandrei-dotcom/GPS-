@@ -61,7 +61,7 @@ test('sin documento verificado ni confirmación server no existe cierre automát
 });
 test('la vista real es navegación de solo lectura y mantiene el selector común',()=>{
  assert.ok(designer.includes('konsorTecnicosGuiado?.render?.(section)'));
- assert.ok(designer.includes('DATOS EN SOLO LECTURA'));
+ assert.ok(designer.includes('KONSOR · DATOS CONECTADOS'));
  assert.ok(view.includes('KonsorBridge?.state?.().connected'));
  assert.ok(view.includes('KonsorTechnicalFlow.entries(savedZones,own)'));
  for(const forbidden of ['KonsorBridge.save(','saveAndSync(','writeWorkV2(','setProfile(','localStorage.setItem('])

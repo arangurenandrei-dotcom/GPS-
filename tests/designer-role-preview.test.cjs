@@ -64,7 +64,7 @@ test('las vistas de distintos puestos reutilizan la misma estructura del Inicio'
   for(const classname of ['cnv-home','cnv-home-head','cnv-home-content','cnv-home-hero','cnv-home-grid','cnv-home-footer'])
    assert.ok(names.some(n=>n.split(' ').includes(classname)),role+' sin '+classname);
   assert.ok(labels(preview).includes('SIGUIENTE PASO RECOMENDADO'));
-  assert.ok(labels(preview).includes('VISTA DE DISEÑO'));
+  assert.ok(labels(preview).includes(role==='ceo'?'VISTA DE DISEÑO':'KONSOR · DATOS CONECTADOS'));
   assert.ok(labels(preview).includes('Cambiar área'));
  }
 });
@@ -98,4 +98,15 @@ test('Inicio no incluye pestañas; el selector se llama después del login',()=>
  const start=app.slice(app.indexOf('function startSessionForUserKey('),app.indexOf('/* ===== PANEL DE ACCESOS',app.indexOf('function startSessionForUserKey(')));
  assert.ok(start.indexOf('window.cnvStart?.()')<start.indexOf('window.konsorDesigner?.showChooser?.()'));
  assert.ok(css.includes('.kdp-chooser')&&css.includes('.kdp-role-home'));
+});
+
+test('Oficina contiene nuevas altas y citas reales, preservando la vista iOS',()=>{
+ const ctx=load();ctx.win.konsorDesigner.open('oficina');
+ const screen=ctx.body.children.find(x=>x.id==='konsorDesignerPreview');
+ assert.ok(labels(screen).includes('Nuevo cliente'));
+ assert.ok(labels(screen).includes('Citas y llamadas'));
+ const appointment=flattened(screen).find(x=>x.tag==='button'&&labels(x).includes('Citas y llamadas'));
+ let opened=0;ctx.win.openCnCallQueue=()=>{opened++;};
+ appointment.onclick();assert.equal(opened,1);
+ assert.ok(ctx.body.children.some(x=>x.id==='konsorDesignerPreview'));
 });
