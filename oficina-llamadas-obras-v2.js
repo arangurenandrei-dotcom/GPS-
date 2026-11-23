@@ -601,6 +601,11 @@ function draw(opts={}){
   }
   if(!callable(item)&&pending(item)){const nextAt=new Date(Number(c.nextContactAt)).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit"});e("p","koc-muted","Seguimiento programado para "+nextAt+". Puedes consultar la ficha sin adelantar la llamada.",body);}
   if(booked(item)){
+   if(c.calendarBookingOrigin==="google_calendar_existing"){
+    const note=card(body);e("strong","","Obra asociada desde Google Calendar",note);
+    e("p","koc-muted","Vinculación confirmada manualmente. Cambiar la ficha no cambia el evento original.",note);
+    if(c.calendarEventUrl){const link=e("a","koc-btn koc-quiet","Abrir evento original",note);link.href=c.calendarEventUrl;link.target="_blank";link.rel="noopener noreferrer";}
+   }
    body.append(button("Ver confirmación y WhatsApp",()=>{view="whatsapp";draw();},"koc-primary"));
    body.append(button("Cambiar fecha",()=>{chosenDate=c.obraDate||tomorrow();view="calendar";draw();},"koc-quiet"));
   }else{
@@ -614,7 +619,7 @@ function draw(opts={}){
   body.append(button("Saltar sin modificar",next,"koc-quiet"));return;
  }
  if(view==="existingCalendar"){
-  nav(body,"Volver a Alfonso / cliente",()=>{view="client";draw();});
+  nav(body,"Volver al cliente",()=>{view="client";draw();});
   title(body,"Asociar obra del calendario","Usa la reserva que ya existe en Google Calendar. No crearemos otra cita ni otro cliente.");
   const form=card(body);
   e("p","koc-muted","Comprueba que el evento pertenece exactamente a esta vivienda antes de asociarlo. KONSOR no recibe aún el ID del evento para verificarlo automáticamente.",form);
@@ -651,6 +656,10 @@ function draw(opts={}){
    }
    if(!check.checked){message.textContent="Confirma primero que el evento corresponde a esta vivienda.";return;}
    const row=resolve();if(!row||booked(row)){message.textContent="La ficha ha cambiado o ya tiene una obra. Actualiza los datos.";return;}
+   const other=all().find(x=>x.key!==row.key&&booked(x)&&
+     ((url&&x.c.calendarEventUrl===url)||
+     (x.c.obraDate===when&&x.c.obraTime===slot&&Number(x.c.obraEquipoInstalacion)===crew)));
+   if(other){message.textContent="Ya hay otra ficha agendada en ese evento o en el mismo equipo, día y hora. Revísala antes de asociar.";return;}
    busy=true;
    const old={...row.c},oldZone=row.z._updatedAt;
    Object.assign(row.c,{
