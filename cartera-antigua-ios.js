@@ -136,16 +136,17 @@ function editor(page){
  if(c?.m2&&!c?.m2Total)p(result,"Superficie guardada anteriormente: "+c.m2+" m². Escribe el total para recalcular.");
  if(notice)p(box,notice,"kha-alert");
  const actions=buttons(box);
+ const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
  async function save(ready,button){
   const d={name:name.value.trim(),phone:telephone.value.trim(),locality:town.value.trim(),street:street.value.trim(),
    postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
    captacionRespuesta:answer.value,observaciones:note.value.trim(),m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
-  if(!(d.name||d.phone||d.street)){notice="Introduce al menos un nombre, teléfono o dirección.";render();return;}
-  if(!d.locality){notice="Debes indicar un pueblo para guardar.";render();return;}
+  if(!(d.name||d.phone||d.street)){showError("Introduce al menos un nombre, teléfono o dirección.");return;}
+  if(!d.locality){showError("Debes indicar un pueblo para guardar.");return;}
   if(d.m2===null&&c?.m2!==undefined)d.m2=c.m2;
   const pending=ready?validateReady(d):[];
-  if(pending.length){notice="Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.";render();return;}
-  if(ready&&booked(c)){notice="Esta ficha ya tiene una obra o cita histórica; no se puede reiniciar como llamada pendiente.";render();return;}
+  if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
+  if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita histórica; no se puede reiniciar como llamada pendiente.");return;}
   button.disabled=true;
   try{
    const data=structuredClone(zs()),stamp=Date.now();
@@ -171,7 +172,7 @@ function editor(page){
     dst._updatedAt=stamp;
    }
    await commit(data);screen="list";currentEdit=null;notice=ready?"Ficha guardada y habilitada para llamadas.":"Ficha guardada en pendientes.";render();
-  }catch(err){notice="No se ha confirmado el guardado: "+(err.message||err);render();}
+  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
  }
  actions.append(B("Guardar pendiente",function(){save(false,this);}));
  actions.append(B("Guardar y habilitar llamadas",function(){save(true,this);},true));
