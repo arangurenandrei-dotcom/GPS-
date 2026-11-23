@@ -90,7 +90,7 @@
   let invalidate=0, checked=0, stopWatch;
   function draftKey(){return 'trabajo_pendiente_v2_'+uid;}
   async function open(userUid,userKey){
-    if(ready && uid===userUid && key===userKey)return;
+    if(ready && uid===userUid && key===userKey && !failed)return;
     uid=userUid;key=userKey;
     const draft=sessionStorage.getItem(draftKey());
     if(draft){
@@ -184,6 +184,23 @@
   window.addEventListener('focus',()=>{invalidate++;refresh();});
   document.addEventListener('visibilitychange',refresh);
   setInterval(refresh,2000);
-  window.KonsorBridge={open,save,saveGroups,refresh,get busy(){return pending>0||failed;},
+  // Diagnóstico legible para evitar reintentos ciegos que comprometan fichas.
+  function state(){
+    return {
+      connected:live(), authenticated:!!window.auth?.currentUser?.uid,
+      pending, failed, recoveryDraft:!!uid && !!sessionStorage.getItem(draftKey())
+    };
+  }
+  async function recover(){
+    if(pending>0)throw Error('Hay otro guardado en curso. No se debe recuperar mientras esté escribiendo.');
+    if(!uid||!key||window.auth?.currentUser?.uid!==uid)
+      throw Error('No hay sesión de trabajo válida. Vuelve a iniciar sesión antes de intentar guardar.');
+    if(!failed && live())return state();
+    // Reutiliza el lote de recuperación existente; nunca lo borra sin confirmación.
+    await open(uid,key);
+    if(!live()||failed)throw Error('No se ha podido confirmar la recuperación de Firestore.');
+    return state();
+  }
+  window.KonsorBridge={open,save,saveGroups,refresh,recover,state,get busy(){return pending>0||failed;},
     watchTasks(cb){taskCallback=cb;cb(bossPlanItems,false);return ()=>{taskCallback=null;};}};
 })();
