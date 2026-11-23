@@ -28,8 +28,10 @@ function instance(){
  return {host,window};
 }
 test('el diseño comparte la estructura y no contiene escrituras reales',()=>{
- assert.ok(technical.includes('KonsorGuidedDesign.technician(container)'));
- assert.ok(office.includes('KonsorGuidedDesign.office(container)'));
+ assert.ok(!technical.includes('KonsorGuidedDesign.technician(container)'));
+ assert.ok(!office.includes('KonsorGuidedDesign.office(container)'));
+ assert.ok(technical.includes('KonsorTechnicalFlow.entries'));
+ assert.ok(office.includes('KonsorOfficeFlow.entries'));
  assert.ok(index.includes('recorridos-guiados-diseno.css?v=1'));
  assert.ok(index.includes('recorridos-guiados-diseno.js?v=1'));
  for(const forbidden of ['KonsorBridge.save(','saveAndSync(','writeWorkV2(','httpsCallable(','fetch(','localStorage.setItem('])
