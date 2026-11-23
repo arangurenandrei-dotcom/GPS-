@@ -85,8 +85,8 @@ function showChooser(){
  return true;
 }
 function icon(name){
- try{return window.KonsorUI?.icon?.(name)||document.createTextNode("•");}
- catch(_){return document.createTextNode("•");}
+ try{return window.KonsorUI?.icon?.(name)||e("span","kdp-icon-fallback","•");}
+ catch(_){return e("span","kdp-icon-fallback","•");}
 }
 function greeting(){
  const hour=new Date().getHours();
@@ -248,7 +248,7 @@ function open(id){
  }
  const footer=e("div","cnv-home-footer",undefined,section);
  e("span","","KONSOR",footer);
- e("span","","Los cambios reales se confirman en el servidor.",footer);
+ e("span","",(id==="tecnicos"||id==="oficina")?"VISTA DE DISEÑO · DATOS EN SOLO LECTURA":"Los cambios reales se confirman en el servidor.",footer);
  return true;
 }
 // Compatibilidad con llamadas antiguas: no insertar pestañas en el Inicio.
