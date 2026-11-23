@@ -64,12 +64,18 @@ async function save(req){
   await db.runTransaction(async tx=>{
     const snap=await tx.get(ref),old=snap.exists?snap.data():null,now=Date.now();
     if(old&&!canAccess(me,old))failure('permission-denied','No tienes permiso para modificar esta ficha.');
+    if(old&&(input.rev===undefined||input.rev===null)){
+      const same=old.ownerUid===me.uid&&old.legacyReviewStatus===(ready?'lista':'pendiente')&&
+        Object.keys(fields).every(k=>JSON.stringify(fields[k])===JSON.stringify(old[k]));
+      if(same){stored={id,...old};return;} // Reintento seguro tras confirmación perdida.
+      failure('already-exists','Esta ficha ya existe. Abre la cartera antes de volver a crearla.');
+    }
     if(old&&Number(input.rev)!==old.rev)failure('aborted','La ficha ha cambiado en otro dispositivo. Actualiza antes de guardar.');
     if(old&&['agendada','realizada','agendada_historica'].includes(old.obraStatus)&&ready)
       failure('failed-precondition','La ficha ya tiene obra o cita.');
     // Reserva de unicidad: mismo propietario + pueblo + dirección + teléfono.
     // La transacción evita registros duplicados si dos dispositivos guardan a la vez.
-    const newKey=fingerprint(old?.ownerUid||me.uid,fields),oldKey=old?.fingerprintKey||null;
+    const newKey=fingerprint(old?.teamId||me.teamId,fields),oldKey=old?.fingerprintKey||null;
     const refForKey=key=>db.collection('clientes_antiguos_claves').doc(key);
     if(newKey&&newKey!==oldKey){
       const existing=await tx.get(refForKey(newKey));
