@@ -5,6 +5,7 @@ const ID="konsorOfficeCallV2";
 const SLOTS=[["09:00","11:00"],["11:00","13:00"],["15:00","17:00"],["17:00","19:00"]];
 let current=null, view="list", scope="team", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
 let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null,clusterAutoSearch=false,clusterSearchSeq=0,clusterPlanNotice="";
+let bookingContact=null;
 const e=(t,c,txt,p)=>{let x=document.createElement(t);if(c)x.className=c;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
 const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.type="button";b.onclick=fn;return b;};
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
@@ -471,7 +472,7 @@ function nav(body,label,fn){
  back.dataset.konsorBack="true";
  body.append(back);
 }
-function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};view="client";draw();}
+function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};bookingContact=null;view="client";draw();}
 function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const oldest=remaining[0]?.date||"";const eligible=remaining.filter(i=>(i.date||"")===oldest);const row=(origin&&eligible.find(i=>sameStreet(origin,i)))||(origin&&eligible.find(i=>sameTown(origin,i)))||eligible[0]||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
@@ -614,27 +615,47 @@ function draw(opts={}){
   return;
  }
  if(view==="review"){
-  nav(body,"Cambiar horario",()=>{view="calendar";draw();});
-  title(body,"Confirmar la obra","Comprueba con el cliente la fecha y la franja antes de guardar.");
-  const rec=card(body);
-  [["Cliente",c.name],["Municipio",z.town],["Dirección",c.street],["Día",chosenDate],["Hora",selectedSlot],["Instaladores","Equipo "+selectedTeam]].forEach(([k,v])=>{const line=e("div","koc-fact",undefined,rec);e("span","",k,line);e("strong","",v||"",line);});
-  body.append(button(busy?"Guardando…":"Confirmar obra",()=>saveBooking(),"koc-primary"));
-  e("p","koc-muted","El guardado se verifica antes de preparar el WhatsApp. La disponibilidad se vuelve a comprobar al confirmar.",body);return;
- }
- if(view==="whatsapp"){
-  nav(body,clusterFocus?"Volver a la jornada":"Volver a clientes",()=>{view=clusterFocus?"group":"list";draw();});
-  title(body,"Obra agendada","El mensaje está listo. WhatsApp requiere que pulses Enviar.");
-  const msg=message(c,z);
-  const note=card(body);e("p","koc-message",msg,note);
-  const phone=normalizePhone(c.phone);
-  if(phone)body.append(button("Abrir WhatsApp",()=>{const a=document.createElement("a");a.href="https://wa.me/"+phone+"?text="+encodeURIComponent(msg);a.target="_blank";a.rel="noopener noreferrer";document.body.append(a);a.click();a.remove();},"koc-green"));
-  else body.append(show("El número no es válido. Corrige el teléfono antes de abrir WhatsApp."));
-  body.append(button(c.whatsappObraEnviadoAt?"Enviado · "+new Date(c.whatsappObraEnviadoAt).toLocaleString("es-ES"):"Marcar WhatsApp como enviado",()=>markWhatsApp(),""));
-  if(clusterFocus){body.append(button("Ver jornada y vecinos pendientes",()=>{plannedChoice=null;view="group";draw();},"koc-primary"));}
-  else body.append(button("Siguiente cliente",next,"koc-primary"));
- }
+ nav(body,"Cambiar horario",()=>{view="calendar";draw();});
+ title(body,"Confirmar la obra","Completa los datos del titular antes de reservar.");
+ const rec=card(body);
+ [["Municipio",z.town],["Dirección",c.street],["Día",chosenDate],["Hora",selectedSlot],["Instaladores","Equipo "+selectedTeam]].forEach(([k,v])=>{const line=e("div","koc-fact",undefined,rec);e("span","",k,line);e("strong","",v||"",line);});
+ const form=card(body);title(form,"Datos del titular","Quedarán guardados en la ficha con la cita.");
+ const prev=bookingContact?.key===item.key?bookingContact:null;
+ const field=(label,value,type="text")=>{e("label","",label,form);const x=e("input","koc-input",undefined,form);x.type=type;x.value=value||"";x.autocomplete="off";return x;};
+ const nameInput=field("Nombre y apellidos",prev?.name??c.name);
+ const dniInput=field("DNI / NIE",prev?.dni??c.dni);
+ const emailInput=field("Correo electrónico",prev?.email??c.email,"email");
+ const feedback=e("p","koc-muted","Completa los datos que facilite el titular. DNI/NIE y correo pueden quedar pendientes; si se introducen, se validan.",form);
+ body.append(button("Guardar datos y confirmar obra",()=>{
+  const d={key:item.key,name:nameInput.value.trim(),dni:dniInput.value.trim().toUpperCase(),email:emailInput.value.trim()};
+  if(!d.name){feedback.textContent="Falta el nombre completo.";return;}
+  if(d.dni&&typeof isValidDni==="function"&&!isValidDni(d.dni)){feedback.textContent="Revisa el DNI/NIE.";return;}
+  if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)){feedback.textContent="Revisa el correo electrónico.";return;}
+  bookingContact=d;saveBooking();
+ },"koc-primary"));
+ e("p","koc-muted","Se volverá a comprobar la disponibilidad antes de confirmar. Después podrás abrir WhatsApp.",body);
+ return;
 }
-async function availableChoices(item,d){
+ if(view==="whatsapp"){
+ nav(body,clusterFocus?"Volver a la jornada":"Volver a clientes",()=>{view=clusterFocus?"group":"list";draw();});
+ title(body,"Obra agendada","La cita está guardada. Envía la confirmación y, más adelante, el recordatorio.");
+ const phone=normalizePhone(c.phone);
+ const confirmation=card(body),confirmText=message(c,z);
+ title(confirmation,"Confirmación de la reserva","Abrir WhatsApp no significa que el mensaje esté enviado.");
+ e("p","koc-message",confirmText,confirmation);
+ if(phone)confirmation.append(button("Abrir WhatsApp · confirmación",()=>openWhatsApp(phone,confirmText),"koc-green"));
+ else confirmation.append(show("Corrige el teléfono antes de abrir WhatsApp."));
+ confirmation.append(button(c.whatsappObraEnviadoAt?"Confirmación enviada · "+new Date(c.whatsappObraEnviadoAt).toLocaleString("es-ES"):"Marcar confirmación como enviada",()=>markWhatsApp("confirmation"),""));
+ const reminder=card(body),reminderText=reminderMessage(c,z);
+ title(reminder,"Recordatorio de la obra","Puedes enviarlo antes de la instalación. No se envía automáticamente.");
+ e("p","koc-message",reminderText,reminder);
+ if(phone)reminder.append(button("Abrir WhatsApp · recordatorio",()=>openWhatsApp(phone,reminderText),"koc-green"));
+ reminder.append(button(c.whatsappReminderSentAt?"Recordatorio enviado · "+new Date(c.whatsappReminderSentAt).toLocaleString("es-ES"):"Marcar recordatorio como enviado",()=>markWhatsApp("reminder"),""));
+ if(clusterFocus)body.append(button("Ver jornada y vecinos pendientes",()=>{plannedChoice=null;view="group";draw();},"koc-primary"));
+ else body.append(button("Siguiente cliente",next,"koc-primary"));
+}
+}
+ async function availableChoices(item,d){
  const data=await consultarKonsorFecha(d);
  const old=typeof routeRecords==="function"?routeRecords(d):[];
  const choices=[];
@@ -726,13 +747,18 @@ async function saveBooking(){
   if(!fit.ok)throw Error("No se puede confirmar esta ruta: "+fit.reason);
   const team=await elegirEquipoInstaladorKonsor(chosenDate,selectedSlot,selectedTeam,c);
   if(team!==selectedTeam)throw Error("El equipo seleccionado ya no está libre.");
-  const draft={...c,obraStatus:"agendada",obraDate:chosenDate,obraTime:selectedSlot,obraEquipoInstalacion:team,whatsappObraEnviadoAt:null,callStatus:"citas",statusChangedAt:Date.now(),nextContactAt:null};
+  if(!bookingContact||bookingContact.key!==row.key)throw Error("Completa los datos del titular antes de reservar.");
+ const details={...bookingContact};
+ if(!details.name)throw Error("Falta el nombre del titular.");
+ if(typeof isValidDni==="function"&&!isValidDni(details.dni))throw Error("DNI/NIE incorrecto.");
+ if(details.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email))throw Error("Correo electrónico incorrecto.");
+ const draft={...c,name:details.name,dni:details.dni,email:details.email,obraStatus:"agendada",obraDate:chosenDate,obraTime:selectedSlot,obraEquipoInstalacion:team,whatsappObraEnviadoAt:null,whatsappReminderSentAt:null,callStatus:"citas",statusChangedAt:Date.now(),nextContactAt:null};
   if(draft.dni&&typeof isValidDni==="function"&&!isValidDni(draft.dni))throw Error("Revisa el DNI/NIE.");
   if(typeof ensureCrmUpload==="function"&&!ensureCrmUpload(draft,{date:z.dumpDate||z.date,town:z.town,comercial:z.comercial})){busy=false;draw();return;}
   const oldC={...c},oldZ=z._updatedAt;Object.assign(c,draft);z._updatedAt=Date.now();
   if(!await saveAndSync("comercial_custom_zones",savedZones)){Object.keys(c).forEach(k=>{if(!(k in oldC))delete c[k];});Object.assign(c,oldC);z._updatedAt=oldZ;throw Error("No se ha confirmado el guardado de la obra.");}
   if(typeof logActivity==="function")logActivity("cita","Obra agendada · "+chosenDate+" "+selectedSlot,z.comercial);
-  view="whatsapp";draw();
+  bookingContact=null;view="whatsapp";draw();
  }catch(err){alert(err.message||"No se pudo agendar. La cita no se ha confirmado.");view="calendar";draw();}
  finally{busy=false;}
 }
@@ -754,11 +780,26 @@ function message(c,z){
   "Debe haber una persona responsable en casa y acceso a la zona de trabajo.\\n\\n"+
   "Si necesitas modificar la cita, responde a este mensaje. Gracias por confiar en KONSOR Energía.";
 }
-async function markWhatsApp(){
- const row=resolve();if(!row||busy)return;busy=true;
- const old=row.c.whatsappObraEnviadoAt;row.c.whatsappObraEnviadoAt=Date.now();row.z._updatedAt=Date.now();
- if(!await saveAndSync("comercial_custom_zones",savedZones)){row.c.whatsappObraEnviadoAt=old;alert("No se pudo guardar el envío.");}draw();busy=false;
+function reminderMessage(c,z){
+ const date=c.obraDate?new Date(c.obraDate+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"fecha pendiente";
+ const slot=SLOTS.find(x=>x[0]===c.obraTime),hour=slot?slot[0]+"–"+slot[1]:c.obraTime||"franja pendiente";
+ return "Hola "+String(c.name||"").trim()+", soy de KONSOR Energía. Te recordamos la instalación de aislamiento prevista para el "+date+" de "+hour+" en "+(c.street||"tu vivienda")+", "+(z.town||"Navarra")+". Ten disponibles las escrituras y tu DNI/NIE, y facilita el acceso a la vivienda. Si necesitas modificar algo, respóndenos por aquí. Gracias.";
 }
-window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";view="list";draw();};
+function openWhatsApp(phone,msg){
+ const a=document.createElement("a");a.href="https://wa.me/"+phone+"?text="+encodeURIComponent(msg);a.target="_blank";a.rel="noopener noreferrer";document.body.append(a);a.click();a.remove();
+}
+async function markWhatsApp(kind="confirmation"){
+ const row=resolve();if(!row||busy||!booked(row))return;
+ const field=kind==="reminder"?"whatsappReminderSentAt":"whatsappObraEnviadoAt";
+ if(!confirm("¿Confirmas que has enviado realmente el mensaje por WhatsApp? Abrir la conversación no equivale a enviarlo."))return;
+ busy=true;
+ const old=row.c[field],oldZ=row.z._updatedAt;
+ row.c[field]=Date.now();row.z._updatedAt=Date.now();
+ try{
+  if(!await saveAndSync("comercial_custom_zones",savedZones))throw Error("No se ha confirmado el registro del envío.");
+ }catch(err){row.c[field]=old;row.z._updatedAt=oldZ;alert(err.message||"No se ha guardado el envío.");}
+ finally{busy=false;draw();}
+}
+ window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";bookingContact=null;view="list";draw();};
 window.openKonsorOfficeClients=window.openCnCallQueue;
 })();
