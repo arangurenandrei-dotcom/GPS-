@@ -3688,7 +3688,7 @@ function peopleCurrentBacklog(user) {
   savedZones.forEach(z => {
     if (
       z.comercial !== user ||
-      z.isNoAptoZone || z.isLegacyPortfolio
+      z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)
     ) return;
 
     if (
@@ -3702,7 +3702,7 @@ function peopleCurrentBacklog(user) {
     }
 
     (z.clients || []).forEach(c => {
-      if (!isClientValidFilled(c)) return;
+      if (window.konsorIsHistoricalClient?.(c) || !isClientValidFilled(c)) return;
 
       if (
         ![c.name, c.street, c.phone].every(
@@ -4649,12 +4649,12 @@ function teamOverviewTowns(range, phase) {
   savedZones.forEach(z => {
     if (
       !users.has(z.comercial) ||
-      z.isNoAptoZone || z.isLegacyPortfolio
+      z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)
     ) return;
 
     if (inside(z.dumpDate || z.date)) {
       const t = getTown(z);
-      const st = z.stats || {};
+      const st = window.konsorPerformanceStats?.(z) || z.stats || {};
 
       const external =
         z.isSingleHouse &&
@@ -4691,7 +4691,7 @@ function teamOverviewTowns(range, phase) {
 
     (z.clients || []).forEach(c => {
       if (
-        !isClientValidFilled(c) ||
+        window.konsorIsHistoricalClient?.(c) || !isClientValidFilled(c) ||
         c.obraStatus === 'no_apto'
       ) return;
 
@@ -9023,9 +9023,9 @@ function renderGlobalClientSearchResults() {
       const scores = team.map(name => {
         let m2 = 0;
         savedZones.forEach(z => {
-          if (z.comercial !== name || !z.clients) return;
+          if (z.comercial !== name || !z.clients || window.konsorIsHistoricalOnlySector?.(z)) return;
           z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+            if (!window.konsorIsHistoricalClient?.(c) && c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
               m2 += getM2NumericValue(c.m2);
             }
           });
@@ -9060,7 +9060,7 @@ function renderGlobalClientSearchResults() {
       savedZones.forEach(z => {
         if (z.comercial !== comName || !z.clients) return;
         z.clients.forEach(c => {
-          if (c.obraStatus === 'a_poner' || !c.obraStatus) {
+          if (!window.konsorIsHistoricalClient?.(c) && (c.obraStatus === 'a_poner' || !c.obraStatus)) {
             const st = c.callStatus || 'pendiente';
             const refTime = st === 'pendiente'
               ? (c.createdAt || z.id || Date.now())
@@ -13192,19 +13192,19 @@ function konsorNextSectorNumber(town) {
       const daysSet = new Set();
 
       savedZones.forEach(z => {
-        if (z.comercial !== userName || z.isNoAptoZone || z.isLegacyPortfolio) return;
+        if (z.comercial !== userName || z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z) || window.konsorIsHistoricalOnlySector?.(z)) return;
         const zDate = z.dumpDate || z.date || '';
         if (monthYm && !zDate.startsWith(monthYm)) return;
         if (zDate) daysSet.add(zDate);
 
-        const st = z.stats || {};
+        const st = window.konsorPerformanceStats?.(z) || z.stats || {};
         si += (st.si || 0);
         no += (st.no || 0);
         doors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+            if (!window.konsorIsHistoricalClient?.(c) && c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
               m2 += getM2NumericValue(c.m2);
             }
           });
@@ -13888,7 +13888,7 @@ function radarTownModel(mikel, range, phase) {
   savedZones.forEach(z => {
     if (
       !users.has(z.comercial) ||
-      z.isNoAptoZone || z.isLegacyPortfolio
+      z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)
     ) return;
 
     const t = get(z);
@@ -13911,7 +13911,7 @@ function radarTownModel(mikel, range, phase) {
         t.zones++;
       }
 
-      const st = z.stats || {};
+      const st = window.konsorPerformanceStats?.(z) || z.stats || {};
 
       const external =
         z.isSingleHouse &&
@@ -13933,7 +13933,7 @@ function radarTownModel(mikel, range, phase) {
     }
 
     (z.clients || []).forEach(c => {
-      if (!isClientValidFilled(c)) return;
+      if (window.konsorIsHistoricalClient?.(c) || !isClientValidFilled(c)) return;
 
       const capture = local(c.createdAt) || recordDate;
 
@@ -14526,11 +14526,11 @@ function personalStatsMetrics(user, from, to) {
   savedZones.forEach(z => {
     if (
       z.comercial !== user ||
-      z.isNoAptoZone || z.isLegacyPortfolio
+      z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)
     ) return;
 
     if (inside(z.dumpDate || z.date)) {
-      const st = z.stats || {};
+      const st = window.konsorPerformanceStats?.(z) || z.stats || {};
 
       const singleExternal =
         z.isSingleHouse &&
@@ -14550,7 +14550,7 @@ function personalStatsMetrics(user, from, to) {
     }
 
     (z.clients || []).forEach(c => {
-      if (!isClientValidFilled(c)) return;
+      if (window.konsorIsHistoricalClient?.(c) || !isClientValidFilled(c)) return;
 
       const captureDate =
         dateOf(c.createdAt) ||
@@ -15103,13 +15103,13 @@ function openCommercialStatsModalLegacy() {
       const datesSet = new Set();
 
       savedZones.forEach(z => {
-        if (z.comercial !== currentUserName || z.isNoAptoZone || z.isLegacyPortfolio) return;
-        const st = z.stats || {};
+        if (z.comercial !== currentUserName || z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)) return;
+        const st = window.konsorPerformanceStats?.(z) || z.stats || {};
         const zDate = z.dumpDate || z.date || '';
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+            if (!window.konsorIsHistoricalClient?.(c) && c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
               histM2 += getM2NumericValue(c.m2);
             }
           });
@@ -15126,7 +15126,7 @@ function openCommercialStatsModalLegacy() {
 
         if (z.clients) {
           z.clients.forEach(c => {
-            if (c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
+            if (!window.konsorIsHistoricalClient?.(c) && c.obraStatus !== 'no_apto' && isClientValidFilled(c)) {
               totalM2 += getM2NumericValue(c.m2);
             }
           });
@@ -15271,7 +15271,7 @@ function openCommercialStatsModalLegacy() {
         const zDateCsv = z.dumpDate || z.date || '';
         if (selectedMonthCsv !== 'ALL' && !zDateCsv.startsWith(selectedMonthCsv)) return;
         z.clients.forEach(c => {
-          if (!isClientValidFilled(c)) return;
+          if (window.konsorIsHistoricalClient?.(c) || !isClientValidFilled(c)) return;
           const m2Val = getM2NumericValue(c.m2);
           const isValid = c.obraStatus !== 'no_apto';
           const bruto = isValid ? m2Val * 1.0 : 0;
@@ -15410,7 +15410,7 @@ function openCommercialStatsModalLegacy() {
 
         savedZones.forEach(z => {
           if (!mikelUsers.includes(z.comercial) || z.isNoAptoZone || z.isLegacyPortfolio) return;
-          const st = z.stats || {};
+          const st = window.konsorPerformanceStats?.(z) || z.stats || {};
           totalSi += (st.si || 0);
           totalNo += (st.no || 0);
           totalPuertas += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0) + (st.yaAislado || 0);
@@ -15468,9 +15468,9 @@ function openCommercialStatsModalLegacy() {
 
       savedZones.forEach(z => {
         const u = z.comercial || 'Comercial 1';
-        if (!statsMap[u]) return;
+        if (!statsMap[u] || window.konsorIsHistoricalOnlySector?.(z)) return;
 
-        const st = z.stats || {};
+        const st = window.konsorPerformanceStats?.(z) || z.stats || {};
         const zDate = z.dumpDate || z.date;
         if (selectedMonth !== 'ALL' && (!zDate || !zDate.startsWith(selectedMonth))) return;
         if (zDate) statsMap[u].datesSet.add(zDate);
@@ -15488,6 +15488,7 @@ function openCommercialStatsModalLegacy() {
 
         if (z.clients) {
           z.clients.forEach(c => {
+            if (window.konsorIsHistoricalClient?.(c)) return;
             if (c.obraStatus === 'no_apto') {
               statsMap[u].totalNoAptas += 1;
               return;
@@ -15933,12 +15934,12 @@ function openCommercialStatsModalLegacy() {
 
       savedZones.forEach(z => {
         const u = z.comercial || 'Comercial 1';
-        if (!stats[u]) return;
+        if (!stats[u] || window.konsorIsHistoricalOnlySector?.(z)) return;
 
         const zDate = z.dumpDate || z.date;
         if (zDate !== selectedDate) return;
 
-        const st = z.stats || {};
+        const st = window.konsorPerformanceStats?.(z) || z.stats || {};
         stats[u].no += st.no || 0;
         stats[u].ausente += st.ausente || 0;
         stats[u].papelito += st.papelito || 0;
@@ -15948,6 +15949,7 @@ function openCommercialStatsModalLegacy() {
 
         if (z.clients) {
           z.clients.forEach(c => {
+            if (window.konsorIsHistoricalClient?.(c)) return;
             if (c.obraStatus === 'no_apto') {
               stats[u].obrasNoAptas += 1;
               return;
@@ -16377,7 +16379,7 @@ function openCommercialStatsModalLegacy() {
 
         savedZones.forEach(z => {
           if (!mikelTeam.includes(z.comercial)) return;
-          const st = z.stats || {};
+          const st = window.konsorPerformanceStats?.(z) || z.stats || {};
           const zDate = z.dumpDate || z.date;
           if (zDate) mkActiveDaysSet.add(`${z.comercial}_${zDate}`);
           mkDoors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
@@ -16826,7 +16828,7 @@ function openCommercialStatsModalLegacy() {
       const townsMap = {};
 
       savedZones.forEach(z => {
-        if (isMikelTeamMember(z.comercial) || z.isNoAptoZone || z.isLegacyPortfolio) return;
+        if (isMikelTeamMember(z.comercial) || z.isNoAptoZone || z.isLegacyPortfolio || window.konsorIsHistoricalOnlySector?.(z)) return;
         const t = z.town || 'Sin pueblo asignado';
         if (!townsMap[t]) {
           townsMap[t] = {
@@ -16839,7 +16841,7 @@ function openCommercialStatsModalLegacy() {
         }
 
         const tm = townsMap[t];
-        const st = z.stats || {};
+        const st = window.konsorPerformanceStats?.(z) || z.stats || {};
         tm.no += st.no || 0;
         tm.ausente += st.ausente || 0;
         tm.papelito += st.papelito || 0;
@@ -16852,6 +16854,7 @@ function openCommercialStatsModalLegacy() {
         }
         if (z.clients) {
           z.clients.forEach(c => {
+            if (window.konsorIsHistoricalClient?.(c)) return;
             if (c.obraStatus === 'no_apto') {
               tm.obrasNoAptas += 1;
               return;
@@ -17012,7 +17015,7 @@ function openCommercialStatsModalLegacy() {
 
         savedZones.forEach(z => {
           if (!mikelTeam.includes(z.comercial)) return;
-          const st = z.stats || {};
+          const st = window.konsorPerformanceStats?.(z) || z.stats || {};
           const zDate = z.dumpDate || z.date;
           if (zDate) mkActiveDaysSet.add(`${z.comercial}_${zDate}`);
           mkDoors += (st.no || 0) + (st.ausente || 0) + (st.papelito || 0) + (st.si || 0);
@@ -17278,7 +17281,7 @@ function openCommercialStatsModalLegacy() {
     async function repairNoAptoSiCounts() {
       let fixed = 0;
       savedZones.forEach(z => {
-        if (!z.clients || z.clients.length === 0 || !z.stats) return;
+        if (!z.clients || z.clients.length === 0 || !z.stats || z.clients.some(c=>window.konsorIsHistoricalClient?.(c))) return;
         const valid = z.clients.filter(c => isClientValidFilled(c)).length;
         if (valid === 0) return;
         const apto = z.clients.filter(c => isClientValidFilled(c) && c.obraStatus !== 'no_apto').length;
