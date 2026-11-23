@@ -144,7 +144,7 @@ function openDay(){
  else if(shift.status==="working")actions(status,b("Comida",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"outline"),b("Finalizar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("end"))openDay();},"outline"));
  else if(shift.status==="lunch")actions(status,b("Reanudar",async()=>{if(typeof handleShiftAction==="function"&&await handleShiftAction("lunch"))openDay();},"primary"));
  actions(status,b("Corregir un fichaje olvidado",()=>{close();window.konsorCorregirJornada?.();},"outline"));
- const all=listZones().filter(({z})=>!z.isNoAptoZone&&!z.isSingleHouse&&z.status!=="completada"&&z.comercial===currentUserName);
+ const all=listZones().filter(({z})=>!window.konsorIsHistoricalOnlySector?.(z)&&!z.isNoAptoZone&&!z.isSingleHouse&&z.status!=="completada"&&z.comercial===currentUserName);
  const dumpPending=all.filter(({z})=>needsDump(z));
  const streetPending=all.filter(({z})=>!needsDump(z));
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
@@ -170,6 +170,7 @@ function openDay(){
 }
 function openClientDetail(entry){
  const {c,z,idx,cidx}=entry;
+ if(c?.legacyPortfolio){window.openKonsorLegacyClient?.(c.clientUid);return;}
  const {body,close}=page("ficha","Ficha de captación","Datos del cliente · "+(z.town||"Localidad")+" · "+(z.sectorName||"Sector"));
  const basic=card(body,c.name||"Cliente sin nombre",c.street||"Dirección por completar");
  const states=$("div","cnx-meta",undefined,basic);
@@ -220,7 +221,7 @@ function openClients(){
     const {z,idx}=item;
     if(scope==="mine"&&z.comercial!==currentUserName)continue;
     (z.clients||[]).forEach((c,cidx)=>{
-      if(!c||![c.name,c.phone,c.street].some(x=>String(x||"").trim()))return;
+      if(!c||c.legacyPortfolio||![c.name,c.phone,c.street].some(x=>String(x||"").trim()))return;
       const hay=norm([c.name,c.phone,c.street,c.locality,z.town,z.sectorName].join(" "));
       if(query&& !hay.includes(norm(query)))return;
       records.push({c,z,idx,cidx});
