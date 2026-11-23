@@ -1,0 +1,100 @@
+
+/* Misma hoja visual que Comercial, escopada a la vista seleccionada.
+   Reglas base y premium copiadas de las hojas de estilo reales de Comercial.
+   No altera #cnvHome ni las vistas operativas existentes. */
+#konsorDesignerPreview{
+ position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;
+ background:#f6f8fb;-webkit-overflow-scrolling:touch;
+ overscroll-behavior:contain;z-index:20070
+}
+#konsorDesignerPreview .cnv-home{
+ box-sizing:border-box;width:100%!important;min-height:100dvh!important;
+ display:block!important;position:relative!important;
+ color:#253449!important;
+ background:radial-gradient(ellipse at 85% 0%,rgba(217,229,247,.64),transparent 46%),linear-gradient(180deg,#f9fafc 0%,#f3f5f9 100%)!important;
+ padding:calc(env(safe-area-inset-top) + 14px) max(18px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 27px) max(18px,env(safe-area-inset-left))!important
+}
+#konsorDesignerPreview .cnv-home button{font-family:inherit}
+
+/* Base heredada del Inicio Comercial */
+#konsorDesignerPreview .cnv-home .cnv-home-head,#konsorDesignerPreview .cnv-home .cnv-home-content{max-width:760px;margin:0 auto}
+#konsorDesignerPreview .cnv-home .cnv-home-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 2px 25px}
+#konsorDesignerPreview .cnv-home .cnv-eyebrow{display:block;font-size:10px;letter-spacing:1.15px;color:#8994a5;font-weight:740}
+#konsorDesignerPreview .cnv-home .cnv-home-head h1{font-size:29px;font-weight:750;letter-spacing:-1px;line-height:1.1;margin:8px 0;color:#202a39}
+#konsorDesignerPreview .cnv-home .cnv-home-head p{font-size:14px;color:#7d8998;margin:5px 0 0}
+#konsorDesignerPreview .cnv-home .cnv-home-content{display:flex;flex-direction:column;gap:17px}
+#konsorDesignerPreview .cnv-home .cnv-hero{background:rgba(255,255,255,.86);border:1px solid rgba(225,230,237,.95);border-radius:23px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 9px 34px rgba(30,41,59,.045);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+#konsorDesignerPreview .cnv-home .cnv-hero-upper{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#konsorDesignerPreview .cnv-home .cnv-state{font-size:11px;color:#506782;background:#f2f5fa;border:1px solid #e3eaf1;border-radius:99px;padding:7px 10px;font-weight:650}
+#konsorDesignerPreview .cnv-home .cnv-hero h2{font-size:23px;font-weight:740;letter-spacing:-.6px;color:#263244;margin:0}
+#konsorDesignerPreview .cnv-home .cnv-hero p{font-size:13px;color:#748196;line-height:1.5;margin:0}
+#konsorDesignerPreview .cnv-home .cnv-button,.cnv-map-toolbar .cnv-button{background:rgba(255,255,255,.83);border:1px solid rgba(213,222,233,.85);color:#25354a;border-radius:14px;padding:12px 15px;min-height:44px;font-size:13px;font-weight:650;box-shadow:0 3px 10px rgba(20,38,60,.055);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);cursor:pointer}
+#konsorDesignerPreview .cnv-home .cnv-button.cnv-dark,.cnv-map-toolbar .cnv-button.cnv-dark{background:#28374b;color:white;border-color:#28374b}
+#konsorDesignerPreview .cnv-home .cnv-hero>.cnv-button{align-self:stretch}
+#konsorDesignerPreview .cnv-home .cnv-group-label{padding:1px 2px}
+#konsorDesignerPreview .cnv-home .cnv-group-label strong{font-size:11px;letter-spacing:1px;color:#8590a1}
+#konsorDesignerPreview .cnv-home .cnv-home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+#konsorDesignerPreview .cnv-home .cnv-tile{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;min-height:126px;border-radius:20px;padding:17px;background:rgba(255,255,255,.91);border:1px solid #e6ebf1;box-shadow:0 4px 18px rgba(17,24,39,.035);color:#28374b;cursor:pointer;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);text-align:left;gap:12px}
+#konsorDesignerPreview .cnv-home .cnv-tile .cnv-icon{color:#526986;line-height:0}
+#konsorDesignerPreview .cnv-home .cnv-tile-labels{display:flex;flex-direction:column;gap:5px}
+#konsorDesignerPreview .cnv-home .cnv-tile strong{color:#253246;font-size:15px;font-weight:680}
+#konsorDesignerPreview .cnv-home .cnv-tile small{color:#7c8b9d;font-size:11.5px;line-height:1.3}
+#konsorDesignerPreview .cnv-home .cnv-director{display:flex;align-items:center;gap:16px;justify-content:space-between;background:white;border:1px solid #e5eaf0;border-radius:20px;padding:17px}
+#konsorDesignerPreview .cnv-home .cnv-director h2{font-size:18px;color:#243449;margin:6px 0;font-weight:730}
+#konsorDesignerPreview .cnv-home .cnv-director p{font-size:12px;color:#728096;margin:0;line-height:1.4}
+#konsorDesignerPreview .cnv-home .cnv-director .cnv-button{min-width:120px}
+#konsorDesignerPreview .cnv-home .cnv-shortcuts{display:flex;gap:10px}
+#konsorDesignerPreview .cnv-home .cnv-shortcuts button{flex:1}
+#konsorDesignerPreview .cnv-home .cnv-footer-note{font-size:11px;color:#97a1ae;line-height:1.45;text-align:center;padding-bottom:18px}
+
+/* Acabado premium del Inicio Comercial */
+#konsorDesignerPreview .cnv-home .cnv-home-head,#konsorDesignerPreview .cnv-home .cnv-home-content{max-width:640px!important;margin-left:auto!important;margin-right:auto!important}
+#konsorDesignerPreview .cnv-home .cnv-home-head{padding:8px 0 30px!important;align-items:center!important;gap:16px!important}
+#konsorDesignerPreview .cnv-home .cnv-home-brand{display:flex;align-items:center;gap:10px;min-width:0}
+#konsorDesignerPreview .cnv-home .cnv-brand-mark,#loginScreen .cnv-brand-mark{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:14px;color:#fff;background:#283c53;box-shadow:0 5px 14px rgba(26,50,75,.14);font-size:20px;font-weight:760;letter-spacing:-.07em}
+#konsorDesignerPreview .cnv-home .cnv-brand-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+#konsorDesignerPreview .cnv-home .cnv-brand-text strong{font-size:16px!important;line-height:1.05;letter-spacing:.075em;font-weight:790;color:#24364c!important}
+#konsorDesignerPreview .cnv-home .cnv-brand-text small{font-size:9px;letter-spacing:.1em;color:#8290a1;font-weight:730}
+#konsorDesignerPreview .cnv-home .cnv-home-top-actions{display:flex;align-items:center;gap:8px}
+#konsorDesignerPreview .cnv-home .cnv-home-top-actions .cnv-icon-action{display:flex;align-items:center;justify-content:center;min-width:43px;min-height:43px;width:43px;height:43px;padding:0;border-radius:50%;background:rgba(255,255,255,.69)!important;border:1px solid rgba(255,255,255,.91)!important;box-shadow:0 4px 16px rgba(30,48,69,.07)!important;-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:#31465f!important}
+#konsorDesignerPreview .cnv-home .cnv-home-top-actions .cnv-icon-action svg{width:20px;height:20px}
+#konsorDesignerPreview .cnv-home .cnv-home-content{gap:21px!important;padding-bottom:24px}
+#konsorDesignerPreview .cnv-home .cnv-home-welcome{padding:0 2px}
+#konsorDesignerPreview .cnv-home .cnv-home-welcome h1{margin:9px 0 6px;color:#1c2d42!important;font-size:clamp(30px,7.4vw,38px)!important;line-height:1.05;font-weight:750;letter-spacing:-.055em}
+#konsorDesignerPreview .cnv-home .cnv-home-welcome p{font-size:13.5px;color:#8290a2;line-height:1.5}
+:root{--konsor-tarjeta:linear-gradient(150deg,rgba(255,255,255,.93),rgba(249,251,255,.72));--konsor-borde:1px solid rgba(255,255,255,.94);--konsor-sombra:0 13px 40px rgba(29,47,70,.08),inset 0 1px rgba(255,255,255,.95)}
+#konsorDesignerPreview .cnv-home .cnv-home-hero{position:relative;display:flex;flex-direction:column;gap:11px;padding:21px;border-radius:26px;border:var(--konsor-borde);background:var(--konsor-tarjeta);box-shadow:var(--konsor-sombra);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5)}
+#konsorDesignerPreview .cnv-home .cnv-home-hero-icon{display:flex;width:43px;height:43px;align-items:center;justify-content:center;border:1px solid rgba(217,230,246,.84);border-radius:14px;background:rgba(235,243,251,.84);color:#405e80}
+#konsorDesignerPreview .cnv-home .cnv-home-hero-icon svg{width:22px;height:22px}
+#konsorDesignerPreview .cnv-home .cnv-home-hero-content{display:flex;flex-direction:column;gap:7px}
+#konsorDesignerPreview .cnv-home .cnv-hero-eyebrow{font-size:10px;font-weight:750;letter-spacing:.12em;color:#7c90a8}
+#konsorDesignerPreview .cnv-home .cnv-home-hero h2{font-size:22px;color:#26374d!important;letter-spacing:-.035em;line-height:1.18;margin:0;font-weight:735}
+#konsorDesignerPreview .cnv-home .cnv-home-hero p{font-size:13px;line-height:1.52;color:#6e7d90;margin:0}
+#konsorDesignerPreview .cnv-home .cnv-home-primary{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:49px!important;padding:12px 17px!important;border-radius:16px;background:#293d54!important;border:1px solid #293d54!important;color:#fff!important;font-size:14px;font-weight:710;box-shadow:0 6px 15px rgba(31,55,78,.12)!important}
+#konsorDesignerPreview .cnv-home .cnv-home-primary span{font-size:21px;font-weight:400;line-height:1}
+#konsorDesignerPreview .cnv-home .cnv-group-label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:1px}
+#konsorDesignerPreview .cnv-home .cnv-group-label strong{font-size:11px;letter-spacing:.105em;color:#74859a}
+#konsorDesignerPreview .cnv-home .cnv-group-label span{font-size:11px;color:#a0acb9}
+#konsorDesignerPreview .cnv-home .cnv-home-grid{gap:10px!important}
+#konsorDesignerPreview .cnv-home .cnv-tile{min-height:123px!important;gap:16px;border-radius:21px!important;padding:17px!important;background:rgba(255,255,255,.74)!important;border:1px solid rgba(255,255,255,.94)!important;box-shadow:0 3px 16px rgba(31,49,71,.055)!important;-webkit-backdrop-filter:blur(22px) saturate(1.45);backdrop-filter:blur(22px) saturate(1.45);transition:transform .16s ease,background .16s ease}
+#konsorDesignerPreview .cnv-home .cnv-tile:active{transform:scale(.975);background:#eaf1f9!important}
+#konsorDesignerPreview .cnv-home .cnv-tile .cnv-icon{display:flex;align-items:center;justify-content:center;width:34px;height:34px;color:#566d87;border-radius:10px;background:#f0f4f9}
+#konsorDesignerPreview .cnv-home .cnv-tile .cnv-icon svg{width:20px;height:20px}
+#konsorDesignerPreview .cnv-home .cnv-tile strong{font-size:15px!important;letter-spacing:-.025em;font-weight:730}
+#konsorDesignerPreview .cnv-home .cnv-tile small{font-size:11px!important;line-height:1.45!important}
+#konsorDesignerPreview .cnv-home .cnv-home-management{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:20px;border-radius:22px;border:1px solid rgba(255,255,255,.94);background:rgba(239,245,252,.78);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px)}
+#konsorDesignerPreview .cnv-home .cnv-home-management-copy{display:flex;flex-direction:column;gap:6px;min-width:0}
+#konsorDesignerPreview .cnv-home .cnv-home-management-copy strong{font-size:19px;letter-spacing:-.04em;color:#26384e}
+#konsorDesignerPreview .cnv-home .cnv-home-management-copy p{font-size:12px;line-height:1.4;color:#718296}
+#konsorDesignerPreview .cnv-home .cnv-home-management-button{flex-shrink:0;padding:12px 14px;border-radius:13px;border:1px solid #d7e2ef;background:rgba(255,255,255,.86);color:#344b67;font-size:12px;font-weight:730}
+#konsorDesignerPreview .cnv-home .cnv-home-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 4px 20px;color:#98a6b5;font-size:10px;line-height:1.5}
+#konsorDesignerPreview .cnv-home .cnv-home-footer span:first-child{font-weight:780;letter-spacing:.09em}
+#konsorDesignerPreview .cnv-home button:focus-visible{outline:3px solid #6f9bc8!important;outline-offset:2px}
+@media(max-width:390px){#konsorDesignerPreview .cnv-home .cnv-home-management{flex-direction:column;align-items:stretch}#konsorDesignerPreview .cnv-home .cnv-home-management-button{width:100%}}
+@media(prefers-reduced-motion:reduce){#konsorDesignerPreview .cnv-home .cnv-tile{transition:none!important}}
+
+
+/* La tarjeta única de Técnicos ocupa una columna, igual que las tarjetas de Comercial. */
+#konsorDesignerPreview .cnv-home .kdp-single-tile{grid-column:auto!important;min-height:123px!important}
+#konsorDesignerPreview .cnv-home .cnv-home-head{flex-wrap:wrap}
+#konsorDesignerPreview .cnv-home .cnv-home-top-actions{flex-wrap:wrap;justify-content:flex-end}
