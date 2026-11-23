@@ -42,6 +42,7 @@ function open(plant){
   const r=await call('listarMensajesPlantaKonsor',{plant});
   if(!overlay.isConnected)return;
   render(r.items||[]);report('');
+   w.KonsorIndicators?.changed?.(plant);
  }
  function compose(container){
   const detail=E('section','kpm-card',undefined,container);
