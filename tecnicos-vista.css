@@ -1,0 +1,20 @@
+/* KONSOR · Recorrido de Técnicos. Misma estética del Inicio comercial. */
+.ktf-wrapper{margin:18px 0 22px;color:#2b3c51}
+.ktf-wrapper .cnv-group-label{margin:18px 0 12px}
+.ktf-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:9px 0 16px}
+.ktf-stat{background:#fff;border:1px solid #e0e7f0;border-radius:18px;padding:15px 10px;min-width:0;display:flex;align-items:flex-start;flex-direction:column;gap:6px}
+.ktf-stat strong{font-size:23px;line-height:1.1;font-weight:800}.ktf-stat span{font-size:11px;color:#718196}.ktf-stat small{font-size:10px;color:#93a0af}
+.ktf-notice{font-size:12px;line-height:1.6;color:#77889e;margin:12px 0 16px}
+.ktf-job-list{display:grid;gap:8px;margin-bottom:14px}
+.ktf-job{width:100%;background:#fff;border:1px solid #dfe7f0;border-radius:17px;padding:14px 13px;color:#293b52;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer}
+.ktf-job[aria-pressed="true"]{background:#edf3fa;border-color:#aac2df;box-shadow:0 2px 11px rgba(45,81,120,.07)}
+.ktf-job>span:first-child{display:flex;flex-direction:column;gap:5px;min-width:0}.ktf-job strong{font-size:13px;line-height:1.35}.ktf-job small{font-size:11px;line-height:1.4;color:#72849a}
+.ktf-pill,.ktf-state{font-size:10px;font-weight:760;padding:6px 8px;border-radius:10px;background:#edf2f8;color:#59708a;white-space:nowrap}
+.ktf-detail{background:#fff;border:1px solid #dfe7f0;border-radius:22px;padding:16px}
+.ktf-detail-head{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.ktf-detail-head h3{font-size:17px;margin:0 0 5px}.ktf-detail-head p{color:#7a8b9f;font-size:12px;margin:0;line-height:1.5}
+.ktf-step{display:flex;gap:10px;align-items:center;padding:14px 0;border-top:1px solid #edf1f5}
+.ktf-step-number{width:27px;height:27px;flex:0 0 27px;display:grid;place-items:center;border-radius:50%;background:#edf2f8;color:#697f97;font-size:12px;font-weight:760}
+.ktf-step-text{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}.ktf-step-text strong{font-size:12px}.ktf-step-text small{color:#8192a5;font-size:11px;line-height:1.4}
+.ktf-disclaimer{margin:14px 0 0;font-size:11px;line-height:1.5;color:#8b9bad}
+@media(max-width:370px){.ktf-metrics{gap:5px}.ktf-stat{padding:12px 7px}.ktf-detail-head{display:block}.ktf-detail-head .ktf-state{display:inline-block;margin-top:8px}}
