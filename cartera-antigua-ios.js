@@ -364,7 +364,7 @@ function streetBase(address){
 }
 function groupsByTown(){
  const map=new Map();
- portfolioEntries().forEach(x=>{
+ allHistoricalEntries().forEach(x=>{
   const name=String(x.c.locality||x.z.town||"").trim()||"Localidad pendiente";
   const key=N(name);
   if(!map.has(key))map.set(key,{key,name,clients:[],streets:new Map()});
@@ -382,13 +382,15 @@ function navButton(parent,text,action){
 function listScreen(page){
  const groups=groupsByTown(),total=groups.reduce((n,g)=>n+g.clients.length,0);
  const actions=buttons(page);
- actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
+ actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;newIndependentDraftId="";notice="";render();},true));
  actions.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
  const summary=card(page,"Cartera histórica",total+" fichas · "+groups.length+" pueblos. Los datos históricos no se contabilizan como captación nueva.");
+ if(independentLoading)p(summary,"Consultando la cartera independiente en Firebase…");
+ if(independentError)p(summary,"No se pudo consultar la cartera independiente: "+independentError,"kha-alert");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
- E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus!=="lista").length,stats);
- E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus==="lista").length,stats);
+ E("span","kha-tag","Por completar: "+allHistoricalEntries().filter(x=>x.c.legacyReviewStatus!=="lista").length,stats);
+ E("span","kha-tag good","Listas para llamadas: "+allHistoricalEntries().filter(x=>x.c.legacyReviewStatus==="lista").length,stats);
  const search=E("input","kha-search",undefined,page);
  search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
  const body=E("div","",undefined,page);
@@ -416,8 +418,8 @@ function listScreen(page){
   if(!town)return;
 
   const toolbar=buttons(body);
-  const withoutPostal=town.clients.filter(x=>!/^31\d{3}$/.test(String(x.c.postalCode||""))||
-    !/^[DE][123]$/.test(String(x.c.cteZone||"")));
+  const withoutPostal=town.clients.filter(x=>!x.independent&&(!/^31\d{3}$/.test(String(x.c.postalCode||""))||
+    !/^[DE][123]$/.test(String(x.c.cteZone||""))));
   const auto=B("Autocompletar CP y CTE ("+withoutPostal.length+")",async()=>{
    if(!withoutPostal.length)return;
    const geo=window.konsorLegacyGeo;
@@ -485,7 +487,7 @@ function listScreen(page){
       x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de completar",item);
     p(item,"Año: "+(x.c.buildYear||"pendiente")+" · Superficie neta: "+(x.c.m2??"pendiente")+" m² · CTE: "+(x.c.cteZone||"pendiente"));
     item.append(B("Abrir ficha · Catastro y datos",()=>{
-      screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
+      screen="edit";currentEdit=x.independent?{independentId:x.c.id}:{zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
       notice="";render();
     },true));
    }
@@ -498,10 +500,14 @@ function render(){
  if(!current()){p(page,"Inicia sesión para acceder a los clientes.");return;}
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
-window.openKonsorLegacyPortfolio=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
+window.openKonsorLegacyPortfolio=function(){
+ screen="list";activeTown="";activeStreet="";query="";notice="";
+ render();
+ reloadIndependent().then(()=>{if(document.getElementById(ID))render();}).catch(()=>{if(document.getElementById(ID))render();});
+};
 window.openKonsorLegacyClient=function(clientUid){
- const entry=portfolioEntries().find(x=>String(x.c.clientUid)===String(clientUid));
+ const entry=allHistoricalEntries().find(x=>String(x.c.clientUid)===String(clientUid));
  if(!entry){screen="list";notice="La ficha antigua no se encuentra; actualiza la lista.";render();return;}
- screen="edit";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();
+ screen="edit";currentEdit=entry.independent?{independentId:entry.c.id}:{zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();
 };
 })();
