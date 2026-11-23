@@ -37,6 +37,9 @@
  window.teamSummaryV2 = httpsCallable(functionsEu, 'resumenTrabajoV2');
  window.writeWorkV2 = httpsCallable(functionsEu, 'guardarTrabajoV2');
  window.verificarHistoricoKonsor = httpsCallable(functionsEu, 'verificarHistoricoKonsor');
+ window.listarClientesAntiguos = httpsCallable(functionsEu, 'listarClientesAntiguos');
+ window.guardarClienteAntiguo = httpsCallable(functionsEu, 'guardarClienteAntiguo');
+ window.actualizarLlamadaClienteAntiguo = httpsCallable(functionsEu, 'actualizarLlamadaClienteAntiguo');
   window.consultarDisponibilidadObras =
     httpsCallable(functionsEu, 'consultarDisponibilidadObras');
  window.db = db;
