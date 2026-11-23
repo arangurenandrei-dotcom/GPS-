@@ -13,11 +13,14 @@ const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial=
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
-const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
-window.konsorIsHistoricalClient=c=>inPortfolio(c);
+const sinSector=c=>c?.captacionSinSector===true;
+const inPortfolio=c=>sinSector(c)||historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
+// Una captación puerta a puerta sin sector es una ficha NORMAL, no una importación externa.
+window.konsorIsHistoricalClient=c=>!sinSector(c)&&inPortfolio(c);
 window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(inPortfolio);
 window.konsorPerformanceStats=z=>{
  const raw=z?.stats||{};
+ if(z?.isSingleHouse && z?.unassignedSector)return raw;
  if(!Array.isArray(z?.clients)||!z.clients.some(inPortfolio))return raw;
  // Un sector formado solo por históricos no representa captación nueva.
  if(window.konsorIsHistoricalOnlySector(z)){
@@ -79,12 +82,21 @@ function syncState(){
 async function commit(candidate){
  const check=syncState();
  if(check.kind!=="ready")throw Error(check.message);
- // Validar ANTES de enviar: el servidor rechaza IDs con %, espacios o caracteres fuera de ASCII.
- // El CRM histórico solo modifica fichas dentro de zonas que el servidor ya conoce.
- // Nunca se crean contenedores virtuales ni se trasladan fichas a un ID de zona nuevo.
- const previous=zs(),originalIds=new Set(previous.map(z=>String(z.id)));
- if(candidate.length!==previous.length||candidate.some(z=>!originalIds.has(String(z.id))))
-  throw Error("Se ha detectado un intento de crear una zona. Operación cancelada por seguridad.");
+ const previous=zs(),oldIds=new Set(previous.map(z=>String(z.id)));
+ const newItems=candidate.filter(z=>!oldIds.has(String(z.id)));
+ if(previous.some(z=>!candidate.some(next=>String(next.id)===String(z.id)))||newItems.length>1||
+   candidate.length!==previous.length+newItems.length)
+  throw Error("La operación alteraría otras fichas o zonas. No se ha guardado.");
+ if(newItems.length){
+  const z=newItems[0],c=z?.clients?.[0];
+  if(!z.isSingleHouse||!z.unassignedSector||z.singlePoint!==null||
+     !Array.isArray(z.points)||z.points.length!==0||z.clients.length!==1||
+     !c?.captacionSinSector||c.origen!=="puerta"||z.comercial!==current()||
+     !String(z.town||"").trim()||!String(z.date||"").trim())
+   throw Error("El nuevo registro no es una vivienda sin sector válida.");
+ }
+ // Se utiliza la ficha individual existente en el mismo sistema Firebase.
+ // No se crea un sector ni se altera ninguna cobertura de territorio.
  await window.KonsorBridge.save("comercial_custom_zones",candidate);
  savedZones=candidate;
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
