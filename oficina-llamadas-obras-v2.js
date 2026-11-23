@@ -625,12 +625,12 @@ function draw(opts={}){
  const nameInput=field("Nombre y apellidos",prev?.name??c.name);
  const dniInput=field("DNI / NIE",prev?.dni??c.dni);
  const emailInput=field("Correo electrónico",prev?.email??c.email,"email");
- const feedback=e("p","koc-muted","Comprueba estos datos durante la llamada.",form);
+ const feedback=e("p","koc-muted","Completa los datos que facilite el titular. DNI/NIE y correo pueden quedar pendientes; si se introducen, se validan.",form);
  body.append(button("Guardar datos y confirmar obra",()=>{
   const d={key:item.key,name:nameInput.value.trim(),dni:dniInput.value.trim().toUpperCase(),email:emailInput.value.trim()};
   if(!d.name){feedback.textContent="Falta el nombre completo.";return;}
-  if(!d.dni||(typeof isValidDni==="function"&&!isValidDni(d.dni))){feedback.textContent="Revisa el DNI/NIE.";return;}
-  if(!d.email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)){feedback.textContent="Introduce un correo electrónico válido.";return;}
+  if(d.dni&&typeof isValidDni==="function"&&!isValidDni(d.dni)){feedback.textContent="Revisa el DNI/NIE.";return;}
+  if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)){feedback.textContent="Revisa el correo electrónico.";return;}
   bookingContact=d;saveBooking();
  },"koc-primary"));
  e("p","koc-muted","Se volverá a comprobar la disponibilidad antes de confirmar. Después podrás abrir WhatsApp.",body);
@@ -749,9 +749,9 @@ async function saveBooking(){
   if(team!==selectedTeam)throw Error("El equipo seleccionado ya no está libre.");
   if(!bookingContact||bookingContact.key!==row.key)throw Error("Completa los datos del titular antes de reservar.");
  const details={...bookingContact};
- if(!details.name||!details.dni||!details.email)throw Error("Faltan datos del titular.");
+ if(!details.name)throw Error("Falta el nombre del titular.");
  if(typeof isValidDni==="function"&&!isValidDni(details.dni))throw Error("DNI/NIE incorrecto.");
- if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email))throw Error("Correo electrónico incorrecto.");
+ if(details.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email))throw Error("Correo electrónico incorrecto.");
  const draft={...c,name:details.name,dni:details.dni,email:details.email,obraStatus:"agendada",obraDate:chosenDate,obraTime:selectedSlot,obraEquipoInstalacion:team,whatsappObraEnviadoAt:null,whatsappReminderSentAt:null,callStatus:"citas",statusChangedAt:Date.now(),nextContactAt:null};
   if(draft.dni&&typeof isValidDni==="function"&&!isValidDni(draft.dni))throw Error("Revisa el DNI/NIE.");
   if(typeof ensureCrmUpload==="function"&&!ensureCrmUpload(draft,{date:z.dumpDate||z.date,town:z.town,comercial:z.comercial})){busy=false;draw();return;}
