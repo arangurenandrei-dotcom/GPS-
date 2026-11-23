@@ -6,18 +6,15 @@
     const n = Number(String(value ?? '').trim().replace(',', '.'));
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }
-  function attic(total, floors, coverage = 100, wallCm = 25) {
-    const gross = area(total), count = Number(floors);
-    const share = Number(coverage), wall = Number(wallCm) / 100;
-    if (!gross || !Number.isInteger(count) || count < 1 ||
-        !Number.isFinite(share) || share <= 0 || share > 100 ||
-        !Number.isFinite(wall) || wall < 0 || wall > 1) return null;
-    const perFloor = gross / count;
-    const footprint = perFloor * share / 100;
-    // Square footprint proxy when the exterior lengths are unknown.
-    const innerSide = Math.max(0, Math.sqrt(footprint) - 2 * wall);
-    const net = innerSide ** 2;
-    return {perFloor, footprint, walls:footprint-net, net:Math.round(net)};
+  function attic(total, floors = 1) {
+    const gross = area(total);
+    const count = Number(floors);
+    if (!gross || !Number.isInteger(count) || count < 1) return null;
+    // Regla comercial fija: restar 5 m² al total introducido.
+    // No dividir por plantas ni aplicar porcentajes o descuentos geométricos.
+    const deduction = Math.min(gross, 5);
+    const net = Math.round((gross - deduction) * 100) / 100;
+    return {perFloor:gross / count, footprint:gross / count, walls:deduction, net};
   }
   function date(value) {
     const s = String(value || '').trim();
