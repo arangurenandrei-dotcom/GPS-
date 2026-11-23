@@ -3,6 +3,7 @@
    Todas las operaciones se autorizan en servidor; nunca confiar en roles del navegador. */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore } = require('firebase-admin/firestore');
+const { createHash } = require('node:crypto');
 
 const COLLECTION='clientes_antiguos_independientes';
 const ALLOWED=new Set(['jefe','jefe_mikel','comercial1','comercial2','comercial3','comercial4','comercial5','mikel_com1','mikel_com2','mikel_com3','mikel_com4','mikel_com5']);
@@ -11,6 +12,7 @@ const LIMIT=500;
 const phone=v=>String(v||'').replace(/\D/g,'').replace(/^34(?=\d{9}$)/,'');
 const tidy=(value,max=150)=>String(value??'').trim().slice(0,max);
 const norm=v=>tidy(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+const fingerprint=(uid,d)=>phone(d.phone).length===9&&d.locality&&d.street?createHash('sha256').update([uid,norm(d.locality),norm(d.street),phone(d.phone)].join('|')).digest('hex'):null;
 const team=key=>key==='jefe_mikel'||key.startsWith('mikel_')?'mikel':'andrei';
 const boss=key=>key==='jefe'||key==='jefe_mikel';
 function failure(code,message){throw new HttpsError(code,message);}
@@ -63,10 +65,18 @@ async function save(req){
     const snap=await tx.get(ref),old=snap.exists?snap.data():null,now=Date.now();
     if(old&&!canAccess(me,old))failure('permission-denied','No tienes permiso para modificar esta ficha.');
     if(old&&Number(input.rev)!==old.rev)failure('aborted','La ficha ha cambiado en otro dispositivo. Actualiza antes de guardar.');
-    if(old&&['agendada','realizada','agendada_historica'].includes(old.obraStatus)&&ready&&!old.legacyReviewStatus==='lista')
+    if(old&&['agendada','realizada','agendada_historica'].includes(old.obraStatus)&&ready)
       failure('failed-precondition','La ficha ya tiene obra o cita.');
+    // Reserva de unicidad: mismo propietario + pueblo + dirección + teléfono.
+    // La transacción evita registros duplicados si dos dispositivos guardan a la vez.
+    const newKey=fingerprint(old?.ownerUid||me.uid,fields),oldKey=old?.fingerprintKey||null;
+    const refForKey=key=>db.collection('clientes_antiguos_claves').doc(key);
+    if(newKey&&newKey!==oldKey){
+      const existing=await tx.get(refForKey(newKey));
+      if(existing.exists&&existing.data()?.clientId!==id)failure('already-exists','Ya existe una ficha con esa dirección y teléfono.');
+    }
     const payload={
-      ...fields,teamId:old?.teamId||me.teamId,ownerUid:old?.ownerUid||me.uid,
+      ...fields,fingerprintKey:newKey,teamId:old?.teamId||me.teamId,ownerUid:old?.ownerUid||me.uid,
       ownerKey:old?.ownerKey||me.key,ownerName:old?.ownerName||me.name,
       importedLegacy:true,legacyPortfolio:true,independentHistorical:true,
       legacyReviewStatus:ready?'lista':'pendiente',
@@ -76,6 +86,8 @@ async function save(req){
     };
     if(ready)payload.legacyReviewedAt=now;
     else if(old?.legacyReviewedAt)payload.legacyReviewedAt=old.legacyReviewedAt;
+    if(oldKey&&oldKey!==newKey)tx.delete(refForKey(oldKey));
+    if(newKey&&newKey!==oldKey)tx.set(refForKey(newKey),{clientId:id,teamId:payload.teamId,ownerUid:payload.ownerUid});
     if(old)tx.update(ref,payload);else tx.create(ref,payload);
     stored={id,...payload};
   });
@@ -93,7 +105,10 @@ async function updateCall(req){
     if(Number(input.rev)!==old.rev)failure('aborted','La ficha fue modificada. Recarga las llamadas.');
     if(old.legacyReviewStatus!=='lista'||!/^\d{9}$/.test(phone(old.phone))||['agendada','realizada','agendada_historica'].includes(old.obraStatus))
       failure('failed-precondition','Esta ficha no está disponible para llamadas.');
-    const next={callStatus:status,rev:old.rev+1,updatedAt:Date.now(),statusChangedAt:Date.now()};
+    const now=Date.now();
+    const next={callStatus:status,rev:old.rev+1,updatedAt:now,statusChangedAt:now,statusChangedByUid:me.uid,
+      nextContactAt:status==='esperando_confirmacion'?now+48*3600*1000:null,
+      callLog:[...(old.callLog||[]),{t:now,s:status,by:me.uid}].slice(-30)};
     tx.update(ref,next);stored={id,...old,...next};
   });
   return {ok:true,registro:stored};
