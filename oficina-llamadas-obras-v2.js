@@ -285,7 +285,7 @@ async function findClusterDay(body,host,indicator,automatic=false){
  if(!options.length){indicator.textContent="No se pudieron verificar fechas. Mantengo el día actual; no se ofrecen huecos sin confirmar disponibilidad.";return;}
  // Primero completar el día anterior viable, evitando abrir otro mientras sea posible.
  // En esa fecha, aprovechar el equipo con más huecos compatibles y continuidad.
- options.sort((a,b)=>(a.safe===0)-(b.safe===0)||a.dayIndex-b.dayIndex||b.safe-a.safe||b.maxRun-a.maxRun||b.alreadyBusy-a.alreadyBusy||a.team-b.team);
+ options.sort((a,b)=>(a.safe===0)-(b.safe===0)||Number(a.team!==2)-Number(b.team!==2)||Number(b.alreadyBusy>0)-Number(a.alreadyBusy>0)||a.dayIndex-b.dayIndex||b.safe-a.safe||b.maxRun-a.maxRun);
  const best=options[0],target=Math.min(4,rows.length);
  if(best.safe===0){clusterPlanNotice="No se han encontrado franjas con proximidad verificable en los "+checked+" días consultados. No recomendaré desplazamientos sin conocer las ubicaciones de las otras obras.";indicator.textContent=clusterPlanNotice;return;}
  const msg=best.safe>=target?"Jornada agrupable de cuatro viviendas":"Completar primera jornada compatible";
@@ -694,7 +694,8 @@ function draw(opts={}){
  else body.append(button("Siguiente cliente",next,"koc-primary"));
 }
 }
- async function availableChoices(item,d){
+ function priority(o){return o.team===2?(o.bookedSameTown?0:o.bookedDay?1:2):(o.bookedSameTown?3:o.bookedDay?4:5);}
+async function availableChoices(item,d){
  const data=await consultarKonsorFecha(d);
  const old=typeof routeRecords==="function"?routeRecords(d):[];
  const choices=[];
@@ -704,9 +705,12 @@ function draw(opts={}){
   if(slot?.libre!==true||localBusy)return;
   const fit=slotRouteFit(item,d,team,slotIdx,data,old);
   if(!fit.ok)return;
-  choices.push({date:d,time:from,to,team,rank:fit.category,label:fit.category===0?"Encaja con la siguiente obra":fit.category===1?"Completar localidad":"Jornada nueva",detail:fit.reason});
+  const already=old.filter(x=>Number(x.c?.obraEquipoInstalacion)===team&&x.slot>=0);
+   const neighbors=already.filter(x=>sameTown(x,item)).length;
+   choices.push({date:d,time:from,to,team,rank:fit.category,bookedDay:already.length,bookedSameTown:neighbors,
+    label:neighbors?"Completar equipo "+team+" · mismo municipio":already.length?"Completar jornada del equipo "+team:team===2?"Prioridad Equipo 2":"Alternativa Equipo 3",detail:fit.reason});
  }));
- return choices.sort((a,b)=>a.rank-b.rank||a.time.localeCompare(b.time)||a.team-b.team);
+ return choices.sort((a,b)=>priority(a)-priority(b)||a.rank-b.rank||a.time.localeCompare(b.time));
 }
 async function recommendDays(item,body){
  const panel=body.querySelector("#koc-recommendations");if(!panel)return;
@@ -718,7 +722,7 @@ async function recommendDays(item,body){
   const results=await Promise.allSettled(days.map(d=>availableChoices(item,d)));
   if(ticket!==seq||view!=="calendar"||resolve()?.key!==item.key)return;
   const options=results.flatMap((r,i)=>r.status==="fulfilled"?r.value.map(v=>({...v,day:i})):[])
-   .sort((a,b)=>a.day-b.day||a.rank-b.rank||a.time.localeCompare(b.time)).slice(0,8);
+   .sort((a,b)=>priority(a)-priority(b)||a.day-b.day||a.rank-b.rank||a.time.localeCompare(b.time)).slice(0,8);
   panel.replaceChildren();
   if(!options.length){e("p","koc-muted","No hay propuestas verificadas para los próximos siete días. Prueba otra fecha manualmente.",panel);return;}
   options.forEach(o=>{
@@ -744,7 +748,7 @@ async function loadSlots(board,info,preferred=null){
   const item=resolve();if(!item)return;
   const options=await availableChoices(item,d);
   if(ticket!==seq||view!=="calendar")return;
-  const ordered=preferred?options.sort((a,b)=>(a.time===preferred.time&&a.team===preferred.team?-1:0)-(b.time===preferred.time&&b.team===preferred.team?-1:0)):options;
+  const ordered=preferred?options.sort((a,b)=>Number(b.time===preferred.time&&b.team===preferred.team)-Number(a.time===preferred.time&&a.team===preferred.team)||priority(a)-priority(b)):options;
   ordered.forEach(o=>{
    const b=button(o.time+"–"+o.to+" · Equipo "+o.team,()=>{
     selectedSlot=o.time;selectedTeam=o.team;
@@ -754,7 +758,7 @@ async function loadSlots(board,info,preferred=null){
    e("small","",o.label,b);board.append(b);
    if(preferred&&preferred.time===o.time&&preferred.team===o.team)b.click();
   });
-  info.textContent=ordered.length?ordered.length+" franjas verificadas y ordenadas por proximidad; revisa el desplazamiento antes de confirmar.":"No hay equipos disponibles. Elige otro día.";
+  info.textContent=ordered.length?ordered.length+" franjas verificadas. Se prioriza completar el Equipo 2 y sus jornadas existentes, siempre que la ruta sea compatible.":"No hay equipos disponibles. Elige otro día.";
  }catch(err){if(ticket===seq)info.textContent="No se ha podido comprobar KONSOR: "+(err.message||"Error de conexión")+". No se puede reservar sin verificar.";}
 }
 
