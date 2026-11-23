@@ -17,7 +17,7 @@ const territory=()=>zones().filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.i
 const own=()=>territory().filter(z=>z.comercial===me());
 // Una ficha individual no se cuenta como sector, pero sí como cliente.
 const workZones=team=>zones().filter(z=>z&&!z.isNoAptoZone&&!z.isHotMission&&
- !z.isLegacyPortfolio&&myTeam(z)&&(team||z.comercial===me()));
+ myTeam(z)&&(team||z.comercial===me()));
 const validClient=c=>!!c&&(c.name||c.phone||c.street);
 const clients=team=>workZones(team).flatMap(z=>(z.clients||[]).filter(validClient).map(c=>({c,z})));
 const shift=()=>typeof getTodayShift==="function"?getTodayShift(me()):null;
@@ -28,8 +28,8 @@ const validPhone=c=>/^[6789]\d{8}$/.test(String(c.phone||"").replace(/\D/g,"").r
 const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!validPhone(c)||!!c.captacionInvalida);
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
 const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&
-  c.callStatus!=="bloqueada"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now())&&
-  (["","pendiente","pendiente_visita"].includes(c.callStatus||"")||waitDue(c));
+  (!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now())&&
+  (["","pendiente","bloqueada","pendiente_visita"].includes(c.callStatus||"")||waitDue(c));
 const unfinished=z=>!window.konsorIsHistoricalOnlySector?.(z)&&z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&!z.streetCompletedAt;
 const pendingDump=z=>!window.konsorIsHistoricalOnlySector?.(z)&&((!!z.streetCompletedAt&&!z.dumpDate)||
  (!z.streetStartedAt&&z.status==="en_proceso"&&z.date&&z.date<today()&&!z.dumpDate&&
