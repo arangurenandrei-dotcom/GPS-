@@ -949,5 +949,15 @@ async function markWhatsApp(kind="confirmation"){
  finally{busy=false;draw();}
 }
  window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";bookingContact=null;view="list";draw();};
+// Navegación desde el buscador a la ficha EXISTENTE, sin duplicar cliente.
+window.konsorOpenExistingClientInOffice=function(zoneId,clientUid){
+ if(zoneId===undefined||zoneId===null||!clientUid)return false;
+ scope=currentUserRole==="jefe"?"team":"mine";
+ const target=all().find(i=>String(i.z.id)===String(zoneId)&&String(i.c.clientUid)===String(clientUid));
+ if(!target)return false;
+ clusterFocus=null;clusterReturn=false;plannedChoice=null;
+ open(target);
+ return true;
+};
 window.openKonsorOfficeClients=window.openCnCallQueue;
 })();
