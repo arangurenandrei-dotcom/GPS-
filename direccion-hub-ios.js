@@ -43,7 +43,8 @@ function open(){
  [["Sectores",m.total],["Sin terminar",m.pending],["Clientes",m.clients]].forEach(([label,value])=>{const cell=el("div","kd-stat",undefined,stats);el("strong","",value,cell);el("small","",label,cell);});
  const grid=el("div","kd-nav-grid",undefined,body);
  tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
- tile(grid,"Importar fichas","Subir CSV, revisar registros y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
+ tile(grid,"Clientes antiguos","Recuperar fichas, completar datos y preparar llamadas sin sectores.",()=>launch(r,()=>window.openKonsorLegacyPortfolio?.()));
+ tile(grid,"Volcado de sectores","Subir CSV de captación de calle y asignar sectores.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
  tile(grid,"Mi equipo","Actividad, comerciales y próximos pasos.",()=>launch(r,openTeam));
  tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
  tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
