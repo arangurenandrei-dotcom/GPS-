@@ -20,7 +20,7 @@ function pueblos(){
  const outlines=typeof perimetrosPueblos!=="undefined"&&Array.isArray(perimetrosPueblos)?perimetrosPueblos:[];
  outlines.forEach(p=>{if(!p?.nombre)return;const k=norm(p.nombre);grouped.set(k,{key:k,nombre:p.nombre,perimetro:p,sectores:[]});});
  if(Array.isArray(savedZones))savedZones.forEach((z,idx)=>{
-  if(!z||!currentTeam(z)||z.isSingleHouse||z.isNoAptoZone||z.isHotMission||z.isLegacyPortfolio||!String(z.town||"").trim())return;
+  if(!z||!currentTeam(z)||z.isSingleHouse||z.isNoAptoZone||z.isHotMission||z.isLegacyPortfolio||window.konsorIsHistoricalOnlySector?.(z)||!String(z.town||"").trim())return;
   const k=norm(z.parentTown||z.town);
   if(!grouped.has(k))grouped.set(k,{key:k,nombre:z.town,perimetro:null,sectores:[]});
   grouped.get(k).sectores.push({z,idx});
