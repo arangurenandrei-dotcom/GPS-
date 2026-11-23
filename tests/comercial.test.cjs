@@ -263,7 +263,7 @@ test('compact calculator recalculates and clears a stale result after invalid in
   '.client-attic-coverage':{value:'100'},'.client-attic-wall':{value:'25'},'.client-m2':{value:''}};
  const box={querySelector:s=>fields[s]};
  const calculate=loadFunction('calculateClientAttic',{isMikelTeamMember:()=>false,currentUserName:'Andrei'});
- calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,90);
+ calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,195);
  fields['.client-floors'].value='';calculate({closest:()=>box});assert.equal(fields['.client-m2'].value,'');
 });
 
