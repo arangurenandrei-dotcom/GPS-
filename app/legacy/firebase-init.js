@@ -47,6 +47,7 @@
  window.callGuardarFichaTransaccional = httpsCallable(functionsEu, 'guardarFichaTransaccional');
  window.callSincronizarFichaV2 = httpsCallable(functionsEu, 'sincronizarFichaV2');
  window.callAgendarObraEquipo = httpsCallable(functionsEu, 'agendarObraEquipo');
+ window.vincularObraExistenteKonsor = httpsCallable(functionsEu, 'vincularObraExistenteKonsor');
 
     window.authApi = {
       async register(email, pass, name) {
