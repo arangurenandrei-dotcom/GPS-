@@ -285,6 +285,11 @@ function editor(page){
   const pending=ready?validateReady(d):[];
   if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
   if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita; no se puede reiniciar para llamadas.");return;}
+  if(!independentEdit&&!c&&allHistoricalEntries().some(x=>
+   N(x.c.locality||x.z.town)===N(d.locality)&&N(x.c.street)===N(d.street)&&
+   phone(x.c.phone)===phone(d.phone)&&d.street&&phone(d.phone).length===9)){
+   showError("Ya existe una ficha de esa dirección y teléfono. Ábrela desde Clientes antiguos.");return;
+  }
   button.disabled=true;
   try{
    if(!c||independentEdit){
@@ -503,11 +508,20 @@ function render(){
 window.openKonsorLegacyPortfolio=function(){
  screen="list";activeTown="";activeStreet="";query="";notice="";
  render();
- reloadIndependent().then(()=>{if(document.getElementById(ID))render();}).catch(()=>{if(document.getElementById(ID))render();});
+ reloadIndependent().then(()=>{if(document.getElementById(ID)&&screen==="list")render();}).catch(()=>{if(document.getElementById(ID)&&screen==="list")render();});
 };
-window.openKonsorLegacyClient=function(clientUid){
- const entry=allHistoricalEntries().find(x=>String(x.c.clientUid)===String(clientUid));
- if(!entry){screen="list";notice="La ficha antigua no se encuentra; actualiza la lista.";render();return;}
- screen="edit";currentEdit=entry.independent?{independentId:entry.c.id}:{zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();
+window.openKonsorLegacyClient=async function(clientUid){
+ let entry=allHistoricalEntries().find(x=>String(x.c.clientUid)===String(clientUid));
+ if(!entry){
+  screen="list";notice="Buscando la ficha histórica en Firebase…";render();
+  try{await reloadIndependent();}catch(e){
+   notice="No se pudo consultar la ficha: "+(e.message||e);render();return;
+  }
+  entry=allHistoricalEntries().find(x=>String(x.c.clientUid)===String(clientUid));
+ }
+ if(!entry){screen="list";notice="La ficha antigua no se encuentra o no tienes permiso para acceder.";render();return;}
+ screen="edit";
+ currentEdit=entry.independent?{independentId:entry.c.id}:{zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};
+ notice="";render();
 };
 })();
