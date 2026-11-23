@@ -116,7 +116,7 @@ function open(id){
  const heroText=e("div","cnv-home-hero-content",undefined,hero);
  e("span","cnv-hero-eyebrow","SIGUIENTE PASO RECOMENDADO",heroText);
  e("h2","",data.hero,heroText);e("p","",data.detail,heroText);
- e("span","kdp-preview-label",id==="tecnicos"?"VISTA DE DISEÑO · OBRAS EN SOLO LECTURA":"VISTA DE DISEÑO · SIN DATOS OPERATIVOS",hero);
+ e("span","kdp-preview-label",(id==="tecnicos"||id==="oficina")?"VISTA DE DISEÑO · DATOS EN SOLO LECTURA":"VISTA DE DISEÑO · SIN DATOS OPERATIVOS",hero);
  const label=e("div","cnv-group-label",undefined,section);
  e("strong","","TU TRABAJO",label);e("span","","Accesos principales",label);
  const grid=e("div","cnv-home-grid kdp-role-grid",undefined,section);
@@ -126,6 +126,7 @@ function open(id){
   e("strong","",name,labels);e("small","",detail,labels);
  });
  if(id==="tecnicos")window.konsorTecnicosGuiado?.render?.(section);
+ if(id==="oficina")window.konsorOficinaGuiada?.render?.(section);
  e("p","kdp-explainer","Los recorridos conservan el estilo de Inicio. Las operaciones nuevas requieren permisos, validación y guardado en servidor antes de activarse.",section);
  const footer=e("div","cnv-home-footer",undefined,section);
  e("span","","KONSOR",footer);e("span","","Modo de diseño sin cambios en Firebase.",footer);
