@@ -234,6 +234,7 @@ function open(id){
  const alerts=e("button","cnv-glass cnv-icon-action",undefined,top);
  alerts.type="button";alerts.append(icon("calendar"));alerts.title="Avisos";
  alerts.setAttribute("aria-label","Abrir avisos");alerts.onclick=notifications;
+  window.KonsorIndicators?.bind?.(alerts,id,"bell");
  const settings=e("button","cnv-glass cnv-icon-action",undefined,top);
  settings.type="button";settings.append(icon("settings"));settings.title="Ajustes";
  settings.setAttribute("aria-label","Abrir ajustes");settings.onclick=profileSettings;
@@ -268,11 +269,11 @@ function open(id){
  const grid=e("div","cnv-home-grid kdp-role-grid",undefined,section);
  if(id==="tecnicos"){
   actionTile(grid,"Mi jornada","Ruta, obras y cierre del día","calendar",activate);
-  actionTile(grid,"Mensajes de plantas","Instrucciones, incidencias y confirmaciones","folder",()=>window.KonsorPlantMessages?.open?.("tecnicos"));
+  window.KonsorIndicators?.bind?.(actionTile(grid,"Mensajes de plantas","Instrucciones, incidencias y confirmaciones","folder",()=>window.KonsorPlantMessages?.open?.("tecnicos")),"tecnicos");
  }else if(id==="oficina"){
   actionTile(grid,"Mi jornada","Documentos, revisiones y tramitación","calendar",activate);
   actionTile(grid,"Citas y llamadas","Acceso secundario a agenda y nuevas reservas","calendar",openOfficeBookings);
-  actionTile(grid,"Mensajes de plantas","Solicitudes de Técnicos y Dirección","folder",()=>window.KonsorPlantMessages?.open?.("oficina"));
+  window.KonsorIndicators?.bind?.(actionTile(grid,"Mensajes de plantas","Solicitudes de Técnicos y Dirección","folder",()=>window.KonsorPlantMessages?.open?.("oficina")),"oficina");
   actionTile(grid,"Nuevo cliente","Registrar lead sin sector ni planificación territorial","users",()=>openOfficeNewLead(section));
   actionTile(grid,"Clientes","Buscar y consultar fichas","office",()=>officeBrowser(section,id,false));
   actionTile(grid,"Archivador","Total leads, nuevos, haciendo, por llegar y terminados","folder",()=>officeBrowser(section,id,true),true);
@@ -280,6 +281,8 @@ function open(id){
   data.actions.forEach(([name,detail,ico])=>actionTile(grid,name,detail,
    ico==="calendar"?"calendar":ico==="map"?"map":ico==="folder"?"office":"results",
    ()=>window.KonsorPlantMessages?.open?.("ceo")));
+  const inbox=actionTile(grid,"Mensajes entre plantas","Bandeja de Dirección y avisos críticos","folder",()=>window.KonsorPlantMessages?.open?.("ceo"));
+  window.KonsorIndicators?.bind?.(inbox,"ceo");
  }
  if(id==="tecnicos"||id==="oficina"){
   e("p","kdp-explainer","Los clientes y las citas se consultan desde Firebase. Las fases técnicas y los cierres documentales permanecen sujetos a validación.",section);

@@ -105,7 +105,7 @@
   [['inbox','Avisos'],['tasks','Tareas'],['preferences','Ajustes']].forEach(([id,label])=>{const b=button(label,()=>{tab=id;render();});b.dataset.tab=id;tabs.append(b);});
   status=node('div','', 'av-status');body=node('div',undefined,'modal-scrollable-content');card.append(head,tabs,status,body);modal.append(card);document.body.append(modal);
  }
- function badge(){if(bell){const n=notices.filter(n=>!n.resolvedAt&&((isTask(n)&&!(n.context?.reminderId&&reminders.some(r=>r.id===n.context.reminderId)))||(!isTask(n)&&!n.readAt))).length+reminders.filter(r=>r.assignment&&r.to===me?.name&&r.enabled&&!r.completedAt&&!r.confirmedAt).length;bell.textContent='🔔'+(n?' '+n:'');bell.setAttribute('aria-label',`${n} avisos o tareas pendientes`);}}
+ function badge(){if(bell){const n=notices.filter(n=>!n.resolvedAt&&((isTask(n)&&!(n.context?.reminderId&&reminders.some(r=>r.id===n.context.reminderId)))||(!isTask(n)&&!n.readAt))).length+reminders.filter(r=>r.assignment&&r.to===me?.name&&r.enabled&&!r.completedAt&&!r.confirmedAt).length;bell.textContent='🔔'+(n?' '+n:'');bell.setAttribute('aria-label',`${n} avisos o tareas pendientes`);window.KonsorIndicators?.setGeneral?.(n);}}
  function open(target){if(!me)return;mount();if(['inbox','tasks','preferences'].includes(target))tab=target;modal.classList.add('active');render();}
  window.openNotificationsCenterV2=open;
  // Oficina reutiliza la función existente del backend de avisos.

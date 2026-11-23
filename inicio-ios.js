@@ -36,6 +36,7 @@ function tile(grid,label,detail,name,fn){
  const wrap=el("span","cnv-tile-labels",undefined,card);
  el("strong","",label,wrap);el("small","",detail,wrap);
  grid.append(card);
+ return card;
 }
 function go(fn){return ()=>{if(typeof fn==="function")fn();};}
 function openDay(){if(window.konsorMotor?.openDay)window.konsorMotor.openDay();else window.openCnDay?.();}
@@ -74,6 +75,7 @@ function showHome(){
  el("strong","","KONSOR",brandText);el("small","","ESPACIO DE TRABAJO",brandText);
  const topActions=el("div","cnv-home-top-actions",undefined,top);
  const alerts=btn("",()=>window.openNotificationsCenterV2?.(),"cnv-glass cnv-icon-action");alerts.append(icon("calendar"));alerts.title="Avisos";alerts.setAttribute("aria-label","Abrir avisos");topActions.append(alerts);
+ window.KonsorIndicators?.bind?.(alerts,"comercial","bell");
  const settings=btn("",()=>openUserProfileModal(),"cnv-glass cnv-icon-action");settings.append(icon("settings"));settings.title="Ajustes";settings.setAttribute("aria-label","Abrir ajustes");topActions.append(settings);
  if(window.konsorDesigner?.permitted?.()){
   const switchRole=btn("Cambiar área",()=>window.konsorDesigner.showChooser(),"cnv-glass kdp-switch");
@@ -108,8 +110,8 @@ function showHome(){
   director.append(access);
  }
 
- const messageLink=btn("Mensajes entre plantas",()=>window.KonsorPlantMessages?.open?.("comercial"),"cnv-glass cnv-plant-messages-link");
- messageLink.setAttribute("aria-label","Abrir mensajes de Comercial con otras plantas");section.append(messageLink);
+ const messageLink=tile(grid,"Mensajes entre plantas","Solicitudes, avisos y confirmaciones","office",()=>window.KonsorPlantMessages?.open?.("comercial"));
+ window.KonsorIndicators?.bind?.(messageLink,"comercial");
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);

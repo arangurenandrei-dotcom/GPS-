@@ -56,9 +56,53 @@ test('agendar, aplazar y finalizar generan eventos destinados a la planta apropi
  assert.equal(api.autoId('f_123',a[0]),api.autoId('f_123',a[0]));
 });
 test('la UI conecta los módulos sin alterar el flujo comercial',()=>{
- assert.ok(index.includes('mensajes-plantas.js?v=1'));
+ assert.ok(index.includes('mensajes-plantas.js?v=2'));
  assert.ok(index.indexOf('mensajes-plantas.js')<index.indexOf('designer-role-preview.js'));
  assert.ok(client.includes('listarMensajesPlantaKonsor'));
  assert.ok(client.includes('actualizarMensajePlantaKonsor'));
  assert.ok(client.includes('configurarMargenesPlantaKonsor'));
+});
+
+test('los indicadores están cargados antes de mensajes y de las vistas y usan tareas reales',()=>{
+ const home=fs.readFileSync(path.join(dir,'inicio-ios.js'),'utf8');
+ const designer=fs.readFileSync(path.join(dir,'designer-role-preview.js'),'utf8');
+ const direction=fs.readFileSync(path.join(dir,'direccion-hub-ios.js'),'utf8');
+ const alerts=fs.readFileSync(path.join(dir,'avisos-app.js'),'utf8');
+ const styles=fs.readFileSync(path.join(dir,'indicadores-plantas.css'),'utf8');
+ assert.ok(index.indexOf('indicadores-plantas.js')<index.indexOf('mensajes-plantas.js'));
+ assert.ok(index.indexOf('indicadores-plantas.js')<index.indexOf('inicio-ios.js'));
+ assert.ok(home.includes('tile(grid,"Mensajes entre plantas"'));
+ assert.ok(!home.includes('cnv-plant-messages-link'));
+ assert.ok(designer.includes('const inbox=actionTile(grid,"Mensajes entre plantas"'));
+ assert.ok(direction.includes('const messages=tile(grid,"Mensajes entre plantas"'));
+ assert.ok(alerts.includes('KonsorIndicators?.setGeneral?.(n)'));
+ assert.ok(styles.includes('data-konsor-level="blue"'));
+ assert.ok(styles.includes('data-konsor-level="yellow"'));
+ assert.ok(styles.includes('data-konsor-level="red"'));
+});
+test('señaliza solamente tareas entrantes sin confirmar y combina avisos por cantidad',()=>{
+ const script=fs.readFileSync(path.join(dir,'indicadores-plantas.js'),'utf8');
+ const listeners={};
+ const win={addEventListener:()=>{},setInterval:()=>{},auth:{currentUser:{uid:'uid1'}},
+  KonsorBridge:{state:()=>({connected:true})}};
+ const doc={addEventListener:()=>{},hidden:false};
+ vm.runInNewContext(script,{window:win,document:doc,Date,console});
+ const indicator=win.KonsorIndicators;
+ const all=[
+  {to:'comercial',from:'oficina',status:'pending',priority:'normal'},
+  {to:'oficina',from:'comercial',status:'pending',priority:'critical'},
+  {to:'comercial',from:'oficina',status:'acknowledged',priority:'critical'},
+  {to:'comercial',from:'oficina',status:'completed',priority:'important'}
+ ];
+ assert.equal(indicator.severity(all,'comercial').level,'blue');
+ assert.equal(indicator.severity(all,'comercial').count,1);
+ assert.equal(indicator.severity(all,'oficina').level,'red');
+ assert.equal(indicator.severity(all,'ceo').level,'none');
+ assert.equal(indicator.bellLevel(0),'none');
+ assert.equal(indicator.bellLevel(1),'blue');
+ assert.equal(indicator.bellLevel(3),'blue');
+ assert.equal(indicator.bellLevel(4),'yellow');
+ assert.equal(indicator.bellLevel(7),'yellow');
+ assert.equal(indicator.bellLevel(8),'red');
+ assert.equal(indicator.bellLevel(1,true),'red');
 });

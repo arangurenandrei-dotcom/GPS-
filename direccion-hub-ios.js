@@ -49,6 +49,8 @@ function open(){
  tile(grid,"Clientes","Fichas, llamadas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
  tile(grid,"Resultados","Captación, producción y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
  tile(grid,"Cierre del día","Pueblos, comerciales y decisiones.",()=>launch(r,()=>window.konsorPlanificador?.review?.()));
+ const messages=tile(grid,"Mensajes entre plantas","Instrucciones y alertas de Dirección.",()=>launch(r,()=>window.KonsorPlantMessages?.open?.("ceo")));
+ window.KonsorIndicators?.bind?.(messages,"ceo");
  const other=el("details","kd-more",undefined,body);
  el("summary","","Análisis y supervisión avanzada",other);
  const secondary=el("div","kd-nav-secondary",undefined,other);
