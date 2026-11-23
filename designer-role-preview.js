@@ -106,6 +106,9 @@ function profileSettings(){
  else window.openUserProfileModal?.();
 }
 function notifications(){
+ if(chosen==="oficina"||chosen==="tecnicos"||chosen==="ceo"){
+  window.KonsorDepartmentNotices?.open?.(chosen);return;
+ }
  const overlay=document.getElementById(VIEW);
  if(overlay)overlay.style.zIndex="9000";
  window.openNotificationsCenterV2?.();
