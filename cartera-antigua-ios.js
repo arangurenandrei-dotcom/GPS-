@@ -405,11 +405,11 @@ function listScreen(page){
  const actions=buttons(page);
  actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
  actions.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
- const summary=card(page,"Cartera histórica",total+" fichas · "+groups.length+" pueblos. Los datos históricos no se contabilizan como captación nueva.");
+ const summary=card(page,"Captaciones registradas",total+" fichas · "+groups.length+" pueblos. Las captaciones puerta a puerta sin sector cuentan en Resultados.");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
- E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus!=="lista").length,stats);
- E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus==="lista").length,stats);
+ E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>!sinSector(x.c)&&x.c.legacyReviewStatus!=="lista").length,stats);
+ E("span","kha-tag good","Captaciones para llamadas: "+portfolioEntries().filter(x=>sinSector(x.c)||x.c.legacyReviewStatus==="lista").length,stats);
  const search=E("input","kha-search",undefined,page);
  search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
  const body=E("div","",undefined,page);
@@ -488,7 +488,7 @@ function listScreen(page){
   if(activeStreet&&!town.streets.has(activeStreet))activeStreet="";
   if(!activeStreet){
    for(const road of streets){
-    const ready=road.clients.filter(x=>x.c.legacyReviewStatus==="lista").length;
+    const ready=road.clients.filter(x=>sinSector(x.c)||x.c.legacyReviewStatus==="lista").length;
     const row=B("",()=>{activeTown=town.key;activeStreet=road.key;renderGroups();});
     row.className="kha-rowitem";
     const names=E("span","",undefined,row);
@@ -502,10 +502,15 @@ function listScreen(page){
    E("h3","",street?.label||"",body);
    for(const x of street?.clients||[]){
     const item=card(body,x.c.name||"Cliente sin nombre",[x.c.street||"Dirección pendiente",x.c.phone].filter(Boolean).join(" · "));
-    E("span",x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",
-      x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de completar",item);
+    E("span",sinSector(x.c)||x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",
+      sinSector(x.c)?(x.c.callStatus==="pendiente"?"Sin llamar":"Seguimiento: "+x.c.callStatus):(x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de completar"),item);
     p(item,"Año: "+(x.c.buildYear||"pendiente")+" · Superficie neta: "+(x.c.m2??"pendiente")+" m² · CTE: "+(x.c.cteZone||"pendiente"));
-    item.append(B("Abrir ficha · Catastro y datos",()=>{
+    if(sinSector(x.c)&&typeof window.konsorOpenFullUnassignedClient==="function")
+      item.append(B("Abrir ficha técnica completa",()=>{
+        const opened=window.konsorOpenFullUnassignedClient(x.c.clientUid);
+        if(opened)document.getElementById(ID)?.remove();
+      },true));
+    item.append(B("Editar datos · Catastro",()=>{
       screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
       notice="";render();
     },true));
