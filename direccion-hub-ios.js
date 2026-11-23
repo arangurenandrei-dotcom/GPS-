@@ -208,16 +208,16 @@ function openPlan(){
 }
 /* Vista nueva y legible de métricas. No presenta previsiones como cobros. */
 function analyticsRows(){
- const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission);
+ const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!window.konsorIsHistoricalOnlySector?.(z));
  const grouped=new Map();
  for(const z of zones){
   const owner=String(z.comercial||"Sin asignar");
   if(!grouped.has(owner))grouped.set(owner,{name:owner,zones:0,done:0,si:0,no:0,ausente:0,papelito:0,yaAislado:0,appointments:0,executed:0,m2Booked:0});
-  const v=grouped.get(owner),stats=z.stats||{};
+  const v=grouped.get(owner),stats=window.konsorPerformanceStats?.(z)||z.stats||{};
   v.zones++;if(z.status==="completada")v.done++;
   for(const key of ["si","no","ausente","papelito","yaAislado"])v[key]+=Math.max(0,Number(stats[key])||0);
   for(const c of z.clients||[]){
-   if(c.captacionInvalida||c.obraStatus==="no_apto")continue;
+   if(window.konsorIsHistoricalClient?.(c)||c.captacionInvalida||c.obraStatus==="no_apto")continue;
    if(["agendada","realizada"].includes(c.obraStatus)){v.appointments++;v.m2Booked+=(typeof ComercialCore!=="undefined"&&typeof ComercialCore.area==="function"?ComercialCore.area(c.m2):Number.parseFloat(String(c.m2||0).replace(",",".")))||0;}
    if(c.obraStatus==="realizada")v.executed++;
   }
@@ -236,10 +236,10 @@ function showAnalytics(mode){
  const mine=sum(team),mikel=sum(other),tot=mine;
  if(mode==="compare"){
   const mikelVisible=typeof sectoresMikelSupervision!=="undefined"&&Array.isArray(sectoresMikelSupervision)?sectoresMikelSupervision:[];
-  const ownZones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)));
+  const ownZones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!window.konsorIsHistoricalOnlySector?.(z)&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)));
   const mkZones=mikelVisible.length?mikelVisible:(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isSingleHouse&&typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial));
   const metrics=rows=>{
-   const count=key=>rows.reduce((n,z)=>n+Math.max(0,Number(z.stats?.[key])||0),0);
+   const count=key=>rows.reduce((n,z)=>n+Math.max(0,Number((window.konsorPerformanceStats?.(z)||z.stats||{})[key])||0),0);
    return {zones:rows.length,done:rows.filter(z=>z.status==="completada").length,
      si:count("si"),no:count("no"),absent:count("ausente"),info:count("papelito"),
      people:new Set(rows.map(z=>z.comercial).filter(Boolean)).size};
