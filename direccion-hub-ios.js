@@ -6,7 +6,7 @@ const button=(txt,fn)=>{const x=el("button","kd-btn",txt);x.type="button";x.oncl
 const isBoss=()=>typeof currentUserName!=="undefined"&&currentUserName==="Andrei (Jefe)"&&currentUserRole==="jefe";
 function launch(root,fn){root.classList.remove("active");if(typeof fn==="function")fn();}
 function summary(){
- const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)));
+ const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>z&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse&&!window.konsorIsHistoricalOnlySector?.(z)&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)));
  return{total:zones.length,pending:zones.filter(z=>z.status!=="completada").length,clients:zones.reduce((n,z)=>n+(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).length,0)};
 }
 function root(){
