@@ -53,23 +53,24 @@ const mainBase='88e52cdd689f3a8026f6e587f466feb28a6bfb20';
 const baseMotor=execFileSync('git',['show',mainBase+':app/legacy/comercial-app.js'],{cwd:root,encoding:'utf8',maxBuffer:10*1024*1024});
 function removeSingleFileChanges(source){
  const pairs=[
-  ['/* KONSOR_SINGLE_FILE_ACTIONS_BEGIN */','/* KONSOR_SINGLE_FILE_ACTIONS_END */'],
-  ['/* KONSOR_SINGLE_FILE_STATE_BEGIN */','/* KONSOR_SINGLE_FILE_STATE_END */'],
-  ['/* KONSOR_SINGLE_FILE_FILTER_BEGIN */','/* KONSOR_SINGLE_FILE_FILTER_END */']
+  ['KONSOR_SINGLE_FILE_ACTIONS_BEGIN','KONSOR_SINGLE_FILE_ACTIONS_END'],
+  ['KONSOR_SINGLE_FILE_STATE_BEGIN','KONSOR_SINGLE_FILE_STATE_END'],
+  ['KONSOR_SINGLE_FILE_FILTER_BEGIN','KONSOR_SINGLE_FILE_FILTER_END']
  ];
  for(const [begin,end] of pairs){
-  const a=source.indexOf(begin),b=source.indexOf(end,a+begin.length);
-  assert.ok(a>=0&&b>a,'No se ha localizado el cambio aprobado '+begin);
-  assert.equal(source.indexOf(begin,a+1),-1,'El cambio '+begin+' aparece repetido');
-  // Cada bloque tiene una nueva línea anterior y posterior.
-  source=source.slice(0,a)+source.slice(b+end.length);
+  const start='/* '+begin+' */',finish='/* '+end+' */';
+  const a=source.indexOf(start),b=source.indexOf(finish,a+start.length);
+  assert.ok(a>0&&b>a,'Falta el bloque '+begin);
+  assert.equal(source.indexOf(start,a+1),-1,'Bloque repetido '+begin);
+  const preceding=source.lastIndexOf('\n',a);
+  const following=source.indexOf('\n',b+finish.length);
+  assert.ok(preceding>=0&&following>=0);
+  source=source.slice(0,preceding)+source.slice(following);
  }
- // Restaurar exactamente el salto de línea original alrededor de cada bloque.
- source=source.replace(/\n    \n    card\.append\(title, status, detail, actions\);/,
-  '\n    card.append(title, status, detail, actions);');
- source=source.replace(/\n  \n\n  if \(c\.callStatus === 'esperando_confirmacion'\)/,
-  '\n\n  if (c.callStatus === \'esperando_confirmacion\')');
- source=source.replace(/\n    \n  \];/,'\n  ];');
+ // El único delimitador existente que pasa a tener un hermano es el
+ // último elemento del array de filtros.
+ source=source.replace("['no_apto', '🚫 No aptos'],\n  ];",
+  "['no_apto', '🚫 No aptos']\n  ];");
  return source;
 }
 assert.equal(withoutMetrics(removeSingleFileChanges(actualCommercial)),withoutMetrics(baseMotor),
