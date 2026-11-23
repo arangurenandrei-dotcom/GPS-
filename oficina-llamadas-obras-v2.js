@@ -607,30 +607,62 @@ function draw(opts={}){
    body.append(button("Acepta · Agendar obra",()=>{chosenDate=plannedChoice?.key===item.key?plannedChoice.date:clusterFocus?clusterDate:tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw({preferred:plannedChoice?.key===item.key?plannedChoice:null});},"koc-primary"));
    body.append(button("No contesta · Volver a llamar",()=>saveCall("ya_llamado"),""));
    body.append(button("Necesita pensarlo",()=>{view="waiting";draw();},""));
+   body.append(button("Programar llamada con aviso",()=>{view="waiting";draw();},"koc-quiet"));
    body.append(button("No está interesado",()=>saveCall("no_interesado"),"koc-quiet"));
   }
   body.append(button("Saltar sin modificar",next,"koc-quiet"));return;
  }
  if(view==="waiting"){
   nav(body,"Volver a la llamada",()=>{view="client";draw();});
-  title(body,"Programar seguimiento","¿Qué necesita decidir el cliente?");
+  title(body,"Recordatorio de contacto","Selecciona el día y la hora exactos para volver a llamar o escribir al cliente.");
   const form=card(body);
   e("label","","Motivo o comentario",form);
-  const note=e("textarea","koc-input",undefined,form);note.rows=3;note.placeholder="Ej.: consultarlo con su pareja";note.value=c.waitReason||"";
-  e("label","","Próxima acción en 48 horas",form);
+  const note=e("textarea","koc-input",undefined,form);note.rows=3;note.placeholder="Ej.: llamar para confirmar la obra";note.value=c.waitReason||"";
+  e("label","","Próxima acción",form);
   const type=e("select","koc-input",undefined,form);
-  [["llamar","Volver a llamar"],["whatsapp","Enviar WhatsApp"]].forEach(([v,t])=>{const op=e("option","",t,type);op.value=v;});
+  [["llamar","Llamar al cliente"],["whatsapp","Escribir WhatsApp"]].forEach(([v,t])=>{const op=e("option","",t,type);op.value=v;});
   type.value=c.waitType||"llamar";
-  form.append(button("Guardar seguimiento",async()=>{
-   if(note.value.trim().length<3){alert("Indica brevemente qué queda pendiente.");return;}
-   if(busy)return;busy=true;
-   const row=resolve();if(!row){busy=false;return;}
-   const old={...row.c},up=row.z._updatedAt;
-   Object.assign(row.c,{callStatus:"esperando_confirmacion",waitReason:note.value.trim(),waitType:type.value,statusChangedAt:Date.now(),nextContactAt:Date.now()+48*3600*1000});
-   row.c.callLog=[...(row.c.callLog||[]),{t:Date.now(),s:"esperando_confirmacion",r:row.c.waitReason}].slice(-20);
-   row.z._updatedAt=Date.now();
-   if(!await saveAndSync("comercial_custom_zones",savedZones)){Object.keys(row.c).forEach(k=>{if(!(k in old))delete row.c[k];});Object.assign(row.c,old);row.z._updatedAt=up;alert("No se ha guardado el seguimiento.");}
-   else next();busy=false;
+  const whenBox=e("div","koc-reminder-date",undefined,form);
+  const defaultDue=Number(c.nextContactAt)>Date.now()?new Date(Number(c.nextContactAt)):new Date(tomorrow()+"T10:00:00");
+  const localDate=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+  e("label","","Día del aviso",whenBox);
+  const dateInput=e("input","koc-input",undefined,whenBox);dateInput.type="date";dateInput.min=today();dateInput.value=localDate(defaultDue);
+  e("label","","Hora del aviso",whenBox);
+  const timeInput=e("input","koc-input",undefined,whenBox);timeInput.type="time";timeInput.value=String(defaultDue.getHours()).padStart(2,"0")+":"+String(defaultDue.getMinutes()).padStart(2,"0");
+  const feedback=e("p","koc-muted","El aviso se programará en KONSOR. Para recibirlo en el iPhone debes tener activadas las notificaciones de KONSOR.",form);
+  form.append(button("Guardar seguimiento y crear aviso",async()=>{
+   if(busy)return;
+   const comment=note.value.trim();
+   if(comment.length<3){feedback.textContent="Escribe el motivo del recordatorio.";return;}
+   if(!dateInput.value||!timeInput.value){feedback.textContent="Selecciona día y hora.";return;}
+   const dueAt=new Date(dateInput.value+"T"+timeInput.value+":00").getTime();
+   if(!Number.isFinite(dueAt)||dueAt<=Date.now()){feedback.textContent="El aviso debe ser para una fecha y hora futuras.";return;}
+   const row=resolve();if(!row)return;
+   if(typeof window.konsorScheduleCallReminder!=="function"){
+    feedback.textContent="El centro de notificaciones no está conectado. No se ha cambiado la ficha.";
+    return;
+   }
+   busy=true;
+   const previous={...row.c},updatedAt=row.z._updatedAt;
+   try{
+    Object.assign(row.c,{callStatus:"esperando_confirmacion",waitReason:comment,waitType:type.value,statusChangedAt:Date.now(),nextContactAt:dueAt});
+    row.c.callLog=[...(row.c.callLog||[]),{t:Date.now(),s:"esperando_confirmacion",r:comment}].slice(-20);
+    row.z._updatedAt=Date.now();
+    if(!await saveAndSync("comercial_custom_zones",savedZones))throw Error("No se ha confirmado el seguimiento en Firebase.");
+   }catch(err){
+    Object.keys(row.c).forEach(k=>{if(!(k in previous))delete row.c[k];});
+    Object.assign(row.c,previous);row.z._updatedAt=updatedAt;feedback.textContent=err.message||"No se pudo guardar.";busy=false;return;
+   }
+   try{
+    await window.konsorScheduleCallReminder({
+     title:(type.value==="llamar"?"Llamar a ":"WhatsApp a ")+(row.c.name||"Cliente"),
+     body:[comment,row.z.town,row.c.street].filter(Boolean).join(" · "),dueAt
+    });
+    busy=false;next();
+   }catch(err){
+    busy=false;feedback.textContent="Seguimiento guardado para "+dateInput.value+" "+timeInput.value+
+     ", pero el aviso NO se ha confirmado: "+(err.message||"Error")+". Revisa Avisos antes de crearlo otra vez.";
+   }
   },"koc-primary"));
   return;
  }
