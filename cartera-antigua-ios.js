@@ -14,7 +14,19 @@ const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZon
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
 const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
-window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(c=>c?.legacyPortfolio===true);
+window.konsorIsHistoricalClient=c=>inPortfolio(c);
+window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(inPortfolio);
+window.konsorPerformanceStats=z=>{
+ const raw=z?.stats||{};
+ if(!Array.isArray(z?.clients)||!z.clients.some(inPortfolio))return raw;
+ const stats={...raw};
+ const tally={si:0,no:0,ausente:0,papelito:0};
+ for(const c of z.clients)if(inPortfolio(c)&&Object.hasOwn(tally,c.captacionRespuesta))tally[c.captacionRespuesta]++;
+ for(const [field,count] of Object.entries(tally))stats[field]=Math.max(0,Number(stats[field]||0)-count);
+ stats.siContactables=Math.min(Number(stats.siContactables||0),stats.si);
+ stats.siNoContactables=Math.min(Number(stats.siNoContactables||0),stats.si);
+ return stats;
+};
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
 const net=x=>{const n=numeric(x);return n===null?null:Math.round(Math.max(0,n-5)*100)/100;};
