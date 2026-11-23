@@ -37,8 +37,11 @@ test('el selector se abre DESPUÉS del login y no se monta dentro del Inicio',()
  const chooser=ctx.body.children.find(x=>x.id==='konsorAreaChooser');
  assert.ok(chooser);assert.ok(labels(chooser).includes('¿Con qué perfil quieres entrar?'));
  const choices=flattened(chooser).filter(x=>x.className==='kdp-choice');
- assert.equal(choices.length,6);
+ assert.equal(choices.length,4);
  assert.ok(choices.some(x=>labels(x).includes('Comercial')));
+ assert.ok(!choices.some(x=>labels(x).includes('Trabajador')||labels(x).includes('Jefe de área')));
+ assert.equal(ctx.win.konsorDesigner.open('jefe'),false);
+ assert.equal(ctx.win.konsorDesigner.open('trabajador'),false);
 });
 test('el creador entra en Comercial con la sesión real y puede cambiar de área',()=>{
  const ctx=load();ctx.win.konsorDesigner.showChooser();
@@ -53,7 +56,7 @@ test('el creador entra en Comercial con la sesión real y puede cambiar de área
 });
 test('las vistas de distintos puestos reutilizan la misma estructura del Inicio',()=>{
  const ctx=load();
- for(const role of ['ceo','jefe','oficina','tecnicos','trabajador']){
+ for(const role of ['ceo','oficina','tecnicos']){
   assert.equal(ctx.win.konsorDesigner.open(role),true);
   const preview=ctx.body.children.find(x=>x.id==='konsorDesignerPreview');
   assert.ok(preview);
