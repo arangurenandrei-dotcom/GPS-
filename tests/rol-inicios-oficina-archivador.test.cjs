@@ -45,6 +45,18 @@ test('Inicio técnico una sola tarjeta; Oficina tres, con mismo armazón y contr
  assert.ok(design.includes('kdp-single-tile'));
  assert.ok(!design.includes('kdp-preview-tile'));
 });
+test('CSS premium real de Comercial aplicado también a las cuatro áreas',()=>{
+ const css=fs.readFileSync(path.join(root,'role-home-shared.css'),'utf8');
+ const original=fs.readFileSync(path.join(root,'ios-unified.css'),'utf8');
+ for(const selector of ['.cnv-home-head','.cnv-home-brand','.cnv-home-welcome','.cnv-home-hero','.cnv-home-primary','.cnv-home-grid','.cnv-tile','.cnv-home-footer']){
+  assert.ok(css.includes('#konsorDesignerPreview .cnv-home '+selector),'Falta '+selector);
+  assert.ok(original.includes('#cnvHome '+selector),'No existe origen de '+selector);
+ }
+ assert.ok(css.includes('padding:calc(env(safe-area-inset-top)'));
+ assert.ok(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'));
+ assert.ok(html.indexOf('role-home-shared.css')>html.indexOf('ios-unified.css'));
+ assert.ok(!css.includes('body.cnv-home-active #cnvHome'));
+});
 test('No hay escritura en el archivador y se carga antes del selector de áreas',()=>{
  assert.ok(html.includes('oficina-archivador.js?v=1'));
  assert.ok(html.indexOf('oficina-archivador.js')<html.indexOf('designer-role-preview.js'));
