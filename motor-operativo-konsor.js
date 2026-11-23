@@ -16,7 +16,7 @@ const zones=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?saved
 const territory=()=>zones().filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!z.isLegacyPortfolio&&myTeam(z));
 const own=()=>territory().filter(z=>z.comercial===me());
 const validClient=c=>!!c&&(c.name||c.phone||c.street);
-const clients=team=> (team?territory():own()).flatMap(z=>(z.clients||[]).filter(c=>validClient(c)&&!(c.importedCsv&&c.legacyReviewStatus!=="lista")).map(c=>({c,z})));
+const clients=team=> (team?territory():own()).flatMap(z=>(z.clients||[]).filter(c=>validClient(c)&&!((c.importedCsv||c.importedLegacy||c.legacyPortfolio||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")).map(c=>({c,z})));
 const shift=()=>typeof getTodayShift==="function"?getTodayShift(me()):null;
 const booked=c=>["agendada","realizada"].includes(c.obraStatus);
 const rejected=c=>c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
