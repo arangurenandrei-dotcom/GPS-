@@ -10210,6 +10210,10 @@ if (!routeValidateAppointment(c, ctx)) return false;
     }
 
     async function saveSingleHouseData() {
+      if(editingSingleHouseIndex!==null&&(savedZones[editingSingleHouseIndex]?.clients||[]).some(c=>c?.legacyPortfolio)){
+        alert('La ficha pertenece a Clientes antiguos. Edita sus datos desde la cartera histórica.');
+        return;
+      }
       const container = document.getElementById('singleHouseCardContainer');
       const box = container.querySelector('.client-box, .comunidad-box');
       if (!box) return;
@@ -10294,6 +10298,10 @@ const labelStreet = clientObj.street ||
     async function deleteSingleHouse(idx) {
       const z=savedZones[idx];
       if(!z?.isSingleHouse)return;
+      if((z.clients||[]).some(c=>c?.legacyPortfolio)){
+        alert('No se puede eliminar esta vivienda: su ficha está protegida en Clientes antiguos.');
+        return;
+      }
       if(currentUserRole!=='jefe'&&z.comercial!==currentUserName){
         alert('Solo puedes eliminar tus propias captaciones.');return;
       }
@@ -10315,6 +10323,7 @@ const labelStreet = clientObj.street ||
     window.konsorDeleteSectorClient=async function(zoneIndex,clientIndex){
       const zone=savedZones?.[zoneIndex],client=zone?.clients?.[clientIndex];
       if(!zone||zone.isSingleHouse||!client)return;
+      if(client.legacyPortfolio){alert('Esta ficha se gestiona desde Clientes antiguos. No se ha eliminado ningún dato.');return;}
       if(currentUserRole!=='jefe'&&zone.comercial!==currentUserName){
         alert('No tienes permiso para borrar esta ficha.');return;
       }
@@ -11579,11 +11588,15 @@ function konsorNextSectorNumber(town) {
       }
 
       if (idx === null || idx === undefined || !savedZones[idx]) return;
+      if ((savedZones[idx].clients||[]).some(c=>c?.legacyPortfolio)) {
+        alert('Este sector contiene clientes antiguos. No se puede borrar mientras conserve fichas históricas, aunque se gestionen desde otra pantalla.');
+        return;
+      }
       const zName = savedZones[idx].sectorName || savedZones[idx].town || 'Sector';
       if (confirm(`¿Seguro que quieres eliminar definitivamente "${zName}" del mapa?`)) {
-        const deletedZone = savedZones[idx];
-        savedZones.splice(idx, 1);
-        if (!await saveAndSync('comercial_custom_zones', savedZones)) return;
+        const candidate=savedZones.filter((_,i)=>i!==idx);
+        if (!await saveAndSync('comercial_custom_zones', candidate)) return;
+        savedZones=candidate;
         closeModal('dumpModal');
         closeModal('auditModal');
         renderAllSavedZones();
@@ -12986,6 +12999,12 @@ function konsorNextSectorNumber(town) {
 
     async function saveDumpData() {
       if (selectedZoneIndexToDump === null) return;
+      // La cartera histórica está anclada a la zona original en Firestore.
+      // No permitir que el editor de volcado reconstruya y sobrescriba esas fichas.
+      if ((savedZones[selectedZoneIndexToDump]?.clients||[]).some(c=>c?.legacyPortfolio)) {
+        alert('Este sector contiene clientes antiguos protegidos. Para editar sus datos, utiliza Dirección → Clientes antiguos. No se ha modificado ninguna ficha.');
+        return;
+      }
 
       const clientBoxes = document.querySelectorAll('#clientsContainer .client-box, #clientsContainer .comunidad-box');
       const siDeclarados = Math.max(0,parseInt(document.getElementById('dumpSi')?.value,10)||0);
