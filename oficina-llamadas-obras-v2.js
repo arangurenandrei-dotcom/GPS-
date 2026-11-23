@@ -5,6 +5,54 @@ const ID="konsorOfficeCallV2";
 const SLOTS=[["09:00","11:00"],["11:00","13:00"],["15:00","17:00"],["17:00","19:00"]];
 let current=null, view="list", scope="team", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
 let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null,clusterAutoSearch=false,clusterSearchSeq=0,clusterPlanNotice="";
+let independentHistorical=[],independentLoading=false,independentError="";
+async function loadIndependentHistorical(){
+ independentLoading=true;independentError="";
+ try{
+  if(typeof window.listarClientesAntiguos!=="function")throw Error("La función de consulta todavía no está desplegada.");
+  const res=await window.listarClientesAntiguos({});
+  if(res.data?.ok!==true||!Array.isArray(res.data.rows))throw Error("No se han podido verificar los clientes antiguos.");
+  independentHistorical=res.data.rows;
+ }catch(err){independentError=err.message||String(err);throw err;}
+ finally{independentLoading=false;}
+}
+function visibleIndependent(){
+ const uid=window.auth?.currentUser?.uid;
+ return independentHistorical.filter(c=>currentUserRole==="jefe"&&scope==="team"||c.ownerUid===uid);
+}
+async function markIndependent(client,status,el){
+ if(el)el.disabled=true;
+ try{
+  if(typeof window.actualizarLlamadaClienteAntiguo!=="function")throw Error("No existe la función segura de llamadas.");
+  const res=await window.actualizarLlamadaClienteAntiguo({id:client.id,rev:client.rev,status});
+  if(res.data?.ok!==true||!res.data.registro)throw Error("Firebase no confirmó la llamada.");
+  independentHistorical=independentHistorical.map(x=>x.id===client.id?res.data.registro:x);
+  draw();
+ }catch(err){alert("No se ha guardado la llamada: "+(err.message||err));if(el)el.disabled=false;}
+}
+function historicalSection(body){
+ const records=visibleIndependent(),ready=records.filter(c=>c.legacyReviewStatus==="lista"&&c.callStatus==="pendiente"&&/^[6789]\d{8}$/.test(String(c.phone||"").replace(/\D/g,""))).sort((a,b)=>norm(a.locality).localeCompare(norm(b.locality),"es")||norm(a.street).localeCompare(norm(b.street),"es"));
+ const wrap=card(body);title(wrap,"Clientes antiguos · llamadas",ready.length+" pendientes · "+records.length+" fichas independientes de sectores");
+ if(independentLoading)e("p","koc-muted","Consultando la cartera histórica…",wrap);
+ if(independentError)e("p","koc-error","No se pudo leer la cartera histórica: "+independentError,wrap);
+ const groups=new Map();
+ ready.forEach(c=>{const key=norm(c.locality)+"|"+street({c});if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);});
+ groups.forEach(list=>{
+  const first=list[0],details=e("details","koc-closed",undefined,wrap);
+  e("summary","",first.locality+" · "+first.street.replace(/\s+\d+.*$/,"")+" ("+list.length+")",details);
+  list.forEach(c=>{
+   const line=card(details);
+   e("strong","",c.name+" · "+c.street,line);
+   if(c.phone){const tel=e("a","koc-btn koc-primary","Llamar al cliente",line);tel.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
+   line.append(button("Ya llamado",function(){markIndependent(c,"ya_llamado",this);},"koc-quiet"));
+   line.append(button("Necesita seguimiento",function(){markIndependent(c,"esperando_confirmacion",this);},"koc-quiet"));
+   line.append(button("Ver ficha",()=>{document.getElementById(ID)?.classList.remove("active");window.openKonsorLegacyClient?.(c.id);},"koc-quiet"));
+  });
+ });
+ if(!ready.length&&!independentLoading)e("p","koc-muted","No hay clientes antiguos independientes por llamar. Los pendientes de completar siguen en Clientes antiguos.",wrap);
+ const postponed=records.filter(c=>c.legacyReviewStatus!=="lista").length;
+ if(postponed)e("p","koc-muted",postponed+" ficha(s) todavía pendientes de completar.",wrap);
+}
 const e=(t,c,txt,p)=>{let x=document.createElement(t);if(c)x.className=c;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
 const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.type="button";b.onclick=fn;return b;};
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
@@ -484,11 +532,11 @@ function draw(opts={}){
  if(view==="list"){
   title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
   const counts=e("div","koc-counts",undefined,body);
-  [["Fichas",items.length],["Por llamar",todo.length],["Citas y obras",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
+  [["Fichas",items.length+visibleIndependent().length],["Por llamar",todo.length+visibleIndependent().filter(c=>c.legacyReviewStatus==="lista"&&c.callStatus==="pendiente").length],["Citas y obras",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
   const controls=e("div","koc-refresh-actions",undefined,body);
   controls.append(button("Actualizar datos",async()=>{
    const note=e("p","koc-muted","Comprobando sincronización con Firebase…",body);
-   try{await window.KonsorBridge?.refresh?.();}catch(err){note.textContent="No se pudo sincronizar: "+(err.message||err);return;}
+   try{await window.KonsorBridge?.refresh?.();await loadIndependentHistorical();}catch(err){note.textContent="No se pudo sincronizar: "+(err.message||err);return;}
    draw();
   },"koc-quiet"));
   controls.append(button("Ver todas las fichas",()=>{
@@ -503,6 +551,7 @@ function draw(opts={}){
   opportunityCards(body,todo);
   const list=card(body);title(list,"Clientes pendientes",todo.length+" fichas para gestionar · Prioriza las agrupaciones");
   todo.forEach(i=>row(list,i));
+  historicalSection(body);
   if(!items.length){
     const zones=(Array.isArray(savedZones)?savedZones:[]).filter(z=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission);
     const recorded=zones.reduce((n,z)=>n+(Array.isArray(z.clients)?z.clients.length:0),0);
@@ -753,6 +802,9 @@ async function markWhatsApp(){
  const old=row.c.whatsappObraEnviadoAt;row.c.whatsappObraEnviadoAt=Date.now();row.z._updatedAt=Date.now();
  if(!await saveAndSync("comercial_custom_zones",savedZones)){row.c.whatsappObraEnviadoAt=old;alert("No se pudo guardar el envío.");}draw();busy=false;
 }
-window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";view="list";draw();};
+window.openCnCallQueue=function(){
+ clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";view="list";
+ draw();loadIndependentHistorical().then(()=>draw()).catch(()=>draw());
+};
 window.openKonsorOfficeClients=window.openCnCallQueue;
 })();
