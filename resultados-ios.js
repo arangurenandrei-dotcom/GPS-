@@ -113,11 +113,6 @@ function render(){
  const title=$("section","kr-section-title",undefined,main);
  $("h3","",scope==="team"?"Resultados del equipo":"Mi actividad",title);
  caption(title,r[0]+" — "+r[1]);
- const grid=$("div","kr-grid",undefined,main);
- stat(grid,"Captaciones",fmt(m.validas),"fichas no descartadas");
- stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
- stat(grid,"Obras agendadas",fmt(m.citas),fmt(m.m2Citas)+" m² previstos");
- stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
  // Los registros históricos no son captaciones nuevas. Se informa su stock aparte,
  // incluso cuando todavía no se ha realizado ninguna llamada o faltan datos técnicos.
  const portfolio=$("section","kr-panel",undefined,main);
@@ -151,6 +146,11 @@ function render(){
  if(historicalLoading)caption(portfolio,"Actualizando los clientes antiguos independientes desde Firebase…");
  if(historicalError)caption(portfolio,"No se ha podido comprobar la cartera independiente de Firebase: "+historicalError+". Las cifras anteriores solo incluyen los datos históricos visibles en sectores.");
 
+ const grid=$("div","kr-grid",undefined,main);
+ stat(grid,"Captaciones nuevas",fmt(m.validas),"fichas nuevas no descartadas");
+ stat(grid,"Superficie captada nueva",fmt(m.m2Captado)+" m²","excluye cartera histórica");
+ stat(grid,"Obras agendadas",fmt(m.citas),fmt(m.m2Citas)+" m² previstos");
+ stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
  const chart=$("section","kr-panel",undefined,main);
  $("h3","","Respuestas en captación",chart);
  const responseValues=[["Sí",Math.max(0,Number(m.si)||0),"#638e7a"],["No",Math.max(0,Number(m.no)||0),"#b77b7b"],["Ausentes",Math.max(0,Number(m.ausente)||0),"#a9b2bf"],["Papelitos",Math.max(0,Number(m.papelito)||0),"#7597ad"]];
