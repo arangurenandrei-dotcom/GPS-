@@ -6303,6 +6303,62 @@ function renderBossPlan() {
       return hrefMatch ? hrefMatch[1] : (rawUrl.startsWith('http') ? rawUrl : '');
     }
 
+
+    /* CartoCiudad + CTE + IDENA: API compartida con la cartera histórica.
+       El CP se resuelve por portal exacto; nunca se inventa por nombre de pueblo. */
+    window.konsorLegacyGeo = Object.freeze({
+      cte(cp,town){
+        return detectCteZoneFromCpAndTown(cp,town);
+      },
+      async postal(address,town){
+        const street=String(address||"").trim(),municipality=String(town||"").trim();
+        if(!ComercialCore.postalAddress(street)||!municipality)
+          return {status:"missing",matches:[],message:"Indica calle, número y pueblo para buscar un portal exacto."};
+        const queries=[street+", "+municipality,street+", "+municipality+", Navarra"];
+        let matches=[];
+        try{
+          for(const q of queries){
+            const candidates=await queryCartoCiudadNavarra(q,true);
+            matches=ComercialCore.postalMatches(candidates,street,municipality);
+            if(matches.length)break;
+          }
+        }catch(e){return {status:"error",matches:[],message:"CartoCiudad no responde. Comprueba la conexión o introduce el CP manualmente."};}
+        const dedup=[...new Map(matches.map(c=>[
+          String(c.cp)+"|"+String((c.localities||[]).join("|")),
+          {cp:String(c.cp),town:(c.localities||[])[0]||municipality,label:(c.localities||[]).join(" / ")+" · "+c.cp}
+        ])).values()];
+        if(!dedup.length)return {status:"missing",matches:[],message:"No se ha verificado el portal. Revisa calle y número o escribe el CP manualmente."};
+        if(dedup.length>1)return {status:"ambiguous",matches:dedup,message:"Hay varias coincidencias. Selecciona la localidad y el código postal correctos."};
+        return {status:"ok",matches:dedup,cp:dedup[0].cp,cteZone:detectCteZoneFromCpAndTown(dedup[0].cp,municipality).cteZone||""};
+      },
+      async cadastre(address,town){
+        const street=String(address||"").trim(),municipality=String(town||"").trim();
+        if(!ComercialCore.postalAddress(street)||!municipality)
+          return {status:"missing",message:"Escribe calle, número y pueblo antes de buscar Catastro."};
+        let candidates=[];
+        try{
+          candidates=await queryCartoCiudadNavarra(street+", "+municipality);
+          if(!candidates.length)candidates=await queryNominatimNavarra(street+", "+municipality);
+        }catch(e){return {status:"error",message:"No se ha podido consultar la ubicación de la vivienda."};}
+        const wanted=ComercialCore.postalAddress(street);
+        const normalized=s=>ComercialCore.norm(s).replace(/^(calle|cl|avenida|avda|paseo|plaza)\s+/,"");
+        const choices=candidates.filter(x=>{
+          const found=ComercialCore.postalAddress(x.title||"");
+          return x.isPortal&&found&&found.number===wanted.number&&
+            normalized(found.street)===normalized(wanted.street)&&
+            Number.isFinite(x.lat)&&Number.isFinite(x.lon)&&
+            (!x.town||ComercialCore.norm(x.town)===ComercialCore.norm(municipality));
+        }).slice(0,6);
+        if(!choices.length)return {status:"missing",message:"No se pudo localizar con precisión este número. Revisa la dirección; no se abrirá otra parcela por error."};
+        return {status:"ok",matches:choices.map(x=>({lat:x.lat,lon:x.lon,label:(x.title||street)+" · "+(x.town||municipality)}))};
+      },
+      async cadastreUrl(lat,lon){
+        const direct=await fetchDirectCatastroUrlForCoords(lat,lon).catch(()=>"");
+        if(/^https:\/\//i.test(direct))return {url:direct,official:true};
+        return {url:"https://idena.navarra.es/navegar/?lat="+Number(lat).toFixed(6)+"&lon="+Number(lon).toFixed(6)+"&zoom=19",official:false};
+      }
+    });
+
     async function openCadastreFromClientBox(btn) {
       const box = btn.closest('.client-box, .comunidad-box');
       const streetVal = box?.querySelector('.client-street')?.value.trim() || '';
