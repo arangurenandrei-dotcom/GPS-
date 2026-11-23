@@ -1327,7 +1327,7 @@ function openUserProfileModal() {
         ['Andrei (Jefe)','Mikel (Jefe)'].includes(currentUserName);
       const normalizeImport=s=>String(s||'').trim().normalize('NFD')
         .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
-      const allowedImportZone=z=>z&&!z.isLegacyPortfolio&&!z.isSingleHouse&&!z.isNoAptoZone&&
+      const allowedImportZone=z=>z&&!z.isLegacyPortfolio&&!z.isSingleHouse&&!z.isNoAptoZone && !z.isLegacyPortfolio&&
         isMikelTeamMember(z.comercial)===isMikelTeamMember(currentUserName)&&
         (isChief||z.comercial===currentUserName);
       window.konsorImportCsvWizard({
@@ -3538,7 +3538,7 @@ function renderGroupedAppointments() {
         groupedNode('p', `${c.street}\n${z.town}\n${getDisplayAlias(z.comercial)}`,
           cell, 'white-space:pre-line;font-size:11px;color:#cbd5e1;line-height:1.5;margin:6px 0;');
         const phone = String(c.phone || '').replace(/[^\d+]/g, '');
-        if (/^\+?\d{7,15}$/.test(phone) && state !== 'revisar') {
+        if (/^\+?\d{7,15}$/.test(phone) && !((c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")) {
           const a = groupedNode('a', '📞 Llamar', cell,
             'display:block;text-align:center;padding:9px;background:#2563eb;color:#fff;' +
             'text-decoration:none;border-radius:8px;font-size:11px;font-weight:800;margin-bottom:6px;');
@@ -3688,7 +3688,7 @@ function peopleCurrentBacklog(user) {
   savedZones.forEach(z => {
     if (
       z.comercial !== user ||
-      z.isNoAptoZone
+      z.isNoAptoZone || z.isLegacyPortfolio
     ) return;
 
     if (
@@ -4138,7 +4138,7 @@ function renderPeopleManagement() {
 
   const zones = savedZones.filter(z =>
     z.comercial === peopleSelected &&
-    !z.isNoAptoZone
+    !z.isNoAptoZone && !z.isLegacyPortfolio
   );
 
   if (peopleTab === 'zones') {
@@ -4649,7 +4649,7 @@ function teamOverviewTowns(range, phase) {
   savedZones.forEach(z => {
     if (
       !users.has(z.comercial) ||
-      z.isNoAptoZone
+      z.isNoAptoZone || z.isLegacyPortfolio
     ) return;
 
     if (inside(z.dumpDate || z.date)) {
@@ -8180,10 +8180,10 @@ function setGlobalFichaFilter(key) {
 }
 
 function managementClientState(c) {
-  if((c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")return "revisar";
   if (c.obraStatus === 'no_apto') return 'no_apto';
   if (c.obraStatus === 'realizada') return 'realizada';
   if (c.obraStatus === 'agendada') return 'agendada';
+  if((c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")return "revisar";
 
   if (c.callStatus === 'esperando_confirmacion') {
     return 'esperando';
@@ -8573,7 +8573,7 @@ function renderGlobalClientSearchResults() {
     actions.style.cssText =
       'display:flex;flex-wrap:wrap;gap:5px;';
 
-    if (isClients || !z.isNoAptoZone) {
+    if (isClients || !z.isNoAptoZone && !z.isLegacyPortfolio) {
       button(
         actions,
         isClients
@@ -9140,7 +9140,7 @@ function renderCommercialWorkDay() {
 
   const normal = mine.filter(z =>
     !z.isSingleHouse &&
-    !z.isNoAptoZone &&
+    !z.isNoAptoZone && !z.isLegacyPortfolio &&
     !z.isHotMission
   );
 
@@ -10562,7 +10562,7 @@ const labelStreet = clientObj.street ||
     }
 
 function konsorNextSectorNumber(town) {
-      const zones=savedZones.filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&
+      const zones=savedZones.filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone && !z.isLegacyPortfolio&&
         ComercialCore.norm(z.parentTown||z.town)===ComercialCore.norm(town));
       const nums=zones.map(z=>{
         const m=String(z.sectorName||'').match(/^Sector\\s+(?:.*?\\s+#)?(\\d+)(?:\\b|\\s*[·-])/i);
@@ -10754,7 +10754,7 @@ function konsorNextSectorNumber(town) {
 
       const zonas = [
         ...savedZones.filter(z =>
-          !z.isNoAptoZone &&
+          !z.isNoAptoZone && !z.isLegacyPortfolio &&
           (currentUserRole === 'jefe' ||
            z.comercial === currentUserName)
         ),
@@ -10937,7 +10937,7 @@ function konsorNextSectorNumber(town) {
             ComercialCore.norm(t)===clave
           );
 
-          const list=savedZones.filter(z=>!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&ComercialCore.norm(z.town)===clave);
+          const list=savedZones.filter(z=>!z.isSingleHouse&&!z.isNoAptoZone && !z.isLegacyPortfolio&&!z.isHotMission&&ComercialCore.norm(z.town)===clave);
           const completos=list.filter(z=>z.status==='completada').length;
           const estado=terminado||(list.length>0&&completos===list.length)?'hecho':list.some(z=>z.status==='en_proceso'||z.status==='completada')?'haciendo':'pendiente';
           const color=estado==='hecho'?'#34a479':estado==='haciendo'?'#558bd2':'#8797a9';
@@ -13813,7 +13813,7 @@ function radarTownModel(mikel, range, phase) {
   savedZones.forEach(z => {
     if (
       !users.has(z.comercial) ||
-      z.isNoAptoZone
+      z.isNoAptoZone || z.isLegacyPortfolio
     ) return;
 
     const t = get(z);
@@ -14451,7 +14451,7 @@ function personalStatsMetrics(user, from, to) {
   savedZones.forEach(z => {
     if (
       z.comercial !== user ||
-      z.isNoAptoZone
+      z.isNoAptoZone || z.isLegacyPortfolio
     ) return;
 
     if (inside(z.dumpDate || z.date)) {
@@ -16023,7 +16023,7 @@ function openCommercialStatsModalLegacy() {
       teamListOnly.forEach(com => {
         const displayAlias = typeof getDisplayAlias === 'function' ? getDisplayAlias(com) : com;
         const dayZones = savedZones.filter(z => {
-          if (z.comercial !== com || z.isSingleHouse || z.isHotMission || z.isNoAptoZone) return false;
+          if (z.comercial !== com || z.isSingleHouse || z.isHotMission || z.isNoAptoZone || z.isLegacyPortfolio) return false;
           if (z.date === selectedDate || z.dumpDate === selectedDate) return true;
           if (selectedDate === getTodayISO() && z.status !== 'completada' && z.date <= selectedDate) return true;
           return false;
@@ -16817,7 +16817,7 @@ function openCommercialStatsModalLegacy() {
       // Resumen territorial conjunto sin duplicar ni modificar sectores.
       if (currentUserName === 'Andrei (Jefe)') {
         const territorios = new Map();
-        const propios = savedZones.filter(z=>!z.isNoAptoZone);
+        const propios = savedZones.filter(z=>!z.isNoAptoZone && !z.isLegacyPortfolio);
         const externos = sectoresMikelSupervision.filter(z=>
           Array.isArray(z.points) && z.points.length>=3
         );
@@ -16977,7 +16977,7 @@ function openCommercialStatsModalLegacy() {
       const actual=completedTowns.includes(townName);
       const sectores=[
         ...savedZones.filter(z=>
-          !z.isNoAptoZone &&
+          !z.isNoAptoZone && !z.isLegacyPortfolio &&
           ComercialCore.norm(z.town)===ComercialCore.norm(townName)
         ),
         ...sectoresMikelSupervision.filter(z=>
