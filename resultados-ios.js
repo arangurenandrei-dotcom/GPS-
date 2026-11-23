@@ -9,7 +9,8 @@ async function loadHistorical(){
  if(historicalUserUid!==uid){historicalIndependent=[];historicalUserUid=uid;}
  historicalLoading=true;historicalError="";
  try{
-  if(!uid||typeof window.listarClientesAntiguos!=="function")throw Error("La consulta de clientes antiguos no está disponible.");
+  if(!uid)throw Error("Inicia sesión para consultar clientes antiguos.");
+  if(typeof window.listarClientesAntiguos!=="function"){historicalIndependent=[];return;}
   const r=await window.listarClientesAntiguos({});
   if(r.data?.ok!==true||!Array.isArray(r.data.rows))throw Error("Firebase no ha confirmado la cartera.");
   if(token!==historicalRequest||window.auth?.currentUser?.uid!==uid)return;
@@ -143,6 +144,7 @@ function render(){
    });
   }
  }
+ if(typeof window.listarClientesAntiguos!=="function")caption(portfolio,"La lectura de fichas independientes de sectores todavía no está activada en esta versión.");
  if(historicalLoading)caption(portfolio,"Actualizando los clientes antiguos independientes desde Firebase…");
  if(historicalError)caption(portfolio,"No se ha podido comprobar la cartera independiente de Firebase: "+historicalError+". Las cifras anteriores solo incluyen los datos históricos visibles en sectores.");
 
