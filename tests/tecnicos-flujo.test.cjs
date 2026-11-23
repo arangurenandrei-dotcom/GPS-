@@ -71,3 +71,16 @@ test('la vista real es navegación de solo lectura y mantiene el selector común
  assert.ok(html.indexOf(paths[0])<html.indexOf(paths[1]));
  assert.ok(html.indexOf(paths[1])<html.indexOf(paths[2]));
 });
+
+test('Técnicos avisa de citas registradas sin fecha o equipo en vez de decir que no hay ninguna',()=>{
+ const zones=[{id:'z1',comercial:'Andrei (Jefe)',town:'Ayegui',clients:[
+  {clientUid:'f_a',name:'Ana',street:'Mayor 1',obraStatus:'agendada'},
+  {clientUid:'f_b',name:'Asun',street:'Mayor 2',obraStatus:'agendada',obraDate:'2026-12-03'},
+  {clientUid:'f_c',name:'Pablo',street:'Mayor 3',obraStatus:'a_poner'}
+ ]}];
+ const pending=flow.pendingVerification(zones);
+ assert.equal(pending.length,2);
+ assert.equal(pending[0].reason,'Fecha sin verificar');
+ assert.equal(pending[1].reason,'Equipo sin asignar');
+ assert.equal(flow.entries(zones).length,1);
+});
