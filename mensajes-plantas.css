@@ -23,3 +23,6 @@ textarea.kpm-field{min-height:86px;resize:vertical}
 .kpm-actions{display:flex;gap:9px;flex-wrap:wrap}
 .kpm-actions .kpm-button{flex:1;min-width:145px}
 @media(max-width:600px){.kpm-page{width:100%;max-height:100dvh;height:100dvh;border:0;border-radius:0}.kpm-header{padding-top:calc(17px + env(safe-area-inset-top))}.kpm-body{padding-bottom:calc(20px + env(safe-area-inset-bottom))}}
+
+#cnvHome .cnv-plant-messages-link{display:block;width:100%;max-width:640px;box-sizing:border-box;margin:1px auto 0;min-height:47px;border-radius:16px;border:1px solid rgba(213,225,239,.95);background:rgba(255,255,255,.8);box-shadow:0 5px 18px rgba(31,51,70,.045);color:#324d68;font:inherit;font-size:13px;font-weight:720;text-align:center}
+#cnvHome .cnv-plant-messages-link:active{transform:scale(.99)}
