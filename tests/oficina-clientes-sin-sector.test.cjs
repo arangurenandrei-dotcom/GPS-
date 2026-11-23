@@ -24,7 +24,7 @@ function zone(id,n,legacy=false){
 test('Oficina reconoce las 37 fichas sin atribuirles sectores territoriales',()=>{
  const ctx={savedZones:[zone('a',20),zone('b',17,true)],currentUserName:'Andrei (Jefe)',
   currentUserRole:'jefe',window:{konsorIsHistoricalOnlySector:()=>false}};
- const setup='const zones=()=>savedZones;const me=()=>currentUserName;const isMikel=n=>String(n||"").startsWith("Mikel");const myTeam=z=>isMikel(z.comercial)===isMikel(me());const validClient=c=>!!c&&(c.name||c.phone||c.street);';
+ const setup='const zones=()=>savedZones;const me=()=>currentUserName;const isMikel=n=>String(n||"").startsWith("Mikel");const myTeam=z=>isMikel(z.comercial)===isMikel(me());';
  const segment=part(motor,'const territory=','const shift=');
  vm.runInNewContext(setup+segment+'this.counts=[clients(false).length,territory().length];',ctx);
  assert.equal(ctx.counts[0],37);
