@@ -39,6 +39,22 @@ function entries(zones,owner){
  }
  return result.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)||String(a.team).localeCompare(String(b.team)));
 }
+function pendingVerification(zones,owner){
+ const result=[],seen=new Set();
+ for(const z of Array.isArray(zones)?zones:[]){
+  if(!z||z.isNoAptoZone||z.isHotMission||typeof owner==="function"&&!owner(z))continue;
+  for(const [index,c] of (Array.isArray(z.clients)?z.clients:[]).entries()){
+   if(!c||!["agendada","agendada_historica"].includes(c.obraStatus)||validJob(c)&&Number(c.obraEquipoInstalacion)>0)continue;
+   const id=trim(c.clientUid)||"z_"+z.id+"_"+index;
+   if(seen.has(id))continue;seen.add(id);
+   result.push({id,zoneId:String(z.id),name:trim(c.name)||"Titular pendiente",
+    location:trim(z.town||c.locality)||"Municipio pendiente",
+    street:trim(c.street)||"Dirección pendiente",
+    reason:!dated(c.obraDate)?"Fecha sin verificar":!Number(c.obraEquipoInstalacion)?"Equipo sin asignar":"Revisar reserva"});
+  }
+ }
+ return result;
+}
 function steps(job){
  if(!job)return [];
  const list=[
@@ -57,5 +73,5 @@ function recommend(rows,today){
  return {jobs:rows.length,scheduled:active.length,completed:rows.filter(x=>x.code==="realizada").length,
   withoutTeam:active.filter(x=>!x.team).length,next};
 }
-root.KonsorTechnicalFlow=Object.freeze({entries,steps,recommend,validJob});
+root.KonsorTechnicalFlow=Object.freeze({entries,steps,recommend,validJob,pendingVerification});
 })(window);

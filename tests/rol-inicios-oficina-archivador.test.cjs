@@ -65,7 +65,7 @@ test('No hay escritura en el archivador y se carga antes del selector de áreas'
  for(const s of ['saveAndSync(','KonsorBridge.save(','localStorage.setItem(','fetch('])assert.ok(!archiveSrc.includes(s),s);
 });
 
-test('Total leads incluye contactos no agendados; Nuevos exige cita con fecha',()=>{
+test('Total leads incluye todos; Nuevos incluye citas registradas y señala fechas pendientes',()=>{
  const zones=[{id:'of1',town:'Ayegui',clients:[
   {clientUid:'f1',name:'Pendiente',phone:'600111111',obraStatus:'a_poner'},
   {clientUid:'f2',name:'Con cita',phone:'600222222',obraStatus:'agendada',obraDate:'2026-11-28',obraTime:'11:00',obraEquipoInstalacion:2},
@@ -73,8 +73,25 @@ test('Total leads incluye contactos no agendados; Nuevos exige cita con fecha',(
  ]}];
  const rows=a.clients(zones);
  assert.equal(rows.filter(x=>a.belongs(x,'total_leads')).length,3);
- assert.equal(rows.filter(x=>a.belongs(x,'nuevos')).length,1);
+ assert.equal(rows.filter(x=>a.belongs(x,'nuevos')).length,2);
+ assert.equal(rows.filter(x=>x.scheduled).length,1);
+ assert.equal(rows.filter(x=>x.bookingNeedsReview).length,1);
  assert.ok(a.displayDate(rows[1]).includes('11:00'));
  assert.ok(a.displayDate(rows[1]).includes('Equipo 2'));
  assert.ok(a.displayDate(rows[0]).includes('Sin cita'));
+});
+
+test('Las citas marcadas en Firebase no desaparecen al faltar fecha: se identifican para verificar Calendar',()=>{
+ const z=[{id:'z1',town:'Ayegui',clients:[
+  {clientUid:'uno',name:'Cita uno',obraStatus:'agendada',street:'Calle Mayor 2'},
+  {clientUid:'dos',name:'Cita dos',obraStatus:'agendada',obraDate:'no verificada',street:'Calle Mayor 4'},
+  {clientUid:'tres',name:'Por llamar',obraStatus:'a_poner',street:'Calle Mayor 6'}
+ ]}];
+ const rows=a.clients(z);
+ assert.equal(rows.filter(x=>a.belongs(x,'nuevos')).length,2);
+ assert.equal(rows.filter(x=>a.belongs(x,'total_leads')).length,3);
+ assert.ok(rows.find(x=>x.id==='uno').bookingNeedsReview);
+ assert.ok(a.displayDate(rows[0]).includes('verificar'));
+ assert.equal(a.scheduled(z[0].clients[0]),false);
+ assert.equal(a.stage(z[0].clients[2]),'total_leads');
 });
