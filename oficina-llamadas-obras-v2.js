@@ -12,7 +12,37 @@ const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+
 const tomorrow=()=>{const d=new Date();d.setDate(d.getDate()+1);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
 const owns=z=>z&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial))&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName))&&(z.comercial===currentUserName||(currentUserRole==="jefe"&&scope==="team"));
 const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phone||"").trim()||String(c.street||"").trim());
-function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
+function rawRows(){
+ return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?
+ (z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]);
+}
+function duplicateKey(i){
+ // No se identifican personas por su nombre: dos "Alfonso" pueden ser distintos.
+ const p=String(i.c.phone||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,"");
+ const normalize=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+ const town=normalize(i.z.town||i.c.locality),address=normalize(i.c.street);
+ return /^[6789]\d{8}$/.test(p)&&town&&address?p+"|"+town+"|"+address:null;
+}
+function duplicateGroups(){
+ const map=new Map();
+ for(const i of rawRows()){const key=duplicateKey(i);if(!key)continue;if(!map.has(key))map.set(key,[]);map.get(key).push(i);}
+ return [...map.values()].filter(x=>x.length>1);
+}
+function all(){
+ const result=[],groups=new Map();
+ for(const i of rawRows()){
+  const key=duplicateKey(i);
+  if(!key){result.push(i);continue;}
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(i);
+ }
+ for(const entries of groups.values()){
+  // Una cita confirmada prevalece sobre la copia sin llamar.
+  entries.sort((a,b)=>Number(booked(b))-Number(booked(a))||Number(b.c.updatedAt||0)-Number(a.c.updatedAt||0)||a.zi-b.zi);
+  result.push(entries[0]);
+ }
+ return result.sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);
+}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
 // La revisión técnica no debe impedir la PRIMERA llamada a un captado en puerta.
@@ -492,7 +522,16 @@ function draw(opts={}){
   title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
   const counts=e("div","koc-counts",undefined,body);
   [["Fichas",items.length],["Por llamar",todo.length],["Citas y obras",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
-  const controls=e("div","koc-refresh-actions",undefined,body);
+  const duplicates=duplicateGroups();
+ if(duplicates.length){
+  const note=card(body);title(note,"Posibles fichas duplicadas",duplicates.length+" coincidencia(s) con mismo teléfono, municipio y dirección. Ninguna ficha se ha borrado.");
+  duplicates.slice(0,10).forEach(group=>{
+   e("p","koc-muted",(group[0].c.name||"Cliente")+" · "+group[0].c.street+" · "+group[0].z.town+
+    (group.some(booked)?" · Ya hay una cita confirmada":" · Revisa las fichas"),note);
+  });
+  note.append(button("Revisar posibles duplicados",()=>{r.classList.remove("active");window.openCnClients?.();},"koc-quiet"));
+ }
+ const controls=e("div","koc-refresh-actions",undefined,body);
   controls.append(button("Actualizar datos",async()=>{
    const note=e("p","koc-muted","Comprobando sincronización con Firebase…",body);
    try{await window.KonsorBridge?.refresh?.();}catch(err){note.textContent="No se pudo sincronizar: "+(err.message||err);return;}
