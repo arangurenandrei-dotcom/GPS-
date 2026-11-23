@@ -26,6 +26,11 @@ function metric(parent,title,num){
 }
 function render(container){
  if(!container)return;
+ if(window.KonsorGuidedDesign?.office){
+  window.KonsorGuidedDesign.office(container);
+  return;
+ }
+ if(!container)return;
  container.querySelector("#konsorOfficeLive")?.remove();
  const panel=add("section","ktf-wrapper",undefined,container);panel.id="konsorOfficeLive";
  const title=add("div","cnv-group-label",undefined,panel);

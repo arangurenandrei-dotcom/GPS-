@@ -1,0 +1,20 @@
+/* KONSOR · Recorridos de Técnicos y Oficina, visual equivalente al Inicio Comercial. */
+.kg-root{margin:18px 0 24px;color:#27384d}.kg-root *{box-sizing:border-box}
+.kg-kicker{display:block;color:#8797aa;font-size:10px;letter-spacing:.14em;font-weight:800}
+.kg-root>h2{font-size:20px;line-height:1.25;margin:8px 0 6px;letter-spacing:-.03em}
+.kg-root>.kg-help{font-size:13px;margin:0 0 15px}.kg-root .kg-warning{font-size:11px;line-height:1.55;border:1px solid #dbe6f0;background:#edf3f8;border-radius:13px;padding:12px;color:#576c86;margin:13px 0 19px}
+.kg-card{margin:13px 0;padding:18px;border:1px solid #dfe5ed;background:#fff;border-radius:22px;box-shadow:0 4px 20px rgba(45,63,85,.035)}
+.kg-card h3{margin:0 0 7px;font-size:16px;font-weight:750;line-height:1.35}.kg-help{font-size:12px;line-height:1.55;color:#7e8fa2;margin:7px 0 12px}
+.kg-step{padding:10px 0;font-size:13px;line-height:1.5;color:#435975;border-bottom:1px solid #edf1f5}
+.kg-step:last-child{border-bottom:0}
+.kg-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.kg-button{border:0;border-radius:14px;font:inherit;font-size:12px;font-weight:720;padding:12px 14px;min-height:43px;cursor:pointer;max-width:100%;text-align:center}
+.kg-primary{background:#243d56;color:#fff;width:100%;margin:8px 0 4px}
+.kg-light{background:#f0f4f9;border:1px solid #dbe4ee;color:#39526e}
+.kg-selected{background:#dce8f6;border:1px solid #b9cee5;color:#254362}
+.kg-field{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:700;color:#465c78;margin:14px 0}
+.kg-field textarea{font:inherit;font-weight:400;resize:vertical;width:100%;min-height:88px;border:1px solid #dce4ed;border-radius:13px;padding:12px;background:#f7f9fc;color:#263b51;outline-offset:2px}
+.kg-upload{display:block;padding:14px;border:1px dashed #b7c8dc;border-radius:14px;background:#f7f9fc;margin:10px 0;color:#3f5670;font-size:12px;font-weight:700}
+.kg-upload input{display:block;max-width:100%;margin-top:8px;font-size:12px;color:#53687e}
+.kg-body{padding-bottom:14px}.kg-button:focus-visible,.kg-field textarea:focus-visible{outline:3px solid #9ac1eb;outline-offset:2px}
+@media(max-width:400px){.kg-card{padding:14px}.kg-actions{gap:6px}.kg-button{font-size:11px;padding:11px}}
