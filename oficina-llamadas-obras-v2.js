@@ -478,7 +478,8 @@ function draw(opts={}){
  const r=root();r.classList.add("active");const body=r.querySelector(".koc-body");body.replaceChildren();
  const items=all(),todo=items.filter(callable),scheduled=items.filter(booked);
  const deferred=items.filter(i=>complete(i)&&pending(i)&&!callable(i));
- const incomplete=items.filter(i=>!complete(i));
+ const incomplete=items.filter(i=>!complete(i)&&!legacyNeedsReview(i.c));
+ const historicWaiting=items.filter(i=>legacyNeedsReview(i.c));
  if(view==="group"){renderGroup(body);return;}
  if(view==="list"){
   title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
@@ -526,8 +527,10 @@ function draw(opts={}){
       },"koc-quiet"));
     });
   }
+  if(historicWaiting.length){const block=card(body);title(block,"Clientes antiguos por revisar",historicWaiting.length+" fichas históricas no activadas para llamadas.");block.append(button("Recuperar o completar clientes antiguos",()=>{r.classList.remove("active");window.openKonsorLegacyPortfolio?.();},"koc-primary"));}
   if(deferred.length){const waits=e("details","koc-closed",undefined,body);e("summary","","Seguimientos futuros ("+deferred.length+")",waits);deferred.forEach(i=>row(waits,i));}
-  const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+items.filter(i=>!pending(i)).length+")",details);items.filter(i=>!pending(i)).forEach(i=>row(details,i));
+  const managed=items.filter(i=>!pending(i)&&!legacyNeedsReview(i.c));
+  const details=e("details","koc-closed",undefined,body);e("summary","","Gestionados ("+managed.length+")",details);managed.forEach(i=>row(details,i));
   return;
  }
  const item=resolve();if(!item){view="list";current=null;draw();return;}
