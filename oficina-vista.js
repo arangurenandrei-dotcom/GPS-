@@ -32,6 +32,10 @@ function render(container){
  const title=add("div","cnv-group-label",undefined,panel);
  add("strong","","EXPEDIENTES DE OFICINA",title);
  add("span","","Revisión guiada",title);
+ const agenda=document.createElement("button");
+ agenda.className="ktf-open-agenda";agenda.type="button";agenda.textContent="Gestionar llamadas y citas";
+ agenda.onclick=()=>{window.openCnCallQueue?.();};
+ panel.append(agenda);
  const list=rows();
  if(list===null){
   add("p","ktf-notice","Conectando con las fichas de Firebase. No se han creado expedientes de ejemplo.",panel);
