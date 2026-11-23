@@ -15,15 +15,21 @@ const isoOf=ms=>ms?localISO(new Date(Number(ms))):"";
 const zones=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
 const territory=()=>zones().filter(z=>z&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&!z.isLegacyPortfolio&&!window.konsorIsHistoricalOnlySector?.(z)&&myTeam(z));
 const own=()=>territory().filter(z=>z.comercial===me());
+// Una ficha individual no se cuenta como sector, pero sí como cliente.
+const workZones=team=>zones().filter(z=>z&&!z.isNoAptoZone&&!z.isHotMission&&
+ myTeam(z)&&(team||z.comercial===me()));
 const validClient=c=>!!c&&(c.name||c.phone||c.street);
-const clients=team=> (team?territory():own()).flatMap(z=>(z.clients||[]).filter(c=>validClient(c)&&!((c.importedCsv||c.importedLegacy||c.legacyPortfolio||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")).map(c=>({c,z})));
+const clients=team=>workZones(team).flatMap(z=>(z.clients||[]).filter(validClient).map(c=>({c,z})));
 const shift=()=>typeof getTodayShift==="function"?getTodayShift(me()):null;
 const booked=c=>["agendada","realizada"].includes(c.obraStatus);
 const rejected=c=>c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
 const isContact=c=>!c.captacionRespuesta||c.captacionRespuesta==="si";
-const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!c.phone?.trim()||!!c.captacionInvalida);
+const validPhone=c=>/^[6789]\d{8}$/.test(String(c.phone||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,""));
+const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!validPhone(c)||!!c.captacionInvalida);
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
-const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
+const dueCall=c=>isContact(c)&&!booked(c)&&!rejected(c)&&!incomplete(c)&&
+  (!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now())&&
+  (["","pendiente","bloqueada","pendiente_visita"].includes(c.callStatus||"")||waitDue(c));
 const unfinished=z=>!window.konsorIsHistoricalOnlySector?.(z)&&z.precheck?.sectorStatus!=="no_apto"&&z.status!=="completada"&&!z.streetCompletedAt;
 const pendingDump=z=>!window.konsorIsHistoricalOnlySector?.(z)&&((!!z.streetCompletedAt&&!z.dumpDate)||
  (!z.streetStartedAt&&z.status==="en_proceso"&&z.date&&z.date<today()&&!z.dumpDate&&
@@ -133,7 +139,7 @@ function officeState(){
  const calls=cc.filter(({c})=>dueCall(c)&&!waitDue(c));
  const deferred=cc.filter(({c})=>isContact(c)&&!booked(c)&&!rejected(c)&&Number(c.nextContactAt)>Date.now());
  const town=new Map();
- for(const z of list){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(window.konsorPerformanceStats?.(z)?.si??z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
+ for(const z of workZones(false)){const n=z.town||"Pueblo sin indicar";if(!town.has(n))town.set(n,{name:n,yes:0,booked:0,waiting:0});const o=town.get(n);o.yes+=Math.max(0,Number(window.konsorPerformanceStats?.(z)?.si??z.stats?.si)||0);for(const c of z.clients||[]){if(booked(c))o.booked++;else if(c.callStatus==="esperando_confirmacion")o.waiting++;}}
  return {pending,needFix,waits,calls,deferred,cc,town:[...town.values()]};
 }
 async function leagueSummary(){

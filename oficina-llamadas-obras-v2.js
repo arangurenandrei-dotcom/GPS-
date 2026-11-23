@@ -14,9 +14,15 @@ const valid=c=>c&&typeof c==="object"&&(String(c.name||"").trim()||String(c.phon
 function all(){return (Array.isArray(savedZones)?savedZones:[]).flatMap((z,zi)=>owns(z)&&!z.isNoAptoZone&&!z.isHotMission?(z.clients||[]).flatMap((c,ci)=>valid(c)?[{z,c,zi,ci,key:String(z.id)+":"+String(c.clientUid||ci),date:z.dumpDate||z.date||""}]:[]):[]).sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);}
 const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
+// La revisión técnica no debe impedir la PRIMERA llamada a un captado en puerta.
+// El estado de llamada es independiente del año, m² y zona CTE.
 const legacyNeedsReview=c=>!!(c?.importedCsv||c?.importedLegacy||c?.legacyReviewStatus)&&c.legacyReviewStatus!=="lista";
-const pending=i=>!legacyNeedsReview(i.c)&&!done(i)&&i.c.obraStatus!=="no_apto"&&!["no","ausente","papelito"].includes(i.c.captacionRespuesta);
-const complete=i=>!!(i&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim())&&!i.c.captacionInvalida);
+const pending=i=>!done(i)&&i.c.obraStatus!=="no_apto"&&
+ !["no","ausente","papelito"].includes(i.c.captacionRespuesta)&&
+ (["","pendiente","bloqueada","pendiente_visita"].includes(i.c.callStatus||"")||
+  (i.c.callStatus==="esperando_confirmacion"&&Number(i.c.nextContactAt)<=Date.now()));
+const complete=i=>!!(i&&[i.c.name,i.c.street,i.c.phone,i.z.town].every(v=>String(v||"").trim())&&
+ /^[6789]\d{8}$/.test(String(i.c.phone||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,""))&&!i.c.captacionInvalida);
 const callable=i=>complete(i)&&pending(i)&&(!Number(i.c.nextContactAt)||Number(i.c.nextContactAt)<=Date.now());
 
 /* Las oportunidades son recomendaciones, nunca reservas. Solo se usan datos del equipo visible. */
@@ -478,8 +484,8 @@ function draw(opts={}){
  const r=root();r.classList.add("active");const body=r.querySelector(".koc-body");body.replaceChildren();
  const items=all(),todo=items.filter(callable),scheduled=items.filter(booked);
  const deferred=items.filter(i=>complete(i)&&pending(i)&&!callable(i));
- const incomplete=items.filter(i=>!complete(i)&&!legacyNeedsReview(i.c));
- const historicWaiting=items.filter(i=>legacyNeedsReview(i.c));
+ const incomplete=items.filter(i=>pending(i)&&!complete(i));
+ const historicWaiting=items.filter(i=>legacyNeedsReview(i.c)&&!complete(i));
  if(view==="group"){renderGroup(body);return;}
  if(view==="list"){
   title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
