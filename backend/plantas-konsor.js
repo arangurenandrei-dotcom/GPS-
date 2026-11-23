@@ -14,7 +14,7 @@ const allowedId=x=>/^[a-zA-Z0-9_-]{4,160}$/.test(trim(x));
 const dueValid=d=>d===null||(Number.isSafeInteger(d)&&d>Date.now()-60000&&d<Date.now()+366*86400000);
 const taskRef=id=>getFirestore().collection('konsor_plant_tasks').doc(id);
 const isOwner=k=>k==='jefe';
-const asPlant=k=>isOwner(k)?'ceo':/^oficina(?:[_-]|$)/.test(k)?'oficina':/^tecnic(?:o|os)?(?:[_-]|$)/.test(k)?'tecnicos':/^comercial\d+$/.test(k)?'comercial':null;
+const asPlant=k=>isOwner(k)?'ceo':/^oficina(?:\\d+|[_-][a-z0-9_-]+)?$/.test(k)?'oficina':/^tecnicos(?:\\d+|[_-][a-z0-9_-]+)?$/.test(k)?'tecnicos':/^comercial\\d+$/.test(k)?'comercial':null;
 async function identity(req){
  const uid=req.auth?.uid;if(!uid)invalid('Inicia sesión.','unauthenticated');
  const snap=await getFirestore().doc('usuarios/'+uid).get(),p=snap.data();
