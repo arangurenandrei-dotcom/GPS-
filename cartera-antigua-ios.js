@@ -216,7 +216,7 @@ function moveScreen(page){
  if(!list.length)p(box,"No se encontraron importaciones antiguas pendientes. Puedes mostrar las fichas manuales.");
  list.forEach(x=>{
   const label=E("label","kha-choose",undefined,box),input=E("input","",undefined,label);input.type="checkbox";input.checked=selection.has(key(x));
-  input.onchange=()=>{input.checked?selection.add(key(x)):selection.delete(key(x));count.textContent=selection.size+" seleccionadas · "+rows.length+" disponibles";};
+  input.onchange=()=>{input.checked?selection.add(key(x)):selection.delete(key(x));count.textContent=selection.size+" seleccionadas · "+rows.length+" disponibles";moveBtn.disabled=!selection.size||syncState().kind!=="ready";};
   const desc=E("span","",undefined,label);E("strong","",x.c.name||x.c.street||"Sin nombre",desc);
   p(desc,[x.z.town,x.z.sectorName,x.c.phone,x.detected?"CSV":"Manual"].filter(Boolean).join(" · "));
  });
