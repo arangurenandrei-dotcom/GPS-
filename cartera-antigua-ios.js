@@ -14,6 +14,7 @@ const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZon
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
 const inPortfolio=c=>!!c?.legacyPortfolio||!!c?.isLegacyClient;
+window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(c=>c?.legacyPortfolio===true);
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
 const net=x=>{const n=numeric(x);return n===null?null:Math.round(Math.max(0,n-5)*100)/100;};
@@ -265,4 +266,9 @@ function render(){
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
 window.openKonsorLegacyPortfolio=function(){screen="list";query="";notice="";render();};
+window.openKonsorLegacyClient=function(clientUid){
+ const entry=portfolioEntries().find(x=>String(x.c.clientUid)===String(clientUid));
+ if(!entry){screen="list";notice="La ficha antigua no se encuentra; actualiza la lista.";render();return;}
+ screen="edit";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();
+};
 })();
