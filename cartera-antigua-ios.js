@@ -1,4 +1,4 @@
-/* KONSOR: Cartera histórica sin geografía. Traslado de fichas únicamente con confirmación. */
+/* KONSOR: cartera histórica virtual. Se conserva cada ficha en su zona de Firebase. */
 (function(){
 "use strict";
 if(window.openKonsorLegacyPortfolio)return;
@@ -13,6 +13,7 @@ const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial=
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
 const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
 const isPort=z=>!!z?.isLegacyPortfolio;
+const inPortfolio=c=>!!c?.legacyPortfolio||!!c?.isLegacyClient;
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
 const net=x=>{const n=numeric(x);return n===null?null:Math.round(Math.max(0,n-5)*100)/100;};
@@ -40,12 +41,10 @@ function start(){
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
 function card(parent,title,desc){const c=E("section","kha-card",undefined,parent);E("h3","",title,c);if(desc)p(c,desc);return c;}
 function buttons(parent){return E("div","kha-actions",undefined,parent);}
-function portZones(candidate,owner,town){
- const id=portId(owner,town);
- let z=candidate.find(x=>isPort(x)&&x.id===id);
- if(!z){z={id,isLegacyPortfolio:true,comercial:owner,town,sectorName:"Cartera histórica",points:[],
-  status:"completada",date:"",clients:[],stats:{si:0,no:0,ausente:0,papelito:0},createdAt:Date.now(),_updatedAt:Date.now()};candidate.push(z);}
- return z;
+function existingZone(candidate,owner,town){
+ // Se reutiliza una zona válida del propio responsable: no se crea otra zona en Firebase.
+ return candidate.find(z=>z&&!isPort(z)&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&
+   z.comercial===owner&&N(z.town)===N(town))||null;
 }
 function syncState(){
  const bridge=window.KonsorBridge;
@@ -61,18 +60,21 @@ async function commit(candidate){
  const check=syncState();
  if(check.kind!=="ready")throw Error(check.message);
  // Validar ANTES de enviar: el servidor rechaza IDs con %, espacios o caracteres fuera de ASCII.
- const invalid=candidate.find(z=>z?.isLegacyPortfolio&&!/^[a-zA-Z0-9_-]{1,100}$/.test(String(z.id||"")));
- if(invalid)throw Error("La cartera tiene un identificador no admitido. No se ha modificado ningún cliente.");
+ // El CRM histórico solo modifica fichas dentro de zonas que el servidor ya conoce.
+ // Nunca se crean contenedores virtuales ni se trasladan fichas a un ID de zona nuevo.
+ const previous=zs(),originalIds=new Set(previous.map(z=>String(z.id)));
+ if(candidate.length!==previous.length||candidate.some(z=>!originalIds.has(String(z.id))))
+  throw Error("Se ha detectado un intento de crear una zona. Operación cancelada por seguridad.");
  await window.KonsorBridge.save("comercial_custom_zones",candidate);
  savedZones=candidate;
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
 }
 function portfolioEntries(){
- const out=[];zs().forEach((z,zi)=>{if(!isPort(z)||!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c))out.push({z,zi,c,ci});});});
+ const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)))out.push({z,zi,c,ci});});});
  return out.sort((a,b)=>(a.c.legacyReviewStatus==="lista")-(b.c.legacyReviewStatus==="lista")||String(a.z.town).localeCompare(String(b.z.town),"es"));
 }
 function sourceEntries(){
- const out=[];zs().forEach((z,zi)=>{if(isPort(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
+ const out=[];zs().forEach((z,zi)=>{if(isPort(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
 }
 function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImportKey||[x.c.name,x.c.street,x.c.phone,x.ci].join("|"));}
 function showBackup(selected){
@@ -83,33 +85,30 @@ function showBackup(selected){
 async function migrate(){
  const chosen=sourceEntries().filter(x=>selection.has(key(x)));
  if(!chosen.length)return;
- if(!confirm("¿Mover "+chosen.length+" fichas de sus sectores a Clientes antiguos? Se conservarán los datos y se bloquearán sus llamadas hasta completar cada ficha. No se borrarán los sectores."))return;
- const candidate=structuredClone(zs()),bySource=new Map(),seen=new Set();
+ if(!confirm("¿Organizar "+chosen.length+" fichas en Clientes antiguos? No se borrarán ni cambiarán de zona en Firebase. Desaparecerán de la lista de pendientes de traslado y quedarán bloqueadas para llamadas hasta que las revises."))return;
+ const candidate=structuredClone(zs());
+ let changed=0;
  for(const x of chosen){
   const z=candidate[x.zi],c=z?.clients?.[x.ci];
-  if(!z||!c||!access(z)||isPort(z))throw Error("Las fichas han cambiado. Reabre esta pantalla.");
-  const town=String(c.locality||z.town||"").trim()||"Localidad pendiente";
-  const destination=portZones(candidate,z.comercial||current(),town);
-  const token=String(c.clientUid||c.konsorImportKey||[c.name,c.street,c.phone].join("|"));
-  const duplicate=destination.clients.some(old=>String(old.clientUid||old.konsorImportKey||[old.name,old.street,old.phone].join("|"))===token);
-  if(duplicate||seen.has(destination.id+"|"+token))throw Error("Posible duplicado en "+town+": "+(c.name||c.street)+". Nada se ha movido.");
-  seen.add(destination.id+"|"+token);
-  destination.clients.push({...c,clientUid:c.clientUid||"historico_"+Date.now()+"_"+x.zi+"_"+x.ci,importedLegacy:true,
-   locality:town==="Localidad pendiente"?"":town,legacyReviewStatus:"pendiente",legacyMovedAt:Date.now(),
-   legacyOriginZoneId:z.id,legacyOriginSector:z.sectorName||"",legacyOriginTown:z.town||""});
-  destination._updatedAt=Date.now();
-  if(!bySource.has(x.zi))bySource.set(x.zi,[]);
-  bySource.get(x.zi).push({ci:x.ci,resp:c.captacionRespuesta,wasCsv:!!c.importedCsv});
+  if(!z||!c||!access(z)||isPort(z)||inPortfolio(c))
+   throw Error("Alguna ficha ha cambiado. Vuelve a revisar la selección.");
+  if(String(z.id)!==String(x.z.id)||String(c.clientUid||"")!==String(x.c.clientUid||""))
+   throw Error("El orden de los datos ha cambiado. Actualiza la cartera antes de continuar.");
+  // Mantener clientUid y zona: guardarTrabajoV2 valida la asociación física.
+  c.legacyPortfolio=true;
+  c.importedLegacy=true;
+  c.legacyReviewStatus="pendiente";
+  c.legacyMovedAt=Date.now();
+  c.legacyOriginZoneId=z.id;
+  c.legacyOriginSector=z.sectorName||"";
+  c.legacyOriginTown=z.town||"";
+  changed++;
  }
- for(const [zi,moved] of bySource){
-  const z=candidate[zi],idx=new Set(moved.map(x=>x.ci));
-  z.clients=(z.clients||[]).filter((_,i)=>!idx.has(i));
-  for(const x of moved)if(x.wasCsv&&z.stats&&["si","no","ausente","papelito"].includes(x.resp))
-   z.stats[x.resp]=Math.max(0,(Number(z.stats[x.resp])||0)-1);
-  z._updatedAt=Date.now();
- }
+ if(!changed)return;
  await commit(candidate);
- selection.clear();screen="list";notice="Se han trasladado "+chosen.length+" fichas. Los sectores originales siguen existiendo; puedes revisar si quedaron vacíos.";render();
+ selection.clear();screen="list";
+ notice="Se han organizado "+changed+" fichas en Clientes antiguos. Se mantiene su ubicación interna en Firebase sin borrarlas ni duplicarlas.";
+ render();
 }
 function f(parent,label,value="",kind="text"){
  const wrapper=E("label","kha-field",undefined,parent);E("span","",label,wrapper);
@@ -137,7 +136,7 @@ function validateReady(d){
 }
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
- if(currentEdit&&(!z||!c||!isPort(z)||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
+ if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
  const box=card(page,c?"Completar ficha histórica":"Nuevo cliente antiguo","Sin dibujo de pueblos o sectores. Guarda pendiente o confirma que está lista para llamadas.");
  const fields=E("div","kha-grid",undefined,box);
@@ -174,22 +173,23 @@ function editor(page){
    const data=structuredClone(zs()),stamp=Date.now();
    if(c){
     const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
-    if(!oldClient||!isPort(oldZone)||!access(oldZone)||oldZone.id!==currentEdit.zoneId||String(oldClient.clientUid)!==String(currentEdit.uid))throw Error("La ficha ha cambiado. Vuelve a abrirla.");
+    if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone))||oldZone.id!==currentEdit.zoneId||String(oldClient.clientUid)!==String(currentEdit.uid))throw Error("La ficha ha cambiado. Vuelve a abrirla.");
     const updated={...oldClient,...d,legacyReviewStatus:ready?"lista":"pendiente",
      legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
     if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
     if(ready&&(!oldClient.callStatus||["pendiente_visita","no_interesado","descartado"].includes(oldClient.callStatus)))updated.callStatus="pendiente";
-    const dst=portZones(data,oldZone.comercial,d.locality);
-    if(dst.id!==oldZone.id){dst.clients.push(updated);oldZone.clients.splice(currentEdit.ci,1);dst._updatedAt=stamp;}
-    else oldZone.clients[currentEdit.ci]=updated;
+    // Actualiza la misma ficha, en la misma zona del servidor.
+    // El pueblo introducido se guarda dentro del cliente, no traslada documentos.
+    oldZone.clients[currentEdit.ci]=updated;
     oldZone._updatedAt=stamp;
    }else{
-    const dst=portZones(data,current(),d.locality);
+    const dst=existingZone(data,current(),d.locality);
+    if(!dst)throw Error("Todavía no existe un contenedor de datos de tu perfil para ese pueblo. La creación totalmente independiente requiere soporte del servidor; no se creará un sector ficticio.");
     if(data.some(z=>access(z)&&(z.clients||[]).some(old=>
       N(old.street)===N(d.street)&&N(old.locality||z.town)===N(d.locality)&&phone(old.phone)===phone(d.phone)&&d.street&&phone(d.phone).length===9)))
      throw Error("Parece que ya existe ese cliente con la misma dirección y teléfono.");
     dst.clients.push({...d,clientUid:"hist_"+(crypto.randomUUID?.()||String(stamp)+Math.random().toString(36).slice(2)),
-     importedLegacy:true,legacyReviewStatus:ready?"lista":"pendiente",legacyReviewedAt:ready?stamp:null,
+     importedLegacy:true,legacyPortfolio:true,legacyReviewStatus:ready?"lista":"pendiente",legacyReviewedAt:ready?stamp:null,
      legacyReviewedBy:ready?current():"",callStatus:"pendiente",createdAt:stamp,statusChangedAt:stamp});
     dst._updatedAt=stamp;
    }
@@ -202,7 +202,7 @@ function editor(page){
 function moveScreen(page){
  page.append(B("‹ Volver",()=>{screen="list";render();}));
  const rows=sourceEntries(),chosen=rows.filter(x=>selection.has(key(x)));
- const box=card(page,"Recuperar fichas de sectores","Por defecto aparecen seleccionadas las fichas que llegaron por CSV. Revisa cuáles quieres trasladar. No se borran sectores.");
+ const box=card(page,"Recuperar fichas de sectores","Se separan de la captación de calle mediante una etiqueta. Sus documentos conservan la zona interna de Firebase; así no se pierden datos ni se crea otro sector.");
  const health=syncState();
  if(health.kind!=="ready"){
   const alertBox=card(box,"Guardado bloqueado",health.message);
@@ -232,15 +232,15 @@ function moveScreen(page){
   p(desc,[x.z.town,x.z.sectorName,x.c.phone,x.detected?"CSV":"Manual"].filter(Boolean).join(" · "));
  });
  if(notice)p(box,notice,"kha-alert");
- const moveBtn=B("Trasladar fichas seleccionadas",async()=>{moveBtn.disabled=true;try{await migrate();}catch(err){notice=err.message||String(err);render();}finally{moveBtn.disabled=false;}},true);
+ const moveBtn=B("Organizar en Clientes antiguos",async()=>{moveBtn.disabled=true;try{await migrate();}catch(err){notice=err.message||String(err);render();}finally{moveBtn.disabled=false;}},true);
  moveBtn.disabled=!chosen.length||health.kind!=="ready";box.append(moveBtn);
- p(box,"Las fichas se trasladan juntas en un único guardado. Los sectores quedan intactos salvo por la retirada de los clientes seleccionados.");
+ p(box,"Se conservan todas las fichas en su ubicación técnica original. No se eliminarán los sectores ni se cambiará la zona de ningún cliente.");
 }
 function listScreen(page){
  const rows=portfolioEntries(),actions=buttons(page);
  actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
  actions.append(B("Recuperar fichas de sectores",()=>{screen="move";includeManual=false;notice="";selection=new Set(sourceEntries().filter(x=>x.detected).map(key));render();}));
- const status=card(page,"Mi cartera","Las fichas históricas ya no requieren dibujar zonas ni organizar sectores.");
+ const status=card(page,"Mi cartera","Clientes antiguos organizados por ficha, sin exigir mapas ni sectores. Sus vínculos internos con Firebase se conservan.");
  const countReady=rows.filter(x=>x.c.legacyReviewStatus==="lista").length;
  E("span","kha-tag","Por completar: "+(rows.length-countReady),status);E("span","kha-tag good","Listos para llamar: "+countReady,status);
  if(notice)p(status,notice,"kha-alert");
