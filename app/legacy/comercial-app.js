@@ -12628,13 +12628,13 @@ function konsorNextSectorNumber(town) {
 
         ${!isMikelTeamMember(currentUserName) ? `
         <div class="attic-compact">
-          <label>m² de buhardilla
+          <label>Superficie total de buhardilla (m²)
             <input class="input-field client-total-m2" type="number" min="0" step="0.1" inputmode="decimal" placeholder="m²" value="${getM2NumericValue(existing.m2Total)||''}" oninput="calculateClientAttic(this)">
           </label>
           <label>Plantas
             <input class="input-field client-floors" type="number" min="1" step="1" inputmode="numeric" placeholder="1" value="${Number(existing.m2Floors)>0?Number(existing.m2Floors):1}" oninput="calculateClientAttic(this)">
           </label>
-          <label>Resultado ≈ m²
+          <label>Superficie neta (total − 5 m²)
             <input class="input-field client-m2" type="number" readonly aria-live="polite" value="${existing.m2!==undefined?getM2NumericValue(existing.m2):''}">
           </label>
           <input type="hidden" class="client-attic-coverage" value="${Number(existing.m2Coverage)||100}">
