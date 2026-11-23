@@ -53,8 +53,9 @@ test('previsualización aislada: no cambia roles, no guarda datos ni crea sesion
  const textAll=JSON.stringify(preview,(key,value)=>key==='parent'||key==='onclick'?undefined:value);
  assert.ok(textAll.includes('SOLO PREVISUALIZACIÓN'));
  assert.ok(textAll.includes('Fotografías antes y después'));
- for(const sensitive of ['KonsorBridge.save','setProfile(','currentUserRole=','sessionStorage.setItem','fetch('])
+ for(const sensitive of ['KonsorBridge.save','setProfile(','sessionStorage.setItem','fetch('])
   assert.equal(source.includes(sensitive),false,sensitive);
+ assert.equal(/currentUserRole\s*=(?!=)/.test(source),false,'Nunca asignar un rol durante la vista previa');
  ctx.window.auth.currentUser=null;
  assert.equal(ctx.window.konsorDesigner.open('oficina'),false);
  assert.equal(ctx.body.children.find(x=>x.id==='konsorDesignerPreview'),undefined);
