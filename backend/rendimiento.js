@@ -1,5 +1,4 @@
 'use strict';
-const {USERS,BOSS,madridDate,clock}=require('./lib');
 const day=(date,n)=>new Date(Date.parse(date+'T12:00Z')+n*86400000).toISOString().slice(0,10);
 const minute=time=>/^([01]\d|2[0-3]):[0-5]\d$/.test(time)?Number(time.slice(0,2))*60+Number(time.slice(3)):NaN;
 const amount=v=>({'45-60':50,'60-80':70,'80-100':90,'100-150':125,'150+':160}[v]||Math.max(0,Number(String(v||'').replace(',','.'))||0));
@@ -10,7 +9,7 @@ function periods(today){
  if(today===first){const prev=last.slice(0,7)+'-01',end=day(prev,-1);out.push(['Mes',prev,last,end.slice(0,7)+'-01',end]);}
  return out;
 }
-function metrics(zones,shifts,start,end){
+function metrics(zones,shifts,start,end,madridDate=require('./lib').madridDate){
  const inside=d=>d>=start&&d<=end;
  const m={si:0,no:0,ausente:0,papelito:0,yaAislado:0, fichas:0,completas:0,citas:0,obras:0,llamadas:0,m2:0,horas:0,towns:new Map(),days:new Set(),late:new Set()};
  for(const s of shifts){const date=s.localDate||String(s.date||'').slice(0,10);if(!inside(date)||!s.startTime)continue;
@@ -30,7 +29,7 @@ function metrics(zones,shifts,start,end){
   }
  }return m;
 }
-function extraEvents({zones=[],shifts=[],now=Date.now()}){
+function extraEvents({zones=[],shifts=[],now=Date.now()},{USERS,BOSS,madridDate,clock}=require('./lib')){
  const today=madridDate(now),minutes=clock(now),events=[];
  const emit=(to,key,category,title,body,context)=>events.push({to,key,category,title,body,context,createdAt:now});
  for(const user of USERS){
@@ -70,7 +69,7 @@ function extraEvents({zones=[],shifts=[],now=Date.now()}){
   }
   if(minutes<9*60)continue;
   for(const [period,start,end,priorStart,priorEnd] of periods(today)){
-   const m=metrics(mine,work,start,end),p=metrics(mine,work,priorStart,priorEnd);
+   const m=metrics(mine,work,start,end,madridDate),p=metrics(mine,work,priorStart,priorEnd,madridDate);
    if(![m,p].some(v=>v.days.size||v.si||v.no||v.fichas||v.citas||v.obras||v.ausente||v.papelito))continue;
    const contacts=m.si+m.no,previous=p.si+p.no,rate=contacts?100*m.si/contacts:0,old=previous?100*p.si/previous:0;
    const pay=user===BOSS?1:0.85;

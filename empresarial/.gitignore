@@ -1,0 +1,7 @@
+node_modules/
+.datos-emulador/
+/public/assets/
+*-debug.log
+.env*
+.runtimeconfig.json
+.secret.local

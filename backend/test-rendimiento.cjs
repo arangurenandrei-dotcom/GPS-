@@ -1,6 +1,14 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {periods,extraEvents}=require('./rendimiento');
+const {periods,extraEvents:calculateEvents}=require('./rendimiento');
+// ./lib pertenece al backend histórico instalado fuera de este repositorio.
+const BOSS='Andrei (Jefe)';
+const USERS=[BOSS,'Comercial 1'];
+const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid'});
+const time=new Intl.DateTimeFormat('es-ES',{timeZone:'Europe/Madrid',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const madridDate=value=>date.format(new Date(value));
+const clock=value=>{const [hours,minutes]=time.format(new Date(value)).split(':').map(Number);return hours*60+minutes;};
+const extraEvents=input=>calculateEvents(input,{USERS,BOSS,madridDate,clock});
 assert.deepEqual(periods('2026-03-01'),[['Mes','2026-02-01','2026-02-28','2026-01-01','2026-01-31']]);
 assert.equal(periods('2026-11-16').length,2);
 const now=Date.parse('2026-11-16T10:00:00Z'),owner='Comercial 1';
@@ -12,13 +20,13 @@ assert.match(events.find(e=>e.title==='Semana · '+owner).body,/21.0 h.*conversi
 assert(!events.some(e=>e.to.includes('Mikel')));
 assert.equal(new Set(events.map(e=>e.to+'|'+e.key)).size,events.length);
 
-const today='2026-11-19', clockNow=time=>Date.parse(today+'T'+time+':00Z');
+const today='2026-11-19', clockNow=time=>Date.parse(today+'T'+time+':00+01:00');
 const assigned=[{id:'zona-prueba',comercial:owner,date:today,status:'en_proceso',clients:[]}];
 const avisos=(time,shift=[],list=assigned)=>extraEvents({now:clockNow(time),zones:list,shifts:shift}).filter(e=>e.key.startsWith('routine:'));
 const noFichaje=avisos('10:05');
 assert(noFichaje.some(e=>e.key.startsWith('routine:late-start:')&&e.category==='daily'));
 assert(!avisos('09:59').some(e=>e.key.startsWith('routine:late-start:')));
-const inLunch=(time)=>[{user:owner,localDate:today,startTime:'09:00',lunchStart:'12:00',status:'lunch'}];
+const inLunch=()=>[{user:owner,localDate:today,startTime:'09:00',lunchStart:'12:00',status:'lunch'}];
 assert(avisos('13:02',inLunch()).some(e=>e.key.startsWith('routine:lunch-60:')));
 assert(!avisos('13:02',inLunch()).some(e=>e.key.startsWith('routine:lunch-90:')));
 assert(avisos('13:31',inLunch()).some(e=>e.key.startsWith('routine:lunch-90:')));

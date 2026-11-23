@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // equipos: nombre y fecha de alta.
+    // miembros: nombre, equipo, departamento, puesto y estado.
+    // expedientes: equipo, fase, asignación, participantes, revisión y partes.
+    // expedientes/{id}/historial: cambios confirmados con actor y fecha.
+    // bandejas/{uid}/avisos: entregas por destinatario y lectura.
+    // miembros/{uid}/operaciones: recibos por usuario y operación.
+    // control y auditoria: arranque de Dirección y altas de organización.
+    // El cliente usa exclusivamente la API autenticada. El Admin SDK valida
+    // el esquema y el ámbito en cada operación, incluidas las lecturas.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
