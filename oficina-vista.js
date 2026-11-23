@@ -33,7 +33,7 @@ function render(container){
  add("strong","","EXPEDIENTES DE OFICINA",title);
  add("span","","Revisión guiada",title);
  const agenda=document.createElement("button");
- agenda.className="ktf-open-agenda";agenda.type="button";agenda.textContent="Gestionar llamadas y citas";
+ agenda.className="ktf-open-agenda";agenda.type="button";agenda.textContent="Consultar agenda y vincular citas";
  agenda.onclick=()=>{window.openCnCallQueue?.();};
  panel.append(agenda);
  const list=rows();
@@ -43,6 +43,7 @@ function render(container){
  }
  const info=root.KonsorOfficeFlow.totals(list);
  const stats=add("div","ktf-metrics",undefined,panel);
+ metric(stats,"Obras agendadas",list.filter(x=>["agendada","agendada_historica"].includes(x.status)).length);
  metric(stats,"Incidencias",info.incidences);
  metric(stats,"Revisión documental",info.documents);
  metric(stats,"Obras realizadas sin cierre",info.performed);
@@ -50,7 +51,7 @@ function render(container){
  add("strong","","SIGUIENTE EXPEDIENTE",section);
  add("span","",list.length+" expedientes visibles",section);
  if(!list.length){
-  add("p","ktf-notice","No se han encontrado expedientes de obras en las fichas visibles. Una cita que solo esté en Google Calendar debe vincularse antes con la ficha original.",panel);
+  add("p","ktf-notice","No constan obras vinculadas a las fichas de este equipo. Si la cita existe en Google Calendar, entra en «Consultar agenda y vincular citas» y utiliza el evento original; no crees una reserva nueva.",panel);
   return;
  }
  const selector=add("div","ktf-job-list",undefined,panel);
@@ -63,7 +64,7 @@ function render(container){
   const heading=add("div","ktf-detail-head",undefined,detail);
   const copy=add("div","",undefined,heading);
   add("h3","",job.street,copy);
-  add("p","",job.town+" · "+(job.date||"Fecha pendiente")+" · "+job.client,copy);
+  add("p","",job.town+" · "+(job.date||"Fecha sin verificar")+" · "+(job.time||"Hora pendiente")+" · "+job.client,copy);
   add("strong","ktf-state",job.category,heading);
   add("p","ktf-notice","Siguiente acción: "+job.next+". Las marcas reflejan únicamente los datos guardados en la ficha.",detail);
   for(const [i,step] of root.KonsorOfficeFlow.steps(job).entries()){
