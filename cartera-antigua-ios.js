@@ -144,6 +144,7 @@ function validateReady(d){
  const bad=[];
  if(!d.name)bad.push("nombre");if(!d.street)bad.push("calle");if(!d.locality||d.locality==="Localidad pendiente")bad.push("pueblo");
  if(!/^[6789]\d{8}$/.test(phone(d.phone)))bad.push("teléfono válido");
+ if(!/^31\d{3}$/.test(String(d.postalCode||"")))bad.push("código postal de Navarra");
  if(!Number.isInteger(Number(d.buildYear))||Number(d.buildYear)<1800||Number(d.buildYear)>new Date().getFullYear())bad.push("año");
  if(numeric(d.m2Total)===null||Number(d.m2Total)<=5)bad.push("superficie total");
  if(!/^[DE][123]$/.test(d.cteZone))bad.push("CTE D/E");
@@ -400,6 +401,53 @@ function listScreen(page){
   });
   const town=available.find(g=>g.key===selected);
   if(!town)return;
+
+  const toolbar=buttons(body);
+  const withoutPostal=town.clients.filter(x=>!/^31\d{3}$/.test(String(x.c.postalCode||""))||
+    !/^[DE][123]$/.test(String(x.c.cteZone||"")));
+  const auto=B("Autocompletar CP y CTE ("+withoutPostal.length+")",async()=>{
+   if(!withoutPostal.length)return;
+   const geo=window.konsorLegacyGeo;
+   if(!geo?.postal||!geo?.cte){notice="Servicio de direcciones no disponible.";render();return;}
+   const selected=withoutPostal.slice(0,25);
+   if(!confirm("¿Verificar los CP y zonas CTE de "+selected.length+" fichas de "+town.name+"? Las direcciones ambiguas quedarán pendientes."))return;
+   if(syncState().kind!=="ready"){notice=syncState().message;render();return;}
+   auto.disabled=true;
+   const feedback=E("p","kha-confirm","Comprobando direcciones…",body);
+   try{
+    const data=structuredClone(zs());let changed=0,ambiguous=0,unknown=0;
+    for(let i=0;i<selected.length;i++){
+     const x=selected[i],z=data[x.zi],c=z?.clients?.[x.ci];
+     if(!c||String(z.id)!==String(x.z.id)||String(c.clientUid)!==String(x.c.clientUid))
+      throw Error("Los datos cambiaron durante la consulta. No se ha modificado ningún registro.");
+     feedback.textContent="Verificando "+(i+1)+"/"+selected.length+": "+(c.street||"Sin dirección");
+     const locality=String(c.locality||z.town||"").trim();
+     let cp=String(c.postalCode||"").trim();
+     if(!/^31\d{3}$/.test(cp)){
+      const result=await geo.postal(c.street,locality).catch(()=>({status:"error"}));
+      if(result.status!=="ok"||result.matches?.length!==1){
+       if(result.status==="ambiguous")ambiguous++;else unknown++;
+       continue;
+      }
+      cp=result.matches[0].cp;
+     }
+     const zone=geo.cte(cp,locality)?.cteZone||"";
+     if(cp!==c.postalCode||(!/^[DE][123]$/.test(c.cteZone||"")&&/^[DE][123]$/.test(zone))){
+      c.postalCode=cp;
+      if(!/^[DE][123]$/.test(c.cteZone||"")&&/^[DE][123]$/.test(zone))c.cteZone=zone;
+      c.legacyAddressCheckedAt=Date.now();z._updatedAt=Date.now();changed++;
+     }
+    }
+    if(changed)await commit(data);
+    notice="Revisadas "+selected.length+" · completadas "+changed+" · sin coincidencia "+unknown+
+      " · ambiguas "+ambiguous+". Los históricos no suman nuevas captaciones.";
+    if(withoutPostal.length>25)notice+=" Hay más fichas para una segunda pasada.";
+    render();
+   }catch(e){auto.disabled=false;feedback.textContent="Sin confirmar el guardado: "+(e.message||e);}
+  },true);
+  auto.disabled=!withoutPostal.length;
+  toolbar.append(auto);
+  toolbar.append(B("Guardar copia JSON",()=>showBackup(town.clients)));
   E("h3","",town.name+" · Calles",body);
   p(body,"Elige una calle para consultar sus viviendas. No necesitas dibujar sectores ni agruparlas manualmente.");
   const streets=[...town.streets.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
