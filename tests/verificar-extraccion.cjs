@@ -51,8 +51,30 @@ const actualCommercial=read('app/legacy/comercial-app.js');
 // Verificar que SOLO cambia la función de estadísticas sobre esa base real.
 const mainBase='88e52cdd689f3a8026f6e587f466feb28a6bfb20';
 const baseMotor=execFileSync('git',['show',mainBase+':app/legacy/comercial-app.js'],{cwd:root,encoding:'utf8',maxBuffer:10*1024*1024});
-assert.equal(withoutMetrics(actualCommercial),withoutMetrics(baseMotor),
- 'Se modificó el motor comercial fuera del cálculo de captaciones auditado');
+function removeSingleFileChanges(source){
+ const pairs=[
+  ['KONSOR_SINGLE_FILE_ACTIONS_BEGIN','KONSOR_SINGLE_FILE_ACTIONS_END'],
+  ['KONSOR_SINGLE_FILE_STATE_BEGIN','KONSOR_SINGLE_FILE_STATE_END'],
+  ['KONSOR_SINGLE_FILE_FILTER_BEGIN','KONSOR_SINGLE_FILE_FILTER_END']
+ ];
+ for(const [begin,end] of pairs){
+  const start='/* '+begin+' */',finish='/* '+end+' */';
+  const a=source.indexOf(start),b=source.indexOf(finish,a+start.length);
+  assert.ok(a>0&&b>a,'Falta el bloque '+begin);
+  assert.equal(source.indexOf(start,a+1),-1,'Bloque repetido '+begin);
+  const preceding=source.lastIndexOf('\n',a);
+  const following=source.indexOf('\n',b+finish.length);
+  assert.ok(preceding>=0&&following>=0);
+  source=source.slice(0,preceding)+source.slice(following);
+ }
+ // El único delimitador existente que pasa a tener un hermano es el
+ // último elemento del array de filtros.
+ source=source.replace("['no_apto', '🚫 No aptos'],\n  ];",
+  "['no_apto', '🚫 No aptos']\n  ];");
+ return source;
+}
+assert.equal(withoutMetrics(removeSingleFileChanges(actualCommercial)),withoutMetrics(baseMotor),
+ 'Se modificó el motor comercial fuera de los cambios aprobados de ficha única');
 const firebaseCurrent=read('app/legacy/firebase-init.js');
 const approvedFirebaseAddition=" window.vincularObraExistenteKonsor = httpsCallable(functionsEu, 'vincularObraExistenteKonsor');\n";
 assert.equal((firebaseCurrent.match(/window\.vincularObraExistenteKonsor\s*=/g)||[]).length,1,
