@@ -248,7 +248,7 @@ function open(id){
  }
  const footer=e("div","cnv-home-footer",undefined,section);
  e("span","","KONSOR",footer);
- e("span","",(id==="tecnicos"||id==="oficina")?"VISTA DE DISEÑO · DATOS EN SOLO LECTURA":"Los cambios reales se confirman en el servidor.",footer);
+ e("span","",(id==="tecnicos"||id==="oficina")?"VISTA DE DISEÑO · DATOS EN SOLO LECTURA":"VISTA DE DISEÑO · SIN DATOS OPERATIVOS",footer);
  return true;
 }
 // Compatibilidad con llamadas antiguas: no insertar pestañas en el Inicio.
