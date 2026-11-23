@@ -16,9 +16,9 @@ const booked=c=>["agendada","realizada"].includes(c.obraStatus);
 const excluded=c=>(!!(c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")||c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado","pendiente_visita"].includes(c.callStatus)||["no","ausente","papelito"].includes(c.captacionRespuesta);
 const complete=c=>!!(String(c.name||"").trim()&&String(c.phone||"").trim()&&String(c.street||"").trim());
 function state(){
- const zz=zones(),cc=clientRows(),open=zz.filter(x=>x.z.status!=="completada");
+ const zz=zones(),cc=clientRows(),open=zz.filter(x=>!window.konsorIsHistoricalOnlySector?.(x.z)&&x.z.status!=="completada");
  const late=zz.filter(x=>x.z.dumpDate&&x.z.dumpDate>x.z.date);
- const unuploaded=zz.filter(x=>(Number(x.z.streetCompletedAt)>0&&!x.z.dumpDate) || (x.z.date&&x.z.date<today()&&!x.z.dumpDate));
+ const unuploaded=zz.filter(x=>!window.konsorIsHistoricalOnlySector?.(x.z)&&((Number(x.z.streetCompletedAt)>0&&!x.z.dumpDate) || (x.z.date&&x.z.date<today()&&!x.z.dumpDate)));
  const streetFinished=unuploaded.filter(x=>Number(x.z.streetCompletedAt)>0&&!x.z.dumpDate);
  const lateUnstarted=unuploaded.filter(x=>!x.z.streetCompletedAt);
  const ordered=streetFinished.concat(lateUnstarted).sort((a,b)=>(a.z.date||"9999").localeCompare(b.z.date||"9999"));
