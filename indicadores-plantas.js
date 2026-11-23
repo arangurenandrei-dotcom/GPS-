@@ -7,8 +7,8 @@
 const PLANTS=new Set(['comercial','oficina','tecnicos','ceo']);
 const bindings=new Map(),cached=new Map(),busy=new Map();
 let uid='',generalCount=0,generalKnown=false,lastPlant='',lastRefresh=0;
-const severity=items=>{
- const pending=(Array.isArray(items)?items:[]).filter(t=>t&&t.status==='pending'&&t.to&&t.to!==t.from);
+const severity=(items,plant)=>{
+ const pending=(Array.isArray(items)?items:[]).filter(t=>t&&t.status==='pending'&&t.to===plant);
  if(!pending.length)return {count:0,level:'none'};
  const critical=pending.some(t=>t.priority==='critical');
  const important=pending.some(t=>t.priority==='important');
@@ -44,11 +44,12 @@ async function refresh(plant){
  if(!PLANTS.has(plant)||!actualUser()||!w.KonsorBridge?.state?.().connected)return false;
  if(typeof w.listarMensajesPlantaKonsor!=='function')return false;
  if(busy.has(plant))return busy.get(plant);
+ const requestingUid=uid;
  const request=(async()=>{
   try{
    const result=(await w.listarMensajesPlantaKonsor({plant})).data;
    if(!result?.ok||!Array.isArray(result.items))throw Error('Bandeja no verificada');
-   if(actualUser())cached.set(plant,severity(result.items));
+   if(actualUser()===requestingUid)cached.set(plant,severity(result.items,plant));
    paintAll();return true;
   }catch(err){
    // Sin datos confirmados no se inventa un estado vacío.
