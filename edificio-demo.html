@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f6f8fc"><title>KONSOR · Edificio interactivo · Demo</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#203149;background:#f3f6fa;--ink:#203149;--muted:#7c8b9d;--edge:#e3e9f1;--soft:#eef3f9;--blue:#355e88;--bg:#f5f7fb}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.4}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #a4c2e7;outline-offset:2px}h1,h2,h3,p{margin-top:0}.hidden{display:none!important}.page{max-width:1500px;margin:auto;min-height:100dvh}.shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100dvh}.sidebar{background:rgba(255,255,255,.9);border-right:1px solid var(--edge);padding:24px 14px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100dvh}.brand{display:flex;align-items:center;gap:11px;padding:3px 12px 18px}.brand-logo{width:38px;height:38px;background:#223a55;border-radius:13px;color:white;display:grid;place-items:center;font-size:20px;font-weight:800}.brand div:last-child strong{font-size:18px;letter-spacing:1.2px}.brand small{display:block;font-size:9px;color:#8493a5;letter-spacing:1.4px;margin-top:4px}.nav-label{font-size:10px;color:#96a3b3;font-weight:750;letter-spacing:1.2px;padding:0 15px}.nav-group{display:grid;gap:5px}.nav-button{height:45px;display:flex;align-items:center;gap:12px;text-align:left;border:0;border-radius:13px;background:transparent;color:#64758b;padding:0 14px;font-size:13px;font-weight:650}.nav-button.active{background:#e9f0f8;color:#294966}.nav-ico{font-size:18px;width:23px;text-align:center}.nav-count{margin-left:auto;background:#eef2f8;border-radius:99px;padding:2px 7px;font-size:10px}.side-bottom{margin-top:auto}.identity{border:1px solid var(--edge);border-radius:16px;padding:12px;background:#f8fafc}.identity small{font-size:10px;color:var(--muted)}.identity strong{display:block;font-size:13px;margin:4px 0}.linklike{background:none;border:0;padding:7px 0 0;color:#426b92;text-align:left;font-weight:750;font-size:11px}.main{min-width:0}.topbar{position:sticky;top:0;z-index:5;height:77px;background:rgba(249,251,254,.87);backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);border-bottom:1px solid var(--edge);display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 30px}.topbar-title{font-weight:750;font-size:15px;letter-spacing:-.1px}.topbar-title small{display:block;color:var(--muted);font-size:10px;font-weight:650;margin-top:4px}.top-actions{display:flex;align-items:center;gap:10px}.tag-demo{font-size:10px;color:#617e9b;padding:8px 11px;background:#eaf1f8;border:1px solid #dfe8f2;border-radius:99px;font-weight:760}.circle{height:40px;min-width:40px;border:1px solid var(--edge);background:white;border-radius:14px;color:#445a74;font-size:18px}.counter-dot{color:#ad6a38;font-size:10px}.content{padding:30px;max-width:1190px;margin:0 auto}.header-row{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin-bottom:22px}.kicker{font-size:10px;color:#7292b1;font-weight:800;letter-spacing:1.45px}.page-title{font-size:clamp(25px,3vw,36px);letter-spacing:-1.1px;line-height:1.1;margin:10px 0 8px;font-weight:800}.page-sub{color:var(--muted);font-size:13px;line-height:1.5;margin:0}.button{border:1px solid #dfe7f0;border-radius:13px;min-height:41px;padding:10px 15px;background:white;color:#49627d;font-size:12px;font-weight:750;white-space:nowrap}.button.primary{background:#284563;color:#fff;border-color:#284563}.button.soft{background:#eef3f8}.button.warn{color:#a4613e;border-color:#eddccd;background:#fffaf6}.button.small{min-height:34px;padding:7px 10px;font-size:11px}.button-block{width:100%}.actions{display:flex;gap:8px;flex-wrap:wrap}.card{border:1px solid var(--edge);border-radius:20px;background:rgba(255,255,255,.95);box-shadow:0 8px 28px rgba(44,71,105,.035);padding:20px;min-width:0}.glass{background:linear-gradient(130deg,#fff,#eef4fa);border:1px solid #dfe8f2;border-radius:26px;padding:27px;box-shadow:0 14px 35px #203e6610}.hero-title{font-size:28px;letter-spacing:-.9px;margin:7px 0 10px}.hero-copy{font-size:13px;line-height:1.6;color:#75879b;max-width:570px}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:19px 0 22px}.stat{padding:18px 17px;border-radius:19px;background:white;border:1px solid var(--edge)}.stat strong{font-size:26px;letter-spacing:-1px;display:block;font-variant-numeric:tabular-nums}.stat span{font-size:11px;font-weight:650;color:#7b8da2;display:block;margin-top:6px}.stat small{font-size:10px;color:#8fa0b1;display:block;margin-top:5px}.two-col{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:16px}.card-title{font-size:15px;font-weight:790;margin:0 0 6px}.card-sub{color:var(--muted);font-size:11px;margin:0 0 17px;line-height:1.5}.section-title{display:flex;align-items:center;justify-content:space-between;margin:24px 0 12px;gap:12px}.section-title h3{font-size:15px;margin:0;letter-spacing:-.15px}.section-title span{font-size:11px;color:#8797a9}.item{border:1px solid #e7edf4;border-radius:14px;background:#fff;padding:14px;margin-bottom:9px}.item:last-child{margin-bottom:0}.item-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}.item h4{font-size:12px;margin:0 0 5px;font-weight:800}.item p{font-size:11px;line-height:1.45;color:#798b9f;margin:0}.item-meta{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 0}.pill{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;font-size:10px;font-weight:650;border-radius:8px;background:#eef3f8;color:#57718e}.pill.urgent{background:#fff1e8;color:#af6741}.pill.done{background:#eaf6f0;color:#347a60}.pill.active{background:#e9f1fb;color:#497397}.item-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.notice{background:#eef4fa;border:1px solid #dfe9f2;border-radius:14px;padding:12px 14px;color:#657e98;font-size:11px;line-height:1.6}.notice strong{color:#3a5b7c}.scroll-x{overflow-x:auto}.tabs{display:flex;gap:8px;overflow-x:auto;padding:0 0 12px;margin:4px 0 10px;scrollbar-width:none}.tabs button{border:1px solid #e1e8f0;background:#fff;color:#698096;border-radius:12px;padding:11px 14px;font-size:12px;font-weight:710;white-space:nowrap}.tabs button.active{background:#294b6c;color:white;border-color:#294b6c}.building{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(210px,.8fr);gap:20px}.floor-list{display:grid;gap:11px}.floor-card{border:1px solid var(--edge);border-radius:19px;background:white;display:flex;align-items:center;gap:15px;padding:15px;min-height:91px;text-align:left;color:inherit;width:100%;transition:transform .15s,box-shadow .15s}.floor-card:not(:disabled):active{transform:scale(.987)}.floor-card:not(:disabled):hover{box-shadow:0 8px 26px #28497015}.floor-num{width:53px;height:53px;flex-shrink:0;background:#eff4f9;border:1px solid #e2eaf2;border-radius:16px;color:#557695;display:grid;place-items:center;font-weight:800;font-size:18px}.floor-copy{flex:1;min-width:0}.floor-copy strong{font-size:15px}.floor-copy span,.floor-copy small{display:block;color:#8a9aab;font-size:11px;margin-top:4px}.floor-copy small{font-size:10px}.floor-end{color:#91a5b8;font-size:22px}.floor-card:disabled{opacity:.52}.building-side{position:sticky;top:99px;align-self:start}.elevator{background:linear-gradient(150deg,#233b55,#365a79);border-radius:23px;padding:22px;color:white;min-height:360px;position:relative;overflow:hidden}.elevator:before,.elevator:after{content:"";position:absolute;left:50%;transform:translateX(-50%);width:116px;border-left:1px solid #91b1c457;border-right:1px solid #91b1c457;top:80px;bottom:25px}.elevator:after{width:2px;background:#99b6ce44;border:0}.lift-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #c1d8e725;padding:13px 0;font-size:12px;color:#c7d8e9}.lift-row strong{background:#ffffff15;border-radius:9px;padding:6px 9px;min-width:34px;text-align:center}.lift-row.current{color:#fff;font-weight:800}.lift-row.current strong{background:#dcebf9;color:#2d5072}.elevator-label{font-size:10px;letter-spacing:1px;color:#a9c3dc;margin-bottom:12px}.flow{display:flex;flex-wrap:wrap;gap:6px}.flow span{border:1px solid #e0e8f1;border-radius:10px;background:#fff;padding:9px 11px;color:#66829c;font-size:11px}.flow span.current{background:#2c4f70;color:white}.floor-screen{animation:rise .22s ease-out}@keyframes rise{from{opacity:.55;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}.mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.quick{border:1px solid #e5eaf1;border-radius:16px;background:white;text-align:left;padding:17px;color:#304a65;min-height:99px}.quick .symbol{display:block;font-size:23px;margin-bottom:12px}.quick strong{display:block;font-size:12px}.quick small{font-size:10px;color:#8294a7;display:block;margin-top:5px}.timeline{border-left:2px solid #dee8f2;padding-left:18px;margin-left:8px}.event{position:relative;padding:0 0 20px}.event:before{content:"";position:absolute;width:10px;height:10px;border-radius:99px;background:#85a4bf;left:-24px;top:3px;border:2px solid white}.event strong{display:block;font-size:12px}.event span{font-size:10px;color:#91a0af}.event p{font-size:11px;color:#71849a;margin:5px 0}.profile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.profile{border:1px solid var(--edge);border-radius:18px;background:white;padding:16px;text-align:left;color:#24384f;min-height:118px}.profile.active{border-color:#708da9;background:#eef5fc}.avatar{height:31px;width:31px;border-radius:11px;background:#e8f0f8;display:grid;place-items:center;color:#41688d;font-weight:850;margin-bottom:10px}.profile strong{font-size:12px;display:block}.profile small{display:block;color:#8291a3;font-size:10px;margin-top:5px}.banner{font-size:11px;color:#5f7690;line-height:1.6;padding:12px 15px;background:#edf4fa;border:1px solid #dfe9f4;border-radius:14px;margin-bottom:20px}.empty{padding:20px;text-align:center;color:#8999ab;font-size:12px;background:#f9fbfd;border-radius:14px}.form-grid{display:grid;gap:10px}.field label{display:block;font-size:11px;color:#536f8a;font-weight:700;margin:0 0 6px}.field input,.field select,.field textarea{width:100%;padding:13px;border-radius:12px;border:1px solid #e0e8f1;background:#fff;color:#273c54;font-size:13px}.field textarea{min-height:86px;resize:vertical}.overlay{position:fixed;inset:0;z-index:30;background:#1d314b75;backdrop-filter:blur(9px);display:flex;align-items:center;justify-content:center;padding:16px}.modal{width:min(100%,485px);max-height:90dvh;overflow-y:auto;background:#fafcff;border:1px solid #e0e8f0;border-radius:23px;padding:22px;box-shadow:0 22px 100px #1b2c4150}.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.modal-head h3{margin:0;font-size:18px}.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);z-index:45;background:#284563;color:white;padding:12px 18px;border-radius:14px;box-shadow:0 18px 44px #223a5560;font-size:12px;max-width:calc(100% - 40px)}.login{min-height:100dvh;display:grid;place-items:center;padding:28px;background:radial-gradient(ellipse at 15% 10%,#e5eef8,transparent 48%),#f5f8fc}.login-panel{width:min(100%,850px)}.login h1{font-size:clamp(29px,5vw,44px);letter-spacing:-1.4px;margin:13px 0}.login p{font-size:13px;color:#7c8da0;line-height:1.6}.login .profile-grid{margin-top:24px}.bottomnav{display:none}.hide-desktop{display:none}.group-head{font-size:10px;color:#89a0b9;letter-spacing:1px;font-weight:800;margin:20px 0 10px}
+@media(max-width:1000px){.sidebar{width:215px}.shell{grid-template-columns:215px minmax(0,1fr)}.content{padding:22px}.topbar{padding:0 20px}.two-col{grid-template-columns:1fr}.building{grid-template-columns:1fr}.building-side{position:static}.elevator{min-height:0}.elevator:before,.elevator:after{display:none}}
+@media(max-width:710px){.shell{display:block}.sidebar{display:none}.bottomnav{position:fixed;z-index:8;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-around;background:rgba(249,251,254,.96);backdrop-filter:blur(22px);border-top:1px solid #dde6ee;padding:9px 7px calc(env(safe-area-inset-bottom,0px) + 8px)}.bottomnav button{background:none;border:0;color:#8595a7;flex:1;min-height:42px;font-size:10px;font-weight:650}.bottomnav button.active{color:#315879}.bottomnav button span{display:block;font-size:19px;margin-bottom:3px}.topbar{height:72px;padding:0 16px}.topbar-title{font-size:13px}.tag-demo{font-size:9px;padding:7px 8px}.top-actions{gap:6px}.circle{min-width:35px;height:35px;font-size:16px}.content{padding:22px 15px calc(env(safe-area-inset-bottom,0px) + 88px)}.header-row{align-items:flex-start}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat{padding:14px}.stat strong{font-size:23px}.glass{padding:22px 19px}.page-title{font-size:29px}.profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.building-side{display:none}.hide-desktop{display:block}.modal{padding:19px}.login{padding:18px}.login .profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick{min-height:92px}}
+</style></head>
+<body><div id="app"></div><div id="modal-root"></div><div id="toast-root"></div>
+<script>
+(function(){
+'use strict';
+var DEPTS=[
+ {id:'direccion',num:'05',name:'Dirección',sub:'CEO y responsables',desc:'Estrategia, equipos, decisiones y rentabilidad',icon:'◈'},
+ {id:'administracion',num:'04',name:'Administración',sub:'Economía y control',desc:'Facturas, gastos, cobros y comisiones',icon:'▤'},
+ {id:'oficina',num:'03',name:'Oficina',sub:'Gestión de expedientes',desc:'Volcados, llamadas, documentos y citas',icon:'▦'},
+ {id:'tecnicos',num:'02',name:'Técnicos',sub:'Ejecución y obras',desc:'Órdenes, visitas, materiales y evidencias',icon:'⚙'},
+ {id:'comercial',num:'01',name:'Comercial',sub:'Captación y territorio',desc:'Sectores, visitas, clientes y resultados',icon:'◎'}
+];
+var ROLES=[
+ {id:'ceo',name:'CEO',desc:'Visión de las cinco plantas',dept:'direccion',rank:'ceo',avatar:'C'},
+ {id:'jefe-comercial',name:'Jefe comercial',desc:'Planificación y equipo comercial',dept:'comercial',rank:'jefe',avatar:'JC'},
+ {id:'comercial',name:'Comercial',desc:'Captación y clientes',dept:'comercial',rank:'trabajador',avatar:'CO'},
+ {id:'jefe-tecnicos',name:'Jefe técnico',desc:'Órdenes y equipo técnico',dept:'tecnicos',rank:'jefe',avatar:'JT'},
+ {id:'tecnico',name:'Técnico',desc:'Obras y evidencias',dept:'tecnicos',rank:'trabajador',avatar:'TE'},
+ {id:'jefe-oficina',name:'Responsable de oficina',desc:'Expedientes y seguimiento',dept:'oficina',rank:'jefe',avatar:'JO'},
+ {id:'oficina',name:'Administrativo de oficina',desc:'Llamadas y documentación',dept:'oficina',rank:'trabajador',avatar:'OF'},
+ {id:'jefe-administracion',name:'Jefe administrativo',desc:'Facturación y comisiones',dept:'administracion',rank:'jefe',avatar:'JA'},
+ {id:'administracion',name:'Administración',desc:'Cobros y gastos',dept:'administracion',rank:'trabajador',avatar:'AD'}
+];
+var STAGES=['comercial','tecnicos','oficina','administracion','direccion','cerrado'];
+var ACTIONS={
+ comercial:[['Registrar captación','Nueva ficha y siguiente paso','newcase'],['Plan de visitas','Ver tareas pendientes','tasks'],['Seguimientos','Estado de clientes captados','cases']],
+ tecnicos:[['Nueva orden','Crear actuación técnica','newtask'],['Órdenes abiertas','Ver trabajo asignado','tasks'],['Intervenciones','Mover expedientes tras la visita','cases']],
+ oficina:[['Nuevo recordatorio','Crear seguimiento','newtask'],['Documentos pendientes','Revisar expedientes','cases'],['Bandeja de llamadas','Gestionar trabajo','tasks']],
+ administracion:[['Registrar tarea económica','Crear control de cobro o pago','newtask'],['Expedientes para facturar','Revisar estados','cases'],['Control económico','Consultar cifras de ejemplo','finanzas']],
+ direccion:[['Planificar semana','Probar propuesta automática','plan'],['Detectar bloqueos','Analizar y emitir avisos','audit'],['Decisiones pendientes','Revisar aprobaciones','tasks']]
+};
+var AUTO=[
+ {id:'plan',floor:'direccion',title:'Planificación semanal',desc:'Crea una propuesta de tareas por planta en función de los pendientes.'},
+ {id:'audit',floor:'direccion',title:'Análisis de incidencias',desc:'Detecta expedientes sin resolver y genera alertas de revisión.'},
+ {id:'recall',floor:'comercial',title:'Recordatorio de contactos',desc:'Prepara recordatorios para los seguimientos comerciales abiertos.'},
+ {id:'route',floor:'tecnicos',title:'Revisión de rutas',desc:'Detecta órdenes técnicas y prepara la lista diaria.'},
+ {id:'docs',floor:'oficina',title:'Control documental',desc:'Señala expedientes de oficina que requieren comprobación.'},
+ {id:'finance',floor:'administracion',title:'Revisión de cobros',desc:'Prepara controles económicos y tareas administrativas.'}
+];
+function seed(){
+ return {
+  profile:null,day:0,
+  tasks:[
+   {id:'t1',floor:'comercial',title:'Volcar hojas · Sector Olaz',detail:'8 visitas registradas, 3 interesadas',status:'pendiente',priority:'alta',due:0},
+   {id:'t2',floor:'comercial',title:'Llamar a cliente · Zizur',detail:'Confirmar cita del jueves',status:'pendiente',priority:'normal',due:1},
+   {id:'t3',floor:'tecnicos',title:'Medición de cubierta · Mutilva',detail:'Orden OT-204 · 96 m² estimados',status:'pendiente',priority:'alta',due:0},
+   {id:'t4',floor:'tecnicos',title:'Subir fotografías de obra',detail:'Orden OT-201 · Pamplona',status:'en curso',priority:'normal',due:0},
+   {id:'t5',floor:'oficina',title:'Comprobar documentación',detail:'Expediente EX-104 · datos incompletos',status:'pendiente',priority:'alta',due:0},
+   {id:'t6',floor:'oficina',title:'Confirmar llamada pendiente',detail:'Cliente de Egüés',status:'pendiente',priority:'normal',due:1},
+   {id:'t7',floor:'administracion',title:'Revisar factura F-128',detail:'Pendiente de comprobación',status:'pendiente',priority:'alta',due:0},
+   {id:'t8',floor:'administracion',title:'Validar comisión mensual',detail:'Resumen de ejemplo · equipo A',status:'pendiente',priority:'normal',due:1},
+   {id:'t9',floor:'direccion',title:'Aprobar planificación semanal',detail:'Propuesta de reparto de zonas',status:'pendiente',priority:'alta',due:0,approval:true}
+  ],
+  cases:[
+   {id:'EX-101',client:'Vivienda · Mutilva',town:'Mutilva',stage:'tecnicos',type:'Unifamiliar',status:'En revisión',amount:2350},
+   {id:'EX-102',client:'Comunidad · Pamplona',town:'Pamplona',stage:'oficina',type:'Comunidad',status:'Documentación',amount:6100},
+   {id:'EX-103',client:'Vivienda · Zizur',town:'Zizur Mayor',stage:'comercial',type:'Unifamiliar',status:'Interesado',amount:1800},
+   {id:'EX-104',client:'Vivienda · Egüés',town:'Valle de Egüés',stage:'administracion',type:'Unifamiliar',status:'Para facturar',amount:2900},
+   {id:'EX-105',client:'Comunidad · Barañáin',town:'Barañáin',stage:'direccion',type:'Comunidad',status:'Cierre',amount:7250}
+  ],
+  alerts:[
+   {id:'a1',floor:'oficina',kind:'accion',title:'Expediente sin completar',detail:'EX-102 necesita revisión documental',read:false},
+   {id:'a2',floor:'comercial',kind:'aviso',title:'Resumen de jornada disponible',detail:'Las visitas registradas se han consolidado',read:false},
+   {id:'a3',floor:'tecnicos',kind:'accion',title:'Orden técnica pendiente',detail:'OT-204 programada para hoy',read:false},
+   {id:'a4',floor:'administracion',kind:'accion',title:'Factura pendiente de validar',detail:'F-128 requiere comprobación',read:false},
+   {id:'a5',floor:'direccion',kind:'aviso',title:'Comparativa semanal disponible',detail:'El cuadro de indicadores está listo',read:false}
+  ],
+  logs:[{id:'l1',title:'Entorno de demostración preparado',detail:'Datos ficticios, sin conexión a Firebase'}],
+  toggles:{plan:true,audit:true,recall:true,route:true,docs:true,finance:true},
+  nextId:300
+ };
+}
+var DB_KEY='konsor_edificio_demo_interactivo_v2';
+function load(){try{var d=JSON.parse(localStorage.getItem(DB_KEY));if(d&&Array.isArray(d.tasks)&&Array.isArray(d.cases)&&Array.isArray(d.alerts))return d;}catch(e){}return seed();}
+var db=load(),page=db.profile?'home':'login',floor='comercial',tab='resumen',modal='',selectedAlert='all',taskFilter='abiertas',clientSearch='';
+function save(){try{localStorage.setItem(DB_KEY,JSON.stringify(db));}catch(e){}}
+function role(){return ROLES.find(function(r){return r.id===db.profile;})||ROLES[0];}
+function dep(id){return DEPTS.find(function(f){return f.id===id;})||DEPTS[4];}
+function access(id){var r=role();return r.rank==='ceo'||id===r.dept||(r.rank==='jefe'&&id==='direccion');}
+function owner(id){var r=role();return r.rank==='ceo'||id===r.dept;}
+function safe(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function dateLabel(n){return n<db.day?'Vencida':n===db.day?'Hoy':n===db.day+1?'Mañana':'Próximamente';}
+function fullName(id){return dep(id).name;}
+function visibleTasks(id){return db.tasks.filter(function(t){return t.floor===id;});}
+function pending(id){return visibleTasks(id).filter(function(t){return t.status!=='hecha';});}
+function visibleAlerts(){return db.alerts.filter(function(a){return access(a.floor);});}
+function alertCount(){return visibleAlerts().filter(function(a){return !a.read;}).length;}
+function log(title,detail){db.logs.unshift({id:'l'+(++db.nextId),title:title,detail:detail});}
+function notify(floor,kind,title,detail){db.alerts.unshift({id:'a'+(++db.nextId),floor:floor,kind:kind,title:title,detail:detail,read:false});}
+function go(p,id){page=p;if(id)floor=id;tab='resumen';save();render();}
+function showToast(t){var root=document.getElementById('toast-root');root.innerHTML='<div class="toast">'+safe(t)+'</div>';clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(function(){root.innerHTML='';},3000);}
+function button(label,act,kind){return '<button class="button '+(kind||'')+'" data-action="'+safe(act)+'">'+safe(label)+'</button>';}
+function pTag(text,cl){return '<span class="pill '+(cl||'')+'">'+safe(text)+'</span>';}
+function stat(value,title,sub){return '<div class="stat"><strong>'+safe(value)+'</strong><span>'+safe(title)+'</span>'+(sub?'<small>'+safe(sub)+'</small>':'')+'</div>';}
+function section(title,sub){return '<div class="section-title"><h3>'+safe(title)+'</h3><span>'+safe(sub||'')+'</span></div>';}
+function titleView(k,title,sub,extra){return '<div class="header-row"><div><div class="kicker">'+safe(k)+'</div><h1 class="page-title">'+safe(title)+'</h1><p class="page-sub">'+safe(sub)+'</p></div>'+(extra||'')+'</div>';}
+function taskHTML(t){var can=owner(t.floor);return '<div class="item"><div class="item-head"><div><h4>'+safe(t.title)+'</h4><p>'+safe(t.detail)+'</p></div>'+pTag(t.status==='hecha'?'Completada':t.priority==='alta'?'Prioritaria':t.status,' '+(t.status==='hecha'?'done':t.priority==='alta'?'urgent':'active'))+'</div><div class="item-meta">'+pTag(fullName(t.floor))+pTag(dateLabel(t.due))+'</div><div class="item-actions">'+(can?(t.status==='hecha'?button('Reabrir','task:'+t.id,'small'):button(t.approval?'Aprobar':'Marcar realizada','task:'+t.id,'small primary'))+(t.status!=='hecha'?button('Recordar mañana','snooze:'+t.id,'small soft'):''):pTag('Solo consulta'))+'</div></div>';}
+function caseHTML(c){var can=owner(c.stage);var i=STAGES.indexOf(c.stage);return '<div class="item"><div class="item-head"><div><h4>'+safe(c.id)+' · '+safe(c.client)+'</h4><p>'+safe(c.town)+' · '+safe(c.type)+'</p></div>'+pTag(c.stage==='cerrado'?'Cerrado':fullName(c.stage),c.stage==='cerrado'?'done':'')+'</div><div class="item-meta">'+pTag(c.status)+pTag(c.amount.toLocaleString('es-ES')+' € · ejemplo')+'</div>'+(can&&i<STAGES.length-1?'<div class="item-actions">'+button('Pasar a '+(STAGES[i+1]==='cerrado'?'cerrado':fullName(STAGES[i+1])),'advance:'+c.id,'small primary')+'</div>':'')+'</div>';}
+function alertHTML(a){return '<div class="item" style="'+(!a.read?'border-color:#cadbe9;background:#f9fcff':'')+'"><div class="item-head"><div><h4>'+safe(a.title)+'</h4><p>'+safe(a.detail)+'</p></div>'+pTag(a.kind==='accion'?'Requiere acción':'Aviso',a.kind==='accion'?'urgent':'')+'</div><div class="item-meta">'+pTag(fullName(a.floor))+(a.read?pTag('Leída','done'):pTag('Nueva','active'))+'</div><div class="item-actions">'+(!a.read?button('Marcar leída','read:'+a.id,'small'):'')+button('Ir a planta','floor:'+a.floor,'small primary')+(a.kind==='aviso'?button('Descartar','dismiss:'+a.id,'small soft'):'')+'</div></div>';}
+function navBtn(name,ico,label){return '<button class="nav-button '+(page===name?'active':'')+'" data-action="nav:'+name+'"><span class="nav-ico">'+ico+'</span>'+label+(name==='notifications'&&alertCount()?'<span class="nav-count">'+alertCount()+'</span>':'')+'</button>';}
+function shell(body){
+ var r=role();
+ return '<div class="page shell"><aside class="sidebar"><div class="brand"><div class="brand-logo">K</div><div><strong>KONSOR</strong><small>OFICINA DIGITAL</small></div></div><div class="nav-label">ESPACIO DE TRABAJO</div><nav class="nav-group">'+navBtn('home','⌂','Inicio')+navBtn('building','▥','Edificio')+navBtn('tasks','☑','Mis tareas')+navBtn('notifications','♧','Centro de avisos')+navBtn('automation','✧','Automatizaciones')+navBtn('tracking','◎','Seguimiento')+'</nav><div class="side-bottom"><div class="identity"><small>SESIÓN DE PRUEBA</small><strong>'+safe(r.name)+'</strong><small>'+safe(r.desc)+'</small><button class="linklike" data-action="switchrole">Cambiar trabajador →</button><button class="linklike" style="display:block;margin-top:8px" data-action="resetdemo">Reiniciar datos de ejemplo</button></div><p style="font-size:10px;color:#90a0b0;line-height:1.5;padding:0 8px">Datos ficticios · las acciones no se envían a Firebase ni a otros empleados.</p></div></aside><div class="main"><header class="topbar"><div class="topbar-title">KONSOR <small>'+safe(r.name)+' · '+safe(dep(r.dept).name)+'</small></div><div class="top-actions"><span class="tag-demo">DEMO INTERACTIVA</span><button class="circle" aria-label="Cambiar perfil" data-action="switchrole">♙</button><button class="circle" aria-label="Ver avisos" data-action="nav:notifications">♧'+(alertCount()?'<span class="counter-dot">●</span>':'')+'</button></div></header><div class="content floor-screen">'+body+'</div></div><nav class="bottomnav"><button class="'+(page==='home'?'active':'')+'" data-action="nav:home"><span>⌂</span>Inicio</button><button class="'+(page==='building'?'active':'')+'" data-action="nav:building"><span>▥</span>Plantas</button><button class="'+(page==='tasks'?'active':'')+'" data-action="nav:tasks"><span>☑</span>Tareas</button><button class="'+(page==='notifications'?'active':'')+'" data-action="nav:notifications"><span>♧</span>Avisos</button><button class="'+(page==='automation'?'active':'')+'" data-action="nav:automation"><span>✧</span>IA</button></nav></div>';
+}
+function login(){
+ return '<div class="login"><div class="login-panel"><div class="brand" style="padding-left:0"><div class="brand-logo">K</div><div><strong>KONSOR</strong><small>EDIFICIO · VERSIÓN DE PRUEBAS</small></div></div><div class="kicker">PRUEBA TODOS LOS DEPARTAMENTOS</div><h1>¿Como quién quieres entrar?</h1><p>Elige CEO, un jefe o un trabajador. Cada perfil verá diferentes plantas, herramientas, avisos y tareas. Puedes cambiar de perfil en cualquier momento.</p><div class="banner"><strong>Demostración real de interfaz.</strong> Los botones modifican tareas, avisos y expedientes ficticios en este navegador. No hay cuentas auténticas ni conexión con Firebase.</div><div class="profile-grid">'+ROLES.map(function(r){return '<button class="profile" data-action="enter:'+r.id+'"><span class="avatar">'+safe(r.avatar)+'</span><strong>'+safe(r.name)+'</strong><small>'+safe(r.desc)+'</small></button>';}).join('')+'</div></div></div>';
+}
+function home(){
+ var r=role(),ownFloor=r.rank==='ceo'?'direccion':r.dept;var pendingOwn=pending(ownFloor);var activeCases=db.cases.filter(function(c){return c.stage===ownFloor;});
+ var tasksDone=db.tasks.filter(function(t){return t.floor===ownFloor&&t.status==='hecha';}).length;
+ var auto=AUTO.find(function(a){return a.floor===ownFloor;});
+ var greeting=new Date().getHours()<13?'Buenos días':new Date().getHours()<21?'Buenas tardes':'Buenas noches';
+ var result=titleView('TU ESPACIO PERSONAL',greeting+', '+r.name,'El trabajo pendiente, los avisos y los siguientes pasos de tu departamento.',button('Cambiar perfil','switchrole','small'));
+ result+='<div class="glass"><div class="kicker">SIGUIENTE ACCIÓN RECOMENDADA · SIMULACIÓN</div><h2 class="hero-title">'+safe(pendingOwn.length?pendingOwn[0].title:'Todo revisado en tu departamento')+'</h2><p class="hero-copy">'+safe(pendingOwn.length?pendingOwn[0].detail:'No hay tareas abiertas. Puedes revisar expedientes o generar una planificación de ejemplo.')+'</p><div class="actions">'+button(pendingOwn.length?'Ir a mis tareas':'Ver planta','nav:'+(pendingOwn.length?'tasks':'building'),'primary')+button('Abrir mi planta','floor:'+ownFloor,'soft')+'</div></div>';
+ result+='<div class="stats">'+stat(pendingOwn.length,'Tareas pendientes')+stat(tasksDone,'Tareas realizadas')+stat(activeCases.length,'Expedientes en mi planta')+stat(visibleAlerts().filter(function(a){return !a.read;}).length,'Avisos sin leer')+'</div>';
+ result+='<div class="two-col"><div class="card"><h3 class="card-title">Trabajo prioritario</h3><p class="card-sub">Puedes completar tareas, posponerlas o acceder a su departamento.</p>'+(pendingOwn.slice(0,3).map(taskHTML).join('')||'<div class="empty">No hay tareas abiertas.</div>')+'<div style="margin-top:13px">'+button('Ver todas mis tareas','nav:tasks','small')+'</div></div><div class="card"><h3 class="card-title">Asistente del departamento</h3><p class="card-sub">Reglas automatizadas que puedes probar ahora mismo.</p><div class="notice">La ejecución es local y demostrativa: no se envían mensajes ni se ejecutan procesos en segundo plano.</div><div style="margin-top:13px">'+(auto?'<h4 style="font-size:13px;margin:0 0 8px">'+safe(auto.title)+'</h4><p class="page-sub">'+safe(auto.desc)+'</p><div style="margin-top:16px">'+button('Ejecutar simulación','run:'+auto.id,'primary')+'</div>':'')+'</div></div>';
+ return result;
+}
+function building(){
+ var result=titleView('ORGANIZACIÓN · CINCO PLANTAS','Edificio KONSOR','Cada planta tiene su bandeja, sus automatizaciones y un circuito de expedientes.','');
+ result+='<div class="building"><div><div class="floor-list">'+DEPTS.map(function(d){var allowed=access(d.id);var qty=pending(d.id).length;return '<button class="floor-card" data-action="floor:'+d.id+'" '+(!allowed?'disabled aria-label="Sin acceso a '+safe(d.name)+'"':'')+'><div class="floor-num">'+d.num+'</div><div class="floor-copy"><strong>'+safe(d.name)+'</strong><span>'+safe(d.sub)+'</span><small>'+safe(d.desc)+'</small></div><span class="floor-end">'+(allowed?qty+' · ›':'🔒')+'</span></button>';}).join('')+'</div></div><div class="building-side"><div class="elevator"><div class="elevator-label">PLANTAS · KONSOR</div>'+DEPTS.map(function(d){return '<div class="lift-row '+(access(d.id)?'current':'')+'"><span>'+safe(d.name)+'</span><strong>'+d.num+'</strong></div>';}).join('')+'</div><div class="notice" style="margin-top:14px">Las plantas bloqueadas muestran la jerarquía del perfil seleccionado. Los permisos reales deberán validarse mediante Firebase.</div></div></div>';
+ result+=section('Flujo de expedientes','De captación a cierre');
+ result+='<div class="flow">'+STAGES.map(function(s){return '<span>'+safe(s==='cerrado'?'Cerrado':fullName(s))+'</span>';}).join('')+'</div>';
+ return result;
+}
+function floorView(){
+ if(!access(floor)){return '<div class="notice">Tu perfil no puede acceder a esta planta.</div>';}
+ var d=dep(floor),tasks=pending(floor),cases=db.cases.filter(function(c){return c.stage===floor;});
+ var result=titleView('PLANTA '+d.num+' · '+d.sub.toUpperCase(),d.name,d.desc,button('‹ Edificio','nav:building','small'));
+ result+='<div class="tabs">'+[['resumen','Resumen'],['bandeja','Bandeja'],['expedientes','Expedientes'],['asistentes','Automatizaciones'],['equipo','Equipo y seguimiento']].map(function(v){return '<button data-action="tab:'+v[0]+'" class="'+(tab===v[0]?'active':'')+'">'+v[1]+'</button>';}).join('')+'</div>';
+ if(tab==='resumen'){
+  result+='<div class="stats">'+stat(tasks.length,'Pendientes')+stat(db.tasks.filter(function(t){return t.floor===floor&&t.status==='hecha';}).length,'Completadas')+stat(cases.length,'Expedientes activos')+stat(db.alerts.filter(function(a){return a.floor===floor&&!a.read;}).length,'Avisos nuevos')+'</div>';
+  result+='<div class="two-col"><div class="card"><h3 class="card-title">Herramientas de '+safe(d.name)+'</h3><p class="card-sub">Acciones funcionales de esta versión de prueba.</p><div class="mini-grid">'+(ACTIONS[floor]||[]).map(function(x){return '<button class="quick" data-action="quick:'+x[2]+'"><span class="symbol">↗</span><strong>'+safe(x[0])+'</strong><small>'+safe(x[1])+'</small></button>';}).join('')+'</div></div><div class="card"><h3 class="card-title">Siguiente trabajo</h3><p class="card-sub">Atajos según el perfil actual.</p>'+(tasks.slice(0,2).map(taskHTML).join('')||'<div class="empty">Sin pendientes</div>')+'</div></div>';
+ }else if(tab==='bandeja'){
+  result+='<div class="card"><div class="header-row"><div><h3 class="card-title">Bandeja de '+safe(d.name)+'</h3><p class="card-sub">'+tasks.length+' tareas abiertas</p></div>'+button('+ Nueva tarea','create:task','small primary')+'</div>'+(visibleTasks(floor).map(taskHTML).join('')||'<div class="empty">No hay tareas registradas.</div>')+'</div>';
+ }else if(tab==='expedientes'){
+  result+='<div class="card"><div class="header-row"><div><h3 class="card-title">Expedientes del departamento</h3><p class="card-sub">Prueba el traspaso entre plantas y sus avisos asociados.</p></div>'+(floor==='comercial'?button('+ Captación','create:case','small primary'):'')+'</div>'+(cases.map(caseHTML).join('')||'<div class="empty">Sin expedientes en esta etapa.</div>')+'</div>';
+ }else if(tab==='asistentes'){
+  result+=autoList(floor);
+ }else {
+  result+=teamView();
+ }
+ return result;
+}
+function teamView(){
+ var r=role(),my=owner(floor),list=visibleTasks(floor),done=list.filter(function(t){return t.status==='hecha';}).length;
+ var result='<div class="two-col"><div class="card"><h3 class="card-title">Seguimiento del departamento</h3><p class="card-sub">Actividad creada y cerrada dentro de la demostración.</p><div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">'+stat(done,'Resueltas')+stat(list.length,'Totales')+'</div><div class="notice">Acceso de responsable: '+(my?'puedes organizar el trabajo de tu departamento.':'consulta limitada para dirección.')+'</div>'+button('Crear tarea','create:task','small primary')+'</div><div class="card"><h3 class="card-title">Registro de actividad</h3><p class="card-sub">Cada acción queda apuntada en la demo.</p><div class="timeline">'+db.logs.slice(0,7).map(function(l){return '<div class="event"><strong>'+safe(l.title)+'</strong><p>'+safe(l.detail)+'</p></div>';}).join('')+'</div></div></div>';
+ return result;
+}
+function taskView(){
+ var r=role(),allowed=DEPTS.filter(function(d){return access(d.id);}).map(function(d){return d.id;});
+ var all=db.tasks.filter(function(t){return allowed.indexOf(t.floor)>=0&&(r.rank==='ceo'||r.rank==='jefe'||t.floor===r.dept);});
+ if(taskFilter==='abiertas')all=all.filter(function(t){return t.status!=='hecha';});
+ if(taskFilter==='cerradas')all=all.filter(function(t){return t.status==='hecha';});
+ return titleView('TRABAJO GUIADO','Bandeja de tareas','Completa, pospone y crea tareas. Los cambios se conservan en esta demostración.','')+'<div class="tabs">'+[['abiertas','Abiertas'],['todas','Todas'],['cerradas','Completadas']].map(function(f){return '<button class="'+(taskFilter===f[0]?'active':'')+'" data-action="filter:'+f[0]+'">'+f[1]+'</button>';}).join('')+'</div><div class="card"><div class="header-row"><div><h3 class="card-title">'+all.length+' tareas</h3><p class="card-sub">Mostrando únicamente departamentos permitidos.</p></div>'+button('+ Añadir tarea','create:task','small primary')+'</div>'+(all.map(taskHTML).join('')||'<div class="empty">No hay tareas en este filtro.</div>')+'</div>';
+}
+function notifications(){
+ var alerts=visibleAlerts().filter(function(a){return selectedAlert==='all'||a.kind===selectedAlert;});
+ return titleView('CENTRO DE COMUNICACIONES','Avisos y acciones','Los avisos informativos se pueden descartar; los que requieren trabajo permanecen en la bandeja.','')+'<div class="tabs">'+[['all','Todos'],['aviso','Solo avisos'],['accion','Requieren acción']].map(function(f){return '<button class="'+(selectedAlert===f[0]?'active':'')+'" data-action="alertfilter:'+f[0]+'">'+f[1]+'</button>';}).join('')+'</div><div class="card"><div class="header-row"><div><h3 class="card-title">Centro de avisos</h3><p class="card-sub">'+alerts.length+' registros visibles</p></div>'+button('Marcar todos leídos','readall','small')+'</div>'+(alerts.map(alertHTML).join('')||'<div class="empty">No quedan avisos en este filtro.</div>')+'</div>';
+}
+function autoList(deptFilter){
+ var autos=AUTO.filter(function(a){return (deptFilter?a.floor===deptFilter:access(a.floor));});
+ return '<div class="card"><h3 class="card-title">Automatizaciones del departamento</h3><p class="card-sub">Activar una regla habilita su ejecución manual de prueba. En esta demo no hay trabajos programados ni avisos push reales.</p>'+autos.map(function(a){return '<div class="item"><div class="item-head"><div><h4>'+safe(a.title)+'</h4><p>'+safe(a.desc)+'</p></div>'+pTag(db.toggles[a.id]?'Activada':'Desactivada',db.toggles[a.id]?'done':'')+'</div><div class="item-meta">'+pTag(fullName(a.floor))+'</div><div class="item-actions">'+button(db.toggles[a.id]?'Desactivar':'Activar','toggle:'+a.id,'small')+button('Ejecutar prueba','run:'+a.id,'small primary')+'</div></div>';}).join('')+'</div>';
+}
+function automation(){
+ return titleView('MOTOR OPERATIVO · PRUEBAS','Automatizaciones','Simula qué acciones preparará KONSOR cuando esté conectado a sus servicios reales.','')+'<div class="banner">Las automatizaciones de esta vista se ejecutan solo al tocar «Ejecutar prueba». No se ejecutan en segundo plano ni llaman a Gemini, Firestore, WhatsApp o sistemas externos.</div>'+autoList(null);
+}
+function tracking(){
+ var visible=db.cases.filter(function(c){return access(c.stage)||role().rank==='ceo';});
+ return titleView('TRAZABILIDAD','Seguimiento de expedientes','Comprueba cómo una ficha pasa de un departamento al siguiente y genera una tarea de recepción.',button('Simular día siguiente','nextday','small'))+'<div class="card"><h3 class="card-title">Circuito completo</h3><p class="card-sub">Selecciona expedientes de las plantas permitidas y avanza el proceso cuando tengas autorización.</p><div class="flow" style="margin-bottom:20px">'+STAGES.map(function(s){return '<span>'+safe(s==='cerrado'?'Cerrado':fullName(s))+'</span>';}).join('')+'</div>'+(visible.map(caseHTML).join('')||'<div class="empty">Sin expedientes visibles.</div>')+'</div>'+section('Historial de acciones','Últimos movimientos')+'<div class="card"><div class="timeline">'+db.logs.slice(0,12).map(function(l){return '<div class="event"><strong>'+safe(l.title)+'</strong><p>'+safe(l.detail)+'</p></div>';}).join('')+'</div></div>';
+}
+function finance(){
+ var cases=db.cases.filter(function(c){return c.stage==='administracion'||c.stage==='direccion'||c.stage==='cerrado';});
+ var value=cases.reduce(function(n,c){return n+c.amount;},0);
+ return titleView('PLANTA 04 · CIFRAS FICTICIAS','Control económico','Este panel es orientativo. No hay facturas ni cobros reales conectados.','')+'<div class="stats">'+stat(value.toLocaleString('es-ES')+' €','Valor estimado')+stat(cases.length,'Expedientes posteriores a obra')+stat(pending('administracion').length,'Controles pendientes')+stat('0 €','Cobros reales conectados')+'</div><div class="card"><h3 class="card-title">Revisión económica</h3><p class="card-sub">Completa las tareas y genera controles de prueba.</p>'+visibleTasks('administracion').map(taskHTML).join('')+button('Generar revisión de cobros','run:finance','primary')+'</div>';
+}
+function render(){
+ var target=document.getElementById('app'),body='';
+ if(page==='login'||!db.profile){target.innerHTML=login();return;}
+ if(page==='home')body=home();
+ else if(page==='building')body=building();
+ else if(page==='floor')body=floorView();
+ else if(page==='tasks')body=taskView();
+ else if(page==='notifications')body=notifications();
+ else if(page==='automation')body=automation();
+ else if(page==='tracking')body=tracking();
+ else if(page==='finances')body=finance();
+ else body=home();
+ target.innerHTML=shell(body);
+}
+function createModal(kind){
+ modal=kind;
+ var isCase=kind==='case',where=page==='floor'?floor:(role().rank==='ceo'?'direccion':role().dept);
+ var title=isCase?'Nueva captación':'Nueva tarea';
+ var html='<div class="overlay" id="modal-overlay"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h3>'+title+'</h3><button class="circle" data-action="closemodal" aria-label="Cerrar">×</button></div><form id="create-form"><div class="form-grid">';
+ if(isCase){
+  html+='<div class="field"><label>Cliente o inmueble de ejemplo</label><input name="name" required maxlength="70" placeholder="Vivienda · Calle Mayor"></div><div class="field"><label>Pueblo</label><input name="town" required maxlength="50" placeholder="Mutilva"></div><div class="field"><label>Tipo</label><select name="type"><option>Unifamiliar</option><option>Comunidad</option><option>Urbanización</option></select></div>';
+ }else{
+  html+='<div class="field"><label>Título de la tarea</label><input name="title" required maxlength="90" placeholder="Revisar expediente"></div><div class="field"><label>Descripción</label><textarea name="detail" maxlength="180" placeholder="Qué hay que hacer"></textarea></div><div class="field"><label>Departamento</label><select name="floor">'+DEPTS.filter(function(d){return owner(d.id);}).map(function(d){return '<option value="'+d.id+'" '+(d.id===where?'selected':'')+'>'+safe(d.name)+'</option>';}).join('')+'</select></div><div class="field"><label>Prioridad</label><select name="priority"><option value="normal">Normal</option><option value="alta">Alta</option></select></div>';
+ }
+ html+='</div><div class="actions" style="margin-top:20px"><button type="submit" class="button primary">Guardar en demo</button><button type="button" class="button" data-action="closemodal">Cancelar</button></div><p class="page-sub" style="margin-top:13px">No se enviarán datos a Firebase.</p></form></div></div>';
+ document.getElementById('modal-root').innerHTML=html;
+ document.getElementById('create-form').addEventListener('submit',function(e){
+  e.preventDefault();var f=new FormData(e.currentTarget);
+  if(isCase){
+   var v={id:'EX-'+(++db.nextId),client:String(f.get('name')||'').trim(),town:String(f.get('town')||'').trim(),type:String(f.get('type')),stage:'comercial',status:'Captación',amount:0};
+   if(!v.client||!v.town)return;db.cases.unshift(v);log('Captación creada',v.id+' · '+v.client);notify('comercial','accion','Nueva captación',v.id+' necesita seguimiento.');
+  }else{
+   var t={id:'t'+(++db.nextId),title:String(f.get('title')||'').trim(),detail:String(f.get('detail')||'').trim()||'Sin descripción',floor:String(f.get('floor')||where),status:'pendiente',priority:String(f.get('priority')||'normal'),due:db.day};
+   if(!t.title||!owner(t.floor))return;db.tasks.unshift(t);log('Tarea creada',t.title+' · '+fullName(t.floor));notify(t.floor,'accion','Tarea nueva',t.title);
+  }
+  save();document.getElementById('modal-root').innerHTML='';modal='';render();showToast(isCase?'Ficha de ejemplo creada':'Tarea añadida a la demo');
+ });
+}
+function advance(id){
+ var c=db.cases.find(function(c){return c.id===id;});if(!c)return;
+ if(c.stage==='cerrado'||!owner(c.stage)){showToast('No tienes permisos en esta etapa');return;}
+ var next=STAGES[STAGES.indexOf(c.stage)+1];var old=c.stage;c.stage=next;c.status=next==='cerrado'?'Cerrado':'Pendiente de '+fullName(next);
+ if(next!=='cerrado'){
+  db.tasks.unshift({id:'t'+(++db.nextId),floor:next,title:'Recibir '+c.id+' · '+c.client,detail:'Transferido desde '+fullName(old),status:'pendiente',priority:'alta',due:db.day});
+  notify(next,'accion','Nuevo expediente recibido',c.id+' llega desde '+fullName(old));
+ }else notify('direccion','aviso','Expediente cerrado',c.id+' ha finalizado su circuito.');
+ log('Traspaso de expediente',c.id+' · '+fullName(old)+' → '+(next==='cerrado'?'Cerrado':fullName(next)));save();render();showToast('Expediente transferido');
+}
+function runAutomation(id){
+ var a=AUTO.find(function(a){return a.id===id;});
+ if(!a||!access(a.floor)||!db.toggles[id]){showToast('Regla no disponible o desactivada');return;}
+ var names={plan:'Propuesta de planificación',audit:'Incidencias detectadas',recall:'Seguimientos comerciales',route:'Rutas técnicas pendientes',docs:'Revisión documental',finance:'Revisión económica'};
+ var subjects={plan:'Preparar calendario semanal por departamentos',audit:'Revisar cuellos de botella y resultados',recall:'Llamar a interesados sin respuesta',route:'Ordenar visitas y mediciones de la jornada',docs:'Solicitar documentación pendiente',finance:'Validar cobros y facturas de la semana'};
+ var target=a.floor;
+ db.tasks.unshift({id:'t'+(++db.nextId),floor:target,title:subjects[id],detail:'Creado por la simulación de '+a.title,status:'pendiente',priority:'normal',due:db.day+1});
+ notify(target,'accion',names[id],subjects[id]);
+ log('Automatización simulada',a.title+' ha generado una tarea y un aviso en '+fullName(target));
+ save();render();showToast('Simulación ejecutada: tarea + aviso creados');
+}
+function onAction(key){
+ if(!key)return;
+ var p=key.split(':'),a=p[0],id=p.slice(1).join(':');
+ if(a==='enter'){if(!ROLES.some(function(r){return r.id===id;}))return;db.profile=id;save();go('home');return;}
+ if(a==='switchrole'){page='login';render();return;}if(a==='resetdemo'){if(!confirm('¿Restablecer los datos ficticios de esta demostración?'))return;var current=db.profile;db=seed();db.profile=current;selectedAlert='all';taskFilter='abiertas';save();go('home');showToast('Datos de ejemplo restaurados');return;}
+ if(a==='nav'){go(id);return;}
+ if(a==='floor'){if(!access(id)){showToast('Planta restringida para este perfil');return;}go('floor',id);return;}
+ if(a==='tab'){tab=id;render();return;}
+ if(a==='filter'){taskFilter=id;render();return;}
+ if(a==='alertfilter'){selectedAlert=id;render();return;}
+ if(a==='task'){
+  var t=db.tasks.find(function(t){return t.id===id;});if(!t||!owner(t.floor)){showToast('No puedes modificar esta tarea');return;}
+  t.status=t.status==='hecha'?'pendiente':'hecha';log('Tarea '+(t.status==='hecha'?'completada':'reabierta'),t.title);save();render();showToast('Estado actualizado');return;
+ }
+ if(a==='snooze'){
+  var t2=db.tasks.find(function(t){return t.id===id;});if(!t2||!owner(t2.floor))return;t2.due=db.day+1;log('Recordatorio aplazado',t2.title+' · mañana');save();render();showToast('Recordatorio movido a mañana');return;
+ }
+ if(a==='read'){var al=db.alerts.find(function(x){return x.id===id;});if(al&&access(al.floor)){al.read=true;save();render();}return;}
+ if(a==='dismiss'){db.alerts=db.alerts.filter(function(x){return !(x.id===id&&x.kind==='aviso'&&access(x.floor));});save();render();return;}
+ if(a==='readall'){visibleAlerts().forEach(function(x){x.read=true;});save();render();return;}
+ if(a==='advance'){advance(id);return;}
+ if(a==='run'){runAutomation(id);return;}
+ if(a==='toggle'){if(AUTO.some(function(x){return x.id===id&&access(x.floor);}))db.toggles[id]=!db.toggles[id];save();render();return;}
+ if(a==='create'){if(id==='case'&&!owner('comercial')){showToast('Solo Comercial puede crear captaciones');return;}createModal(id);return;}
+ if(a==='closemodal'){document.getElementById('modal-root').innerHTML='';modal='';return;}
+ if(a==='nextday'){db.day++;db.tasks.filter(function(t){return t.status!=='hecha'&&t.due<db.day;}).forEach(function(t){notify(t.floor,'aviso','Recordatorio vencido',t.title);});log('Avance de jornada','Día de prueba '+db.day+' · avisos actualizados');save();render();showToast('Se ha simulado un día más');return;}
+ if(a==='quick'){
+  if(id==='newcase'){createModal('case');return;}
+  if(id==='newtask'){createModal('task');return;}
+  if(id==='plan'||id==='audit'){runAutomation(id);return;}
+  if(id==='finances'){page='finances';render();return;}
+  if(id==='tasks'){tab='bandeja';render();return;}
+  if(id==='cases'){tab='expedientes';render();return;}
+ }
+}
+document.addEventListener('click',function(e){
+ var target=e.target.closest('[data-action]');if(!target||target.disabled)return;
+ e.preventDefault();onAction(target.getAttribute('data-action'));
+});
+document.addEventListener('keydown',function(e){
+ if(e.key==='Escape'&&modal){document.getElementById('modal-root').innerHTML='';modal='';}
+});
+var startX=0,startY=0;
+document.addEventListener('touchstart',function(e){if(e.touches.length!==1||e.touches[0].clientX>38){startX=-1;return;}startX=e.touches[0].clientX;startY=e.touches[0].clientY;},{passive:true});
+document.addEventListener('touchend',function(e){if(startX<0||!db.profile)return;var t=e.changedTouches[0];if(t.clientX-startX>85&&Math.abs(t.clientY-startY)<65){if(page==='floor')go('building');else if(page!=='home')go('home');}startX=-1;},{passive:true});
+render();
+})();
+</script></body></html>
