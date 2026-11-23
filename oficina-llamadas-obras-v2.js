@@ -601,16 +601,85 @@ function draw(opts={}){
   }
   if(!callable(item)&&pending(item)){const nextAt=new Date(Number(c.nextContactAt)).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit"});e("p","koc-muted","Seguimiento programado para "+nextAt+". Puedes consultar la ficha sin adelantar la llamada.",body);}
   if(booked(item)){
+   if(c.calendarBookingOrigin==="google_calendar_existing"){
+    const note=card(body);e("strong","","Obra asociada desde Google Calendar",note);
+    e("p","koc-muted","Vinculación confirmada manualmente. Cambiar la ficha no cambia el evento original.",note);
+    if(c.calendarEventUrl){const link=e("a","koc-btn koc-quiet","Abrir evento original",note);link.href=c.calendarEventUrl;link.target="_blank";link.rel="noopener noreferrer";}
+   }
    body.append(button("Ver confirmación y WhatsApp",()=>{view="whatsapp";draw();},"koc-primary"));
    body.append(button("Cambiar fecha",()=>{chosenDate=c.obraDate||tomorrow();view="calendar";draw();},"koc-quiet"));
   }else{
    body.append(button("Acepta · Agendar obra",()=>{chosenDate=plannedChoice?.key===item.key?plannedChoice.date:clusterFocus?clusterDate:tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw({preferred:plannedChoice?.key===item.key?plannedChoice:null});},"koc-primary"));
+   body.append(button("Ya está en Google Calendar · Vincular",()=>{view="existingCalendar";draw();},"koc-quiet"));
    body.append(button("No contesta · Volver a llamar",()=>saveCall("ya_llamado"),""));
    body.append(button("Necesita pensarlo",()=>{view="waiting";draw();},""));
    body.append(button("Programar llamada con aviso",()=>{view="waiting";draw();},"koc-quiet"));
    body.append(button("No está interesado",()=>saveCall("no_interesado"),"koc-quiet"));
   }
   body.append(button("Saltar sin modificar",next,"koc-quiet"));return;
+ }
+ if(view==="existingCalendar"){
+  nav(body,"Volver al cliente",()=>{view="client";draw();});
+  title(body,"Asociar obra del calendario","Usa la reserva que ya existe en Google Calendar. No crearemos otra cita ni otro cliente.");
+  const form=card(body);
+  e("p","koc-muted","Comprueba que el evento pertenece exactamente a esta vivienda antes de asociarlo. KONSOR no recibe aún el ID del evento para verificarlo automáticamente.",form);
+  const facts=card(form);
+  [["Cliente",c.name||"Pendiente"],["Dirección",c.street],["Pueblo",z.town],["Teléfono",c.phone||"Pendiente"]].forEach(([k,v])=>{
+   const row=e("div","koc-fact",undefined,facts);e("span","",k,row);e("strong","",v,row);
+  });
+  const field=(label,type,value)=>{
+   e("label","",label,form);const el=e("input","koc-input",undefined,form);el.type=type;el.value=value||"";return el;
+  };
+  const date=field("Fecha que figura en Google Calendar","date",c.obraDate||tomorrow());
+  const time=e("select","koc-input",undefined,form);
+  e("label","","Franja de instalación",form);
+  SLOTS.forEach(([from,to])=>{const option=e("option","",from+"–"+to,time);option.value=from;});
+  time.value=c.obraTime||SLOTS[0][0];
+  e("label","","Equipo que figura en el evento",form);
+  const team=e("select","koc-input",undefined,form);
+  [2,3].forEach(n=>{const option=e("option","","Equipo "+n,team);option.value=String(n);});
+  team.value=String(c.obraEquipoInstalacion||2);
+  const ref=field("Enlace del evento (opcional)","url",c.calendarEventUrl||"");
+  ref.placeholder="https://calendar.google.com/...";
+  const label=e("label","","",form);
+  const check=e("input","",undefined,label);check.type="checkbox";
+  e("span",""," He comprobado en Google Calendar que es la misma vivienda, fecha, hora y equipo.",label);
+  const message=e("p","koc-muted","El evento seguirá siendo el original de Google Calendar. Esta operación solo actualiza la ficha en KONSOR.",form);
+  form.append(button("Asociar esta obra a la ficha",async()=>{
+   if(busy)return;
+   const url=ref.value.trim(),when=date.value,slot=time.value,crew=Number(team.value);
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(when)||Number.isNaN(Date.parse(when+"T12:00:00"))||!SLOTS.some(([start])=>start===slot)||![2,3].includes(crew)){
+    message.textContent="Revisa la fecha, el horario y el equipo del evento.";return;
+   }
+   if(url&&!/^https:\/\/calendar\.google\.com\//i.test(url)){
+    message.textContent="Introduce un enlace de evento de Google Calendar válido o deja el campo vacío.";return;
+   }
+   if(!check.checked){message.textContent="Confirma primero que el evento corresponde a esta vivienda.";return;}
+   const row=resolve();if(!row||booked(row)){message.textContent="La ficha ha cambiado o ya tiene una obra. Actualiza los datos.";return;}
+   const other=all().find(x=>x.key!==row.key&&booked(x)&&
+     ((url&&x.c.calendarEventUrl===url)||
+     (x.c.obraDate===when&&x.c.obraTime===slot&&Number(x.c.obraEquipoInstalacion)===crew)));
+   if(other){message.textContent="Ya hay otra ficha agendada en ese evento o en el mismo equipo, día y hora. Revísala antes de asociar.";return;}
+   busy=true;
+   const old={...row.c},oldZone=row.z._updatedAt;
+   Object.assign(row.c,{
+    obraStatus:"agendada",obraDate:when,obraTime:slot,obraEquipoInstalacion:crew,
+    callStatus:"citas",nextContactAt:null,statusChangedAt:Date.now(),
+    calendarBookingOrigin:"google_calendar_existing",calendarEventUrl:url,
+    calendarLinkVerifiedByUserAt:Date.now(),updatedAt:Date.now()
+   });
+   row.z._updatedAt=Date.now();
+   try{
+    if(!await saveAndSync("comercial_custom_zones",savedZones))throw Error("Firebase no confirmó el guardado.");
+    message.textContent="Obra existente asociada a esta ficha. No se ha creado otro evento.";
+    view="whatsapp";draw();
+   }catch(err){
+    Object.keys(row.c).forEach(k=>{if(!(k in old))delete row.c[k];});
+    Object.assign(row.c,old);row.z._updatedAt=oldZone;
+    message.textContent="No se ha asociado la obra: "+(err.message||"Error");
+   }finally{busy=false;}
+  },"koc-primary"));
+  return;
  }
  if(view==="waiting"){
   nav(body,"Volver a la llamada",()=>{view="client";draw();});
