@@ -168,17 +168,19 @@
     return live()&&!pending&&!failed&&!isDrawingMode&&!isCropMode&&!isRoofMeasureMode&&
       !document.hidden&&!document.querySelector('.modal-overlay.active,.leaflet-popup,#drawingBanner.active');
   }
-  async function refresh(){
-    if(reading||!idle()||checked===invalidate)return;
+  async function refresh(force=false){
+    if(reading||pending>0||failed||!live()||(!force&&!idle())||(!force&&checked===invalidate))return false;
     reading=true;const stamp=version, ticket=invalidate;
     try{
       const {data}=await window.readWorkV2({});
-      if(idle()&&stamp===version){
+      if((force||idle())&&stamp===version){
         checked=ticket;
         if(data.docs.length!==revs.size||data.docs.some(d=>revs.get(path(d))!==d.rev))install(data,false);
         status('');
+        return true;
       }
-    } catch(e){if(idle())status('Sin actualizar · comprueba la conexión');}
+      return false;
+    } catch(e){if(force)throw e;if(idle())status('Sin actualizar · comprueba la conexión');return false;}
     finally{reading=false;}
   }
   window.addEventListener('focus',()=>{invalidate++;refresh();});
