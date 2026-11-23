@@ -64,7 +64,7 @@ test('las vistas de distintos puestos reutilizan la misma estructura del Inicio'
   for(const classname of ['cnv-home','cnv-home-head','cnv-home-content','cnv-home-hero','cnv-home-grid','cnv-home-footer'])
    assert.ok(names.some(n=>n.split(' ').includes(classname)),role+' sin '+classname);
   assert.ok(labels(preview).includes('SIGUIENTE PASO RECOMENDADO'));
-  assert.ok(labels(preview).includes(role==='ceo'?'VISTA DE DISEÑO':'KONSOR · DATOS CONECTADOS'));
+  assert.ok(labels(preview).includes(role==='ceo'?'KONSOR · DIRECCIÓN':'KONSOR · DATOS CONECTADOS'));
   assert.ok(labels(preview).includes('Cambiar área'));
  }
 });

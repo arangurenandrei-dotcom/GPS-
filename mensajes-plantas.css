@@ -1,0 +1,28 @@
+/* KONSOR · Mensajería de plantas. Misma superficie translúcida iOS. */
+.kpm-overlay{position:fixed;inset:0;z-index:20200;display:flex;align-items:center;justify-content:center;background:rgba(30,45,64,.38);backdrop-filter:blur(12px);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);color:#293c52;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif}
+.kpm-page{box-sizing:border-box;width:min(100%,660px);height:min(100%,900px);max-height:100%;display:flex;flex-direction:column;background:#f6f8fb;border-radius:26px;border:1px solid rgba(255,255,255,.85);box-shadow:0 22px 75px rgba(20,39,58,.18);overflow:hidden}
+.kpm-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px;border-bottom:1px solid #e6ebf2;background:rgba(255,255,255,.82)}
+.kpm-header small{font-size:10px;letter-spacing:.12em;color:#8595a8;font-weight:720}
+.kpm-header h2{font-size:23px;line-height:1.2;letter-spacing:-.03em;margin:4px 0 0;color:#2b3c53}
+.kpm-header button,.kpm-button{min-height:44px;padding:11px 15px;border-radius:15px;border:1px solid #dbe5ef;background:rgba(255,255,255,.9);color:#304a63;font-weight:690;font-size:13px;cursor:pointer;font-family:inherit}
+.kpm-header button:disabled,.kpm-button:disabled{opacity:.5}
+.kpm-body{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;padding:20px}
+.kpm-status{font-size:12px;line-height:1.5;color:#64809d;min-height:14px;margin:0}
+.kpm-error{color:#a33636!important;font-size:12px;line-height:1.5}
+.kpm-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 2px;color:#30455d}
+.kpm-summary strong{font-size:14px}.kpm-summary small{font-size:12px;color:#8191a6}
+.kpm-list{display:flex;flex-direction:column;gap:10px}
+.kpm-card{display:flex;flex-direction:column;gap:10px;padding:17px 18px;border:1px solid rgba(255,255,255,.94);border-radius:23px;background:rgba(255,255,255,.84);box-shadow:0 7px 23px rgba(20,39,64,.045)}
+.kpm-card h3{font-size:17px;line-height:1.35;margin:0;font-weight:740}
+.kpm-card strong{font-size:14px;color:#25394e}
+.kpm-card small{font-size:11px;color:#75879b;line-height:1.5}
+.kpm-help{font-size:12px;line-height:1.55;color:#78899c;margin:2px 0}
+.kpm-label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:710;color:#536985}
+.kpm-field{box-sizing:border-box;width:100%;max-width:100%;min-height:47px;padding:12px 13px;border:1px solid #dbe4ef;border-radius:14px;background:#fff;color:#25394d;font-family:inherit;font-size:16px;font-weight:450}
+textarea.kpm-field{min-height:86px;resize:vertical}
+.kpm-actions{display:flex;gap:9px;flex-wrap:wrap}
+.kpm-actions .kpm-button{flex:1;min-width:145px}
+@media(max-width:600px){.kpm-page{width:100%;max-height:100dvh;height:100dvh;border:0;border-radius:0}.kpm-header{padding-top:calc(17px + env(safe-area-inset-top))}.kpm-body{padding-bottom:calc(20px + env(safe-area-inset-bottom))}}
+
+#cnvHome .cnv-plant-messages-link{display:block;width:100%;max-width:640px;box-sizing:border-box;margin:1px auto 0;min-height:47px;border-radius:16px;border:1px solid rgba(213,225,239,.95);background:rgba(255,255,255,.8);box-shadow:0 5px 18px rgba(31,51,70,.045);color:#324d68;font:inherit;font-size:13px;font-weight:720;text-align:center}
+#cnvHome .cnv-plant-messages-link:active{transform:scale(.99)}

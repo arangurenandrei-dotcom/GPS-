@@ -108,6 +108,8 @@ function showHome(){
   director.append(access);
  }
 
+ const messageLink=btn("Mensajes entre plantas",()=>window.KonsorPlantMessages?.open?.("comercial"),"cnv-glass cnv-plant-messages-link");
+ messageLink.setAttribute("aria-label","Abrir mensajes de Comercial con otras plantas");section.append(messageLink);
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
