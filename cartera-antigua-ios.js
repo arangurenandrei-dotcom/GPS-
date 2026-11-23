@@ -83,8 +83,8 @@ async function commit(candidate){
  const check=syncState();
  if(check.kind!=="ready")throw Error(check.message);
  // Validar ANTES de enviar: el servidor rechaza IDs con %, espacios o caracteres fuera de ASCII.
- // El CRM histórico solo modifica fichas dentro de zonas que el servidor ya conoce.
- // Nunca se crean contenedores virtuales ni se trasladan fichas a un ID de zona nuevo.
+ // Conserva los sectores existentes. Solo permite registrar viviendas individuales
+ // sin polígono, usando el modelo de fichas V2 ya existente.
  const previous=zs(),originalIds=new Set(previous.map(z=>String(z.id)));
  // Únicamente se acepta una vivienda individual con pueblo, sin sector.
  const added=candidate.filter(z=>!originalIds.has(String(z.id)));
@@ -163,7 +163,7 @@ function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
  if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z)||isSectorless(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
- const box=card(page,c?"Completar ficha histórica":"Nuevo cliente antiguo","Sin dibujo de pueblos o sectores. Guarda pendiente o confirma que está lista para llamadas.");
+ const box=card(page,c?"Completar ficha de captación":"Nueva captación sin sector","Mismos datos y seguimiento que una captación normal. Pueblo obligatorio; sin dibujar sectores.");
  const fields=E("div","kha-grid",undefined,box);
  const name=f(fields,"Nombre y apellidos",c?.name||"");
  const telephone=f(fields,"Teléfono",c?.phone||"","tel");
@@ -404,11 +404,11 @@ function listScreen(page){
  const actions=buttons(page);
  actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
  actions.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
- const summary=card(page,"Cartera histórica",total+" fichas · "+groups.length+" pueblos. Los datos históricos no se contabilizan como captación nueva.");
+ const summary=card(page,"Captaciones registradas",total+" fichas · "+groups.length+" pueblos. Las viviendas sin sector también son captaciones normales.");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
- E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus!=="lista").length,stats);
- E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(x=>x.c.legacyReviewStatus==="lista").length,stats);
+ E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
+ E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(callable).length,stats);
  const search=E("input","kha-search",undefined,page);
  search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
  const body=E("div","",undefined,page);
@@ -487,7 +487,7 @@ function listScreen(page){
   if(activeStreet&&!town.streets.has(activeStreet))activeStreet="";
   if(!activeStreet){
    for(const road of streets){
-    const ready=road.clients.filter(x=>x.c.legacyReviewStatus==="lista").length;
+    const ready=road.clients.filter(callable).length;
     const row=B("",()=>{activeTown=town.key;activeStreet=road.key;renderGroups();});
     row.className="kha-rowitem";
     const names=E("span","",undefined,row);
@@ -501,8 +501,8 @@ function listScreen(page){
    E("h3","",street?.label||"",body);
    for(const x of street?.clients||[]){
     const item=card(body,x.c.name||"Cliente sin nombre",[x.c.street||"Dirección pendiente",x.c.phone].filter(Boolean).join(" · "));
-    E("span",x.c.legacyReviewStatus==="lista"?"kha-tag good":"kha-tag",
-      x.c.legacyReviewStatus==="lista"?"Lista para llamadas":"Pendiente de completar",item);
+    E("span",callable(x)?"kha-tag good":"kha-tag",
+      callable(x)?"Lista para llamadas":"Pendiente de completar",item);
     p(item,"Año: "+(x.c.buildYear||"pendiente")+" · Superficie neta: "+(x.c.m2??"pendiente")+" m² · CTE: "+(x.c.cteZone||"pendiente"));
     item.append(B("Abrir ficha · Catastro y datos",()=>{
       screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
