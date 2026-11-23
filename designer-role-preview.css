@@ -28,3 +28,24 @@
 @media(min-width:600px){.kdp-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media(max-width:370px){.kdp-chooser-body{padding:20px 15px 25px}.kdp-choice{padding:10px 8px}.kdp-choice-icon{flex-basis:30px;width:30px;height:30px}.kdp-choice-text strong{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.kdp-overlay{backdrop-filter:none;}}
+
+/* Inicio homólogo al Comercial: tarjetas iguales, solo cambia la cantidad. */
+.kdp-role-home .cnv-home-content{width:100%}
+.kdp-single-tile{grid-column:1/-1;min-height:160px!important}
+.kdp-role-home .kdp-live-tile{cursor:pointer;pointer-events:auto}
+.kdp-role-home .kdp-live-tile:focus-visible,.kdp-role-home .cnv-home-primary:focus-visible{outline:3px solid #8fb6df;outline-offset:3px}
+.kdp-internal-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}
+.kdp-return{min-height:42px!important;padding:10px 14px!important;font-weight:700}
+.kdp-internal-title{font-size:25px;letter-spacing:-.04em;margin:0 0 8px;color:#26374d}
+.kdp-search{display:block;width:100%;padding:16px;background:#fff;border:1px solid #dee5ee;border-radius:17px;font:inherit;color:#243b52;margin:16px 0}
+.kdp-archive-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:18px 0}
+.kdp-archive-tabs button{min-height:44px!important;font-size:12px!important;font-weight:650!important}
+.kdp-archive-active{background:#e7eef8!important;border-color:#b9cce3!important}
+.kdp-records{display:flex;flex-direction:column;gap:10px;margin:15px 0}
+.kdp-record{background:#fff;border:1px solid #e1e8f0;border-radius:19px;padding:17px;display:flex;flex-direction:column;gap:7px;color:#2d4057}
+.kdp-record strong{font-size:14px;line-height:1.4}
+.kdp-record small{font-size:12px;line-height:1.4;color:#7c8c9e}
+.kdp-record-actions{display:flex;align-items:center;gap:10px;margin-top:7px}
+.kdp-record-actions button{padding:9px 14px!important}
+.kdp-readonly{font-size:11px;color:#8796a7}
+.kdp-empty{padding:17px;background:#eef3f9;color:#71849c;border-radius:16px;font-size:13px;line-height:1.6}
