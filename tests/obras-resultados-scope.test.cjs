@@ -67,8 +67,8 @@ test('Plan de llamadas usa selector segmentado y no un select nativo vacío',()=
 });
 test('Resultados diferencia ámbito del usuario, equipo y período de ejecución',()=>{
  const js=fs.readFileSync(path.join(root,'resultados-ios.js'),'utf8');
- assert.match(js,/kr-scope-picker/);
+ assert.match(js,/scope=which==="team"&&teamAllowed\(\)/);
  assert.match(js,/scheduledOpen\(sourceZones,users\)/);
- assert.match(js,/Todo mi equipo/);
+ assert.match(js,/window\.openKonsorTeamResults=\(\)=>open\("team"\)/);
  assert.match(js,/ownJobs\.area/); // previsto ahora es total pendiente
 });
