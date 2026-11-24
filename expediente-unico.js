@@ -6,12 +6,13 @@ const str=x=>String(x??"").trim();
 const safeId=x=>str(x).replace(/[^a-zA-Z0-9_-]/g,"");
 function reference(c){return safeId(c?.clientUid)||null;}
 function homes(c){
- const a=Array.isArray(c?.viviendas)?c.viviendas:[];
- if(a.length)return a.map((v,i)=>({
-  id:safeId(v.id)||"v"+(i+1),direccion:str(v.direccion||v.street||c.street),
+ const principal={id:"principal",direccion:str(c?.street),m2Total:c?.m2Total??null,
+  m2:c?.m2??null,notas:""};
+ const additional=Array.isArray(c?.viviendas)?c.viviendas:[];
+ return [principal,...additional.map((v,i)=>({
+  id:safeId(v.id)||"v"+(i+2),direccion:str(v.direccion||v.street),
   m2Total:v.m2Total??null,m2:v.m2??null,notas:str(v.notas)
- }));
- return [{id:"principal",direccion:str(c?.street),m2Total:c?.m2Total??null,m2:c?.m2??null,notas:""}];
+ }))];
 }
 const complete=(c,z={})=>({
  comercial:!!(str(c?.name)&&str(c?.phone)&&str(c?.street)&&str(z.town||c?.locality)),
