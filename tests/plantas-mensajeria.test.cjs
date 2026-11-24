@@ -56,7 +56,7 @@ test('agendar, aplazar y finalizar generan eventos destinados a la planta apropi
  assert.equal(api.autoId('f_123',a[0]),api.autoId('f_123',a[0]));
 });
 test('la UI conecta los módulos sin alterar el flujo comercial',()=>{
- assert.ok(index.includes('mensajes-plantas.js?v=3'));
+ assert.ok(index.includes('mensajes-plantas.js?v=4'));
  assert.ok(index.indexOf('mensajes-plantas.js')<index.indexOf('designer-role-preview.js'));
  assert.ok(client.includes('listarMensajesPlantaKonsor'));
  assert.ok(client.includes('actualizarMensajePlantaKonsor'));
