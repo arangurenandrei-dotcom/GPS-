@@ -30,7 +30,7 @@ test('al guardar, la cita original queda agendada en la misma ficha y sale de ll
  const flow=section('if(view==="existingCalendar"){','if(view==="waiting"){');
  assert.ok(flow.includes('window.vincularObraExistenteKonsor('));
  const server=fs.readFileSync(path.join(__dirname,'../backend/vincular-obra-existente.js'),'utf8');
- assert.ok(server.includes("obraStatus:'agendada'"));
+ assert.ok(server.includes("obraStatus:markCompleted?'realizada':'agendada'"));
  assert.ok(server.includes("callStatus:'citas'"));
  assert.ok(server.includes('nextContactAt:null'));
  assert.ok(server.includes('tx.update(fichaRef,'));
