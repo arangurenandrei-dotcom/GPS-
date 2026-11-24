@@ -313,14 +313,14 @@ function editor(page){
  let activeStep=0;
  const extra=E("details","kha-advanced",undefined,box);
  E("summary","","Varias viviendas en este expediente",extra);
- E("p","kha-muted","Si una misma obra incluye varias viviendas, identifica cada vivienda aquí. Los datos de cliente y documentos comunes siguen en una única ficha.",extra);
+ E("p","kha-muted","La vivienda principal es la dirección de esta ficha. Aquí puedes añadir otras viviendas de la misma obra; comparten titular y documentación común.",extra);
  const homeList=E("div","kha-homes",undefined,extra);
  const extraHomes=Array.isArray(c?.viviendas)?c.viviendas.map(v=>({...v})):[];
  function homeEditor(){
   homeList.replaceChildren();
   extraHomes.forEach((v,i)=>{
    const pane=E("div","kha-home",undefined,homeList);
-   E("strong","","Vivienda "+(i+1),pane);
+   E("strong","","Vivienda adicional "+(i+1),pane);
    const address=f(pane,"Dirección o referencia",v.direccion||"");address.oninput=()=>{v.direccion=address.value;};
    const area=f(pane,"Superficie total (m²)",v.m2Total??"","number");area.min="0";area.step="0.1";area.oninput=()=>{v.m2Total=area.value;};
    const note=f(pane,"Observaciones vivienda",v.notas||"");note.oninput=()=>{v.notas=note.value;};
@@ -435,7 +435,7 @@ function editor(page){
 }
  if(c){
   actions.append(B("Guardar cambios",function(){save(false,this);},true));
-  if(!booked(c)&&c.legacyReviewStatus==="pendiente")
+  if(!booked(c)&&(c.legacyReviewStatus==="pendiente"||(isSectorless(z)&&c.callStatus==="bloqueada")))
    actions.append(B("Habilitar llamadas",function(){save(true,this);}));
  }else{
   actions.append(B("Guardar pendiente",function(){save(false,this);}));
