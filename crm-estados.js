@@ -30,7 +30,7 @@ function rows(zones=[],allow=()=>true){
  for(const [zi,z] of zones.entries()){
   if(!z||!allow(z)||z.isHotMission)continue;
   for(const [ci,c] of (z.clients||[]).entries()){
-   if(!c||(c.name==null&&c.phone==null&&c.street==null))continue;
+   if(!c||![c.name,c.phone,c.street].some(x=>clean(x)))continue;
    const id=clean(c.clientUid);
    const key=id?'id:'+id:'zone:'+z.id+':'+ci;
    if(seen.has(key))continue;
