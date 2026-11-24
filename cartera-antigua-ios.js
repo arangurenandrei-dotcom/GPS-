@@ -79,6 +79,56 @@ const CSS=`#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;disp
  #konsorLegacyPortfolio .kha-actions{gap:9px}
  #konsorLegacyPortfolio .kha-actions .kha-btn{flex:1 1 auto}
 }
+
+/* CRM único: tarjetas de clientes compactas, estado primario y lectura iOS. */
+#konsorLegacyPortfolio .kha-crm-summary{background:#fff;border:1px solid #e4e9f1;border-radius:23px;padding:17px;margin:8px 0 14px;box-shadow:0 8px 24px #2639500a}
+#konsorLegacyPortfolio .kha-crm-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#konsorLegacyPortfolio .kha-crm-heading h3{margin:0;color:#293c55}
+#konsorLegacyPortfolio .kha-crm-heading>strong{font-size:13px;color:#7b8da3}
+#konsorLegacyPortfolio .kha-crm-money{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:13px}
+#konsorLegacyPortfolio .kha-money-cell{padding:12px 8px;background:#f1f4f8;border-radius:15px;display:flex;flex-direction:column;gap:4px;min-width:0}
+#konsorLegacyPortfolio .kha-money-cell strong{font-size:17px;letter-spacing:-.045em;overflow-wrap:anywhere;color:#263c56}
+#konsorLegacyPortfolio .kha-money-cell small{font-size:10px;color:#74849a;line-height:1.3}
+#konsorLegacyPortfolio .kha-crm-counts{display:flex;overflow-x:auto;gap:7px;scrollbar-width:none;padding:3px 0 13px}
+#konsorLegacyPortfolio .kha-filter{white-space:nowrap;min-height:40px;flex:none;border-radius:21px;padding:9px 13px;border:1px solid #e0e7f0;background:#fff;color:#576a83;font-size:12px;font-weight:690}
+#konsorLegacyPortfolio .kha-filter.active{background:#293f59;color:#fff;border-color:#293f59}
+#konsorLegacyPortfolio .kha-crm-results{display:flex;flex-direction:column;gap:12px;margin:15px 0}
+#konsorLegacyPortfolio .kha-crm-row-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#konsorLegacyPortfolio .kha-town-card{background:#fff;border:1px solid #e1e8f1;border-radius:20px;padding:12px 14px;box-shadow:0 5px 17px #233c5509}
+#konsorLegacyPortfolio .kha-town-head{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;background:transparent;border:0;text-align:left;color:#2b3e55;padding:5px 1px 10px;font:inherit}
+#konsorLegacyPortfolio .kha-town-head div{display:flex;flex-direction:column;gap:2px}
+#konsorLegacyPortfolio .kha-town-head strong{font-size:16px}
+#konsorLegacyPortfolio .kha-town-head small{font-size:12px;color:#8291a4}
+#konsorLegacyPortfolio .kha-town-counts{display:flex;flex-wrap:wrap;gap:5px}
+#konsorLegacyPortfolio .kha-town-status{display:inline-block;border-radius:12px;background:#f0f3f7;padding:6px 9px;color:#61738a;font-size:11px}
+#konsorLegacyPortfolio .kha-client-list{border-top:1px solid #edf0f4;margin-top:11px;padding-top:5px}
+#konsorLegacyPortfolio .kha-client-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:0;border-bottom:1px solid #ecf0f5;padding:13px 2px;background:transparent;color:#273c56;text-align:left}
+#konsorLegacyPortfolio .kha-client-row:last-child{border-bottom:0}
+#konsorLegacyPortfolio .kha-client-name{display:flex;flex-direction:column;gap:5px;min-width:0}
+#konsorLegacyPortfolio .kha-client-name strong{font-size:15px}
+#konsorLegacyPortfolio .kha-client-name small{font-size:12px;color:#7b8ca2;white-space:normal}
+#konsorLegacyPortfolio .kha-state{flex:none;border-radius:13px;padding:6px 8px;background:#e9eef6;color:#3e5877;font-size:11px;font-weight:690}
+#konsorLegacyPortfolio .kha-state.agendada{background:#e5edf9;color:#265d98}
+#konsorLegacyPortfolio .kha-state.realizada{background:#e6f4ea;color:#167247}
+#konsorLegacyPortfolio .kha-state.rechazado,#konsorLegacyPortfolio .kha-state.no_apto{background:#f3e9e9;color:#8a6464}
+#konsorLegacyPortfolio .kha-client-state{background:#f0f3f8;border:1px solid #e2e9f2;border-radius:19px;padding:15px;margin:10px 0 14px}
+#konsorLegacyPortfolio .kha-client-state .kha-field{margin:8px 0}
+#konsorLegacyPortfolio .kha-client-state select{background:#fff;font-weight:740;font-size:17px}
+#konsorLegacyPortfolio .kha-client-state[data-status="realizada"]{background:#eaf5ee;border-color:#d3eadc}
+#konsorLegacyPortfolio .kha-client-state[data-status="rechazado"],#konsorLegacyPortfolio .kha-client-state[data-status="no_apto"]{background:#f5eeee;border-color:#eedede}
+#konsorLegacyPortfolio .kha-back{flex:none!important;width:48px;height:48px;font-size:24px!important;border-radius:50%!important;padding:0!important}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child>div{flex:1;min-width:0}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child h2{text-align:center}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child{gap:6px}
+#konsorLegacyPortfolio .kha-card .kha-card{background:#f9fbfd;box-shadow:none;padding:14px;border-color:#e6edf4}
+#konsorLegacyPortfolio .kha-card .kha-card h3{font-size:16px}
+@media(max-width:680px){
+ #konsorLegacyPortfolio .kha-crm-money{gap:5px}
+ #konsorLegacyPortfolio .kha-money-cell{padding:10px 6px}
+ #konsorLegacyPortfolio .kha-money-cell strong{font-size:14px}
+ #konsorLegacyPortfolio .kha-client-row{flex-wrap:wrap}
+ #konsorLegacyPortfolio .kha-state{margin-left:auto}
+}
 `;
 function start(){
  let root=document.getElementById(ID);
@@ -194,10 +244,12 @@ function validateReady(d){
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
  if(currentEdit&&(!z||!c||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
- page.append(B("‹ Volver",()=>{
-  if(returnAfterEdit){document.getElementById(ID)?.remove();const back=returnAfterEdit;returnAfterEdit=null;back();return;}
+ const back=B("‹",()=>{
+  if(returnAfterEdit){document.getElementById(ID)?.remove();const after=returnAfterEdit;returnAfterEdit=null;after();return;}
   screen="list";notice="";render();
- }));
+ });
+ back.className="kha-btn kha-back";back.setAttribute("aria-label","Volver a Clientes");
+ const header=page.querySelector(".kha-row");header?.insertBefore(back,header.firstChild);
  const box=card(page,c?"Ficha ID · "+String(c.clientUid||"").slice(-8).toUpperCase():"Nuevo cliente","Una ficha única. No hace falta crear sector para registrar clientes.");
  const crm=window.KonsorCRM;
  const stateBar=E("section","kha-client-state",undefined,box);
