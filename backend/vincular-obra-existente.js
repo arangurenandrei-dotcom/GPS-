@@ -66,8 +66,10 @@ async function link(req){
  const verified=choose(await loadEvents(date),{clientUid:fichaId,phone,street,town,name:strip(c.name),date,time,team,eventId:strip(data.eventId)});
  // La obra solo puede marcarse como realizada si el día ya ha llegado en España.
  // Esta acción requiere confirmación expresa del operador, no basta con que Calendar tenga una cita.
- const madridDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'})
-  .format(new Date());
+ const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'})
+  .formatToParts(new Date());
+ const get=k=>parts.find(p=>p.type===k)?.value;
+ const madridDate=get('year')+'-'+get('month')+'-'+get('day');
  if(markCompleted&&date>madridDate)fail('failed-precondition','No se puede marcar como realizada una obra futura.');
 
  const eventId=verified.eventId,eventKey=createHash('sha256').update(CALENDAR_ID+'|'+eventId).digest('hex');
