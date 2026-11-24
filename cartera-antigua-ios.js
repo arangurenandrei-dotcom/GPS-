@@ -36,6 +36,7 @@ const portId=(owner,town)=>{
  const slug=N(town).replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,30)||"sin_localidad";
  return "hist_"+slug+"_"+hash.toString(16).padStart(8,"0");
 };
+let crmFilter="pendientes",crmTown="";
 let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="",activeTown="",activeStreet="";
 const CSS=`#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}\n#konsorLegacyPortfolio .kha-advanced{background:#fff;border:1px solid #e0e6ef;border-radius:15px;padding:13px;margin:12px 0}\n#konsorLegacyPortfolio .kha-advanced>summary{cursor:pointer;font-weight:650;color:#3e516b}\n#konsorLegacyPortfolio .kha-net-inline{display:flex;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:13px;background:#eff3f8;font-size:14px;color:#51657b}\n#konsorLegacyPortfolio .kha-net-inline strong{color:#26394d}\n
 #konsorLegacyPortfolio [hidden]{display:none!important}
@@ -84,7 +85,7 @@ function start(){
  if(!root){root=E("div","",undefined,document.body);root.id=ID;E("style","",CSS,root);root.onclick=ev=>{if(ev.target===root)root.remove();};}
  let page=root.querySelector(".kha-page");if(!page)page=E("div","kha-page",undefined,root);page.replaceChildren();
  const top=E("div","kha-row",undefined,page),name=E("div","",undefined,top);
- E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Todos los clientes",name);
+ E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"?(currentEdit?"Ficha del cliente":"Nuevo cliente"):"Clientes",name);
  top.append(B("Cerrar",()=>{root.remove();const back=returnAfterEdit;returnAfterEdit=null;back?.();}));return page;
 }
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
@@ -541,131 +542,97 @@ function navButton(parent,text,action){
  const n=B(text,action);n.classList.add("kha-navigation");parent.append(n);return n;
 }
 function listScreen(page){
- const groups=groupsByTown(),total=groups.reduce((n,g)=>n+g.clients.length,0);
- const actions=buttons(page);
- actions.append(B("Añadir cliente",()=>{screen="edit";currentEdit=null;editorMode="guided";notice="";render();},true));
- actions.append(B("Nueva ficha completa",()=>{screen="edit";currentEdit=null;editorMode="full";notice="";render();}));
- actions.append(B("Volcar hoja de sector",()=>{
-  if(typeof window.openSelectZoneToDump!=="function"){notice="El volcado de sectores no está disponible. Abre Comercial → Oficina → Volcado.";render();return;}
-  document.getElementById(ID)?.remove();
-  window.openSelectZoneToDump();
- }));
- const summary=card(page,"Cartera de clientes",total+" fichas en "+groups.length+" pueblos · con o sin sector");
- if(notice)p(summary,notice,"kha-alert");
- const stats=E("div","kha-row",undefined,summary);
- E("span","kha-tag","Pendientes: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
- E("span","kha-tag good","Para llamar: "+portfolioEntries().filter(callable).length,stats);
+ const engine=window.KonsorCRM;
+ if(!engine){p(page,"No se ha cargado el módulo de Clientes. Actualiza KONSOR.","kha-alert");return;}
+ const rows=engine.rows(zs(),access),overview=engine.dashboard(rows);
+ const active=crmFilter==="pendientes"?rows.filter(x=>["por_llamar","en_espera"].includes(x.estado)):
+  crmFilter==="todos"?rows:rows.filter(x=>x.estado===crmFilter);
+ const surface=E("section","kha-crm-summary",undefined,page);
+ const top=E("div","kha-crm-heading",undefined,surface);
+ E("h3","","Clientes",top);
+ E("strong","",String(overview.total)+" fichas en total",top);
+ const money=E("div","kha-crm-money",undefined,surface);
+ [
+  ["Potencial",overview.amounts.potencial,overview.withoutArea.potencial,"Interesados sin cita"],
+  ["Agendado",overview.amounts.previsto,overview.withoutArea.previsto,"Obras con fecha"],
+  ["Realizado",overview.amounts.realizado,overview.withoutArea.realizado,"Obras terminadas"]
+ ].forEach(([name,value,missing,detail])=>{
+  const cell=E("div","kha-money-cell",undefined,money);
+  E("small","",name,cell);
+  E("strong","",Number(value).toLocaleString("es-ES",{style:"currency",currency:"EUR"}),cell);
+  E("small","",detail+(missing?" · "+missing+" sin m²":""),cell);
+ });
+ p(surface,"Importes orientativos a 1 €/m². No son cobros confirmados; no se incluyen rechazados ni no aptos.","kha-muted");
+ const counts=E("div","kha-crm-counts",undefined,page);
+ const filterOptions=[
+  ["pendientes","Pendientes",overview.pendientes],
+  ["todos","Todos",overview.total],
+  ...engine.states.map(([id,label])=>[id,label,overview.counts[id]])
+ ];
+ filterOptions.forEach(([state,label,count])=>{
+  const button=B(label+" · "+count,()=>{crmFilter=state;crmTown="";draw();});
+  button.className="kha-filter"+(crmFilter===state?" active":"");
+  counts.append(button);
+ });
+ const toolbar=E("div","kha-actions",undefined,page);
+ toolbar.append(B("+ Nuevo cliente",()=>{
+  currentEdit=null;editorMode="full";screen="edit";notice="";render();
+ },true));
  const search=E("input","kha-search",undefined,page);
- search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
- const body=E("div","",undefined,page);
- const renderGroups=()=>{
-  query=search.value;body.replaceChildren();
-  if(!groups.length){p(body,"Todavía no hay clientes guardados en tu cartera.");return;}
+ search.type="search";search.placeholder="Buscar cliente, teléfono, pueblo o dirección";search.value=query;
+ const result=E("div","kha-crm-results",undefined,page);
+ const draw=()=>{
+  result.replaceChildren();query=search.value;
   const q=N(query);
-  let available=groups;
-  if(q){
-   const filtered=groups.map(g=>{
-    const clients=g.clients.filter(x=>N([g.name,x.c.name,x.c.street,x.c.phone].join(" ")).includes(q));
-    return {...g,clients,streets:new Map([...g.streets].map(([k,v])=>[k,{...v,clients:v.clients.filter(x=>clients.includes(x))}]).filter(([k,v])=>v.clients.length))};
-   }).filter(g=>g.clients.length);
-   available=filtered;
-  }
-  if(!available.length){p(body,"No hay coincidencias.");return;}
-  const tabbar=E("div","kha-tabs",undefined,body);
-  const selected=available.some(g=>g.key===activeTown)?activeTown:available[0].key;
-  available.forEach(g=>{
-   const btnTab=B(g.name+" · "+g.clients.length,()=>{activeTown=g.key;activeStreet="";renderGroups();});
-   btnTab.className="kha-tab"+(g.key===selected?" selected":"");
-   tabbar.append(btnTab);
-  });
-  const town=available.find(g=>g.key===selected);
-  if(!town)return;
-
-  const toolbar=E("details","kha-advanced",undefined,body);
-  E("summary","","Herramientas de datos",toolbar);
-  const withoutPostal=town.clients.filter(x=>!/^31\d{3}$/.test(String(x.c.postalCode||""))||
-    !/^[DE][123]$/.test(String(x.c.cteZone||"")));
-  const auto=B("Autocompletar CP y CTE ("+withoutPostal.length+")",async()=>{
-   if(!withoutPostal.length)return;
-   const geo=window.konsorLegacyGeo;
-   if(!geo?.postal||!geo?.cte){notice="Servicio de direcciones no disponible.";render();return;}
-   const selected=withoutPostal.slice(0,25);
-   if(!confirm("¿Verificar los CP y zonas CTE de "+selected.length+" fichas de "+town.name+"? Las direcciones ambiguas quedarán pendientes."))return;
-   if(syncState().kind!=="ready"){notice=syncState().message;render();return;}
-   auto.disabled=true;
-   const feedback=E("p","kha-confirm","Comprobando direcciones…",body);
-   try{
-    const data=structuredClone(zs());let changed=0,ambiguous=0,unknown=0;
-    for(let i=0;i<selected.length;i++){
-     const x=selected[i],z=data[x.zi],c=z?.clients?.[x.ci];
-     if(!c||String(z.id)!==String(x.z.id)||String(c.clientUid)!==String(x.c.clientUid))
-      throw Error("Los datos cambiaron durante la consulta. No se ha modificado ningún registro.");
-     feedback.textContent="Verificando "+(i+1)+"/"+selected.length+": "+(c.street||"Sin dirección");
-     const locality=String(c.locality||z.town||"").trim();
-     let cp=String(c.postalCode||"").trim();
-     if(!/^31\d{3}$/.test(cp)){
-      const result=await geo.postal(c.street,locality).catch(()=>({status:"error"}));
-      if(result.status!=="ok"||result.matches?.length!==1){
-       if(result.status==="ambiguous")ambiguous++;else unknown++;
-       continue;
-      }
-      cp=result.matches[0].cp;
-     }
-     const zone=geo.cte(cp,locality)?.cteZone||"";
-     if(cp!==c.postalCode||(!/^[DE][123]$/.test(c.cteZone||"")&&/^[DE][123]$/.test(zone))){
-      c.postalCode=cp;
-      if(!/^[DE][123]$/.test(c.cteZone||"")&&/^[DE][123]$/.test(zone))c.cteZone=zone;
-      c.legacyAddressCheckedAt=Date.now();z._updatedAt=Date.now();changed++;
-     }
-    }
-    if(changed)await commit(data);
-    notice="Revisadas "+selected.length+" · completadas "+changed+" · sin coincidencia "+unknown+
-      " · ambiguas "+ambiguous+".";
-    if(withoutPostal.length>25)notice+=" Hay más fichas para una segunda pasada.";
-    render();
-   }catch(e){auto.disabled=false;feedback.textContent="Sin confirmar el guardado: "+(e.message||e);}
-  },true);
-  auto.disabled=!withoutPostal.length;
-  toolbar.append(auto);
-  toolbar.append(B("Guardar copia JSON",()=>showBackup(town.clients)));
-  E("h3","",town.name+" · Calles",body);
-  p(body,"Selecciona una calle.");
-  const streets=[...town.streets.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
-  if(activeStreet&&!town.streets.has(activeStreet))activeStreet="";
-  if(!activeStreet){
-   for(const road of streets){
-    const ready=road.clients.filter(callable).length;
-    const row=B("",()=>{activeTown=town.key;activeStreet=road.key;renderGroups();});
-    row.className="kha-rowitem";
-    const names=E("span","",undefined,row);
-    E("strong","",road.label,names);
-    p(names,road.clients.length+" fichas · "+ready+" listas para llamadas","kha-stat");
-    E("span","","›",row);body.append(row);
-   }
-  }else{
-   navButton(body,"‹ Volver a calles",()=>{activeStreet="";renderGroups();});
-   const street=town.streets.get(activeStreet);
-   E("h3","",street?.label||"",body);
-   for(const x of street?.clients||[]){
-    const item=card(body,x.c.name||"Cliente sin nombre",[x.c.street||"Dirección pendiente",x.c.phone].filter(Boolean).join(" · "));
-    E("span",callable(x)?"kha-tag good":"kha-tag",
-      callable(x)?"Lista para llamadas":"Pendiente de completar",item);
-    p(item,(x.c.m2?x.c.m2+" m² · ":"")+(x.c.obraStatus==="agendada"?"Obra agendada":"Ficha de cliente"));
-    item.append(B("Editar ficha",()=>{
-      screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
-      notice="";render();
-    },true));
+  const found=active.filter(x=>N([x.c.name,x.c.phone,x.c.street,x.pueblo].join(" ")).includes(q));
+  if(!found.length){p(result,q?"No se encontraron coincidencias.":"No hay clientes en este estado. Puedes consultar «Todos».","kha-empty");return;}
+  const groups=new Map();
+  found.forEach(x=>{const name=x.pueblo||"Sin pueblo",key=N(name);if(!groups.has(key))groups.set(key,{key,name,items:[]});groups.get(key).items.push(x);});
+  const sorted=[...groups.values()].sort((a,b)=>b.items.length-a.items.length||a.name.localeCompare(b.name,"es"));
+  const heading=E("div","kha-crm-row-heading",undefined,result);
+  E("strong","",crmTown?"Clientes de "+(sorted.find(x=>x.key===crmTown)?.name||"tu selección"):"Pueblos",heading);
+  if(crmTown)heading.append(B("Ver todos los pueblos",()=>{crmTown="";draw();}));
+  const listed=crmTown&&!q?sorted.filter(x=>x.key===crmTown):sorted;
+  for(const g of listed){
+   const group=E("section","kha-town-card",undefined,result);
+   const head=B("",()=>{crmTown=crmTown===g.key?"":g.key;draw();});
+   head.className="kha-town-head";
+   const title=E("div","",undefined,head);
+   E("strong","",g.name,title);
+   E("small","",g.items.length+" clientes",title);
+   E("span","","⌄",head);
+   group.append(head);
+   const statuses=E("div","kha-town-counts",undefined,group);
+   engine.states.forEach(([key,label])=>{
+    const n=g.items.filter(x=>x.estado===key).length;
+    if(n)E("span","kha-town-status",n+" "+label.toLowerCase(),statuses);
+   });
+   if(crmTown===g.key||q){
+    const list=E("div","kha-client-list",undefined,group);
+    g.items.slice().sort((a,b)=>a.estado.localeCompare(b.estado)||String(a.c.name||"").localeCompare(String(b.c.name||""),"es")).forEach(x=>{
+     const client=B("",()=>{screen="edit";editorMode="full";
+      currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};notice="";render();});
+     client.className="kha-client-row";
+     const name=E("div","kha-client-name",undefined,client);
+     E("strong","",x.c.name||"Sin nombre",name);
+     E("small","",[x.c.street,x.c.phone].filter(Boolean).join(" · "),name);
+     E("span","kha-state "+x.estado,engine.labels[x.estado],client);
+     list.append(client);
+    });
    }
   }
  };
- search.oninput=renderGroups;renderGroups();
+ search.addEventListener("input",()=>{crmTown="";draw();});
+ draw();
+ if(notice)p(page,notice,"kha-alert");
 }
+
 function render(){
  const page=start();
  if(!current()){p(page,"Inicia sesión para acceder a los clientes.");return;}
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
-window.openKonsorClients=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
+window.openKonsorClients=function(filter="pendientes"){screen="list";crmFilter=["pendientes","todos","por_llamar","en_espera","agendada","realizada","rechazado","no_apto"].includes(filter)?filter:"pendientes";crmTown="";query="";notice="";render();};
 window.openKonsorFichaOriginal=function(clientUid,onReturn){
  const uid=String(clientUid||"");
  let entry=null;
