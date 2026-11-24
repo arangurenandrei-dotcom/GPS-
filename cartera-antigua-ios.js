@@ -46,6 +46,38 @@ const CSS=`#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;disp
 #konsorLegacyPortfolio .kha-guide-bar>.kha-muted{flex:0 0 100%}
 #konsorLegacyPortfolio .kha-guide-nav{display:flex;gap:8px;flex:0 0 100%;flex-wrap:wrap}
 #konsorLegacyPortfolio .kha-home{padding:12px;margin:10px 0;border:1px solid #e3e9ef;border-radius:13px;background:#f9fbfe}
+
+/* KONSOR | El editor comparte el mismo sistema visual de Oficina y Comercial. */
+#konsorLegacyPortfolio{background:rgba(19,32,49,.30);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);color:#25354c}
+#konsorLegacyPortfolio .kha-page{width:min(100%,650px);max-height:100%;background:#f6f7fa;border:1px solid #ffffffdb;border-radius:27px;box-shadow:0 25px 70px #172f461e;padding:19px 20px 25px}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child{position:sticky;top:-19px;z-index:4;margin:-19px -20px 12px;padding:19px 20px 14px;min-height:84px;flex-wrap:nowrap;background:#f9fafcf4;backdrop-filter:blur(18px);border-bottom:1px solid #e7ebf1}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child h2{font-size:21px;letter-spacing:-.025em;color:#25354c}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child .kha-muted{font-size:10px;letter-spacing:.13em;font-weight:750;color:#8995a8}
+#konsorLegacyPortfolio .kha-page>.kha-row:first-child .kha-btn{flex:none;border-radius:100px;min-width:49px;min-height:49px;background:#fff;border:1px solid #e7ebf2;box-shadow:0 5px 16px #1b2f450a}
+#konsorLegacyPortfolio .kha-card{border:1px solid #e7ebf1;border-radius:23px;padding:19px;background:#fff;box-shadow:0 8px 27px #24355008}
+#konsorLegacyPortfolio .kha-card h3{font-size:19px;line-height:1.25;font-weight:750}
+#konsorLegacyPortfolio .kha-btn{min-height:48px;border-radius:16px;background:#f2f5fa;color:#2b405a;border:1px solid #e0e7f0;font-size:14px;font-weight:680;box-shadow:none}
+#konsorLegacyPortfolio .kha-btn.primary{background:#293f59;border-color:#293f59;color:#fff}
+#konsorLegacyPortfolio .kha-field{font-size:13px;font-weight:700;color:#41536c;min-width:0}
+#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{background:#fff;border:1px solid #dfe6ef;border-radius:15px;padding:12px 14px;min-height:49px;color:#263950;font-size:16px;font-weight:500}
+#konsorLegacyPortfolio .kha-field input:focus,#konsorLegacyPortfolio .kha-field select:focus,#konsorLegacyPortfolio .kha-field textarea:focus{outline:2px solid #849fbd;outline-offset:1px}
+#konsorLegacyPortfolio .kha-mode-switch{background:#edf1f7;border:1px solid #e7ebf1;border-radius:19px;padding:5px;gap:5px}
+#konsorLegacyPortfolio .kha-mode-switch .kha-btn{min-height:45px;background:transparent;border:0;border-radius:14px}
+#konsorLegacyPortfolio .kha-mode-switch .kha-btn.primary{background:#fff;color:#273c55;box-shadow:0 2px 10px #273e5520}
+#konsorLegacyPortfolio .kha-guide-bar{align-items:center;gap:6px;margin:12px 0 16px}
+#konsorLegacyPortfolio .kha-guide-bar>.kha-btn{min-height:44px;border-radius:14px;background:#f0f3f8}
+#konsorLegacyPortfolio .kha-guide-bar>.kha-btn.primary{background:#293f59;color:#fff}
+#konsorLegacyPortfolio .kha-guide-nav{justify-content:flex-end;margin:0}
+#konsorLegacyPortfolio .kha-guide-nav .kha-btn{flex:1;min-height:47px}
+#konsorLegacyPortfolio .kha-alert{background:#fff7ec;border-color:#f0d6aa;color:#8d6029;border-radius:15px;font-weight:550}
+@media(max-width:680px){
+ #konsorLegacyPortfolio{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+ #konsorLegacyPortfolio .kha-page{border:0;border-radius:0;width:100%;height:100%;max-height:100%;padding:15px 17px calc(24px + env(safe-area-inset-bottom))}
+ #konsorLegacyPortfolio .kha-page>.kha-row:first-child{top:-15px;margin:-15px -17px 14px;padding:14px 17px 12px}
+ #konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}
+ #konsorLegacyPortfolio .kha-actions{gap:9px}
+ #konsorLegacyPortfolio .kha-actions .kha-btn{flex:1 1 auto}
+}
 `;
 function start(){
  let root=document.getElementById(ID);
@@ -359,6 +391,7 @@ function editor(page){
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
  async function save(ready,button){
+ box.querySelector(".kha-live-error")?.remove();
  const d={name:name.value.trim(),phone:telephone.value.trim(),dni:dni.value.trim().toUpperCase(),email:email.value.trim(),locality:town.value.trim(),street:street.value.trim(),
   postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
   captureDate:captured.value.trim(),captacionRespuesta:answer.value,observaciones:note.value.trim(),
@@ -369,7 +402,7 @@ function editor(page){
   }else if(Array.isArray(c?.viviendas)){d.viviendas=[];}
  if(!(d.name||d.phone||d.street)){showError("Introduce al menos nombre, teléfono o dirección.");return;}
  if(d.dni&&typeof isValidDni==="function"&&!isValidDni(d.dni)){showError("DNI/NIE no válido.");return;}
- if(d.email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(d.email)){showError("Correo electrónico incorrecto.");return;}
+ if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)){showError("Correo electrónico incorrecto.");return;}
  if(!d.locality){showError("Debes indicar un pueblo.");return;}
  if(!/^\d{4}-\d{2}-\d{2}$/.test(d.captureDate)||!Number.isFinite(Date.parse(d.captureDate+"T12:00:00"))||d.captureDate>today){
   showError("Selecciona una fecha de captación válida, no posterior a hoy.");return;
