@@ -155,3 +155,29 @@
 #konsorOfficeCallV2 .koc-plan-board{display:flex;flex-direction:column;gap:10px}
 #konsorOfficeCallV2 .koc-plan-board .koc-suggestion{display:block;width:100%;margin:8px 0;padding:12px 14px;text-align:left;border-radius:16px;background:#f5f8fc;border:1px solid #e0e8f2;box-shadow:none}
 #konsorOfficeCallV2 .koc-plan-board .koc-suggestion small{display:block;margin-top:6px;line-height:1.5;color:#7b8ca1;font-size:11px}
+
+/* Estilo único KONSOR: las llamadas usan la misma paleta que las cuatro plantas.
+   Anula el azul de la versión heredada sin añadir otra hoja de estilos. */
+#konsorOfficeCallV2.koc-overlay{background:rgba(20,34,52,.32);-webkit-backdrop-filter:blur(13px);backdrop-filter:blur(13px);color:#293b52}
+#konsorOfficeCallV2 .koc-page{background:#f6f7fa;border:1px solid #ffffffdd;box-shadow:0 22px 65px #14243b20}
+#konsorOfficeCallV2 .koc-header{background:#f9fafcfa;backdrop-filter:blur(16px);padding:18px 22px;border-color:#e7ebf2}
+#konsorOfficeCallV2 .koc-header h2{color:#263950;font-size:22px!important;font-weight:760}
+#konsorOfficeCallV2 .koc-body{background:#f6f7fa}
+#konsorOfficeCallV2 .koc-card{border:1px solid #e5eaf2;border-radius:24px;box-shadow:0 7px 26px #263e5510;background:#fff}
+#konsorOfficeCallV2 .koc-card h3{color:#283c55}
+#konsorOfficeCallV2 .koc-btn{border-radius:17px;min-height:49px;border-color:#e3e9f1;background:#fff;color:#2c4059;font-weight:680;box-shadow:none}
+#konsorOfficeCallV2 .koc-btn.koc-primary{background:#293f59;border-color:#293f59;color:#fff}
+#konsorOfficeCallV2 .koc-btn.koc-quiet{background:#edf1f7;border-color:#edf1f7;color:#2e435d}
+#konsorOfficeCallV2 .koc-slot.selected{background:#e9eef5;border-color:#577899;color:#293f59}
+#konsorOfficeCallV2 .koc-slot-state{color:#496781}
+#konsorOfficeCallV2 .koc-count{border-radius:18px;background:#fff;border-color:#e5eaf2}
+#konsorOfficeCallV2 .koc-scope-picker{background:#edf1f6;border-color:#e5eaf2}
+#konsorOfficeCallV2 .koc-input{border-color:#dfe6ef;border-radius:15px;background:#fff;color:#263950;font-size:16px!important}
+#konsorOfficeCallV2 .koc-input:focus{outline:2px solid #819fbd;outline-offset:1px}
+#konsorOfficeCallV2 .koc-month-grid .koc-day.selected{background:#293f59}
+@media(max-width:680px){
+ #konsorOfficeCallV2 .koc-page{border:0}
+ #konsorOfficeCallV2 .koc-header{padding:14px 17px}
+ #konsorOfficeCallV2 .koc-body{padding:16px;gap:12px}
+ #konsorOfficeCallV2 .koc-card{padding:17px}
+}
