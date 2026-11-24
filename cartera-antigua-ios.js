@@ -173,7 +173,7 @@ function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
  if(currentEdit&&(!z||!c||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
- const box=card(page,c?"Ficha · "+(c.clientUid||""):"Nuevo cliente","Una ficha única. No hace falta crear sector para registrar clientes.");
+ const box=card(page,c?"Ficha ID · "+String(c.clientUid||"").slice(-8).toUpperCase():"Nuevo cliente","Una ficha única. No hace falta crear sector para registrar clientes.");
  const switcher=E("div","kha-mode-switch",undefined,box);
  const guidedBtn=B("Proceso guiado",()=>setMode("guided"),true);
  const fullBtn=B("Ficha completa",()=>setMode("full"));
@@ -352,7 +352,14 @@ function editor(page){
   if(activeStep>0)nav.append(B("‹ Anterior",()=>{activeStep--;setMode("guided");}));
   if(activeStep<2)nav.append(B("Siguiente ›",()=>{activeStep++;setMode("guided");},true));
   if(activeStep===2){
-   E("p","kha-muted","Guarda la ficha cuando quieras. Podrás abrirla y completarla desde llamadas, Oficina o Técnicos.",nav);
+   const review={name:name.value.trim(),phone:telephone.value.trim(),street:street.value.trim(),
+    locality:town.value.trim(),m2:net(total.value),obraDate:c?.obraDate||""};
+   const missing=window.KonsorExpediente?.missing?.(review,{town:review.locality},"comercial")||[];
+   E("p","kha-muted",missing.length?
+    "Por completar: "+missing.join(", ")+". Puedes guardar pendiente y volver más tarde.":
+    "El contacto tiene los datos mínimos. Puedes guardarlo y continuar con las llamadas.",nav);
+   if(missing.length)nav.append(B("Completar contacto",()=>{activeStep=0;setMode("guided");}));
+   E("p","kha-muted","Puedes volver a editar esta misma ficha desde Comercial, Oficina o Técnicos.",nav);
   }
  }
  setMode(editorMode);
