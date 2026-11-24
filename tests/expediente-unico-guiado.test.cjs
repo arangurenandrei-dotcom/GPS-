@@ -12,6 +12,8 @@ test('una ficha admite varias viviendas y no inventa superficie',()=>{
  const v=m.validateHomes([{id:'v1',direccion:'Vivienda A',m2Total:'80,5'},
  {id:'v2',direccion:'Vivienda B',m2Total:''}]);
  assert.equal(v.length,2);assert.equal(v[0].m2,75.5);assert.equal(v[1].m2,null);
+ const full=m.homes({street:'Principal 1',m2:70,viviendas:v});
+ assert.equal(full.length,3);assert.equal(full[0].m2,70);assert.equal(full[1].m2,75.5);
  assert.throws(()=>m.validateHomes([{id:'a',m2Total:5},{id:'a',m2Total:6}]),/duplicada/);
  assert.throws(()=>m.validateHomes([{id:'a',m2Total:-8}]),/inválida/);
 });
@@ -28,6 +30,7 @@ test('tres entradas, pasos guiados y ficha original con guardado real',()=>{
   assert.ok(src.includes(q),q);
  assert.ok(src.includes('await commit(data)'));
  assert.ok(src.includes('isSectorlessCapture:true'));
+ assert.ok(src.includes('isSectorless(z)&&c.callStatus==="bloqueada"'));
  assert.match(app,/expediente-unico\.js\?v=1/);
 });
 test('editar sin sector no bloquea por defecto una ficha ya habilitada',()=>{
