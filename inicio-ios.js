@@ -40,7 +40,7 @@ function tile(grid,label,detail,name,fn){
 }
 function go(fn){return ()=>{if(typeof fn==="function")fn();};}
 function openDay(){if(window.konsorMotor?.openDay)window.konsorMotor.openDay();else window.openCnDay?.();}
-function openOffice(){if(window.konsorMotor?.openOffice)window.konsorMotor.openOffice();else window.openCnOffice?.();}
+function openOffice(){if(typeof window.openCnOffice==="function")window.openCnOffice();else window.konsorMotor?.openOffice?.();}
 function greeting(){
  const h=new Date().getHours();
  return h<13?"Buenos días":h<21?"Buenas tardes":"Buenas noches";

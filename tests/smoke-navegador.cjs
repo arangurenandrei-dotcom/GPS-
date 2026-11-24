@@ -108,7 +108,27 @@ async function main(){
    assert.ok(await page.evaluate(()=>document.body.classList.contains('cnv-home-active')),
      label+' flecha de Mapa no vuelve a Inicio');
    if(width<500){
-     await page.evaluate(()=>window.cnvShowMap(false));
+     const office=await page.evaluate(()=>{
+     document.querySelector('#cnvHome .cnv-home-grid .cnv-tile:nth-child(3)')?.click();
+     const modal=document.getElementById('cnOficina');
+     return {opened:modal?.classList.contains('active')||false,
+      cards:[...modal?.querySelectorAll('.cn-office-home-grid .cn-office-home-tile')||[]].map(x=>x.childNodes[0]?.textContent?.trim())};
+    });
+    assert.ok(office.opened,label+' no abre Oficina');
+    assert.deepEqual(office.cards,['Clientes','Llamadas','Calendario','Obras'],label+' accesos principales de Oficina');
+    await page.evaluate(()=>document.getElementById('cnOficina')?.classList.remove('active'));
+    if(role==='jefe'){
+     const direction=await page.evaluate(()=>{
+      window.openKonsorDirection?.();
+      const modal=document.getElementById('konsorDirectionHub');
+      return {opened:modal?.classList.contains('active')||false,
+       primary:[...modal?.querySelectorAll('.kd-nav-grid .kd-nav-tile .kd-nav-title strong')||[]].map(x=>x.textContent?.trim())};
+     });
+     assert.ok(direction.opened,'Dirección no se abre con permisos de jefe');
+     assert.deepEqual(direction.primary,['Territorio','Cierre del día','Mi equipo'],'Navegación de Dirección');
+     await page.evaluate(()=>document.getElementById('konsorDirectionHub')?.classList.remove('active'));
+    }
+    await page.evaluate(()=>window.cnvShowMap(false));
      const mapSwipe=await page.evaluate(()=>{
        const target=document.body;
        const t=x=>new Touch({identifier:8,target,clientX:x,clientY:250,pageX:x,pageY:250});

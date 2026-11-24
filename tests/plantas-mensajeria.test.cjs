@@ -74,7 +74,7 @@ test('los indicadores están cargados antes de mensajes y de las vistas y usan t
  assert.ok(home.includes('tile(grid,"Mensajes entre plantas"'));
  assert.ok(!home.includes('cnv-plant-messages-link'));
  assert.ok(designer.includes('const inbox=actionTile(grid,"Mensajes entre plantas"'));
- assert.ok(direction.includes('const messages=tile(grid,"Mensajes entre plantas"'));
+ assert.ok(direction.includes('const messages=tile(secondary,"Mensajes entre plantas"'));
  assert.ok(alerts.includes('KonsorIndicators?.setGeneral?.(n)'));
  assert.ok(styles.includes('data-konsor-level="blue"'));
  assert.ok(styles.includes('data-konsor-level="yellow"'));

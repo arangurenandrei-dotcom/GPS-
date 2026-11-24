@@ -104,3 +104,50 @@ node tests/smoke-navegador.cjs # requiere puppeteer-core y Chrome
 ```
 
 El resultado del navegador en CI prueba que el script comercial y la pantalla Inicio cargan con los componentes comunes sin enviar tráfico real a Firebase. La comprobación de Safari y de permisos efectivos continúa pendiente. **No se debe confundir esta publicación de limpieza comercial con el CRM completo de cinco plantas**.
+
+---
+
+## Actualización de navegación y auditoría del repositorio · 24-11-2026
+
+### Arquitectura de producto validada para la interfaz
+
+- **Comercial:** Mi jornada, Mapa, Oficina, Resultados personales y Mensajes entre plantas. Dirección aparece como sexta tarjeta únicamente para responsable autorizado.
+- **Oficina comercial:** Clientes, Llamadas, Calendario de equipos y Obras. Los flujos de alta guiada y ficha completa están separados, y volcado, comunidades, cartera histórica y cierre están agrupados en herramientas avanzadas sin romper sus rutas.
+- **Dirección:** solo Territorio, Cierre del día y Mi equipo como accesos principales. Las funcionalidades existentes de resultados globales, importación, avisos, encargos y análisis se mantienen en herramientas secundarias para no eliminar operaciones que aún dependen de ellas.
+- **Resultados:** la entrada de Comercial muestra únicamente su propio ámbito; la entrada global queda en Dirección. La Liga conserva su implementación para accesos explícitos existentes, sin colocarla como pestaña principal de Comercial.
+- **Sectores:** útiles para planificación y métricas, nunca requisito para dar de alta una ficha. Las fichas con y sin sector se consideran para Oficina según el estado real de cada cliente.
+
+### Auditoría estructural estática: evidencias y límites
+
+**Inventario del repositorio al comenzar esta limpieza:** 131 archivos (53 JavaScript). Se detectaron 13 archivos de demostraciones independientes en `konsor-laboratorio/` (~244 KB), no referenciados por el `index.html` de producción: se han retirado del árbol activo. Siguen recuperables desde el historial Git.
+
+El mayor factor de complejidad sigue siendo `app/legacy/comercial-app.js` (~667 KB), seguido de `app/legacy/estilos-comercial.css` (~96 KB), `oficina-llamadas-obras-v2.js` (~75 KB) y `cartera-antigua-ios.js` (~46 KB). **No se han eliminado ni reescrito automáticamente**, porque contienen reglas de negocio, callbacks globales y vínculos con datos reales; el volumen por sí solo no demuestra que una función esté obsoleta.
+
+El HTML carga aproximadamente 45 scripts y usa callbacks históricos que requieren conservar el orden de carga. Se comprueba con pruebas de recursos y navegación. No se han fusionado módulos sin probar sus estados compartidos.
+
+### Acciones sometidas a comprobación automática
+
+- Integridad del motor original y validación de recursos HTML/CSS existentes.
+- Inicio y tarjetas principales en navegadores simulados de iPhone y escritorio.
+- Apertura de Oficina con cuatro accesos, y de Dirección con tres accesos principales para el jefe.
+- Separación de resultados personales y de equipo; no ofrecer selector de equipo en la entrada Comercial.
+- Pruebas de guardados, flujo de fichas, reservas, avisos, roles y navegación existentes mediante el conjunto de regresiones del repositorio.
+- Ausencia de scripts locales cargados por duplicado en `index.html`.
+
+### Pendientes que **no** se pueden certificar desde pruebas estáticas
+
+1. Permisos y reglas efectivas de Firestore/Cloud Functions de **todos los perfiles reales**.
+2. Reserva y enlace reales de Google Calendar con clientes de producción, concurrencia y reintentos.
+3. Efectividad de navegación en dispositivos iOS reales, con caché PWA, datos existentes y conexiones inestables.
+4. Pruebas E2E sobre cada acción histórica, incluidos importadores, GPS, Catastro, llamadas, ficha multivivienda y reportes. No se debe afirmar que todas las rutas funcionan solo por pasar el smoke.
+5. Auditoría de seguridad de XSS, privacidad y tratamiento de datos personales; se han observado patrones de `innerHTML` en el código heredado que requieren análisis del origen de los valores.
+
+### Siguiente limpieza técnica segura
+
+1. Identificar dependencias mediante referencias concretas de funciones exportadas y eventos, comparando su ejecución en pruebas antes de modificar un módulo.
+2. Extraer por componentes la lógica de `oficina-llamadas-obras-v2.js` y después el motor `app/legacy/comercial-app.js`; preservar exactamente los adaptadores y formatos de Firestore.
+3. Eliminar CSS duplicado **solo** con capturas comparativas y pruebas de pantallas completas.
+4. Mantener laboratorios y futuros prototipos en una rama distinta y no en el árbol principal de producción.
+5. No borrar datos, reglas, colecciones, funciones Firebase ni scripts de despliegue sin inventario de referencias y comprobación en un entorno de pruebas.
+
+**Dictamen limitado:** navegación simplificada y residuos de laboratorio retirados; **no equivale a certificación integral de producción**, ni al fin de la modularización del motor heredado.
