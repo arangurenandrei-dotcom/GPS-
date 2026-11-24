@@ -613,9 +613,8 @@ function draw(opts={}){
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
   body.append(button("Editar ficha completa · Catastro y datos",()=>{
    r.classList.remove("active");
-   if(typeof window.openKonsorLegacyClient==="function"&&(c.legacyPortfolio||c.isLegacyClient||c.importedLegacy||c.importedCsv||z.isSectorlessCapture||z.isLegacyPortfolio))
-    window.openKonsorLegacyClient(c.clientUid);
-   else window.openKonsorClientDetail?.(item.zi,item.ci);
+   const opened=window.openKonsorFichaOriginal?.(c.clientUid);
+   if(!opened){r.classList.add("active");alert("La ficha no se puede editar desde esta sesión. Actualiza KONSOR e inténtalo de nuevo.");}
   },"koc-quiet"));
   if(!complete(item)){
    body.append(show("Ficha pendiente: falta nombre, calle, teléfono o localidad, o tiene el teléfono marcado como no válido."));
