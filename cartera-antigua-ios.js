@@ -199,11 +199,17 @@ function editor(page){
   screen="list";notice="";render();
  }));
  const box=card(page,c?"Ficha ID · "+String(c.clientUid||"").slice(-8).toUpperCase():"Nuevo cliente","Una ficha única. No hace falta crear sector para registrar clientes.");
- const switcher=E("div","kha-mode-switch",undefined,box);
- const guidedBtn=B("Proceso guiado",()=>setMode("guided"),true);
- const fullBtn=B("Ficha completa",()=>setMode("full"));
- switcher.append(guidedBtn,fullBtn);
- const guideBar=E("div","kha-guide-bar",undefined,box);
+ const crm=window.KonsorCRM;
+ const stateBar=E("section","kha-client-state",undefined,box);
+ E("span","kha-muted","ESTADO DEL CLIENTE",stateBar);
+ const stateValue=sel(stateBar,"Situación actual",c?crm.status(c):"por_llamar",crm.states);
+ const stateHelp=p(stateBar,"Cambia el estado y guarda. La ficha permanece en Clientes; solo cambia de apartado.");
+ stateValue.onchange=()=>{stateBar.dataset.status=stateValue.value;
+  stateHelp.textContent=stateValue.value==="realizada"?"Para cerrar la obra son obligatorios nombre completo, DNI/NIE y correo electrónico.":
+   ["agendada","realizada"].includes(stateValue.value)?"Indica fecha, franja y equipo. Este cambio no crea por sí solo un evento en Google Calendar.":
+   "El cliente cambia de apartado sin perder su historial.";};
+ stateValue.onchange();
+
  const fields=E("div","kha-grid",undefined,box);
  const name=f(fields,"Nombre y apellidos",c?.name||"");
  const telephone=f(fields,"Teléfono",c?.phone||"","tel");
@@ -330,15 +336,9 @@ function editor(page){
  const refresh=()=>{const value=net(total.value);amount.textContent=value===null?"Pendiente de introducir superficie total":value+" m²";};
  total.oninput=refresh;refresh();
  if(c?.m2&&!c?.m2Total)amount.textContent=String(c.m2)+" m²";
- const guidedSteps=[
-  {title:"Contacto",help:"Introduce los datos de contacto. Puedes continuar si algún dato todavía falta.",nodes:[name,telephone,dni,email,captured,answer,note]},
-  {title:"Vivienda",help:"Datos del inmueble. El CP y la CTE se buscarán automáticamente al completar la dirección.",nodes:[town,street,postal,year,total,zone]},
-  {title:"Revisión",help:"Comprueba lo introducido. Los datos incompletos quedarán pendientes de completar.",nodes:[]}
- ];
- let activeStep=0;
+
  const extra=E("details","kha-advanced",undefined,box);
- E("summary","","Varias viviendas en este expediente",extra);
- E("p","kha-muted","La vivienda principal es la dirección de esta ficha. Aquí puedes añadir otras viviendas de la misma obra; comparten titular y documentación común.",extra);
+ E("summary","","Varias viviendas del mismo expediente",extra);
  const homeList=E("div","kha-homes",undefined,extra);
  const extraHomes=Array.isArray(c?.viviendas)?c.viviendas.map(v=>({...v})):[];
  function homeEditor(){
@@ -346,72 +346,79 @@ function editor(page){
   extraHomes.forEach((v,i)=>{
    const pane=E("div","kha-home",undefined,homeList);
    E("strong","","Vivienda adicional "+(i+1),pane);
-   const address=f(pane,"Dirección o referencia",v.direccion||"");address.oninput=()=>{v.direccion=address.value;};
+   const addr=f(pane,"Dirección",v.direccion||"");addr.oninput=()=>{v.direccion=addr.value;};
    const area=f(pane,"Superficie total (m²)",v.m2Total??"","number");area.min="0";area.step="0.1";area.oninput=()=>{v.m2Total=area.value;};
-   const note=f(pane,"Observaciones vivienda",v.notas||"");note.oninput=()=>{v.notas=note.value;};
-   pane.append(B("Eliminar esta vivienda",()=>{extraHomes.splice(i,1);homeEditor();}));
+   const notes=f(pane,"Observaciones",v.notas||"");notes.oninput=()=>{v.notas=notes.value;};
+   pane.append(B("Quitar vivienda adicional",()=>{extraHomes.splice(i,1);homeEditor();}));
   });
  }
  homeEditor();
  extra.append(B("Añadir otra vivienda",()=>{
   if(extraHomes.length>=49)return;
-  extraHomes.push({id:"v"+(extraHomes.length+1)+"_"+Date.now(),direccion:"",m2Total:"",notas:""});
-  homeEditor();
+  extraHomes.push({id:"v"+(extraHomes.length+1)+"_"+Date.now(),direccion:"",m2Total:"",notas:""});homeEditor();
  }));
- function setMode(mode){
-  editorMode=mode;
-  guidedBtn.classList.toggle("primary",mode==="guided");
-  fullBtn.classList.toggle("primary",mode==="full");
-  guideBar.replaceChildren();
-  const everything=[...guidedSteps.flatMap(s=>s.nodes.map(n=>n.closest(".kha-field"))),geoPanel,result,extra].filter(Boolean);
-  if(mode==="full"){everything.forEach(n=>n.hidden=false);return;}
-  guidedSteps.forEach((step,i)=>{
-   const b=B((i+1)+". "+step.title,()=>{activeStep=i;setMode("guided");},i===activeStep);
-   guideBar.append(b);
-  });
-  everything.forEach(n=>n.hidden=true);
-  guidedSteps[activeStep].nodes.forEach(n=>{if(n?.closest(".kha-field"))n.closest(".kha-field").hidden=false;});
-  if(activeStep===1){geoPanel.hidden=false;result.hidden=false;extra.hidden=false;}
-  const help=E("p","kha-muted",guidedSteps[activeStep].help,guideBar);
-  const nav=E("div","kha-guide-nav",undefined,guideBar);
-  if(activeStep>0)nav.append(B("‹ Anterior",()=>{activeStep--;setMode("guided");}));
-  if(activeStep<2)nav.append(B("Siguiente ›",()=>{activeStep++;setMode("guided");},true));
-  if(activeStep===2){
-   const review={name:name.value.trim(),phone:telephone.value.trim(),street:street.value.trim(),
-    locality:town.value.trim(),m2:net(total.value),obraDate:c?.obraDate||""};
-   const missing=window.KonsorExpediente?.missing?.(review,{town:review.locality},"comercial")||[];
-   E("p","kha-muted",missing.length?
-    "Por completar: "+missing.join(", ")+". Puedes guardar pendiente y volver más tarde.":
-    "El contacto tiene los datos mínimos. Puedes guardarlo y continuar con las llamadas.",nav);
-   if(missing.length)nav.append(B("Completar contacto",()=>{activeStep=0;setMode("guided");}));
-   E("p","kha-muted","Puedes volver a editar esta misma ficha desde Comercial, Oficina o Técnicos.",nav);
-  }
- }
- setMode(editorMode);
+ const contactCard=card(box,"Datos del cliente");
+ const housingCard=card(box,"Datos de la vivienda");
+ const bookingCard=card(box,"Cita y obra");
+ const documentCard=card(box,"Documentos, fotografías y expediente","Información de seguimiento compartida entre plantas.");
+ const noteDocs=f(documentCard,"Documentación pendiente o recibida",c?.documentosNotas||"","textarea");
+ const photoDocs=f(documentCard,"Fotografías de obra · observaciones",c?.fotografiasNotas||"","textarea");
+ const signatureDocs=f(documentCard,"Expediente, firma y otras observaciones",c?.expedienteNotas||"","textarea");
+ p(documentCard,"Para adjuntar archivos reales deben utilizarse las herramientas de documentos de KONSOR; estas casillas registran las observaciones.","kha-muted");
+ const appointmentDate=f(bookingCard,"Fecha de obra",c?.obraDate||"","date");
+ const appointmentTime=sel(bookingCard,"Hora de inicio",String(c?.obraTime||"").slice(0,5),
+  [["","Sin hora"],["09:00","09:00–11:00"],["11:00","11:00–13:00"],["15:00","15:00–17:00"],["17:00","17:00–19:00"]]);
+ const appointmentTeam=sel(bookingCard,"Equipo",String(c?.obraEquipoInstalacion||""),
+  [["","Por asignar"],["2","Equipo 2"],["3","Equipo 3"]]);
+ p(bookingCard,"Registrar la cita en esta ficha no crea ni modifica un evento de Google Calendar. Las reservas del calendario siguen su propio sistema.","kha-muted");
+ [name,telephone,dni,email,captured,answer,note].forEach(n=>contactCard.append(n.closest(".kha-field")));
+ [town,street,postal,year,total,zone].forEach(n=>housingCard.append(n.closest(".kha-field")));
+ housingCard.append(geoPanel,result,extra);
+ fields.remove();
  if(notice)p(box,notice,"kha-alert");
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
  async function save(ready,button){
  box.querySelector(".kha-live-error")?.remove();
- const d={name:name.value.trim(),phone:telephone.value.trim(),dni:dni.value.trim().toUpperCase(),email:email.value.trim(),locality:town.value.trim(),street:street.value.trim(),
+ const newState=stateValue.value;
+ const d={name:name.value.trim(),phone:telephone.value.trim(),dni:dni.value.trim().toUpperCase(),email:email.value.trim(),locality:town.value.trim()||c?.locality||z?.town||"Pueblo pendiente",street:street.value.trim(),
   postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
   captureDate:captured.value.trim(),captacionRespuesta:answer.value,observaciones:note.value.trim(),
-  m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
+  m2:net(total.value),type:c?.type||"vivienda",
+  documentosNotas:noteDocs.value.trim(),fotografiasNotas:photoDocs.value.trim(),
+  expedienteNotas:signatureDocs.value.trim(),crmEstado:newState,
+  obraStatus:["agendada","realizada"].includes(newState)?newState:newState==="no_apto"?"no_apto":"a_poner",
+  obraDate:appointmentDate.value,obraTime:appointmentTime.value,obraEquipoInstalacion:Number(appointmentTeam.value)||null,
+  captacionInvalida:newState==="no_apto",
+  callStatus:({por_llamar:"pendiente",en_espera:"esperando_confirmacion",agendada:"pendiente",
+   realizada:"finalizado",rechazado:"no_interesado",no_apto:"descartado"})[newState]};
   if(extraHomes.length){
    try{d.viviendas=window.KonsorExpediente.validateHomes(extraHomes);}
    catch(e){showError(e.message||"Revisa las viviendas.");return;}
   }else if(Array.isArray(c?.viviendas)){d.viviendas=[];}
- if(!(d.name||d.phone||d.street)){showError("Introduce al menos nombre, teléfono o dirección.");return;}
- if(d.dni&&typeof isValidDni==="function"&&!isValidDni(d.dni)){showError("DNI/NIE no válido.");return;}
+ if(!d.name||!d.phone||!d.street){showError("Para guardar solo necesitas nombre, teléfono y dirección.");return;}
+ if(newState==="rechazado")d.captacionRespuesta="no";
+ else if(["por_llamar","en_espera"].includes(newState)&&d.captacionRespuesta==="no")d.captacionRespuesta="si";
+ 
  if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)){showError("Correo electrónico incorrecto.");return;}
- if(!d.locality){showError("Debes indicar un pueblo.");return;}
+ 
  if(!/^\d{4}-\d{2}-\d{2}$/.test(d.captureDate)||!Number.isFinite(Date.parse(d.captureDate+"T12:00:00"))||d.captureDate>today){
   showError("Selecciona una fecha de captación válida, no posterior a hoy.");return;
  }
  if(d.m2===null&&c?.m2!==undefined)d.m2=c.m2;
- const pending=ready?validateReady(d):[];
- if(pending.length){showError("Faltan datos para activar llamadas: "+pending.join(", ")+". Puedes guardar como pendiente.");return;}
- if(ready&&booked(c)){showError("Esta ficha ya tiene una obra o cita; no puede reiniciarse.");return;}
+ if(["agendada","realizada"].includes(newState)){
+  if(!d.obraDate||!d.obraTime||!d.obraEquipoInstalacion){showError("Para registrar la obra indica fecha, horario y equipo.");return;}
+ }
+ if(newState==="realizada"){
+  const missing=window.KonsorCRM.closeRequirements(d);
+  if(missing.length){showError("Para cerrar la obra completa: "+missing.join(", ")+".");return;}
+  const todayDate=typeof getTodayISO==="function"?getTodayISO():new Date().toISOString().slice(0,10);
+  if(d.obraDate>todayDate){showError("No se puede cerrar una obra futura.");return;}
+  d.obraRealizadaDate=d.obraDate;d.obraRealizadaAt=Date.now();
+ }
+ if(c&&["agendada","agendada_historica","realizada"].includes(c.obraStatus)&&
+  !["agendada","realizada"].includes(newState)&&
+  !confirm("Esta ficha tiene una obra registrada. Cambiar el estado del CRM no elimina la cita de Google Calendar. ¿Continuar?"))return;
  button.disabled=true;
  try{
   const data=structuredClone(zs()),stamp=Date.now();
@@ -426,19 +433,13 @@ function editor(page){
    }else if(isSectorless(oldZone)){
     // Una vivienda sin sector conserva el mismo modelo de ficha normal.
     // No se marca como «histórica» a efectos de estadísticas.
-    const update={...oldClient,...d,sectorlessCapture:true,
-      callStatus:ready?(oldClient.callStatus==="bloqueada"?"pendiente":oldClient.callStatus||"pendiente")
-        :(oldClient.callStatus||"bloqueada"),
-      updatedAt:stamp};
+    const update={...oldClient,...d,sectorlessCapture:true,updatedAt:stamp,statusChangedAt:stamp};
     oldZone.clients[currentEdit.ci]=update;
     oldZone.town=d.locality;oldZone.date=d.captureDate;oldZone.dumpDate=d.captureDate;
     oldZone.sectorName="🏠 "+d.street;oldZone.stats=captureStats(d.captacionRespuesta);
    }else{
     // Compatibilidad con fichas antiguas que ya estaban guardadas en sectores.
-    const updated={...oldClient,...d,legacyPortfolio:true,importedLegacy:true,legacyReviewStatus:ready?"lista":oldClient.legacyReviewStatus||"pendiente",
-      legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
-    if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
-    if(ready&&(!oldClient.callStatus||["pendiente_visita","no_interesado","descartado"].includes(oldClient.callStatus)))updated.callStatus="pendiente";
+    const updated={...oldClient,...d,updatedAt:stamp,statusChangedAt:stamp};
     oldZone.clients[currentEdit.ci]=updated;
    }
    oldZone._updatedAt=stamp;
@@ -452,7 +453,7 @@ function editor(page){
    // genera porcentajes de cobertura ni conteos de sectores.
    let id=Date.now();while(data.some(z=>String(z.id)===String(id)))id++;
    const client={...d,clientUid:"f_"+crypto.randomUUID(),sectorlessCapture:true,
-     origen:"contacto_directo",callStatus:ready?"pendiente":"bloqueada",
+     origen:"contacto_directo",
      createdAt:Date.parse(d.captureDate+"T12:00:00"),updatedAt:stamp,statusChangedAt:stamp};
    data.push({id,isSingleHouse:true,isSectorlessCapture:true,singlePoint:null,
      date:d.captureDate,dumpDate:d.captureDate,town:d.locality,
@@ -462,20 +463,13 @@ function editor(page){
   }
   await commit(data);
   screen="list";currentEdit=null;
-  notice=ready?"Cliente guardado y listo para llamadas.":"Ficha guardada. Puedes completar lo pendiente después.";
-  activeTown=N(d.locality);activeStreet=streetBase(d.street).key;
+  notice="Ficha guardada · "+window.KonsorCRM.labels[newState]+".";
+  crmTown=N(d.locality);
   if(returnAfterEdit){document.getElementById(ID)?.remove();const back=returnAfterEdit;returnAfterEdit=null;back();return;}
   render();
  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
 }
- if(c){
-  actions.append(B("Guardar cambios",function(){save(false,this);},true));
-  if(!booked(c)&&(c.legacyReviewStatus==="pendiente"||(isSectorless(z)&&c.callStatus==="bloqueada")))
-   actions.append(B("Habilitar llamadas",function(){save(true,this);}));
- }else{
-  actions.append(B("Guardar pendiente",function(){save(false,this);}));
-  actions.append(B("Guardar y habilitar llamadas",function(){save(true,this);},true));
- }
+ actions.append(B(c?"Guardar cambios":"Crear cliente",function(){save(false,this);},true));
 }
 function moveScreen(page){
  page.append(B("‹ Volver",()=>{screen="list";render();}));
@@ -648,6 +642,6 @@ window.openKonsorFichaOriginal=function(clientUid,onReturn){
 };
 window.openKonsorLegacyPortfolio=window.openKonsorClients;
 window.openKonsorLegacyClient=window.openKonsorFichaOriginal;
-window.openKonsorNewClient=function(mode="guided"){screen="edit";currentEdit=null;returnAfterEdit=null;editorMode=mode==="full"?"full":"guided";notice="";render();};
+window.openKonsorNewClient=function(){screen="edit";currentEdit=null;returnAfterEdit=null;editorMode="full";notice="";render();};
 
 })();
