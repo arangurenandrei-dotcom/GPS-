@@ -100,18 +100,11 @@ function showHome(){
  tile(grid,"Mapa","Satélite, GPS y Catastro","map",()=>showMap(true));
  tile(grid,"Oficina","Volcados, llamadas y citas","office",openOffice);
  tile(grid,"Resultados","Tu progreso y clasificación","results",()=>window.openCnResults?.());
- if(boss()){
-  const director=el("section","cnv-home-management",undefined,section);
-  const t=el("div","cnv-home-management-copy",undefined,director);
-  el("span","cnv-eyebrow","GESTIÓN DEL EQUIPO",t);
-  el("strong","","Dirección",t);
-  el("p","","Planificación, territorio, supervisión y análisis.",t);
-  const access=btn("Abrir dirección",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.(),"cnv-home-management-button");
-  director.append(access);
- }
-
  const messageLink=tile(grid,"Mensajes entre plantas","Solicitudes, avisos y confirmaciones","office",()=>window.KonsorPlantMessages?.open?.("comercial"));
  window.KonsorIndicators?.bind?.(messageLink,"comercial");
+ if(boss()){
+  tile(grid,"Dirección","Planificación, equipo y resultados","users",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.());
+ }
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
