@@ -345,6 +345,18 @@
   });
   form.append(button('Guardar preferencias',async()=>{const mins=s=>{const [h,m]=s.split(':').map(Number);return h*60+m;};if(!start.value||!end.value)throw Error('Completa las horas.');await api.call('guardarPreferenciasAvisos',{enabled:enabled.checked,quietStart:mins(start.value),quietEnd:mins(end.value),categories:Object.fromEntries(Object.entries(controls).map(([k,v])=>[k,v.checked]))});status.textContent='Preferencias guardadas.';}));
   form.append(button('Activar permisos de este móvil',async()=>{if(typeof window.requestMobileNotifications==='function')await window.requestMobileNotifications();else throw Error('No se encuentra el botón de activación de avisos.');}));
+  form.append(button('Probar aviso de este dispositivo',async()=>{
+   if(!('Notification' in window)||Notification.permission!=='granted')
+    throw Error('Las notificaciones no están permitidas. Actívalas primero para este dispositivo.');
+   if(!navigator.serviceWorker)throw Error('Este navegador no admite el trabajador de notificaciones.');
+   const reg=await navigator.serviceWorker.ready;
+   if(!reg?.showNotification)throw Error('Este dispositivo no permite mostrar notificaciones de prueba.');
+   await reg.showNotification('KONSOR · Prueba local',{
+    body:'Aviso de prueba. El sonido depende de los ajustes de iOS y del modo de concentración.',
+    tag:'konsor-prueba-local',data:{url:'./'}
+   });
+   status.textContent='Prueba local enviada. Esto comprueba el permiso de este dispositivo, no confirma la entrega de mensajes desde Firebase.';
+  }));
   form.append(node('p','Los controles automáticos se ejecutan cada 5 minutos. No recibir un aviso no demuestra que alguien no haya trabajado: el sistema usa los datos registrados.'));
   form.onsubmit=e=>e.preventDefault();body.append(form);
  }
