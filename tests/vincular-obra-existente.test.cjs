@@ -7,7 +7,7 @@ const event={id:'calendar-event-one',etag:'rev123',status:'confirmed',summary:'E
  description:'Nombre: Alfonso\nTeléfono: 639565653\nEquipo: Equipo 2',
  location:'Valle baztan, 7, 31350, Peralta/Azkoien, Navarra',
  start:{dateTime:'2026-11-28T17:00:00+01:00'},end:{dateTime:'2026-11-28T19:00:00+01:00'}};
-function fixture({phone='639565653',owner='jefe',eventList=[event],claim=null}={}){
+function fixture({phone='639565653',owner='jefe',eventList=[event],claim=null,beforeTransaction=null}={}){
  const docs={
   'usuarios/u':{estado:'aprobado',userKey:owner},
   'fichas/f_test':{rev:2,teamId:'andrei',zonaId:'z_test',datos:{
@@ -20,6 +20,7 @@ function fixture({phone='639565653',owner='jefe',eventList=[event],claim=null}={
  const db={
   doc:key=>({key,get:async()=>({exists:key in docs,data:()=>docs[key]})}),
   runTransaction:async fn=>{
+   if(beforeTransaction)beforeTransaction(docs);
    const tx={
     get:async ref=>({exists:ref.key in docs,data:()=>docs[ref.key]}),
     update:(ref,patch)=>{writes.push(['update',ref.key]);docs[ref.key]={...docs[ref.key],...patch};},
@@ -69,7 +70,10 @@ test('no permite vincular siendo otro perfil ni con una revisión desactualizada
  let t=fixture({owner:'comercial1'});
  await assert.rejects(t.link(t.request),e=>e.code==='permission-denied');
  assert.equal(t.writes.length,0);
- t=fixture();t.request.data.rev=1;
+ t=fixture({beforeTransaction:docs=>{
+  docs['fichas/f_test'].rev++;
+  docs['fichas/f_test'].datos.phone='600888444';
+ }});
  await assert.rejects(t.link(t.request),e=>e.code==='aborted');
  assert.equal(t.writes.length,0);
 });
@@ -91,4 +95,52 @@ test('el frontend recarga estado servidor sin escribir dos veces la reserva',()=
  assert.ok(segment.includes('KonsorBridge?.refresh?.(true)'));
  assert.ok(!segment.includes('saveAndSync("comercial_custom_zones",savedZones)'));
  assert.ok(!segment.includes('elegirEquipoInstaladorKonsor('));
+});
+
+test('permite revisión nueva si solo cambiaron observaciones y no pisa esos datos',async()=>{
+ const t=fixture({beforeTransaction:docs=>{
+  docs['fichas/f_test'].rev=3;
+  docs['fichas/f_test'].datos.observaciones='Nueva fotografía aportada mientras se consultaba Calendar';
+ }});
+ const result=await t.link(t.request);
+ assert.equal(result.ok,true);
+ assert.equal(result.completed,false);
+ assert.equal(t.docs['fichas/f_test'].rev,4);
+ assert.equal(t.docs['fichas/f_test'].datos.observaciones,'Nueva fotografía aportada mientras se consultaba Calendar');
+});
+test('si la instalación ya ocurrió, vincula evento original y contabiliza realizada',async()=>{
+ const t=fixture();
+ t.request.data.markCompleted=true;
+ const result=await t.link(t.request);
+ assert.equal(result.ok,true);
+ assert.equal(result.completed,true);
+ assert.equal(t.docs['fichas/f_test'].datos.obraStatus,'realizada');
+ assert.equal(t.docs['fichas/f_test'].datos.obraRealizadaDate,'2026-11-28');
+ assert.ok(t.docs['fichas/f_test'].datos.obraRealizadaAt>0);
+ assert.equal(t.writes.filter(x=>x[0]==='create').length,1);
+ assert.ok(!t.writes.some(x=>x[1].startsWith('reservas/')));
+});
+test('reintentar evento ya vinculado puede registrar finalización sin duplicarlo',async()=>{
+ const t=fixture(),first=await t.link(t.request);
+ assert.equal(first.completed,false);
+ t.request.data.markCompleted=true;
+ const second=await t.link(t.request);
+ assert.equal(second.completed,true);
+ assert.equal(second.alreadyLinked,true);
+ assert.equal(t.docs['fichas/f_test'].datos.obraStatus,'realizada');
+ assert.equal(t.writes.filter(x=>x[0]==='create').length,1);
+});
+test('una identidad o franja modificada durante la verificación sigue rechazándose',async()=>{
+ const t=fixture({beforeTransaction:docs=>{
+  docs['fichas/f_test'].rev=3;docs['fichas/f_test'].datos.obraDate='2026-12-01';
+ }});
+ await assert.rejects(t.link(t.request),e=>e.code==='aborted');
+ assert.equal(t.writes.length,0);
+});
+test('no marca como realizada una obra futura',async()=>{
+ const later={...event,start:{dateTime:'2099-11-28T17:00:00+01:00'},end:{dateTime:'2099-11-28T19:00:00+01:00'}};
+ const t=fixture({eventList:[later]});
+ t.request.data.date='2099-11-28';t.request.data.markCompleted=true;
+ await assert.rejects(t.link(t.request),e=>e.code==='failed-precondition');
+ assert.equal(t.writes.length,0);
 });
