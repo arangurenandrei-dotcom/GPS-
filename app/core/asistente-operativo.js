@@ -18,6 +18,10 @@ function recommend(role,state={}){
   if(dumps)return card('oficina.volcados','Tienes '+dumps+' '+plural(dumps,'sector sin volcar','sectores sin volcar'),'Empieza por el más antiguo y continúa el trabajo de Oficina.','Ir a Oficina','office','Hojas de calle pendientes');
   if(old)return card('jornada.sector','Tienes '+old+' '+plural(old,'sector pendiente','sectores pendientes'),'Continúa lo pendiente antes de empezar nuevos sectores.','Ver jornada','calendar','Sectores anteriores');
   if(today)return card('jornada.sector','Tienes '+today+' '+plural(today,'sector para hoy','sectores para hoy'),'Consulta el orden asignado y abre la ruta cuando estés preparado.','Ver jornada','calendar','Asignaciones de hoy');
+  const calls=n(s.callsDue),booked=n(s.bookedJobs),clients=n(s.totalClients);
+  if(calls)return card('oficina.llamar','Tienes '+calls+' '+plural(calls,'cliente pendiente de llamar','clientes pendientes de llamar'),
+   'No hay trabajo de campo prioritario. Tienes '+clients+' clientes y '+booked+' obras agendadas. Organiza las llamadas por pueblo y completa los huecos de los equipos.',
+   'Preparar llamadas','calls','Trabajo de oficina disponible');
   if(!s.shift)return card('jornada.iniciar','Prepara tu jornada','Consulta tu trabajo y confirma el inicio cuando vayas a trabajar.','Ver mi jornada','calendar','Sin jornada');
   return card('resultados.consultar','Todo al día por ahora','Consulta tus resultados o revisa tus próximas asignaciones.','Ver resultados','results','Sin pendientes');
  }
