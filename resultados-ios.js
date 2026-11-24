@@ -58,6 +58,7 @@ function scheduledOpen(zones,users){
 }
 function open(which="mine"){
  if(!date)date=today();
+ scope=which==="team"&&teamAllowed()?"team":"me";
  tab=which==="league"?"league":"mine";
  const o=panel();o.classList.add("active");render();
 }
@@ -107,17 +108,13 @@ function render(){
  const isMikel=typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName);
  if(isMikel){caption(main,"Esta vista corresponde al equipo Andrei. Utiliza el resumen de tu equipo.");return;}
  const switcher=$("div","kr-top-tabs",undefined,main);
- segment(switcher,[["mine","Mi rendimiento"],["league","Liga comercial"]],tab,v=>tab=v);
+ if(tab==="league")segment(switcher,[["mine","Mi rendimiento"],["league","Liga comercial"]],tab,v=>tab=v);
  const filters=$("section","kr-panel kr-filters",undefined,main);
  segment(filters,[["day","Día"],["week","Semana"],["month","Mes"],["all","Total"]],period,v=>period=v);
  const picker=$("input","kr-date",undefined,filters);picker.type="date";picker.value=date;picker.max=today();picker.setAttribute("aria-label","Fecha de referencia");
  picker.onchange=()=>{if(picker.value&&picker.value<=today()){date=picker.value;render();}};
  if(tab==="league"){league(main);return;}
- if(teamAllowed()){
-  const scopeBox=$("div","kr-scope-picker",undefined,filters);
-  $("small","kr-scope-label","MOSTRAR RESULTADOS DE",scopeBox);
-  segment(scopeBox,[["me","Mis resultados"],["team","Todo mi equipo"]],scope,v=>scope=v);
- }
+ if(scope==="team"&&teamAllowed())caption(filters,"Mostrando resultados globales del equipo · Dirección");
  const r=range();
  const users=scope==="team"&&teamAllowed()?getActiveTeamUsers(false):[currentUserName];
  const m=users.map(n=>personalStatsMetrics(n,...r)).reduce((sum,v)=>{Object.keys(v).forEach(k=>{if(typeof v[k]==="number")sum[k]=(sum[k]||0)+v[k];});return sum;},{});
@@ -133,7 +130,7 @@ function render(){
  stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
  stat(grid,"Obras agendadas",fmt(ownJobs.count),fmt(ownJobs.area)+" m² pendientes"+(ownJobs.withoutArea?" · "+ownJobs.withoutArea+" sin m²":""));
  if(ownJobs.count!==m.citas)caption(main,"Las obras pendientes se cuentan sin limitar su fecha al mes seleccionado; los indicadores de captación y ejecución mantienen el período elegido.");
- if(scope==="me"&&teamAllowed()&&teamJobs.count>ownJobs.count)caption(main,"En tu nombre hay "+ownJobs.count+" obra(s) pendiente(s) y en el equipo "+teamJobs.count+". Pulsa «Mi equipo» para consultar todas.");
+ if(scope==="me"&&teamAllowed()&&teamJobs.count>ownJobs.count)caption(main,"Las obras de otros comerciales se consultan desde Dirección → Mi equipo.");
  stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
  const chart=$("section","kr-panel",undefined,main);
  $("h3","","Respuestas en captación",chart);
@@ -197,7 +194,7 @@ function render(){
 }
 window.openCnResults=()=>{if(typeof isMikelTeamMember==="function"&&isMikelTeamMember(currentUserName)){if(typeof openCommercialStatsModalLegacy==="function")openCommercialStatsModalLegacy();return;}open("mine");};
 window.openKonsorResults=window.openCnResults;
-window.openKonsorTeamResults=()=>{scope="team";open("mine");};
+window.openKonsorTeamResults=()=>open("team");
 window.openKonsorLeague=()=>open("league");
 window.KonsorResultsScheduled=Object.freeze({scheduledOpen});
 window.openCommercialStatsModal=window.openCnResults;
