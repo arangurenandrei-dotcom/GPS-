@@ -24,17 +24,17 @@ test('cada planta revisa solo sus campos sin bloquear una captura inicial',()=>{
  assert.deepEqual(m.missing(c,{town:'Marcilla'},'comercial'),[]);
  assert.equal(m.missing(c,{town:'Marcilla'},'tecnico')[0],'Medición vivienda 1');
 });
-test('tres entradas, pasos guiados y ficha original con guardado real',()=>{
- for(const q of ['Proceso guiado','Ficha completa','Volcar hoja de sector','Siguiente ›',
- 'Guardar cambios','Guardar pendiente','window.openKonsorFichaOriginal','openSelectZoneToDump()'])
+test('una sola ficha completa y misma referencia sin sector',()=>{
+ for(const q of ['Datos del cliente','Datos de la vivienda','Cita y obra',
+ 'Documentos, fotografías y expediente','Guardar cambios','window.openKonsorFichaOriginal'])
   assert.ok(src.includes(q),q);
+ assert.ok(!src.includes('const guidedSteps=['));
  assert.ok(src.includes('await commit(data)'));
  assert.ok(src.includes('isSectorlessCapture:true'));
- assert.ok(src.includes('isSectorless(z)&&c.callStatus==="bloqueada"'));
  assert.match(app,/expediente-unico\.js\?v=1/);
 });
 test('editar sin sector no bloquea por defecto una ficha ya habilitada',()=>{
- assert.ok(src.includes(':(oldClient.callStatus||"bloqueada")'));
- assert.ok(src.includes('window.openKonsorClients=function()'));
+ assert.ok(src.includes('const update={...oldClient,...d,sectorlessCapture:true'));
+ assert.ok(src.includes('window.openKonsorClients=function(filter="pendientes")'));
  assert.ok(src.includes('["","Pendiente de respuesta"]'));
 });

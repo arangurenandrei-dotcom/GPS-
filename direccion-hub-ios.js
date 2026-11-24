@@ -30,34 +30,30 @@ function tile(body,name,desc,fn){
  return c;
 }
 function open(){
- if(!isBoss())return;
  const r=root(),body=r.querySelector(".kd-body");body.replaceChildren();r.classList.add("active");
- const m=summary();
- el("p","kd-intro","Planifica y controla el trabajo desde un solo lugar. Se conservan los guardados actuales.",body);
- const invite=el("section","kd-card kd-plan-invite",undefined,body);
- el("small","kd-plan-kicker","TU SIGUIENTE PLANIFICACIÓN",invite);
- el("h3","","Organizar la semana, semanas o mes",invite);
- el("p","","Revisamos resultados, equipo, sectores y fechas hasta dejar el trabajo preparado.",invite);
- invite.append(button("Comenzar planificación",()=>launch(r,()=>window.konsorPlanificador?.open?.())));
- const stats=el("div","kd-stats",undefined,body);
- [["Sectores",m.total],["Sin terminar",m.pending],["Clientes",m.clients]].forEach(([label,value])=>{const cell=el("div","kd-stat",undefined,stats);el("strong","",value,cell);el("small","",label,cell);});
+ r.querySelector(".kd-head h2").textContent="Dirección";
+ el("p","kd-intro","Elige tu espacio. Las herramientas secundarias están recogidas para no distraerte.",body);
  const grid=el("div","kd-nav-grid",undefined,body);
- tile(grid,"Territorio","Pueblos, sectores y zonas de trabajo.",()=>launch(r,()=>window.openCnTerritory?.()));
- tile(grid,"Cierre del día","Revisión, incidencias y tareas pendientes.",()=>launch(r,()=>window.konsorPlanificador?.review?.()));
- tile(grid,"Mi equipo","Actividad, comerciales y resultados globales.",()=>launch(r,openTeam));
+ tile(grid,"Yo","Jornada, actividad y resultados personales.",()=>launch(r,()=>{
+  if(window.konsorMotor?.openDay)window.konsorMotor.openDay();
+  else window.openCnDay?.();
+ }));
+ if(!isBoss())return;
+ tile(grid,"Mi equipo","Comerciales, seguimiento y resultados globales.",()=>launch(r,openTeam));
  const other=el("details","kd-more",undefined,body);
- el("summary","","Más herramientas de Dirección",other);
+ el("summary","","Territorio y herramientas de dirección",other);
  const secondary=el("div","kd-nav-secondary",undefined,other);
- tile(secondary,"Resultados del equipo","Captación, obras y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
- tile(secondary,"Clientes","Fichas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
- tile(secondary,"Cartera de clientes","Buscar y completar fichas existentes.",()=>launch(r,()=>window.openKonsorClients?.()));
- tile(secondary,"Volcado de sectores","Importar hojas de captación.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
+ tile(secondary,"Territorio","Pueblos y sectores.",()=>launch(r,()=>window.openCnTerritory?.()));
+ tile(secondary,"Cierre del día","Revisión y tareas.",()=>launch(r,()=>window.konsorPlanificador?.review?.()));
+ tile(secondary,"Planificación","Semana y equipo.",()=>launch(r,()=>window.konsorPlanificador?.open?.()));
+ tile(secondary,"Resultados del equipo","Rendimiento global.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
+ tile(secondary,"Volcado de sectores","Importar hojas.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
  const messages=tile(secondary,"Mensajes entre plantas","Encargos y avisos importantes.",()=>launch(r,()=>window.KonsorPlantMessages?.open?.("ceo")));
  window.KonsorIndicators?.bind?.(messages,"ceo");
- tile(secondary,"Tareas y respuestas","Encargos y confirmaciones.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
- tile(secondary,"Tareas del jefe","Prioridades y encargos.",()=>launch(r,openPlan));
- tile(secondary,"Análisis operativo","Horas, visitas y resultados.",()=>launch(r,()=>showAnalytics("operations")));
- tile(secondary,"Comparar equipos","Comparación de actividad disponible.",()=>launch(r,()=>showAnalytics("compare")));
+ tile(secondary,"Tareas y respuestas","Encargos.",()=>launch(r,()=>window.openNotificationsCenterV2?.("tasks")));
+ tile(secondary,"Tareas del jefe","Prioridades.",()=>launch(r,openPlan));
+ tile(secondary,"Análisis operativo","Actividad.",()=>launch(r,()=>showAnalytics("operations")));
+ tile(secondary,"Comparar equipos","Comparativa.",()=>launch(r,()=>showAnalytics("compare")));
 }
 /* Plan de Dirección: pantalla nueva, mismos encargos y guardado de Firestore. */
 let planUnsubscribe=null,planRows=[],planFilter="pending",planStatus="Conectando…",planBusy=false;

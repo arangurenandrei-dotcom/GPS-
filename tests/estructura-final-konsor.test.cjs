@@ -4,13 +4,12 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
-test('Comercial muestra cinco accesos, Dirección solo al jefe',()=>{
+test('Comercial presenta únicamente Clientes, Mapa, Dirección y Mensajes',()=>{
  const home=read('inicio-ios.js');
- for(const title of ['Mi jornada','Mapa','Oficina','Resultados','Mensajes entre plantas'])
-  assert.ok(home.includes('tile(grid,"'+title+'"'),title);
- assert.ok(home.includes('if(boss())'));
- assert.ok(home.includes('tile(grid,"Dirección"'));
- assert.ok(home.includes('if(typeof window.openCnOffice==="function")window.openCnOffice()'));
+ const section=home.slice(home.indexOf('const grid=el("div","cnv-home-grid"'),home.indexOf('const footer=el('));
+ assert.deepEqual([...section.matchAll(/tile\(grid,"([^"]+)"/g)].map(x=>x[1]),
+ ['Clientes','Mapa','Dirección','Mensajes entre plantas']);
+ assert.ok(section.includes('openKonsorClients'));
 });
 test('Oficina tiene exactamente cuatro módulos principales, y altas sin sector',()=>{
  const src=read('oficina-ios.js');
@@ -23,14 +22,15 @@ test('Oficina tiene exactamente cuatro módulos principales, y altas sin sector'
  assert.ok(!src.includes('!z.isSingleHouse'));
  assert.ok(!src.includes('!z.isLegacyPortfolio'));
 });
-test('Dirección muestra solo Territorio, Cierre y Mi equipo al inicio',()=>{
+test('Dirección muestra Yo y Mi equipo protegido, y guarda avanzadas',()=>{
  const src=read('direccion-hub-ios.js');
  const a=src.indexOf('const grid=el("div","kd-nav-grid"'),b=src.indexOf('const other=el("details","kd-more"',a);
  const main=src.slice(a,b);
- assert.deepEqual([...main.matchAll(/tile\(grid,"([^"]+)"/g)].map(m=>m[1]),['Territorio','Cierre del día','Mi equipo']);
+ assert.deepEqual([...main.matchAll(/tile\(grid,"([^"]+)"/g)].map(m=>m[1]),['Yo','Mi equipo']);
+ assert.ok(main.includes('if(!isBoss())return'));
  const advanced=src.slice(b,src.indexOf('/* Plan de Dirección',b));
  assert.ok(advanced.includes('Resultados del equipo'));
- assert.ok(advanced.includes('Mensajes entre plantas'));
+ assert.ok(advanced.includes('Territorio'));
  assert.ok(advanced.includes('Volcado de sectores'));
 });
 test('Resultados Comercial no puede cambiar por selector a todo el equipo',()=>{
@@ -41,7 +41,7 @@ test('Resultados Comercial no puede cambiar por selector a todo el equipo',()=>{
 });
 test('los recursos y cambios de estilos se cargan desde la versión actualizada',()=>{
  const html=read('index.html');
- for(const suffix of ['oficina-ios.js?v=15','direccion-hub-ios.js?v=19','resultados-ios.js?v=9','ios-unified.css?v=15'])
+ for(const suffix of ['oficina-ios.js?v=15','direccion-hub-ios.js?v=20','resultados-ios.js?v=9','ios-unified.css?v=15'])
   assert.ok(html.includes(suffix),suffix);
  const css=read('ios-unified.css');
  assert.ok(css.includes('.cn-office-home-grid'));
