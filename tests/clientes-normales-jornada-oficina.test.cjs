@@ -15,8 +15,8 @@ test('las fichas importadas y sin sector son clientes normales sin migración',(
  const src=read('cartera-antigua-ios.js');
  assert.ok(src.includes('window.konsorIsHistoricalClient=()=>false'));
  assert.ok(src.includes('window.konsorIsHistoricalOnlySector=z=>'));
- assert.ok(src.includes('window.openKonsorClients=function()'));
- assert.match(src,/const summary=card\(page,"Cartera de clientes"/);
+ assert.ok(src.includes('window.openKonsorClients=function(filter="pendientes")'));
+ assert.match(src,/kha-crm-summary/);
  assert.ok(!src.includes('Organizar en Clientes antiguos',src.indexOf('function listScreen(')));
  const office=read('oficina-ios.js');
  assert.ok(!office.includes('c.importedLegacy||c.legacyReviewStatus'));
@@ -25,7 +25,7 @@ test('guiada y completa invocan el mismo formulario real',()=>{
  const office=read('oficina-ios.js'),client=read('cartera-antigua-ios.js');
  assert.ok(office.includes('openNewClient("guided")'));
  assert.ok(office.includes('openNewClient("full")'));
- assert.ok(client.includes('window.openKonsorNewClient=function(mode="guided")'));
+ assert.ok(client.includes('window.openKonsorNewClient=function()'));
  assert.ok(client.includes('window.openKonsorFichaOriginal=function(clientUid,onReturn)'));
 });
 test('el plan usa ambos equipos, grupos de municipio y vuelve a calcular tras llamadas',()=>{
