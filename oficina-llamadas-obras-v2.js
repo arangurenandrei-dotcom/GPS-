@@ -553,8 +553,8 @@ function draw(opts={}){
   controls.append(button("Añadir cliente sin sector",()=>{
    r.classList.remove("active");window.openKonsorNewClient?.("guided");
   },"koc-quiet"));
-  controls.append(button("Clientes antiguos · revisar",()=>{
-   r.classList.remove("active");window.openKonsorLegacyPortfolio?.();
+  controls.append(button("Cartera de clientes",()=>{
+   r.classList.remove("active");window.openKonsorClients?.();
   },"koc-quiet"));
   if(currentUserRole==="jefe"){
     const switcher=e("div","koc-scope-picker",undefined,body);
