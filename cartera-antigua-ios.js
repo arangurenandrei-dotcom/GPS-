@@ -167,6 +167,8 @@ function editor(page){
  const fields=E("div","kha-grid",undefined,box);
  const name=f(fields,"Nombre y apellidos",c?.name||"");
  const telephone=f(fields,"Teléfono",c?.phone||"","tel");
+ const dni=f(fields,"DNI / NIE",c?.dni||"");
+ const email=f(fields,"Correo electrónico",c?.email||"","email");
  const town=f(fields,"Pueblo",c?.locality||z?.town||"");
  const today=typeof getTodayISO==="function"?getTodayISO():new Date().toLocaleDateString("sv-SE");
  const captured=f(fields,"Fecha de captación",c?.captureDate||z?.date||today,"date");
@@ -292,11 +294,13 @@ function editor(page){
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
  async function save(ready,button){
- const d={name:name.value.trim(),phone:telephone.value.trim(),locality:town.value.trim(),street:street.value.trim(),
+ const d={name:name.value.trim(),phone:telephone.value.trim(),dni:dni.value.trim().toUpperCase(),email:email.value.trim(),locality:town.value.trim(),street:street.value.trim(),
   postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
   captureDate:captured.value.trim(),captacionRespuesta:answer.value,observaciones:note.value.trim(),
   m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
  if(!(d.name||d.phone||d.street)){showError("Introduce al menos nombre, teléfono o dirección.");return;}
+ if(d.dni&&typeof isValidDni==="function"&&!isValidDni(d.dni)){showError("DNI/NIE no válido.");return;}
+ if(d.email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(d.email)){showError("Correo electrónico incorrecto.");return;}
  if(!d.locality){showError("Debes indicar un pueblo.");return;}
  if(!/^\d{4}-\d{2}-\d{2}$/.test(d.captureDate)||!Number.isFinite(Date.parse(d.captureDate+"T12:00:00"))||d.captureDate>today){
   showError("Selecciona una fecha de captación válida, no posterior a hoy.");return;
