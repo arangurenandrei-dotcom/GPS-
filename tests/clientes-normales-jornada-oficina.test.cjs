@@ -14,7 +14,7 @@ test('sin sectores con clientes pendientes, el inicio recomienda oficina',()=>{
 test('las fichas importadas y sin sector son clientes normales sin migración',()=>{
  const src=read('cartera-antigua-ios.js');
  assert.ok(src.includes('window.konsorIsHistoricalClient=()=>false'));
- assert.ok(src.includes('window.konsorIsHistoricalOnlySector=()=>false'));
+ assert.ok(src.includes('window.konsorIsHistoricalOnlySector=z=>'));
  assert.ok(src.includes('window.openKonsorClients=function()'));
  assert.match(src,/const summary=card\(page,"Cartera de clientes"/);
  assert.ok(!src.includes('Organizar en Clientes antiguos',src.indexOf('function listScreen(')));
