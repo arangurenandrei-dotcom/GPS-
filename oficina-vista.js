@@ -11,7 +11,7 @@ const add=(tag,css,value,parent)=>{
 };
 function canRead(){
  return !!(root.konsorDesigner?.permitted?.()&&
-  root.KonsorBridge?.state?.().connected&&root.KonsorOfficeFlow&&
+  root.KonsorOfficeFlow&&
   typeof savedZones!=="undefined"&&Array.isArray(savedZones));
 }
 function rows(){
@@ -36,6 +36,21 @@ function render(container){
  agenda.className="ktf-open-agenda";agenda.type="button";agenda.textContent="Consultar agenda y vincular citas";
  agenda.onclick=()=>{window.openCnCallQueue?.();};
  panel.append(agenda);
+ const reload=add("button","ktf-open-agenda","Actualizar expedientes desde Firebase",panel);
+ reload.type="button";reload.onclick=async()=>{
+  reload.disabled=true;
+  try{
+   const refreshed=await root.KonsorBridge?.refresh?.(true);
+   if(refreshed===false&&(!root.KonsorBridge?.state?.().connected))
+    throw Error("La sesión no está sincronizada.");
+   render(container);
+  }catch(err){
+   reload.disabled=false;
+   add("p","ktf-notice","No se ha podido actualizar desde Firebase: "+(err.message||err),panel);
+  }
+ };
+ if(!root.KonsorBridge?.state?.().connected)
+  add("p","ktf-notice","Mostrando fichas cargadas en la sesión. La sincronización con Firebase no está confirmada; usa Actualizar antes de tramitar.",panel);
  const list=rows();
  if(list===null){
   add("p","ktf-notice","Conectando con las fichas de Firebase. No se han creado expedientes de ejemplo.",panel);

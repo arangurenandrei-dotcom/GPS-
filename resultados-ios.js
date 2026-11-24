@@ -21,12 +21,27 @@ function panel(){
 }
 function segment(container,items,selected,fn){
  const row=$("div","kr-segment",undefined,container);
- items.forEach(([v,label])=>row.append(btn(label,()=>{fn(v);render();},v===selected?"on":"")));
+ items.forEach(([v,label])=>{const choice=btn(label,()=>{fn(v);render();},v===selected?"on":"");choice.setAttribute("aria-pressed",String(v===selected));row.append(choice);});
 }
 function stat(parent,label,value,detail){
  const c=$("div","kr-stat",undefined,parent);$("small","",label,c);$("strong","",value,c);$("span","",detail,c);return c;
 }
 function caption(parent,text){return $("p","kr-note",text,parent);}
+function scheduledOpen(zones,users){
+ const names=new Set(users),seen=new Set();
+ let count=0,area=0;
+ for(const z of Array.isArray(zones)?zones:[]){
+  if(!names.has(z?.comercial)||z.isNoAptoZone||z.isHotMission)continue;
+  for(const [i,c] of (z.clients||[]).entries()){
+   if(!c||!["agendada","agendada_historica"].includes(c.obraStatus))continue;
+   const key=String(z.id)+":"+String(c.clientUid||i);
+   if(seen.has(key))continue;seen.add(key);count++;
+   const surface=Number(String(c.m2||"").replace(",","."));
+   if(Number.isFinite(surface)&&surface>0)area+=surface;
+  }
+ }
+ return {count,area};
+}
 function open(which="mine"){
  if(!date)date=today();
  tab=which==="league"?"league":"mine";
@@ -84,17 +99,27 @@ function render(){
  const picker=$("input","kr-date",undefined,filters);picker.type="date";picker.value=date;picker.max=today();picker.setAttribute("aria-label","Fecha de referencia");
  picker.onchange=()=>{if(picker.value&&picker.value<=today()){date=picker.value;render();}};
  if(tab==="league"){league(main);return;}
- if(teamAllowed())segment(filters,[["me","Yo"],["team","Mi equipo"]],scope,v=>scope=v);
+ if(teamAllowed()){
+  const scopeBox=$("div","kr-scope-picker",undefined,filters);
+  $("small","kr-scope-label","MOSTRAR RESULTADOS DE",scopeBox);
+  segment(scopeBox,[["me","Mis resultados"],["team","Todo mi equipo"]],scope,v=>scope=v);
+ }
  const r=range();
  const users=scope==="team"&&teamAllowed()?getActiveTeamUsers(false):[currentUserName];
  const m=users.map(n=>personalStatsMetrics(n,...r)).reduce((sum,v)=>{Object.keys(v).forEach(k=>{if(typeof v[k]==="number")sum[k]=(sum[k]||0)+v[k];});return sum;},{});
+ const sourceZones=typeof savedZones!=="undefined"?savedZones:[];
+ const ownJobs=scheduledOpen(sourceZones,users);
+ const teamUsers=teamAllowed()&&typeof getActiveTeamUsers==="function"?getActiveTeamUsers(false):users;
+ const teamJobs=scheduledOpen(sourceZones,[...new Set([...teamUsers,currentUserName])]);
  const title=$("section","kr-section-title",undefined,main);
  $("h3","",scope==="team"?"Resultados del equipo":"Mi actividad",title);
  caption(title,r[0]+" — "+r[1]);
  const grid=$("div","kr-grid",undefined,main);
  stat(grid,"Captaciones",fmt(m.validas),"fichas no descartadas");
  stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
- stat(grid,"Obras agendadas",fmt(m.citas),fmt(m.m2Citas)+" m² previstos");
+ stat(grid,"Obras agendadas",fmt(ownJobs.count),"Pendientes · "+fmt(m.citas)+" este período · "+fmt(m.m2Citas)+" m² previstos");
+ if(ownJobs.count!==m.citas)caption(main,"Las obras pendientes se cuentan sin limitar su fecha al mes seleccionado. Las cifras de producción prevista sí respetan el filtro del período.");
+ if(scope==="me"&&teamAllowed()&&teamJobs.count>ownJobs.count)caption(main,"En tu nombre hay "+ownJobs.count+" obra(s) pendiente(s) y en el equipo "+teamJobs.count+". Pulsa «Mi equipo» para consultar todas.");
  stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
  const chart=$("section","kr-panel",undefined,main);
  $("h3","","Respuestas en captación",chart);
@@ -158,6 +183,7 @@ window.openCnResults=()=>{if(typeof isMikelTeamMember==="function"&&isMikelTeamM
 window.openKonsorResults=window.openCnResults;
 window.openKonsorTeamResults=()=>{scope="team";open("mine");};
 window.openKonsorLeague=()=>open("league");
+window.KonsorResultsScheduled=Object.freeze({scheduledOpen});
 window.openCommercialStatsModal=window.openCnResults;
 window.openLeagueRankingModal=window.openKonsorLeague;
 })();

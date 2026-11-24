@@ -543,7 +543,17 @@ function draw(opts={}){
   controls.append(button("Clientes antiguos · revisar",()=>{
    r.classList.remove("active");window.openKonsorLegacyPortfolio?.();
   },"koc-quiet"));
-  if(currentUserRole==="jefe"){const s=e("select","koc-input",undefined,body);[["mine","Mis clientes"],["team","Todo mi equipo"]].forEach(([value,label])=>{const o=e("option","",label,s);o.value=value;});s.value=scope;s.onchange=()=>{scope=s.value;draw();};}
+  if(currentUserRole==="jefe"){
+    const switcher=e("div","koc-scope-picker",undefined,body);
+    switcher.setAttribute("role","group");
+    switcher.setAttribute("aria-label","Qué clientes mostrar");
+    for(const [value,label] of [["mine","Mis clientes"],["team","Todo mi equipo"]]){
+     const choice=button(label,()=>{if(scope!==value){scope=value;draw();}},"koc-scope-choice");
+     choice.classList.toggle("selected",scope===value);
+     choice.setAttribute("aria-pressed",String(scope===value));
+     switcher.append(choice);
+    }
+   }
   const suggested=firstRecommended();
   if(suggested)body.append(button("Planificar primera calle · "+(suggested.z.town||""),()=>startGroup(suggested),"koc-primary"));
   opportunityCards(body,todo);
