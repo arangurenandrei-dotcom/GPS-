@@ -52,14 +52,14 @@ async function main(){
    },{user,role});
    assert.ok(data.visible,label+' no muestra Inicio');
    assert.ok(data.next,label+' no muestra recomendación');
-   assert.equal(data.tiles,role==='jefe'?6:5,label+' debe mostrar la sexta tarjeta Dirección solo al responsable');
+   assert.equal(data.tiles,4,label+' debe tener exactamente cuatro tarjetas de inicio');
    assert.equal(data.oldDirection,false,label+' conserva bloque Dirección antiguo');
-   assert.equal(data.direction,role==='jefe',label+' permisos visuales Dirección');
+   assert.equal(data.direction,true,label+' falta acceso Dirección');
    assert.ok(data.overflow<12,label+' desbordamiento lateral '+data.overflow);
    const resultados=await page.evaluate(()=>{
     const home=document.querySelector('#cnvHome');
     const cards=home.querySelectorAll('.cnv-home-grid .cnv-tile');
-    cards[3].click(); // Pulsación real del botón Resultados en Inicio
+    window.openCnResults(); // Resultados personales conservados dentro del espacio Yo
     const panel=document.getElementById('konsorResultsV3');
     return {
       opened:panel?.classList.contains('active')||false,
@@ -108,42 +108,34 @@ async function main(){
    assert.ok(await page.evaluate(()=>document.body.classList.contains('cnv-home-active')),
      label+' flecha de Mapa no vuelve a Inicio');
    if(width<500){
-     const office=await page.evaluate(()=>{
-     document.querySelector('#cnvHome .cnv-home-grid .cnv-tile:nth-child(3)')?.click();
-     const modal=document.getElementById('cnOficina');
-     return {opened:modal?.classList.contains('active')||false,
-      cards:[...modal?.querySelectorAll('.cn-office-home-grid .cn-office-home-tile')||[]].map(x=>x.childNodes[0]?.textContent?.trim())};
+    const crm=await page.evaluate(()=>{
+     document.querySelector('#cnvHome .cnv-home-grid .cnv-tile:nth-child(1)')?.click();
+     const panel=document.getElementById('konsorLegacyPortfolio');
+     const result={opened:!!panel,heading:panel?.querySelector('h2')?.textContent,
+      filters:[...panel?.querySelectorAll('.kha-filter')||[]].map(x=>x.textContent?.trim())};
+     const add=[...panel?.querySelectorAll('button')||[]].find(x=>x.textContent.includes('Nuevo cliente'));
+     add?.click();
+     result.formOpened=!!panel?.querySelector('.kha-client-state select');
+     result.visibleFields=[...panel?.querySelectorAll('.kha-field')||[]].filter(x=>!x.hidden).length;
+     result.saveButton=[...panel?.querySelectorAll('button')||[]].some(x=>x.textContent.includes('Crear cliente'));
+     panel?.remove();
+     return result;
     });
-    assert.ok(office.opened,label+' no abre Oficina');
-    assert.deepEqual(office.cards,['Clientes','Llamadas','Calendario','Obras'],label+' accesos principales de Oficina');
-    const forms=await page.evaluate(()=>{
-      const result=[];
-      for(const [mode,expected] of [['guided','Proceso guiado'],['full','Ficha completa']]){
-       window.openCnOffice?.();
-       const button=[...document.querySelectorAll('#cnOficina .cn-office-card button')].find(b=>b.textContent.trim()===expected);
-       button?.click();
-       const panel=document.getElementById('konsorLegacyPortfolio');
-       result.push({mode,opened:!!panel,clicked:!!button,buttons:[...panel?.querySelectorAll('button')||[]].map(b=>b.textContent?.trim()).filter(Boolean),
-        visibleFields:[...panel?.querySelectorAll('.kha-field')||[]].filter(x=>!x.hidden).length});
-       panel?.remove();
-      }
-      return result;
-    });
-    assert.ok(forms.every(x=>x.clicked&&x.opened),label+' el botón real de alta guiada/completa no abre formulario');
-    assert.ok(forms.every(x=>x.buttons.includes('Guardar pendiente')),label+' no se puede guardar una ficha nueva');
-    assert.ok(forms.find(x=>x.mode==='full')?.visibleFields>=8,label+' ficha completa no muestra campos');
-        await page.evaluate(()=>document.getElementById('cnOficina')?.classList.remove('active'));
-    if(role==='jefe'){
-     const direction=await page.evaluate(()=>{
-      window.openKonsorDirection?.();
-      const modal=document.getElementById('konsorDirectionHub');
-      return {opened:modal?.classList.contains('active')||false,
-       primary:[...modal?.querySelectorAll('.kd-nav-grid .kd-nav-tile .kd-nav-title strong')||[]].map(x=>x.textContent?.trim())};
-     });
-     assert.ok(direction.opened,'Dirección no se abre con permisos de jefe');
-     assert.deepEqual(direction.primary,['Territorio','Cierre del día','Mi equipo'],'Navegación de Dirección');
-     await page.evaluate(()=>document.getElementById('konsorDirectionHub')?.classList.remove('active'));
-    }
+    assert.ok(crm.opened&&crm.heading==='Clientes',label+' no abre cartera única');
+    assert.ok(crm.filters.some(x=>x.startsWith('Pendientes')),label+' no tiene filtro de pendientes');
+    assert.ok(crm.filters.some(x=>x.startsWith('Todos')),label+' no tiene filtro de todos');
+    assert.ok(crm.formOpened&&crm.saveButton&&crm.visibleFields>=8,label+' no muestra ficha completa');
+   }
+   const direction=await page.evaluate(()=>{
+    window.openKonsorDirection?.();
+    const modal=document.getElementById('konsorDirectionHub');
+    return {opened:modal?.classList.contains('active')||false,
+     primary:[...modal?.querySelectorAll('.kd-nav-grid .kd-nav-tile .kd-nav-title strong')||[]].map(x=>x.textContent?.trim())};
+   });
+   assert.ok(direction.opened,label+' no abre Dirección');
+   assert.deepEqual(direction.primary,role==='jefe'?['Yo','Mi equipo']:['Yo'],label+' Dirección no corresponde al rol');
+   await page.evaluate(()=>document.getElementById('konsorDirectionHub')?.classList.remove('active'));
+   if(width<500){
     await page.evaluate(()=>window.cnvShowMap(false));
      const mapSwipe=await page.evaluate(()=>{
        const target=document.body;
