@@ -82,6 +82,8 @@ function render(container){
   add("p","",job.town+" · "+(job.date||"Fecha sin verificar")+" · "+(job.time||"Hora pendiente")+" · "+job.client,copy);
   add("strong","ktf-state",job.category,heading);
   add("p","ktf-notice","Siguiente acción: "+job.next+". Las marcas reflejan únicamente los datos guardados en la ficha.",detail);
+  const edit=add("button","ktf-open-agenda","Editar ficha original",detail);
+  edit.type="button";edit.onclick=()=>root.openKonsorFichaOriginal?.(job.id);
   for(const [i,step] of root.KonsorOfficeFlow.steps(job).entries()){
    const line=add("div","ktf-step",undefined,detail);
    add("span","ktf-step-number",i+1,line);

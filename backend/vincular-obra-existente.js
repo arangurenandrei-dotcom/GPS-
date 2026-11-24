@@ -35,7 +35,7 @@ function choose(events,info){
  // El ID original de ficha se utiliza como ID técnico de comparación.
  const data={crmOrigenId:info.clientUid,phone:info.phone,street:info.street,crmKonsorTown:info.town,
   obraDate:info.date,obraTime:info.time,obraEquipoInstalacion:info.team,
-  crmKonsorEventId:info.eventId||undefined};
+  crmKonsorEventId:info.eventId||undefined,name:info.name};
  try{return selectEvent(events,data);}
  catch(e){fail('failed-precondition',e.message);}
 }
@@ -62,7 +62,7 @@ async function link(req){
   fail('failed-precondition','La dirección o el teléfono de la ficha no coinciden con los datos comprobados.');
  if(['realizada','no_apto'].includes(c.obraStatus))
   fail('failed-precondition','La ficha ya tiene un estado final que requiere revisión.');
- const verified=choose(await loadEvents(date),{clientUid:fichaId,phone,street,town,date,time,team,eventId:strip(data.eventId)});
+ const verified=choose(await loadEvents(date),{clientUid:fichaId,phone,street,town,name:strip(c.name),date,time,team,eventId:strip(data.eventId)});
  const eventId=verified.eventId,eventKey=createHash('sha256').update(CALENDAR_ID+'|'+eventId).digest('hex');
  const claimRef=db.doc('vinculos_konsor/'+eventKey);
  // Compare and swap de revisión: no pisar ediciones simultáneas del comercial.

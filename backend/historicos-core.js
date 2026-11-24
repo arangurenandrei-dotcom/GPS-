@@ -35,10 +35,21 @@ function sameClient(event,data){
  const tel=phone(data.phone);
  const text=String(event.summary||'')+'\n'+String(event.description||'');
  const numbers=text.match(/(?:\+?34[ .-]*)?(?:\d[ .-]*){9,}/g)||[];
- if(!numbers.some(n=>phone(n)===tel))return false;
  const location=' '+norm(event.location)+' ';
- const contains=value=>(' '+norm(value)+' ').trim().split(' ').every(token=>location.includes(' '+token+' '));
- return contains(data.street)&&contains(data.crmKonsorTown);
+ const contains=value=>norm(value).split(' ').filter(Boolean).every(token=>location.includes(' '+token+' '));
+ if(!contains(data.street)||!contains(data.crmKonsorTown))return false;
+ // Si el evento documenta un teléfono, debe coincidir siempre.
+ if(numbers.length)return numbers.some(n=>phone(n)===tel);
+ // Los eventos antiguos pueden no incluir teléfono. Se admite SOLO si
+ // nombre, domicilio completo, municipio, equipo y franja coinciden,
+ // y la cita es inequívoca. Nunca se admite el nombre por sí solo.
+ const name=norm(data.name);
+ const first=name.split(' ')[0];
+ const title=' '+norm(event.summary)+' ';
+ return first.length>=3&&title.includes(' '+first+' ')&&
+  // Si existen apellidos en la ficha, al menos uno debe constar en el título.
+  (name.split(' ').length===1||name.split(' ').slice(1).some(word=>word.length>=3&&title.includes(' '+word+' ')));
+
 }
 function selectEvent(events,data){
  const input=validate(data),occupied=events.filter(e=>overlaps(e,input));

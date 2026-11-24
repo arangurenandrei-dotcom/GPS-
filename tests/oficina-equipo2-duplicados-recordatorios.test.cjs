@@ -34,15 +34,16 @@ test('dos personas llamadas Alfonso en distintas direcciones no se fusionan',()=
   'const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);this.rows=all();',ctx);
  assert.equal(ctx.rows.length,2);
 });
-test('se recomienda Equipo 2 y su jornada existente antes que Equipo 3',()=>{
+test('se prioriza el equipo con ruta compatible sin fijar Equipo 2',()=>{
  const ctx={};
- vm.runInNewContext(extract('function priority(o){','async function availableChoices')+'this.priority=priority;',ctx);
- assert.ok(ctx.priority({team:2,bookedSameTown:2,bookedDay:2})<ctx.priority({team:2,bookedDay:0,bookedSameTown:0}));
- assert.ok(ctx.priority({team:2,bookedDay:0,bookedSameTown:0})<ctx.priority({team:3,bookedSameTown:3,bookedDay:3}));
+ vm.runInNewContext(extract('function priority(o){','// Planificación global')+'this.priority=priority;',ctx);
+ assert.equal(ctx.priority({team:2,bookedDay:0,bookedSameTown:0}),2);
+ assert.equal(ctx.priority({team:3,bookedDay:1,bookedSameTown:0}),1);
+ assert.equal(ctx.priority({team:3,bookedDay:2,bookedSameTown:1}),0);
  const proposal=extract('async function recommendDays','async function loadSlots');
  assert.ok(proposal.includes('priority(a)-priority(b)'));
  const group=extract('async function findClusterDay','async function renderGroupAgenda');
- assert.ok(group.includes('Number(a.team!==2)'));
+ assert.ok(!group.includes('Number(a.team!==2)'));
 });
 test('el recordatorio pide día y hora, guarda seguimiento y usa el servicio de avisos',()=>{
  const block=extract('if(view==="waiting"){','if(view==="calendar"){');
