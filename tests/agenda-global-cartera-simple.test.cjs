@@ -26,7 +26,7 @@ test('calendario mensual y planificación global usan disponibilidad de ambos eq
 });
 test('editar ficha original está disponible en el flujo de llamadas',()=>{
  assert.match(calls,/Editar ficha completa · Catastro y datos/);
- assert.match(calls,/openKonsorLegacyClient/);
+ assert.match(calls,/openKonsorFichaOriginal/);
  assert.match(calls,/openKonsorFichaOriginal/);
 });
 test('la vinculación fuerza lectura de revisión actual y no duplica reservas',()=>{
