@@ -17,7 +17,7 @@ function today(){
 }
 function permitted(){
  return !!(root.konsorDesigner?.permitted?.()&&root.KonsorTechnicalFlow&&
-  root.KonsorBridge?.state?.().connected&&typeof savedZones!=="undefined"&&Array.isArray(savedZones));
+  typeof savedZones!=="undefined"&&Array.isArray(savedZones));
 }
 function workEntries(){
  if(!permitted())return null;
@@ -42,6 +42,8 @@ function render(container){
  const head=el("div","cnv-group-label",undefined,main);
  el("strong","","OBRAS DEL EQUIPO",head);
  el("span","","Datos de las fichas actuales",head);
+ if(!root.KonsorBridge?.state?.().connected)
+  el("p","ktf-notice","Mostrando fichas cargadas en esta sesión, pendientes de confirmar con Firebase. Actualiza los datos antes de actuar.",main);
  const list=workEntries();
  if(!list){
   el("p","ktf-notice","La sesión de Firebase aún no ha cargado las fichas. No se muestran obras ni se crean datos de ejemplo.",main);
