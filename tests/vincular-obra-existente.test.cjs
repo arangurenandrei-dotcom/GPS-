@@ -18,11 +18,11 @@ function fixture({phone='639565653',owner='jefe',eventList=[event],claim=null,be
  if(claim)docs['vinculos_konsor/'+claim.key]=claim.value;
  const writes=[];
  const db={
-  doc:key=>({key,get:async()=>({exists:key in docs,data:()=>docs[key]})}),
+  doc:key=>({key,get:async()=>({exists:key in docs,data:()=>structuredClone(docs[key])})}),
   runTransaction:async fn=>{
    if(beforeTransaction)beforeTransaction(docs);
    const tx={
-    get:async ref=>({exists:ref.key in docs,data:()=>docs[ref.key]}),
+    get:async ref=>({exists:ref.key in docs,data:()=>structuredClone(docs[ref.key])}),
     update:(ref,patch)=>{writes.push(['update',ref.key]);docs[ref.key]={...docs[ref.key],...patch};},
     create:(ref,data)=>{writes.push(['create',ref.key]);docs[ref.key]=data;},
     set:(ref,patch)=>{writes.push(['set',ref.key]);docs[ref.key]={...docs[ref.key],...patch};}
