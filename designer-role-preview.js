@@ -258,8 +258,15 @@ function open(id){
    const returnBar=e("div","kdp-internal-bar",undefined,section);
    button("‹ Volver",returnHome(id),returnBar,"cnv-glass kdp-return");
    e("span","cnv-eyebrow",id==="tecnicos"?"TÉCNICOS":"OFICINA",returnBar);
-   if(id==="tecnicos")window.konsorTecnicosGuiado?.render?.(section);
-   else window.konsorOficinaGuiada?.render?.(section);
+   const update=()=>id==="tecnicos"?window.konsorTecnicosGuiado?.render?.(section):window.konsorOficinaGuiada?.render?.(section);
+   update();
+   if(typeof window.KonsorBridge?.refresh==="function"){
+    window.KonsorBridge.refresh(true).then(ok=>{
+     if(ok&&section.isConnected&&chosen===id)update();
+    }).catch(err=>{
+     if(section.isConnected&&chosen===id)e("p","kdp-empty","No se pudo sincronizar con Firebase: "+(err.message||err),section);
+    });
+   }
   }
  };
  const primary=button(heroAction,activate,hero,"cnv-home-primary");
