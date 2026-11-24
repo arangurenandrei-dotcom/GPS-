@@ -53,3 +53,9 @@ test('prueba local de notificaciones no afirma recepción remota',()=>{
  assert.ok(source.includes('reg.showNotification('));
  assert.ok(source.includes('no confirma la entrega de mensajes desde Firebase'));
 });
+
+test('el editor se puede interpretar como JavaScript, no contiene CSS multilinea invalido',()=>{
+ const source=read('cartera-antigua-ios.js');
+ assert.doesNotThrow(()=>new Function(source));
+ assert.ok(source.includes('const CSS=\`'));
+});
