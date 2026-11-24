@@ -13,31 +13,18 @@ const chief=()=>typeof currentUserRole!=="undefined"&&currentUserRole==="jefe";
 const mikel=name=>typeof isMikelTeamMember==="function"?isMikelTeamMember(name):String(name||"").startsWith("Mikel");
 const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial===current());
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
-const historical=c=>false; // Etiquetas importadas: procedencia técnica, no clase de cliente.
 const isPort=z=>!!z?.isLegacyPortfolio;
 const isSectorless=z=>!!(z?.isSingleHouse&&z?.isSectorlessCapture);
 const captureStats=r=>({si:r==="si"?1:0,no:r==="no"?1:0,ausente:r==="ausente"?1:0,papelito:r==="papelito"?1:0});
-const callable=x=>!booked(x.c)&&x.c.obraStatus!=="no_apto"&&!["no_interesado","descartado"].includes(x.c.callStatus)&&!!x.c.name&&!!x.c.phone&&!!x.c.street&&x.c.callStatus!=="bloqueada";
 const inPortfolio=c=>false; // No existen categorías funcionales de clientes antiguos.
 window.konsorIsHistoricalClient=()=>false;
 window.konsorIsHistoricalOnlySector=z=>!!(z?.isLegacyPortfolio&&!z?.isSingleHouse);
 window.konsorPerformanceStats=z=>z?.stats||{};
-const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
 const net=x=>{const n=numeric(x);return n===null?null:Math.round(Math.max(0,n-5)*100)/100;};
 const phone=x=>String(x||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,"");
-const hasIdentity=c=>!!(c&&(c.name||c.phone||c.street));
-const portId=(owner,town)=>{
- // IDs Firestore: solo ASCII alfanumérico y guiones bajos.
- // encodeURIComponent producía %20 y paréntesis para "Andrei (Jefe)", rechazados por guardarTrabajoV2.
- const raw=N(owner)+"|"+N(town);
- let hash=2166136261;
- for(let i=0;i<raw.length;i++)hash=Math.imul(hash^raw.charCodeAt(i),16777619)>>>0;
- const slug=N(town).replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,30)||"sin_localidad";
- return "hist_"+slug+"_"+hash.toString(16).padStart(8,"0");
-};
 let crmFilter="pendientes",crmTown="";
-let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="",activeTown="",activeStreet="";
+let screen="list",currentEdit=null,query="",notice="";
 const CSS=`#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}\n#konsorLegacyPortfolio .kha-advanced{background:#fff;border:1px solid #e0e6ef;border-radius:15px;padding:13px;margin:12px 0}\n#konsorLegacyPortfolio .kha-advanced>summary{cursor:pointer;font-weight:650;color:#3e516b}\n#konsorLegacyPortfolio .kha-net-inline{display:flex;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:13px;background:#eff3f8;font-size:14px;color:#51657b}\n#konsorLegacyPortfolio .kha-net-inline strong{color:#26394d}\n
 #konsorLegacyPortfolio [hidden]{display:none!important}
 #konsorLegacyPortfolio .kha-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
@@ -141,11 +128,6 @@ function start(){
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
 function card(parent,title,desc){const c=E("section","kha-card",undefined,parent);E("h3","",title,c);if(desc)p(c,desc);return c;}
 function buttons(parent){return E("div","kha-actions",undefined,parent);}
-function existingZone(candidate,owner,town){
- // Se reutiliza una zona válida del propio responsable: no se crea otra zona en Firebase.
- return candidate.find(z=>z&&!isPort(z)&&!z.isSingleHouse&&!z.isNoAptoZone&&!z.isHotMission&&
-   z.comercial===owner&&N(z.town)===N(town))||null;
-}
 function syncState(){
  const bridge=window.KonsorBridge;
  if(!bridge?.save)return {kind:"missing",message:"El módulo de guardado no se ha cargado. Cierra la aplicación y vuelve a abrirla desde el inicio."};
@@ -176,52 +158,6 @@ async function commit(candidate){
  savedZones=candidate;
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
 }
-function portfolioEntries(){
- const out=[];
- zs().forEach((z,zi)=>{
-  if(!access(z)||z.isNoAptoZone||z.isHotMission)return;
-  (z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c))out.push({z,zi,c,ci});});
- });
- return out.sort((a,b)=>String(a.z.town).localeCompare(String(b.z.town),"es")||
-  String(a.c.name||"").localeCompare(String(b.c.name||""),"es"));
-}
-function sourceEntries(){
- const out=[];zs().forEach((z,zi)=>{if(isPort(z)||isSectorless(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
-}
-function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImportKey||[x.c.name,x.c.street,x.c.phone,x.ci].join("|"));}
-function showBackup(selected){
- const rows=selected.map(x=>({pueblo:x.z.town,sector:x.z.sectorName,responsable:x.z.comercial,ficha:x.c}));
- const blob=new Blob([JSON.stringify({origen:"KONSOR",exportado:new Date().toISOString(),registros:rows},null,2)],{type:"application/json"});
- const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="konsor-copia-clientes.json";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
-}
-async function migrate(){
- const chosen=sourceEntries().filter(x=>selection.has(key(x)));
- if(!chosen.length)return;
- if(!confirm("¿Organizar "+chosen.length+" fichas en Clientes antiguos? No se borrarán ni cambiarán de zona en Firebase. Desaparecerán de la lista de pendientes de traslado y quedarán bloqueadas para llamadas hasta que las revises."))return;
- const candidate=structuredClone(zs());
- let changed=0;
- for(const x of chosen){
-  const z=candidate[x.zi],c=z?.clients?.[x.ci];
-  if(!z||!c||!access(z)||isPort(z)||inPortfolio(c))
-   throw Error("Alguna ficha ha cambiado. Vuelve a revisar la selección.");
-  if(String(z.id)!==String(x.z.id)||String(c.clientUid||"")!==String(x.c.clientUid||""))
-   throw Error("El orden de los datos ha cambiado. Actualiza la cartera antes de continuar.");
-  // Mantener clientUid y zona: guardarTrabajoV2 valida la asociación física.
-  c.legacyPortfolio=true;
-  c.importedLegacy=true;
-  c.legacyReviewStatus="pendiente";
-  c.legacyMovedAt=Date.now();
-  c.legacyOriginZoneId=z.id;
-  c.legacyOriginSector=z.sectorName||"";
-  c.legacyOriginTown=z.town||"";
-  changed++;
- }
- if(!changed)return;
- await commit(candidate);
- selection.clear();screen="list";
- notice="Se han organizado "+changed+" fichas en Clientes antiguos. Se mantiene su ubicación interna en Firebase sin borrarlas ni duplicarlas.";
- render();
-}
 function f(parent,label,value="",kind="text"){
  const wrapper=E("label","kha-field",undefined,parent);E("span","",label,wrapper);
  const input=E(kind==="textarea"?"textarea":"input","",undefined,wrapper);if(kind!=="textarea")input.type=kind;input.value=value??"";return input;
@@ -231,15 +167,6 @@ function sel(parent,label,currentValue,options){
  const element=E("select","",undefined,wrapper);
  options.forEach(([value,label])=>{const o=E("option","",label,element);o.value=value;});
  element.value=currentValue||"";return element;
-}
-function validateReady(d){
- const missing=[];
- if(!d.name)missing.push("nombre");
- if(!d.street)missing.push("dirección");
- if(!d.locality)missing.push("pueblo");
- if(!/^[6789]\d{8}$/.test(phone(d.phone)))missing.push("teléfono válido");
- if(d.captacionRespuesta!=="si")missing.push("respuesta «Sí»");
- return missing;
 }
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
@@ -523,70 +450,6 @@ function editor(page){
 }
  actions.append(B(c?"Guardar cambios":"Crear cliente",function(){save(false,this);},true));
 }
-function moveScreen(page){
- page.append(B("‹ Volver",()=>{screen="list";render();}));
- const rows=sourceEntries(),chosen=rows.filter(x=>selection.has(key(x)));
- const box=card(page,"Recuperar fichas de sectores","Se separan de la captación de calle mediante una etiqueta. Sus documentos conservan la zona interna de Firebase; así no se pierden datos ni se crea otro sector.");
- const health=syncState();
- if(health.kind!=="ready"){
-  const alertBox=card(box,"Guardado bloqueado",health.message);
-  if(health.kind==="failed"||health.kind==="offline"){
-   const recoverBtn=B("Recuperar sincronización",async()=>{
-    recoverBtn.disabled=true;
-    try{
-     if(typeof window.KonsorBridge?.recover!=="function")throw Error("La recuperación no está cargada. Abre la versión más reciente de KONSOR.");
-     await window.KonsorBridge.recover();
-     // Recuperar puede cambiar el orden de las zonas: nunca reutilizar índices de una selección anterior.
-     selection.clear();notice="Sincronización revisada. Vuelve a marcar las fichas y confirma el traslado.";render();
-    }catch(e){notice="No se ha confirmado la recuperación: "+(e.message||e);render();}
-   },true);
-   alertBox.append(recoverBtn);
-  }else if(health.kind==="pending")alertBox.append(B("Comprobar de nuevo",()=>{notice="";render();}));
- }
- const actions=buttons(box);
- actions.append(B(includeManual?"Solo importadas":"Mostrar también las manuales",()=>{includeManual=!includeManual;render();}));
- actions.append(B("Descargar copia JSON",()=>showBackup(chosen)));
- const count=p(box,chosen.length+" seleccionadas · "+rows.length+" disponibles");
- const list=includeManual?rows:rows.filter(x=>x.detected);
- if(!list.length)p(box,"No se encontraron importaciones antiguas pendientes. Puedes mostrar las fichas manuales.");
- list.forEach(x=>{
-  const label=E("label","kha-choose",undefined,box),input=E("input","",undefined,label);input.type="checkbox";input.checked=selection.has(key(x));
-  input.onchange=()=>{input.checked?selection.add(key(x)):selection.delete(key(x));count.textContent=selection.size+" seleccionadas · "+rows.length+" disponibles";moveBtn.disabled=!selection.size||syncState().kind!=="ready";};
-  const desc=E("span","",undefined,label);E("strong","",x.c.name||x.c.street||"Sin nombre",desc);
-  p(desc,[x.z.town,x.z.sectorName,x.c.phone,x.detected?"CSV":"Manual"].filter(Boolean).join(" · "));
- });
- if(notice)p(box,notice,"kha-alert");
- const moveBtn=B("Organizar en Clientes antiguos",async()=>{moveBtn.disabled=true;try{await migrate();}catch(err){notice=err.message||String(err);render();}finally{moveBtn.disabled=false;}},true);
- moveBtn.disabled=!chosen.length||health.kind!=="ready";box.append(moveBtn);
- p(box,"Se conservan todas las fichas en su ubicación técnica original. No se eliminarán los sectores ni se cambiará la zona de ningún cliente.");
-}
-
-function streetBase(address){
- const raw=String(address||"").trim();
- if(!raw)return {key:"sin_calle",label:"Dirección por completar"};
- // Captura el último número de portal, conservando números que forman parte del nombre de la calle.
- const found=raw.match(/^(.*?)(?:[,\s]+(?:n(?:[º°o.]|[úu]m\.?)?\s*)?(\d+)\s*(?:bis|ter|[a-z])?)(?:\s*[,;/].*)?$/iu);
- const label=(found?.[1]||raw).trim().replace(/[,;]$/,"").trim()||raw;
- const key=N(label).replace(/^(?:c\/|c\.|calle|cl|kalea|avenida|avda|av\.|paseo|plaza|pza)\s+/,"");
- return {key:key||"sin_calle",label};
-}
-function groupsByTown(){
- const map=new Map();
- portfolioEntries().forEach(x=>{
-  const name=String(x.c.locality||x.z.town||"").trim()||"Localidad pendiente";
-  const key=N(name);
-  if(!map.has(key))map.set(key,{key,name,clients:[],streets:new Map()});
-  const group=map.get(key);
-  group.clients.push(x);
-  const street=streetBase(x.c.street);
-  if(!group.streets.has(street.key))group.streets.set(street.key,{...street,clients:[]});
-  group.streets.get(street.key).clients.push(x);
- });
- return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,"es"));
-}
-function navButton(parent,text,action){
- const n=B(text,action);n.classList.add("kha-navigation");parent.append(n);return n;
-}
 function listScreen(page){
  const engine=window.KonsorCRM;
  if(!engine){p(page,"No se ha cargado el módulo de Clientes. Actualiza KONSOR.","kha-alert");return;}
@@ -677,7 +540,7 @@ function listScreen(page){
 function render(){
  const page=start();
  if(!current()){p(page,"Inicia sesión para acceder a los clientes.");return;}
- if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
+ if(screen==="edit")editor(page);else listScreen(page);
 }
 window.openKonsorClients=function(filter="pendientes"){screen="list";crmFilter=["pendientes","todos","por_llamar","en_espera","agendada","realizada","rechazado","no_apto"].includes(filter)?filter:"pendientes";crmTown="";query="";notice="";render();};
 window.openKonsorFichaOriginal=function(clientUid,onReturn){
