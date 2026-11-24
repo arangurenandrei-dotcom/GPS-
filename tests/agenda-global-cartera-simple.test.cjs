@@ -54,7 +54,7 @@ test('editor universal utiliza misma ficha y no la convierte en historial',()=>{
  assert.ok(edit.includes('{...oldClient,...d,updatedAt:stamp}'));
  assert.ok(!edit.includes('importedLegacy:true'));
  assert.ok(!edit.includes('legacyPortfolio:true'));
- assert.ok(old.includes('window.openKonsorFichaOriginal=function(clientUid)'));
+ assert.ok(old.includes('window.openKonsorFichaOriginal=function(clientUid,onReturn)'));
  assert.ok(old.includes('Guardar cambios'));
  for(const field of ['DNI / NIE','Correo electrónico','Año de construcción','Superficie total (m²)','Código postal','Zona CTE'])
   assert.ok(old.includes(field),field);
