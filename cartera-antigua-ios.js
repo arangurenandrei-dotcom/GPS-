@@ -307,7 +307,7 @@ function editor(page){
   finally{cadastralBtn.disabled=false;}
  });
  geoActions.append(cadastralBtn);
- const answer=sel(box,"Respuesta comercial",c?.captacionRespuesta||"",[["","Pendiente de respuesta"],["si","Sí, interesado"],["no","No interesado"],["ausente","Ausente"],["papelito","Papelito"]]);
+ const answer=sel(box,"Interés inicial de la captación",c?.captacionRespuesta||"",[["","Pendiente de respuesta"],["si","Sí, interesado"],["no","No interesado"],["ausente","Ausente"],["papelito","Papelito"]]);
  const note=f(box,"Observaciones",c?.observaciones||"","textarea");
  const result=E("div","kha-net-inline",undefined,box);
  E("span","","Superficie útil",result);
@@ -337,6 +337,12 @@ function editor(page){
   extraHomes.push({id:"v"+(extraHomes.length+1)+"_"+Date.now(),direccion:"",m2Total:"",notas:""});homeEditor();
  }));
  const contactCard=card(box,"Datos del cliente");
+ if(c?.phone){
+  const links=E("div","kha-actions",undefined,contactCard);
+  const dial=E("a","kha-btn primary","Llamar al cliente",links);
+  dial.href="tel:"+phone(c.phone);
+  dial.setAttribute("aria-label","Llamar al número de la ficha");
+ }
  const housingCard=card(box,"Datos de la vivienda");
  const bookingCard=card(box,"Cita y obra");
  const documentCard=card(box,"Documentos, fotografías y expediente","Información de seguimiento compartida entre plantas.");
@@ -493,7 +499,7 @@ function listScreen(page){
  const draw=()=>{
   result.replaceChildren();query=search.value;
   const q=N(query);
-  const found=active.filter(x=>N([x.c.name,x.c.phone,x.c.street,x.pueblo].join(" ")).includes(q));
+  const found=(q?rows:active).filter(x=>N([x.c.name,x.c.phone,x.c.street,x.pueblo].join(" ")).includes(q));
   if(!found.length){p(result,q?"No se encontraron coincidencias en este filtro. Prueba «Todos».":"No hay clientes en este estado. Puedes consultar «Todos».","kha-empty");return;}
   const groups=new Map();
   found.forEach(x=>{const name=x.pueblo||"Sin pueblo",key=N(name);if(!groups.has(key))groups.set(key,{key,name,items:[]});groups.get(key).items.push(x);});
@@ -519,7 +525,11 @@ function listScreen(page){
    });
    if(crmTown===g.key||q){
     const list=E("div","kha-client-list",undefined,group);
-    g.items.slice().sort((a,b)=>a.estado.localeCompare(b.estado)||String(a.c.name||"").localeCompare(String(b.c.name||""),"es")).forEach(x=>{
+    g.items.slice().sort((a,b)=>{
+     const order=["por_llamar","en_espera","agendada","realizada","rechazado","no_apto"];
+     return order.indexOf(a.estado)-order.indexOf(b.estado)||
+      String(a.c.name||"").localeCompare(String(b.c.name||""),"es");
+    }).forEach(x=>{
      const client=B("",()=>{screen="edit";editorMode="full";
       currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};notice="";render();});
      client.className="kha-client-row";
