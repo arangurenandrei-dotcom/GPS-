@@ -125,6 +125,40 @@ async function main(){
     assert.ok(crm.filters.some(x=>x.startsWith('Pendientes')),label+' no tiene filtro de pendientes');
     assert.ok(crm.filters.some(x=>x.startsWith('Todos')),label+' no tiene filtro de todos');
     assert.ok(crm.formOpened&&crm.saveButton&&crm.visibleFields>=8,label+' no muestra ficha completa');
+    const flow=await page.evaluate(async()=>{
+     const original=window.KonsorBridge;
+     window.KonsorBridge={save:async()=>true,state:()=>({connected:true,authenticated:true,pending:0,failed:false}),busy:false};
+     window.eval('savedZones=[]');
+     window.openKonsorNewClient();
+     let panel=document.getElementById('konsorLegacyPortfolio');
+     const field=title=>[...panel.querySelectorAll('label.kha-field')].find(x=>x.firstElementChild?.textContent?.trim()===title)?.querySelector('input');
+     field('Nombre y apellidos').value='Cliente CRM Prueba';
+     field('Teléfono').value='600123456';
+     field('Calle y número').value='Mayor 10';
+     const save=[...panel.querySelectorAll('button')].find(x=>x.textContent.trim()==='Crear cliente');
+     save?.click();
+     await new Promise(resolve=>setTimeout(resolve,60));
+     const data=window.eval('savedZones');
+     const id=data[0]?.clients?.[0]?.clientUid;
+     if(id){
+      window.openKonsorFichaOriginal(id);
+      panel=document.getElementById('konsorLegacyPortfolio');
+      panel.querySelector('.kha-client-state select').value='rechazado';
+      const update=[...panel.querySelectorAll('button')].find(x=>x.textContent.trim()==='Guardar cambios');
+      update?.click();
+      await new Promise(resolve=>setTimeout(resolve,60));
+     }
+     const updated=window.eval('savedZones')[0]?.clients?.[0];
+     const result={created:!!id,oneOnly:window.eval('savedZones').length===1,
+      finalStatus:updated?.crmEstado,contactStatus:updated?.callStatus};
+     window.KonsorBridge=original;
+     panel?.remove();
+     return result;
+    });
+    assert.ok(flow.created&&flow.oneOnly,label+' no puede crear cliente con solo nombre, teléfono y dirección');
+    assert.equal(flow.finalStatus,'rechazado',label+' no guarda el estado desde la misma ficha');
+    assert.equal(flow.contactStatus,'no_interesado',label+' no sincroniza el estado con la lógica existente');
+
    }
    const direction=await page.evaluate(()=>{
     window.openKonsorDirection?.();
