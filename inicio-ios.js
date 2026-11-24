@@ -60,7 +60,7 @@ function nextAction(data){
   'jornada.sector':openDay,
   'jornada.iniciar':openDay,
   'oficina.volcados':openOffice,
-  'oficina.llamar':()=>window.konsorMotor?.openOffice?.()||window.openKonsorOfficeClients?.(),
+  'oficina.llamar':()=>{if(window.konsorMotor?.openOffice)window.konsorMotor.openOffice();else window.openKonsorOfficeClients?.();},
   'resultados.consultar':()=>window.openCnResults?.()
  };
  const action=actions[recommendation.id];
