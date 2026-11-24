@@ -117,7 +117,7 @@ function render(){
  const grid=$("div","kr-grid",undefined,main);
  stat(grid,"Captaciones",fmt(m.validas),"fichas no descartadas");
  stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
- stat(grid,"Obras agendadas",fmt(ownJobs.count),"Pendientes · "+fmt(m.citas)+" con fecha en el período");
+ stat(grid,"Obras agendadas",fmt(ownJobs.count),"Pendientes · "+fmt(m.citas)+" este período · "+fmt(m.m2Citas)+" m² previstos");
  if(ownJobs.count!==m.citas)caption(main,"Las obras pendientes se cuentan sin limitar su fecha al mes seleccionado. Las cifras de producción prevista sí respetan el filtro del período.");
  if(scope==="me"&&teamAllowed()&&teamJobs.count>ownJobs.count)caption(main,"En tu nombre hay "+ownJobs.count+" obra(s) pendiente(s) y en el equipo "+teamJobs.count+". Pulsa «Mi equipo» para consultar todas.");
  stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
