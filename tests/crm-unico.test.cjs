@@ -5,7 +5,7 @@ const crm=require('../crm-estados');
 const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const c=(uid,name,status,extra={})=>({clientUid:uid,name,street:'Calle 4',phone:'600111222',
-  captacionRespuesta:'si',crmEstado:status,m2:100,...extra});
+  captacionRespuesta:'si',crmEstado:status,m2Total:100,...extra});
 const zones=[
  {id:1,town:'Mendavia',clients:[
   c('a','Ana','por_llamar'),c('b','Bea','en_espera'),c('c','Celia','rechazado'),
