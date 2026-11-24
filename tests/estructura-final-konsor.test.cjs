@@ -10,6 +10,7 @@ test('Comercial muestra cinco accesos, Dirección solo al jefe',()=>{
   assert.ok(home.includes('tile(grid,"'+title+'"'),title);
  assert.ok(home.includes('if(boss())'));
  assert.ok(home.includes('tile(grid,"Dirección"'));
+ assert.ok(home.includes('if(typeof window.openCnOffice==="function")window.openCnOffice()'));
 });
 test('Oficina tiene exactamente cuatro módulos principales, y altas sin sector',()=>{
  const src=read('oficina-ios.js');
