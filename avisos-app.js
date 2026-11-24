@@ -349,6 +349,7 @@
    if(!('Notification' in window)||Notification.permission!=='granted')
     throw Error('Las notificaciones no están permitidas. Actívalas primero para este dispositivo.');
    if(!navigator.serviceWorker)throw Error('Este navegador no admite el trabajador de notificaciones.');
+   await navigator.serviceWorker.register('firebase-messaging-sw.js');
    const reg=await navigator.serviceWorker.ready;
    if(!reg?.showNotification)throw Error('Este dispositivo no permite mostrar notificaciones de prueba.');
    await reg.showNotification('KONSOR · Prueba local',{
