@@ -616,7 +616,7 @@ function listScreen(page){
   ...engine.states.map(([id,label])=>[id,label,overview.counts[id]])
  ];
  filterOptions.forEach(([state,label,count])=>{
-  const button=B(label+" · "+count,()=>{crmFilter=state;crmTown="";draw();});
+  const button=B(label+" · "+count,()=>{crmFilter=state;crmTown="";render();});
   button.className="kha-filter"+(crmFilter===state?" active":"");
   counts.append(button);
  });
@@ -631,7 +631,7 @@ function listScreen(page){
   result.replaceChildren();query=search.value;
   const q=N(query);
   const found=active.filter(x=>N([x.c.name,x.c.phone,x.c.street,x.pueblo].join(" ")).includes(q));
-  if(!found.length){p(result,q?"No se encontraron coincidencias.":"No hay clientes en este estado. Puedes consultar «Todos».","kha-empty");return;}
+  if(!found.length){p(result,q?"No se encontraron coincidencias en este filtro. Prueba «Todos».":"No hay clientes en este estado. Puedes consultar «Todos».","kha-empty");return;}
   const groups=new Map();
   found.forEach(x=>{const name=x.pueblo||"Sin pueblo",key=N(name);if(!groups.has(key))groups.set(key,{key,name,items:[]});groups.get(key).items.push(x);});
   const sorted=[...groups.values()].sort((a,b)=>b.items.length-a.items.length||a.name.localeCompare(b.name,"es"));
@@ -641,16 +641,17 @@ function listScreen(page){
   const listed=crmTown&&!q?sorted.filter(x=>x.key===crmTown):sorted;
   for(const g of listed){
    const group=E("section","kha-town-card",undefined,result);
-   const head=B("",()=>{crmTown=crmTown===g.key?"":g.key;draw();});
+   const head=B("",()=>{crmTown=crmTown===g.key?"":g.key;crmFilter="todos";render();});
    head.className="kha-town-head";
    const title=E("div","",undefined,head);
    E("strong","",g.name,title);
-   E("small","",g.items.length+" clientes",title);
+   const inTown=rows.filter(x=>N(x.pueblo)===g.key);
+   E("small","",inTown.length+" clientes"+(inTown.length!==g.items.length?" · "+g.items.length+" en este filtro":""),title);
    E("span","","⌄",head);
    group.append(head);
    const statuses=E("div","kha-town-counts",undefined,group);
    engine.states.forEach(([key,label])=>{
-    const n=g.items.filter(x=>x.estado===key).length;
+    const n=inTown.filter(x=>x.estado===key).length;
     if(n)E("span","kha-town-status",n+" "+label.toLowerCase(),statuses);
    });
    if(crmTown===g.key||q){
