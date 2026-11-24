@@ -24,7 +24,7 @@ test('ficha y llamadas comparten estética iOS KONSOR',()=>{
  assert.ok(src.includes('background:#293f59'));
  assert.ok(css.includes('#konsorOfficeCallV2 .koc-btn.koc-primary{background:#293f59'));
  assert.ok(css.includes('#konsorOfficeCallV2 .koc-scope-picker'));
- assert.ok(html.includes('cartera-antigua-ios.js?v=12'));
+ assert.ok(html.includes('cartera-antigua-ios.js?v=13'));
  assert.ok(html.includes('oficina-llamadas-obras-v2.css?v=14'));
 });
 test('el archivo JS de ficha mantiene sintaxis válida',()=>assert.doesNotThrow(()=>new Function(src)));
