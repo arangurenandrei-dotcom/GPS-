@@ -110,3 +110,14 @@ test('Oficina contiene nuevas altas y citas reales, preservando la vista iOS',()
  appointment.onclick();assert.equal(opened,1);
  assert.ok(ctx.body.children.some(x=>x.id==='konsorDesignerPreview'));
 });
+
+test('CEO muestra Gestión del equipo con diseño equivalente a Comercial',()=>{
+ const ctx=load();ctx.win.konsorDesigner.open('ceo');
+ const screen=ctx.body.children.find(x=>x.id==='konsorDesignerPreview');
+ assert.ok(labels(screen).includes('GESTIÓN DEL EQUIPO'));
+ assert.ok(labels(screen).includes('Abrir gestión'));
+ const action=flattened(screen).find(x=>x.tag==='button'&&x.textContent==='Abrir gestión');
+ assert.ok(action);
+ let opened=0;ctx.win.openKonsorDirection=()=>{opened++;};
+ action.onclick();assert.equal(opened,1);
+});
