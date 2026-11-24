@@ -1,4 +1,4 @@
-/* KONSOR: cartera histórica virtual. Se conserva cada ficha en su zona de Firebase. */
+/* KONSOR: cartera unificada. Cada ficha permanece en su zona original de Firebase. */
 (function(){
 "use strict";
 if(window.openKonsorLegacyPortfolio)return;
@@ -20,7 +20,7 @@ const captureStats=r=>({si:r==="si"?1:0,no:r==="no"?1:0,ausente:r==="ausente"?1:
 const callable=x=>!booked(x.c)&&x.c.obraStatus!=="no_apto"&&!["no_interesado","descartado"].includes(x.c.callStatus)&&!!x.c.name&&!!x.c.phone&&!!x.c.street&&x.c.callStatus!=="bloqueada";
 const inPortfolio=c=>false; // No existen categorías funcionales de clientes antiguos.
 window.konsorIsHistoricalClient=()=>false;
-window.konsorIsHistoricalOnlySector=()=>false;
+window.konsorIsHistoricalOnlySector=z=>!!(z?.isLegacyPortfolio&&!z?.isSingleHouse);
 window.konsorPerformanceStats=z=>z?.stats||{};
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
