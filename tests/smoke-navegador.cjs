@@ -119,15 +119,17 @@ async function main(){
     const forms=await page.evaluate(()=>{
       const result=[];
       for(const [mode,expected] of [['guided','Proceso guiado'],['full','Ficha completa']]){
-       window.openKonsorNewClient?.(mode);
+       window.openCnOffice?.();
+       const button=[...document.querySelectorAll('#cnOficina .cn-office-card button')].find(b=>b.textContent.trim()===expected);
+       button?.click();
        const panel=document.getElementById('konsorLegacyPortfolio');
-       result.push({mode,opened:!!panel,buttons:[...panel?.querySelectorAll('button')||[]].map(b=>b.textContent?.trim()).filter(Boolean),
+       result.push({mode,opened:!!panel,clicked:!!button,buttons:[...panel?.querySelectorAll('button')||[]].map(b=>b.textContent?.trim()).filter(Boolean),
         visibleFields:[...panel?.querySelectorAll('.kha-field')||[]].filter(x=>!x.hidden).length});
        panel?.remove();
       }
       return result;
     });
-    assert.ok(forms.every(x=>x.opened),label+' el alta guiada/completa no abre formulario real');
+    assert.ok(forms.every(x=>x.clicked&&x.opened),label+' el botón real de alta guiada/completa no abre formulario');
     assert.ok(forms.every(x=>x.buttons.includes('Guardar pendiente')),label+' no se puede guardar una ficha nueva');
     assert.ok(forms.find(x=>x.mode==='full')?.visibleFields>=8,label+' ficha completa no muestra campos');
         await page.evaluate(()=>document.getElementById('cnOficina')?.classList.remove('active'));
