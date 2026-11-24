@@ -94,6 +94,8 @@ function render(container){
   el("p","",job.location+" · "+job.date+" · "+(job.start||"Sin horario")+(job.end?"–"+job.end:""),summary);
   el("strong","ktf-state",job.status,title);
   el("p","ktf-notice","Vivienda vinculada a una única ficha de KONSOR. Las etapas son una guía de lectura: no se marcará nada completado sin confirmación del servidor.",details);
+  const edit=el("button","ktf-open-agenda","Consultar / editar ficha",details);
+  edit.type="button";edit.onclick=()=>root.openKonsorFichaOriginal?.(job.id);
   const steps=root.KonsorTechnicalFlow.steps(job);
   steps.forEach((step,i)=>{
    const row=el("div","ktf-step",undefined,details);
