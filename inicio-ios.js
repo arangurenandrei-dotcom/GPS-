@@ -72,7 +72,21 @@ function showHome(){
  if(!hasSession())return;
  screen="home";window.cnvStopLiveGps?.();document.body.classList.remove("cnv-map-active");document.body.classList.add("cnv-home-active");
  const home=root();home.replaceChildren();
- const data=info(),next=nextAction(data);
+ const data=info();
+ const engine=window.KonsorCRM;
+ const own=z=>z&&(
+  z.comercial===me()||(boss()&&!(typeof isMikelTeamMember==="function"&&isMikelTeamMember(z.comercial)))
+ );
+ const crmRows=engine?.rows(Array.isArray(savedZones)?savedZones:[],own)||[];
+ const count=engine?.dashboard(crmRows);
+ const pending=count?.pendientes||0;
+ const next={
+  title:pending?"Tienes "+pending+" clientes pendientes":"Tu cartera de clientes",
+  description:(count?.total||0)+" clientes · "+(count?.counts?.agendada||0)+" agendados · "+
+   (count?.counts?.realizada||0)+" realizados. Todas las fichas y sus estados están en un único lugar.",
+  button:"Abrir Clientes",icon:"office",
+  action:()=>window.openKonsorClients?.("pendientes")
+ };
  const top=el("header","cnv-home-head",undefined,home);
  const brand=el("div","cnv-home-brand",undefined,top);
  const symbol=el("div","cnv-brand-mark","K",brand);symbol.setAttribute("aria-hidden","true");
@@ -101,15 +115,11 @@ function showHome(){
  const caption=el("div","cnv-group-label",undefined,section);
  el("strong","","TU TRABAJO",caption);el("span","","Accesos principales",caption);
  const grid=el("div","cnv-home-grid",undefined,section);
- tile(grid,"Mi jornada","Ruta, actividad y fichaje","calendar",openDay);
- tile(grid,"Mapa","Satélite, GPS y Catastro","map",()=>showMap(true));
- tile(grid,"Oficina","Volcados, llamadas y citas","office",openOffice);
- tile(grid,"Resultados","Tu progreso y clasificación","results",()=>window.openCnResults?.());
- const messageLink=tile(grid,"Mensajes entre plantas","Solicitudes, avisos y confirmaciones","office",()=>window.KonsorPlantMessages?.open?.("comercial"));
+ tile(grid,"Clientes","Todas las fichas, estados y previsiones","office",()=>window.openKonsorClients?.("pendientes"));
+ tile(grid,"Mapa","GPS, Catastro y mediciones","map",()=>showMap(true));
+ tile(grid,"Dirección","Yo y gestión de equipo","direction",()=>window.openKonsorDirection?.());
+ const messageLink=tile(grid,"Mensajes entre plantas","Solicitudes y avisos","office",()=>window.KonsorPlantMessages?.open?.("comercial"));
  window.KonsorIndicators?.bind?.(messageLink,"comercial");
- if(boss()){
-  tile(grid,"Dirección","Planificación, equipo y resultados","direction",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.());
- }
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
  el("span","","Los cambios se confirman al guardarse en el servidor.",footer);
