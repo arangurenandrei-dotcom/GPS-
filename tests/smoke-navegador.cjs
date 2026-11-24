@@ -109,7 +109,7 @@ async function main(){
      label+' flecha de Mapa no vuelve a Inicio');
    if(width<500){
      const office=await page.evaluate(()=>{
-     window.openCnOffice?.();
+     document.querySelector('#cnvHome .cnv-home-grid .cnv-tile:nth-child(3)')?.click();
      const modal=document.getElementById('cnOficina');
      return {opened:modal?.classList.contains('active')||false,
       cards:[...modal?.querySelectorAll('.cn-office-home-grid .cn-office-home-tile')||[]].map(x=>x.childNodes[0]?.textContent?.trim())};
