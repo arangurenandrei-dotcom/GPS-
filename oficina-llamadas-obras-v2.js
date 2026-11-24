@@ -849,50 +849,67 @@ function draw(opts={}){
  function priority(o){return o.bookedSameTown?0:o.bookedDay?1:2;}
 // Planificación global: propuestas para toda la cartera pendiente, nunca reservas.
 async function fillAvailableCalendar(container,dayCount=7){
- const token=++clusterSearchSeq;
- const pending=all().filter(candidateOf);
- const status=e("p","koc-muted","Comprobando ambos equipos y todos los clientes disponibles…",container);
+ const token=++clusterSearchSeq,pending=all().filter(candidateOf);
+ const status=e("p","koc-muted","Comprobando ambos equipos y la cartera de clientes…",container);
  const board=e("div","koc-plan-board",undefined,container);
- if(!pending.length){status.textContent="No hay clientes con ficha completa pendientes de llamar.";return;}
+ if(!pending.length){status.textContent="No hay clientes pendientes con ficha completa.";return;}
  const dates=[];let d=new Date(tomorrow()+"T12:00:00");
- while(dates.length<dayCount){if(d.getDay()!==0)dates.push([d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"));d.setDate(d.getDate()+1);}
- let successes=0;
+ while(dates.length<dayCount){
+  if(d.getDay()!==0)dates.push([d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-"));
+  d.setDate(d.getDate()+1);
+ }
+ const assignedClients=new Set();let proposals=0,verifiedDays=0;
  for(const date of dates){
   if(view!=="planner"||token!==clusterSearchSeq||!container.isConnected)return;
   try{
-   const remote=await consultarKonsorFecha(date),records=typeof routeRecords==="function"?routeRecords(date):[];
-   const options=[];
-   // Comprobar cada franja verificada de ambos equipos y buscar el cliente más compatible.
+   const remote=await consultarKonsorFecha(date);
+   const records=typeof routeRecords==="function"?routeRecords(date):[];
+   verifiedDays++;
+   const possible=[];
    for(const team of [2,3])for(let idx=0;idx<SLOTS.length;idx++){
     const [from,to]=SLOTS[idx],slot=remote?.[String(team)]?.find(x=>x.horario===from+"-"+to);
     if(slot?.libre!==true)continue;
-    const occupied=records.some(x=>x.slot===idx&&Number(x.c?.obraEquipoInstalacion)===team);
-    if(occupied)continue;
-    const previous=records.filter(x=>Number(x.c?.obraEquipoInstalacion)===team);
-    const ranked=pending.map(item=>{
+    if(records.some(x=>x.slot===idx&&Number(x.c?.obraEquipoInstalacion)===team))continue;
+    const existing=records.filter(x=>Number(x.c?.obraEquipoInstalacion)===team);
+    for(const item of pending){
+     if(assignedClients.has(item.key))continue;
      const fit=slotRouteFit(item,date,team,idx,remote,records);
-     if(!fit.ok)return null;
-     return {item,fit,near:previous.filter(x=>sameTown(x,item)).length,
-      street:previous.filter(x=>sameStreet(x,item)).length};
-    }).filter(Boolean).sort((a,b)=>b.street-a.street||b.near-a.near||a.fit.category-b.fit.category||a.item.key.localeCompare(b.item.key));
-    if(ranked.length)options.push({team,from,to,idx,...ranked[0]});
+     if(!fit.ok)continue;
+     possible.push({item,date,team,idx,from,to,fit,
+      street:existing.filter(x=>sameStreet(x,item)).length,
+      near:existing.filter(x=>sameTown(x,item)).length});
+    }
+   }
+   // La proximidad prevalece sobre el número del equipo. Cada hueco y cliente
+   // aparece una sola vez en el plan, y solo como propuesta sin reservar.
+   possible.sort((a,b)=>b.street-a.street||b.near-a.near||
+    a.fit.category-b.fit.category||a.from.localeCompare(b.from)||a.team-b.team);
+   const usedSlots=new Set(),options=[];
+   for(const proposal of possible){
+    const slot=proposal.team+"|"+proposal.idx;
+    if(usedSlots.has(slot)||assignedClients.has(proposal.item.key))continue;
+    usedSlots.add(slot);assignedClients.add(proposal.item.key);options.push(proposal);
    }
    if(!options.length)continue;
-   options.sort((a,b)=>b.street-a.street||b.near-a.near||a.fit.category-b.fit.category||a.from.localeCompare(b.from)||a.team-b.team);
-   const section=card(board);title(section,groupDateLabel(date),options.length+" huecos con cliente compatible · sin reservar");
-   for(const choice of options.slice(0,8)){
+   options.sort((a,b)=>a.from.localeCompare(b.from)||a.team-b.team);
+   const section=card(board);
+   title(section,groupDateLabel(date),options.length+" propuestas compatibles · sin reservar");
+   for(const choice of options){
     const label=choice.from+"–"+choice.to+" · Equipo "+choice.team+" · "+choice.item.z.town;
-    const cardChoice=button(label,()=>preferGroupDate(choice.item,date,choice.from,choice.team),"koc-suggestion");
-    e("small","",choice.item.c.name+" · "+choice.item.c.street+" · "+(choice.near?"Ruta en el mismo municipio":"Hueco verificado"),cardChoice);
-    section.append(cardChoice);
+    const action=button(label,()=>preferGroupDate(choice.item,date,choice.from,choice.team),"koc-suggestion");
+    e("small","",choice.item.c.name+" · "+choice.item.c.street+
+      " · "+(choice.near?"Ya hay obra en el municipio":"Disponibilidad verificada"),action);
+    section.append(action);
    }
-   successes+=options.length;
+   proposals+=options.length;
   }catch(err){
-   const note=e("p","koc-muted","No se pudo verificar "+date+": "+(err.message||"Sin conexión"),board);
+   e("p","koc-muted","No se pudo verificar "+date+": "+(err.message||"Error de conexión"),board);
   }
  }
  if(view==="planner"&&token===clusterSearchSeq)
-  status.textContent=successes?successes+" huecos con propuesta en los próximos "+dayCount+" días. Pulsa uno para llamar y confirmar; ninguno está reservado.":"No se han encontrado huecos compatibles verificados con los clientes actuales.";
+  status.textContent=proposals?
+   proposals+" propuestas para "+assignedClients.size+" clientes en "+verifiedDays+" días comprobados. Ninguna cita se reserva hasta que el cliente confirme.":
+   "Sin huecos compatibles verificados para estos clientes. No se han creado reservas.";
 }
 function monthCalendar(host,input,onPick){
  const box=e("div","koc-month-calendar",undefined,host);let focus=input.value||tomorrow();
