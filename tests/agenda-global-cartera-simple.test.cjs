@@ -65,3 +65,12 @@ test('Oficina y Técnicos pueden abrir la ficha original',()=>{
   assert.match(js,/openKonsorFichaOriginal\?\.\(job\.id\)/);
  }
 });
+
+test('no se propone el mismo cliente dos veces ni un hueco duplicado',()=>{
+ assert.match(calls,/const assignedClients=new Set\(\)/);
+ assert.match(calls,/const usedSlots=new Set\(\)/);
+ assert.match(calls,/usedSlots\.has\(slot\)\|\|assignedClients\.has\(proposal\.item\.key\)/);
+ assert.match(calls,/assignedClients\.add\(proposal\.item\.key\)/);
+ assert.match(calls,/b\.street-a\.street\|\|b\.near-a\.near/);
+ assert.ok(!calls.includes('Number(a.team!==2)'));
+});
