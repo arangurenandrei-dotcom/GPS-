@@ -7,7 +7,7 @@ const today=()=>typeof getTodayISO==="function"?getTodayISO():new Intl.DateTimeF
 let section="home";
 function zones(){
  if(!Array.isArray(savedZones))return [];
- return savedZones.map((z,idx)=>({z,idx})).filter(({z})=>z&&!z.isNoAptoZone&&!z.isHotMission&&!z.isSingleHouse&&!z.isLegacyPortfolio&&(currentUserRole==="jefe"?typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial):z.comercial===currentUserName));
+ return savedZones.map((z,idx)=>({z,idx})).filter(({z})=>z&&!z.isNoAptoZone&&!z.isHotMission&&(currentUserRole==="jefe"?typeof isMikelTeamMember==="function"&&!isMikelTeamMember(z.comercial):z.comercial===currentUserName));
 }
 function clientRows(){
  return zones().flatMap(({z,idx})=>(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).map(c=>({c,z,idx})));
@@ -55,24 +55,32 @@ function render(){
  const body=root().querySelector(".cn-office-body");body.replaceChildren();
  const s=state();
  if(section==="home"){
-  const flow=card(body,"ASISTENTE DE OFICINA","Trabaja sin buscar pestañas","Primero las hojas antiguas, después fichas, seguimientos y llamadas. Se comprueba el progreso después de cada guardado.");
-  flow.append(btn("Continuar recorrido de Oficina",()=>{root().classList.remove("active");window.konsorMotor?.openOffice?.();},"primary"));
-  const legacy=card(body,"CARTERA HISTÓRICA","Clientes antiguos","Recupera las fichas de sectores, completa año y superficie y pásalas a llamadas cuando estén revisadas. Sin delimitar calles ni sectores.");
-  legacy.append(btn("Abrir clientes antiguos",()=>{root().classList.remove("active");window.openKonsorLegacyPortfolio?.();},"primary"));
-  const lead=card(body,"TU SIGUIENTE ACCIÓN",s.unuploaded.length?"Hay "+s.unuploaded.length+" sectores que requieren revisión o volcado":s.incomplete.length?"Revisa "+s.incomplete.length+" fichas incompletas":s.pending.length?"Tienes "+s.pending.length+" clientes por gestionar":"Trabajo de Oficina al día",
-   s.unuploaded.length?"Empieza por las calles ya terminadas y pendientes de volcar. Revisa después los sectores antiguos cuyo trabajo no conste como terminado.":s.incomplete.length?"Completa los datos esenciales antes de gestionar citas.":s.pending.length?"Continúa las llamadas hasta resolver la situación de cada cliente.":"Consulta las obras confirmadas o revisa el cierre.");
-  lead.append(btn(s.unuploaded.length?"Volcar hojas pendientes":s.pending.length?"Continuar con clientes":"Ver agenda",()=>{if(s.unuploaded.length){section="volcados";render();}else if(s.pending.length)openCalls();else{section="agenda";render();}},"primary"));
-  const comunidad=card(body,"COMUNIDADES · SISTEMA CAE","Junta y expediente en dos pasos","Contacta con presidencia, prepara la convocatoria y registra el resultado de la junta en una ficha independiente.");
-  comunidad.append(btn("Gestionar comunidades",()=>{root().classList.remove("active");window.openKonsorComunidades?.();},"primary"));
-  const steps=card(body,"RECORRIDO DE OFICINA","Cuatro momentos, una sola secuencia");
-  [
-   ["01 · Volcar hojas",s.streetFinished.length+" calles terminadas · "+s.unuploaded.length+" sectores por revisar","volcados"],
-   ["02 · Revisar fichas",s.incomplete.length+" incompletas · "+s.invalid.length+" sin teléfono válido","clients"],
-   ["03 · Llamar y agendar",s.pending.length+" pendientes · "+s.scheduled.length+" citas programadas","calls"],
-   ["04 · Revisar y cerrar",s.booked.length+" registros con obra programada o realizada","review"]
-  ].forEach(([a,b,dest])=>line(steps,a,b,"Abrir",()=>{if(dest==="clients")openSearch();else if(dest==="calls")openCalls();else{section=dest;render();}}));
-  const note=card(body,"FECHAS Y REGISTROS","El volcado tardío no cambia el día trabajado","La fecha del sector y la fecha de registro deben mantenerse diferenciadas. Salir de Oficina no finaliza la jornada.");
-  note.append(btn("Ver agenda de obras",()=>{section="agenda";render();},"subtle"));
+  const lead=card(body,"SIGUIENTE PASO","Trabajo pendiente",
+   s.incomplete.length?s.incomplete.length+" fichas necesitan completar datos.":
+   s.pending.length?s.pending.length+" clientes pendientes de gestionar.":"Consulta la agenda y continúa la jornada.");
+  lead.append(btn("Continuar mi trabajo",()=>{root().classList.remove("active");window.konsorMotor?.openOffice?.();},"primary"));
+  const grid=el("div","cn-office-home-grid",undefined,body);
+  const shortcuts=[
+   ["Clientes","Buscar y editar fichas",openSearch],
+   ["Llamadas","Contactar y confirmar citas",openCalls],
+   ["Calendario","Huecos de todos los equipos",()=>{root().classList.remove("active");window.openCnCallQueue?.();}],
+   ["Obras","Agendadas, realizadas y pendientes",()=>{section="agenda";render();}]
+  ];
+  shortcuts.forEach(([title,description,action])=>{
+   const item=btn(title,action,"cn-office-home-tile");
+   el("span","cn-office-tile-desc",description,item);
+   grid.append(item);
+  });
+  const create=card(body,"ALTA DE CLIENTES","Nuevo cliente","El sector es opcional. Una única ficha que podrás completar después.");
+  create.append(btn("Proceso guiado",()=>{root().classList.remove("active");window.openKonsorNewClient?.("guided");},"primary"));
+  create.append(btn("Ficha completa",()=>{root().classList.remove("active");window.openKonsorNewClient?.("full");},"subtle"));
+  const other=el("details","cn-office-more",undefined,body);
+  el("summary","","Volcados y herramientas de gestión",other);
+  const advanced=el("div","cn-office-more-body",undefined,other);
+  advanced.append(btn("Volcar hojas de sectores",()=>{section="volcados";render();},"subtle"));
+  advanced.append(btn("Clientes antiguos",()=>{root().classList.remove("active");window.openKonsorLegacyPortfolio?.();},"subtle"));
+  advanced.append(btn("Comunidades",()=>{root().classList.remove("active");window.openKonsorComunidades?.();},"subtle"));
+  advanced.append(btn("Revisar pendientes y cierre",()=>{section="review";render();},"subtle"));
  }else if(section==="volcados"){
   nav(body);
   const list=card(body,"01 · VOLCADO","Hojas pendientes","Abre el sector, comprueba los resultados y guarda con la fecha real del trabajo de calle.");
