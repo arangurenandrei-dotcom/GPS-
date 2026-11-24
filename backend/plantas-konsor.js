@@ -61,7 +61,7 @@ async function list(req){
  ]);
  const rows=new Map();
  for(const doc of [...received.docs,...sent.docs]){
-  const item=doc.data();if(viewAllowed(to,item)&&!((item.hiddenFor||[]).includes(me.uid)))rows.set(doc.id,safeTask(item,doc.id));
+  const item=doc.data();if(!item.archivedAt&&viewAllowed(to,item)&&!((item.hiddenFor||[]).includes(me.uid)))rows.set(doc.id,safeTask(item,doc.id));
  }
  return {ok:true,items:[...rows.values()].sort((a,b)=>b.createdAt-a.createdAt).slice(0,200)};
 }
@@ -70,7 +70,7 @@ async function list(req){
  */
 async function change(req){
  const me=await identity(req),id=trim(req.data?.id),action=trim(req.data?.action);
- if(!allowedId(id)||!['ack','complete','reply','dismiss'].includes(action))
+ if(!allowedId(id)||!['ack','complete','reply','dismiss','archive'].includes(action))
   invalid('Acción o tarea no válida.');
  const replyText=trim(req.data?.text);
  if(action==='reply'&&(!replyText||replyText.length>1200))
@@ -78,7 +78,15 @@ async function change(req){
  let out;
  await getFirestore().runTransaction(async tx=>{
   const ref=taskRef(id),snap=await tx.get(ref),d=snap.data();
-  if(!d||!viewAllowed(me.plant,d))invalid('No tienes acceso a esta tarea.','permission-denied');
+  if(!d||d.teamId!=='andrei')invalid('Tarea no disponible.','not-found');
+  if(action==='archive'){
+   if(!me.owner)invalid('Solo Dirección puede archivar un mensaje para todas las plantas.','permission-denied');
+   if(d.archivedAt){out=safeTask(d,id);return;}
+   const now=Date.now();
+   tx.update(ref,{archivedAt:now,archivedBy:me.uid,updatedAt:now});
+   out=safeTask({...d,archivedAt:now,archivedBy:me.uid},id);return;
+  }
+  if(!viewAllowed(me.plant,d))invalid('No tienes acceso a esta tarea.','permission-denied');
   const participant=d.from===me.plant||d.to===me.plant;
   if(!participant)invalid('No participas en esta conversación.','permission-denied');
   if((action==='ack'||action==='complete')&&d.to!==me.plant)
@@ -181,6 +189,7 @@ async function escalateAt(now=Date.now()){
  for(const doc of snapshot.docs){
   const d=doc.data();
   if(d.teamId!=='andrei'||d.to==='ceo'||d.priority==='critical')continue;
+  if(d.archivedAt)continue;
   const pending=d.status==='pending'&&now-d.createdAt>=cfg.ackHours*3600000;
   const overdue=d.dueAt&&now-d.dueAt>=cfg.criticalOverdueHours*3600000;
   if(!pending&&!overdue)continue;
