@@ -511,6 +511,11 @@ function listScreen(page){
  const actions=buttons(page);
  actions.append(B("Añadir cliente",()=>{screen="edit";currentEdit=null;editorMode="guided";notice="";render();},true));
  actions.append(B("Nueva ficha completa",()=>{screen="edit";currentEdit=null;editorMode="full";notice="";render();}));
+ actions.append(B("Volcar hoja de sector",()=>{
+  if(typeof window.openSelectZoneToDump!=="function"){notice="El volcado de sectores no está disponible. Abre Comercial → Oficina → Volcado.";render();return;}
+  document.getElementById(ID)?.remove();
+  window.openSelectZoneToDump();
+ }));
  const advanced=E("details","kha-advanced",undefined,page);
  E("summary","","Importar y organizar fichas",advanced);
  advanced.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
