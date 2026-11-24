@@ -200,12 +200,35 @@ function editor(page){
   const original=JSON.stringify([address,municipality]);
   const result=await geo.postal(address,municipality).catch(()=>({status:"error",message:"No se pudo consultar CartoCiudad."}));
   if(token!==geoRequest||original!==JSON.stringify([street.value.trim(),town.value.trim()]))return;
+  const verifyStreet=async()=>{
+   if(!geo?.cadastre)return;
+   const base=street.value.trim(),place=town.value.trim(),currentToken=geoRequest;
+   const check=await geo.cadastre(base,place).catch(()=>null);
+   if(currentToken!==geoRequest||base!==street.value.trim()||place!==town.value.trim()||
+      check?.status!=="ok"||!Array.isArray(check.matches)||!check.matches.length)return;
+   const verified=E("div","kha-street-options",undefined,geoOptions);
+   E("small","","Direcciones encontradas en cartografía:",verified);
+   for(const match of check.matches.slice(0,5)){
+    const official=String(match.label||"").split(" · ")[0].trim();
+    if(!official)continue;
+    const choice=B(official,()=>{
+     // La coincidencia procede de un portal preciso de CartoCiudad/IDENA.
+     street.value=official;
+     verified.replaceChildren();
+     E("small","","Dirección seleccionada: "+official,verified);
+    });
+    verified.append(choice);
+   }
+   if(check.matches.length===1&&street.value.trim()!==String(check.matches[0].label||"").split(" · ")[0].trim())
+    geoFeedback.textContent+=" · Selecciona la denominación de vía encontrada si corresponde.";
+  };
   const apply=match=>{
    postal.value=match.cp;postalAutomated=true;zoneManual=false;
    const cte=setCteFromCp(true);
    geoFeedback.textContent="CP verificado por dirección: "+match.cp+
     (cte?.cteZone?" · Zona CTE orientativa: "+cte.cteZone:" · Zona CTE pendiente de confirmar")+
-    ". Comprueba la clasificación CTE antes de cerrar la ficha.";
+    ". Si el resultado es ambiguo, deja el valor sin verificar.";
+   void verifyStreet();
   };
   if(result.status==="ok"&&result.matches?.length===1){apply(result.matches[0]);return;}
   if(result.status==="ambiguous"&&result.matches?.length){
