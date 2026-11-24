@@ -141,3 +141,17 @@
 @media(prefers-reduced-motion:reduce){
  #konsorOfficeCallV2 .koc-scope-picker .koc-scope-choice{transition:none}
 }
+
+/* Calendario mensual: fechas legibles, dos equipos y sugerencias verificadas. */
+#konsorOfficeCallV2 .koc-month-calendar{margin:13px 0 8px;padding:11px;border:1px solid #e4eaf2;border-radius:20px;background:#f7f9fc}
+#konsorOfficeCallV2 .koc-month-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+#konsorOfficeCallV2 .koc-month-head strong{font-size:15px;text-transform:capitalize;color:#25364b}
+#konsorOfficeCallV2 .koc-month-head .koc-btn{min-width:43px;min-height:42px;padding:6px;font-size:23px;border-radius:14px}
+#konsorOfficeCallV2 .koc-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+#konsorOfficeCallV2 .koc-month-grid .koc-weekday{text-align:center;padding:6px 0;color:#8290a3;font-size:11px;font-weight:700}
+#konsorOfficeCallV2 .koc-month-grid .koc-day{display:grid;place-items:center;min-width:0;width:100%;aspect-ratio:1;min-height:36px;border:0;border-radius:11px;padding:0;background:transparent;color:#263a53;font-size:13px;font-weight:660;box-shadow:none}
+#konsorOfficeCallV2 .koc-month-grid .koc-day.selected{background:#294663;color:white}
+#konsorOfficeCallV2 .koc-month-grid .koc-day:disabled{color:#aab5c3;opacity:.5}
+#konsorOfficeCallV2 .koc-plan-board{display:flex;flex-direction:column;gap:10px}
+#konsorOfficeCallV2 .koc-plan-board .koc-suggestion{display:block;width:100%;margin:8px 0;padding:12px 14px;text-align:left;border-radius:16px;background:#f5f8fc;border:1px solid #e0e8f2;box-shadow:none}
+#konsorOfficeCallV2 .koc-plan-board .koc-suggestion small{display:block;margin-top:6px;line-height:1.5;color:#7b8ca1;font-size:11px}
