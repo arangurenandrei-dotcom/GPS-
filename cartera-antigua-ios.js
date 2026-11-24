@@ -218,9 +218,9 @@ function editor(page){
   }
   geoFeedback.textContent=result.message||"No se ha podido confirmar el portal. Introduce el CP manualmente.";
  }
- const postalBtn=B("Detectar CP y zona CTE",()=>{searchPostal(true);});
- geoActions.append(postalBtn);
+ // CP y CTE se comprueban automáticamente al completar la dirección.
  street.addEventListener("blur",()=>{searchPostal(false);});
+ street.addEventListener("change",()=>{searchPostal(false);});
  town.addEventListener("blur",()=>{searchPostal(false);});
  if(!postal.value.trim()&&street.value.trim()&&town.value.trim())
   Promise.resolve().then(()=>{if(document.getElementById(ID))searchPostal(false);});
@@ -259,11 +259,12 @@ function editor(page){
  geoActions.append(cadastralBtn);
  const answer=sel(box,"Respuesta comercial",c?.captacionRespuesta||"si",[["si","Sí, interesado"],["no","No interesado"],["ausente","Ausente"],["papelito","Papelito"]]);
  const note=f(box,"Observaciones",c?.observaciones||"","textarea");
- const result=card(box,"Superficie neta","Solo se restan 5 m² fijos al total; las plantas no afectan al cálculo.");
+ const result=E("div","kha-net-inline",undefined,box);
+ E("span","","Superficie útil",result);
  const amount=E("strong","",undefined,result);
  const refresh=()=>{const value=net(total.value);amount.textContent=value===null?"Pendiente de introducir superficie total":value+" m²";};
  total.oninput=refresh;refresh();
- if(c?.m2&&!c?.m2Total)p(result,"Superficie guardada anteriormente: "+c.m2+" m². Escribe el total para recalcular.");
+ if(c?.m2&&!c?.m2Total)amount.textContent=String(c.m2)+" m²";
  if(notice)p(box,notice,"kha-alert");
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
@@ -402,13 +403,15 @@ function navButton(parent,text,action){
 function listScreen(page){
  const groups=groupsByTown(),total=groups.reduce((n,g)=>n+g.clients.length,0);
  const actions=buttons(page);
- actions.append(B("Añadir cliente antiguo",()=>{screen="edit";currentEdit=null;notice="";render();},true));
- actions.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
- const summary=card(page,"Captaciones registradas",total+" fichas · "+groups.length+" pueblos. Las viviendas sin sector también son captaciones normales.");
+ actions.append(B("Añadir cliente",()=>{screen="edit";currentEdit=null;notice="";render();},true));
+ const advanced=E("details","kha-advanced",undefined,page);
+ E("summary","","Importar y organizar fichas",advanced);
+ advanced.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
+ const summary=card(page,"Clientes",total+" fichas en "+groups.length+" pueblos");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
- E("span","kha-tag","Por completar: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
- E("span","kha-tag good","Listas para llamadas: "+portfolioEntries().filter(callable).length,stats);
+ E("span","kha-tag","Pendientes: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
+ E("span","kha-tag good","Para llamar: "+portfolioEntries().filter(callable).length,stats);
  const search=E("input","kha-search",undefined,page);
  search.type="search";search.placeholder="Buscar nombre, teléfono, dirección o pueblo";search.value=query;
  const body=E("div","",undefined,page);
@@ -504,8 +507,8 @@ function listScreen(page){
     const item=card(body,x.c.name||"Cliente sin nombre",[x.c.street||"Dirección pendiente",x.c.phone].filter(Boolean).join(" · "));
     E("span",callable(x)?"kha-tag good":"kha-tag",
       callable(x)?"Lista para llamadas":"Pendiente de completar",item);
-    p(item,"Año: "+(x.c.buildYear||"pendiente")+" · Superficie neta: "+(x.c.m2??"pendiente")+" m² · CTE: "+(x.c.cteZone||"pendiente"));
-    item.append(B("Abrir ficha · Catastro y datos",()=>{
+    p(item,(x.c.m2?x.c.m2+" m² · ":"")+(x.c.obraStatus==="agendada"?"Obra agendada":"Ficha de cliente"));
+    item.append(B("Editar ficha",()=>{
       screen="edit";currentEdit={zi:x.zi,ci:x.ci,zoneId:x.z.id,uid:x.c.clientUid};
       notice="";render();
     },true));
