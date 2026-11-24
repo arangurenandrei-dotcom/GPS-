@@ -13,32 +13,15 @@ const chief=()=>typeof currentUserRole!=="undefined"&&currentUserRole==="jefe";
 const mikel=name=>typeof isMikelTeamMember==="function"?isMikelTeamMember(name):String(name||"").startsWith("Mikel");
 const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial===current());
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
-const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
+const historical=c=>false; // Etiquetas importadas: procedencia técnica, no clase de cliente.
 const isPort=z=>!!z?.isLegacyPortfolio;
 const isSectorless=z=>!!(z?.isSingleHouse&&z?.isSectorlessCapture);
 const captureStats=r=>({si:r==="si"?1:0,no:r==="no"?1:0,ausente:r==="ausente"?1:0,papelito:r==="papelito"?1:0});
-const callable=x=>isSectorless(x.z)?x.c.callStatus!=="bloqueada"&&x.c.captacionRespuesta==="si":x.c.legacyReviewStatus==="lista";
-const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
-window.konsorIsHistoricalClient=c=>inPortfolio(c);
-window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(inPortfolio);
-window.konsorPerformanceStats=z=>{
- const raw=z?.stats||{};
- if(!Array.isArray(z?.clients)||!z.clients.some(inPortfolio))return raw;
- // Un sector formado solo por históricos no representa captación nueva.
- if(window.konsorIsHistoricalOnlySector(z)){
-  const empty={...raw};
-  for(const k of ["si","no","ausente","papelito","yaAislado","siContactables","siNoContactables"])
-   empty[k]=0;
-  return empty;
- }
- const stats={...raw};
- const tally={si:0,no:0,ausente:0,papelito:0};
- for(const c of z.clients)if(inPortfolio(c)&&Object.hasOwn(tally,c.captacionRespuesta))tally[c.captacionRespuesta]++;
- for(const [field,count] of Object.entries(tally))stats[field]=Math.max(0,Number(stats[field]||0)-count);
- stats.siContactables=Math.min(Number(stats.siContactables||0),stats.si);
- stats.siNoContactables=Math.min(Number(stats.siNoContactables||0),stats.si);
- return stats;
-};
+const callable=x=>!booked(x.c)&&x.c.obraStatus!=="no_apto"&&!["no_interesado","descartado"].includes(x.c.callStatus)&&!!x.c.name&&!!x.c.phone&&!!x.c.street&&x.c.callStatus!=="bloqueada";
+const inPortfolio=c=>false; // No existen categorías funcionales de clientes antiguos.
+window.konsorIsHistoricalClient=()=>false;
+window.konsorIsHistoricalOnlySector=()=>false;
+window.konsorPerformanceStats=z=>z?.stats||{};
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
 const net=x=>{const n=numeric(x);return n===null?null:Math.round(Math.max(0,n-5)*100)/100;};
@@ -69,7 +52,7 @@ function start(){
  if(!root){root=E("div","",undefined,document.body);root.id=ID;E("style","",CSS,root);root.onclick=ev=>{if(ev.target===root)root.remove();};}
  let page=root.querySelector(".kha-page");if(!page)page=E("div","kha-page",undefined,root);page.replaceChildren();
  const top=E("div","kha-row",undefined,page),name=E("div","",undefined,top);
- E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Clientes",name);
+ E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Todos los clientes",name);
  top.append(B("Cerrar",()=>{root.remove();const back=returnAfterEdit;returnAfterEdit=null;back?.();}));return page;
 }
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
@@ -111,8 +94,13 @@ async function commit(candidate){
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
 }
 function portfolioEntries(){
- const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)||isSectorless(z)))out.push({z,zi,c,ci});});});
- return out.sort((a,b)=>(a.c.legacyReviewStatus==="lista")-(b.c.legacyReviewStatus==="lista")||String(a.z.town).localeCompare(String(b.z.town),"es"));
+ const out=[];
+ zs().forEach((z,zi)=>{
+  if(!access(z)||z.isNoAptoZone||z.isHotMission)return;
+  (z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c))out.push({z,zi,c,ci});});
+ });
+ return out.sort((a,b)=>String(a.z.town).localeCompare(String(b.z.town),"es")||
+  String(a.c.name||"").localeCompare(String(b.c.name||""),"es"));
 }
 function sourceEntries(){
  const out=[];zs().forEach((z,zi)=>{if(isPort(z)||isSectorless(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
@@ -121,7 +109,7 @@ function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImport
 function showBackup(selected){
  const rows=selected.map(x=>({pueblo:x.z.town,sector:x.z.sectorName,responsable:x.z.comercial,ficha:x.c}));
  const blob=new Blob([JSON.stringify({origen:"KONSOR",exportado:new Date().toISOString(),registros:rows},null,2)],{type:"application/json"});
- const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="konsor-copia-clientes-antiguos.json";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+ const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="konsor-copia-clientes.json";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 async function migrate(){
  const chosen=sourceEntries().filter(x=>selection.has(key(x)));
@@ -529,10 +517,7 @@ function listScreen(page){
   document.getElementById(ID)?.remove();
   window.openSelectZoneToDump();
  }));
- const advanced=E("details","kha-advanced",undefined,page);
- E("summary","","Importar y organizar fichas",advanced);
- advanced.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
- const summary=card(page,"Clientes",total+" fichas en "+groups.length+" pueblos");
+ const summary=card(page,"Cartera de clientes",total+" fichas en "+groups.length+" pueblos · con o sin sector");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
  E("span","kha-tag","Pendientes: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
@@ -542,7 +527,7 @@ function listScreen(page){
  const body=E("div","",undefined,page);
  const renderGroups=()=>{
   query=search.value;body.replaceChildren();
-  if(!groups.length){p(body,"Los clientes importados por CSV aparecerán aquí directamente, sin traslado. También puedes incorporar fichas manuales.");return;}
+  if(!groups.length){p(body,"Todavía no hay clientes guardados en tu cartera.");return;}
   const q=N(query);
   let available=groups;
   if(q){
@@ -602,7 +587,7 @@ function listScreen(page){
     }
     if(changed)await commit(data);
     notice="Revisadas "+selected.length+" · completadas "+changed+" · sin coincidencia "+unknown+
-      " · ambiguas "+ambiguous+". Los históricos no suman nuevas captaciones.";
+      " · ambiguas "+ambiguous+".";
     if(withoutPostal.length>25)notice+=" Hay más fichas para una segunda pasada.";
     render();
    }catch(e){auto.disabled=false;feedback.textContent="Sin confirmar el guardado: "+(e.message||e);}
@@ -647,7 +632,7 @@ function render(){
  if(!current()){p(page,"Inicia sesión para acceder a los clientes.");return;}
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
-window.openKonsorLegacyPortfolio=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
+window.openKonsorClients=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
 window.openKonsorFichaOriginal=function(clientUid,onReturn){
  const uid=String(clientUid||"");
  let entry=null;
@@ -661,6 +646,7 @@ window.openKonsorFichaOriginal=function(clientUid,onReturn){
  screen="edit";editorMode="full";returnAfterEdit=typeof onReturn==="function"?onReturn:null;
  currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
 };
+window.openKonsorLegacyPortfolio=window.openKonsorClients;
 window.openKonsorLegacyClient=window.openKonsorFichaOriginal;
 window.openKonsorNewClient=function(mode="guided"){screen="edit";currentEdit=null;returnAfterEdit=null;editorMode=mode==="full"?"full":"guided";notice="";render();};
 
