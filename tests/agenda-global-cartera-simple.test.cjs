@@ -38,8 +38,8 @@ test('la vinculación fuerza lectura de revisión actual y no duplica reservas',
  assert.ok(!flow.includes('saveAndSync("comercial_custom_zones"'));
 });
 test('cartera antigua mantiene datos, elimina paso manual CP/CTE y reduce ruido visual',()=>{
- assert.match(old,/Importar y organizar fichas/);
- assert.match(old,/const summary=card\(page,"Clientes"/);
+ assert.match(old,/Cartera de clientes/);
+ assert.match(old,/const summary=card\(page,"Cartera de clientes"/);
  assert.match(old,/kha-net-inline/);
  assert.ok(!old.includes('const postalBtn=B("Detectar CP y zona CTE"'));
  assert.match(old,/searchPostal\(false\)/);
