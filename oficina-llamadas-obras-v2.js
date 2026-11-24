@@ -527,7 +527,7 @@ function draw(opts={}){
  }
  if(view==="group"){renderGroup(body);return;}
  if(view==="list"){
-  title(body,"Plan de llamadas por calles","Primero completa los días anteriores; dentro de cada jornada, concentra hasta cuatro viviendas de la misma calle por equipo. Cada reserva sigue siendo individual.");
+  title(body,"Clientes y llamadas","Organiza las llamadas para completar huecos de ambos equipos. Los clientes pueden tener o no sector asignado.");
   const counts=e("div","koc-counts",undefined,body);
   [["Fichas",items.length],["Por llamar",todo.length],["Citas y obras",scheduled.length]].forEach(([label,v])=>{const box=e("div","koc-count",undefined,counts);e("strong","",v,box);e("small","",label,box);});
   const duplicates=duplicateGroups();
@@ -549,6 +549,9 @@ function draw(opts={}){
   },"koc-quiet"));
   controls.append(button("Ver todas las fichas",()=>{
    r.classList.remove("active");window.openCnClients?.();
+  },"koc-quiet"));
+  controls.append(button("Añadir cliente sin sector",()=>{
+   r.classList.remove("active");window.openKonsorNewClient?.("guided");
   },"koc-quiet"));
   controls.append(button("Clientes antiguos · revisar",()=>{
    r.classList.remove("active");window.openKonsorLegacyPortfolio?.();
@@ -588,8 +591,9 @@ function draw(opts={}){
       e("p","koc-muted",(i.z.town||"Sin pueblo")+" · "+(i.c.street||"Sin calle")+(i.c.captacionInvalida?" · Teléfono no válido":""),cell);
       cell.append(button("Abrir ficha",()=>{
        r.classList.remove("active");
-       if(typeof window.openKonsorClientDetail==="function")window.openKonsorClientDetail(i.zi,i.ci);
-       else window.openCnClients?.();
+       if(!window.openKonsorFichaOriginal?.(i.c.clientUid,()=>{r.classList.add("active");draw();})){
+        r.classList.add("active");
+       }
       },"koc-quiet"));
     });
   }
@@ -613,7 +617,7 @@ function draw(opts={}){
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
   body.append(button("Editar ficha completa · Catastro y datos",()=>{
    r.classList.remove("active");
-   const opened=window.openKonsorFichaOriginal?.(c.clientUid);
+   const opened=window.openKonsorFichaOriginal?.(c.clientUid,()=>{r.classList.add("active");draw();});
    if(!opened){r.classList.add("active");alert("La ficha no se puede editar desde esta sesión. Actualiza KONSOR e inténtalo de nuevo.");}
   },"koc-quiet"));
   if(!complete(item)){
