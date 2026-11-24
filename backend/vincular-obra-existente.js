@@ -43,6 +43,7 @@ async function link(req){
  const uid=req.auth?.uid;if(!uid)fail('unauthenticated','Inicia sesión.');
  const data=req.data||{},fichaId=strip(data.clientUid),zoneId=strip(data.zoneId);
  const date=strip(data.date),time=strip(data.time),team=Number(data.team);
+ const markCompleted=data.markCompleted===true;
  if(!validId(fichaId)||!validId(zoneId)||!validDay(date)||!FRANJAS.has(time)||![2,3].includes(team))
   fail('invalid-argument','Revisa la ficha, el equipo, la fecha y la hora.');
  const db=getFirestore(),user=(await db.doc('usuarios/'+uid).get()).data();
@@ -63,6 +64,12 @@ async function link(req){
  if(['realizada','no_apto'].includes(c.obraStatus))
   fail('failed-precondition','La ficha ya tiene un estado final que requiere revisión.');
  const verified=choose(await loadEvents(date),{clientUid:fichaId,phone,street,town,name:strip(c.name),date,time,team,eventId:strip(data.eventId)});
+ // La obra solo puede marcarse como realizada si el día ya ha llegado en España.
+ // Esta acción requiere confirmación expresa del operador, no basta con que Calendar tenga una cita.
+ const madridDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'})
+  .format(new Date());
+ if(markCompleted&&date>madridDate)fail('failed-precondition','No se puede marcar como realizada una obra futura.');
+
  const eventId=verified.eventId,eventKey=createHash('sha256').update(CALENDAR_ID+'|'+eventId).digest('hex');
  const claimRef=db.doc('vinculos_konsor/'+eventKey);
  // Compare and swap de revisión: no pisar ediciones simultáneas del comercial.
@@ -77,23 +84,47 @@ async function link(req){
   if(prior&&prior.fichaId!==fichaId)fail('already-exists','Este evento ya está vinculado a otra ficha.');
   const old=row.datos||{};
   if(prior&&prior.fichaId===fichaId&&old.crmKonsorEventId===eventId){
-   result={ok:true,linked:true,eventId,alreadyLinked:true};return;
+   if(markCompleted&&old.obraStatus!=='realizada'){
+    if(!['agendada','agendada_historica'].includes(old.obraStatus))
+     fail('failed-precondition','La ficha vinculada tiene un estado de obra incompatible.');
+    const stamp=Date.now();
+    tx.update(fichaRef,{datos:{...old,obraStatus:'realizada',obraRealizadaDate:date,
+     obraRealizadaAt:stamp,statusChangedAt:stamp,updatedAt:stamp},rev:row.rev+1});
+    tx.set(db.doc('estado_trabajo/andrei'),{updatedAt:stamp},{merge:true});
+    result={ok:true,linked:true,completed:true,eventId,alreadyLinked:true};return;
+   }
+   result={ok:true,linked:true,completed:old.obraStatus==='realizada',eventId,alreadyLinked:true};return;
   }
-  if(row.rev!==expected)fail('aborted','La ficha cambió mientras verificabas el evento. Actualiza e inténtalo de nuevo.');
-  if(['agendada','realizada'].includes(old.obraStatus)||old.crmKonsorEventId)
+  // La revisión de la ficha puede avanzar por un guardado ajeno de observaciones,
+  // CP o documentación. En ese caso se fusiona la reserva sobre los valores más
+  // recientes, SIN pisarlos; solo se permite si los campos de identidad, estado
+  // y reservas que acabamos de verificar permanecen idénticos.
+  if(row.rev!==expected){
+   if(digits(old.phone)!==phone||clean(old.street)!==clean(street)||
+    clean(old.name)!==clean(c.name)||clean(old.locality||zone.town)!==clean(c.locality||zone.town)||
+    String(old.obraStatus||'a_poner')!==String(c.obraStatus||'a_poner')||
+    strip(old.crmKonsorEventId)!==strip(c.crmKonsorEventId)||
+    strip(old.obraDate)!==strip(c.obraDate)||
+    strip(old.obraTime)!==strip(c.obraTime)||
+    Number(old.obraEquipoInstalacion||0)!==Number(c.obraEquipoInstalacion||0))
+     fail('aborted','La identidad o la reserva cambiaron mientras se verificaba el calendario. Actualiza la ficha.');
+  }
+  if(['agendada','agendada_historica','realizada'].includes(old.obraStatus)||old.crmKonsorEventId)
    fail('failed-precondition','Ya existe una reserva vinculada a esta ficha.');
   if(digits(old.phone)!==phone||clean(old.street)!==clean(street))
    fail('aborted','El teléfono o la dirección cambiaron durante la consulta.');
-  const updated={...old,obraStatus:'agendada',obraDate:date,obraTime:time,
+  const now=Date.now();
+  const updated={...old,obraStatus:markCompleted?'realizada':'agendada',obraDate:date,obraTime:time,
    obraEquipoInstalacion:team,callStatus:'citas',nextContactAt:null,
    calendarBookingOrigin:'google_calendar_existing',crmKonsorEventId:eventId,
    crmKonsorEventKey:eventKey,crmKonsorEtag:verified.etag||'',
-   crmKonsorVerifiedAt:Date.now(),calendarEventUrl:strip(data.eventUrl).slice(0,1000),
-   statusChangedAt:Date.now(),updatedAt:Date.now()};
+   crmKonsorVerifiedAt:now,calendarEventUrl:strip(data.eventUrl).slice(0,1000),
+   ...(markCompleted?{obraRealizadaDate:date,obraRealizadaAt:now}:{}),
+   statusChangedAt:now,updatedAt:now};
   tx.update(fichaRef,{datos:updated,rev:row.rev+1});
   tx.set(db.doc('estado_trabajo/andrei'),{updatedAt:Date.now()},{merge:true});
   if(!prior)tx.create(claimRef,{fichaId,eventId,teamId:'andrei',createdByUid:uid,createdAt:Date.now()});
-  result={ok:true,linked:true,eventId,alreadyLinked:false};
+  result={ok:true,linked:true,completed:markCompleted,eventId,alreadyLinked:false};
  });
  return result;
 }
