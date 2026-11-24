@@ -42,3 +42,22 @@ test('el recordatorio incluye fecha, franja, dirección y municipio, sin DNI ni 
  assert.match(msg,/Mayor 2/);assert.match(msg,/Ayegui/);assert.match(msg,/09:00/);
  assert.ok(!msg.includes('00000000T'));assert.ok(!msg.includes('test@example.com'));
 });
+
+test('el mensaje de llamada sin respuesta identifica al comercial y no simula un envío',()=>{
+ const code=slice('function senderName(){','function reminderMessage(c,z){');
+ const vmctx={SLOTS:[['09:00','11:00']],Date,currentUserName:'Andrei (Jefe)',getDisplayAlias:()=> 'Andrei Aranguren'};
+ vm.runInNewContext(code+'this.noAnswer=unansweredMessage;this.confirm=message;',vmctx);
+ const c={name:'María López',phone:'600000000',street:'Mayor 2',obraDate:'2026-12-01',
+  obraTime:'09:00',dni:'00000000T',email:'test@example.com'};
+ const unanswered=vmctx.noAnswer(c,{town:'Ayegui'});
+ assert.match(unanswered,/María/);assert.match(unanswered,/Andrei Aranguren/);
+ assert.match(unanswered,/KONSOR Energía/);assert.match(unanswered,/prefieres que te llame/);
+ const confirmation=vmctx.confirm(c,{town:'Ayegui'});
+ for(const part of ['Andrei Aranguren','KONSOR Energía','Mayor 2','Ayegui','09:00','01'])
+  assert.ok(confirmation.includes(part),part);
+ assert.ok(!confirmation.includes(c.dni)&&!confirmation.includes(c.email));
+ const view=slice('if(view==="noAnswer"){','if(view==="waiting"){');
+ assert.ok(view.includes('openWhatsApp(phone,draft)'));
+ assert.ok(view.includes('saveCall("ya_llamado")'));
+ assert.ok(!view.includes('saveAndSync('),'Abrir WhatsApp no debe guardar un envío automáticamente');
+});
