@@ -612,6 +612,7 @@ function draw(opts={}){
    body.append(button("Acepta · Agendar obra",()=>{chosenDate=plannedChoice?.key===item.key?plannedChoice.date:clusterFocus?clusterDate:tomorrow();selectedSlot="";selectedTeam=0;view="calendar";draw({preferred:plannedChoice?.key===item.key?plannedChoice:null});},"koc-primary"));
    body.append(button("Ya está en Google Calendar · Vincular",()=>{view="existingCalendar";draw();},"koc-quiet"));
    body.append(button("No contesta · Volver a llamar",()=>saveCall("ya_llamado"),""));
+   body.append(button("No contesta · WhatsApp",()=>{view="noAnswer";draw();},"koc-quiet"));
    body.append(button("Necesita pensarlo",()=>{view="waiting";draw();},""));
    body.append(button("Programar llamada con aviso",()=>{view="waiting";draw();},"koc-quiet"));
    body.append(button("No está interesado",()=>saveCall("no_interesado"),"koc-quiet"));
@@ -683,6 +684,19 @@ function draw(opts={}){
      ". No cambies de equipo ni repitas una reserva nueva.";
    }finally{busy=false;}
   },"koc-primary"));
+  return;
+ }
+ if(view==="noAnswer"){
+  nav(body,"Volver a la ficha",()=>{view="client";draw();});
+  title(body,"No ha contestado","Un mensaje de seguimiento, natural y sin insistir.");
+  const contact=card(body),draft=unansweredMessage(c,z),phone=normalizePhone(c.phone);
+  title(contact,"WhatsApp de primer contacto","Revisa el texto antes de abrir la conversación.");
+  e("p","koc-message",draft,contact);
+  e("p","koc-muted","Abrir WhatsApp no significa enviarlo. Puedes registrar el intento cuando termines.",contact);
+  if(phone)contact.append(button("Abrir WhatsApp",()=>openWhatsApp(phone,draft),"koc-green"));
+  else contact.append(show("Comprueba el número de teléfono antes de abrir WhatsApp."));
+  contact.append(button("Registrar llamada sin respuesta",()=>saveCall("ya_llamado"),"koc-quiet"));
+  body.append(button("Programar aviso para volver a llamar",()=>{view="waiting";draw();},"koc-quiet"));
   return;
  }
  if(view==="waiting"){
@@ -911,22 +925,33 @@ async function saveBooking(){
  finally{busy=false;}
 }
 function normalizePhone(p){let d=String(p||"").replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.length===9)d="34"+d;return /^\d{10,15}$/.test(d)?d:"";}
+function senderName(){
+ const name=typeof currentUserName==="string"?currentUserName:"";
+ let alias=name;
+ try{if(typeof getDisplayAlias==="function")alias=getDisplayAlias(name)||name;}catch(_){}
+ return String(alias||"Equipo comercial").replace(/\s*\(Jefe\)\s*/i,"").trim();
+}
+function unansweredMessage(c,z){
+ const first=String(c.name||"").trim().split(/\s+/)[0];
+ const intro=first?"Hola, "+first+".":"Hola.";
+ return intro+" Soy "+senderName()+", de KONSOR Energía. "+
+  "Te he llamado para comentarte lo del aislamiento de tu vivienda en "+
+  (z.town||"tu zona")+", pero no he conseguido hablar contigo. "+
+  "Cuando te venga bien, puedes llamarme o decirme por aquí a qué hora prefieres que te llame. ¡Gracias!";
+}
 function message(c,z){
- const date=c.obraDate?new Date(c.obraDate+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"por confirmar";
+ const date=c.obraDate?new Date(c.obraDate+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"fecha por confirmar";
  const range=SLOTS.find(x=>x[0]===c.obraTime);
- const area=Number(String(c.m2||"").replace(",","."));
- const property=[c.street||"Dirección pendiente",z.town||"Navarra"].join(" · ");
- const details=[Number.isFinite(area)&&area>0?"Superficie estimada: "+area+" m²":null,
-  /^\\d{4}$/.test(String(c.buildYear||""))?"Año de construcción indicado: "+c.buildYear:null].filter(Boolean).join("\\n");
- return "KONSOR ENERGÍA\\nConfirmación de instalación de aislamiento\\n\\n"+
-  "Estimado/a "+(String(c.name||"cliente").trim())+":\\n"+
-  "Te confirmamos la cita prevista para la vivienda situada en "+property+".\\n\\n"+
-  (details?details+"\\n":"")+
-  "Fecha: "+date+"\\n"+
-  "Franja prevista: "+(range?range.join("–"):c.obraTime||"por confirmar")+"\\n\\n"+
-  "Te recordamos que debes tener a mano tu DNI/NIE y las escrituras de la vivienda para acreditar la titularidad. "+
-  "Debe haber una persona responsable en casa y acceso a la zona de trabajo.\\n\\n"+
-  "Si necesitas modificar la cita, responde a este mensaje. Gracias por confiar en KONSOR Energía.";
+ const hour=range?range[0]+"–"+range[1]:c.obraTime||"horario por confirmar";
+ const first=String(c.name||"").trim().split(/\s+/)[0];
+ return "Hola"+(first?", "+first:"")+" 👋\n\n"+
+  "Soy "+senderName()+", de KONSOR Energía. Te confirmo la cita para el aislamiento de tu vivienda.\n\n"+
+  "📅 *Día:* "+date+"\n"+
+  "🕘 *Horario previsto:* "+hour+"\n"+
+  "📍 *Dirección:* "+(c.street||"Dirección pendiente")+", "+(z.town||"Navarra")+"\n\n"+
+  "Por favor, procura que haya alguien en casa y que podamos acceder a la zona donde se va a trabajar. "+
+  "Si necesitas cambiar la cita o tienes alguna duda, respóndeme por aquí.\n\n"+
+  "¡Gracias!\n"+senderName()+" · KONSOR Energía";
 }
 function reminderMessage(c,z){
  const date=c.obraDate?new Date(c.obraDate+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"fecha pendiente";

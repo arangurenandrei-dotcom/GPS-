@@ -284,6 +284,17 @@ function open(id){
   const inbox=actionTile(grid,"Mensajes entre plantas","Bandeja de Dirección y avisos críticos","folder",()=>window.KonsorPlantMessages?.open?.("ceo"));
   window.KonsorIndicators?.bind?.(inbox,"ceo");
  }
+ if(id==="ceo"){
+  const management=e("section","cnv-home-management",undefined,section);
+  const copy=e("div","cnv-home-management-copy",undefined,management);
+  e("span","cnv-eyebrow","GESTIÓN DEL EQUIPO",copy);
+  e("strong","","Dirección",copy);
+  e("p","","Planificación, comerciales, territorio y resultados.",copy);
+  button("Abrir gestión",()=>{
+   root.style.zIndex="9000";
+   window.openKonsorDirection?.();
+  },management,"cnv-home-management-button");
+ }
  if(id==="tecnicos"||id==="oficina"){
   e("p","kdp-explainer","Los clientes y las citas se consultan desde Firebase. Las fases técnicas y los cierres documentales permanecen sujetos a validación.",section);
  }

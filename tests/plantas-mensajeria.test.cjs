@@ -56,7 +56,7 @@ test('agendar, aplazar y finalizar generan eventos destinados a la planta apropi
  assert.equal(api.autoId('f_123',a[0]),api.autoId('f_123',a[0]));
 });
 test('la UI conecta los módulos sin alterar el flujo comercial',()=>{
- assert.ok(index.includes('mensajes-plantas.js?v=2'));
+ assert.ok(index.includes('mensajes-plantas.js?v=3'));
  assert.ok(index.indexOf('mensajes-plantas.js')<index.indexOf('designer-role-preview.js'));
  assert.ok(client.includes('listarMensajesPlantaKonsor'));
  assert.ok(client.includes('actualizarMensajePlantaKonsor'));
@@ -105,4 +105,58 @@ test('señaliza solamente tareas entrantes sin confirmar y combina avisos por ca
  assert.equal(indicator.bellLevel(7),'yellow');
  assert.equal(indicator.bellLevel(8),'red');
  assert.equal(indicator.bellLevel(1,true),'red');
+});
+
+test('responder confirma lectura, conserva hilo y quitar archiva solo para su usuario',async()=>{
+ let task={teamId:'andrei',from:'ceo',to:'oficina',title:'Revisar expediente',detail:'',
+  status:'pending',priority:'normal',createdAt:100,updatedAt:100,acknowledgedAt:null,
+  completedAt:null,replies:[],hiddenFor:[]};
+ let profile={estado:'aprobado',userKey:'oficina1'};
+ const db={
+  doc:path=>({path,get:async()=>({data:()=>profile})}),
+  runTransaction:async job=>job({
+   get:async()=>({data:()=>({...task})}),
+   update:(_ref,patch)=>{task={...task,...patch};}
+  }),
+  collection:()=>({
+   doc:id=>({id}),
+   where:()=>({limit:()=>({get:async()=>({docs:[{id:'t_task0001',data:()=>task}]})})})
+  })
+ };
+ const stubbed={
+  ...stub,'firebase-admin/firestore':{getFirestore:()=>db}
+ };
+ const ctx={module:{exports:{}},require:name=>stubbed[name]??require(name),Date,Number,Set,Map,Promise};
+ vm.runInNewContext(source,ctx);
+ const service=ctx.module.exports.__test,auth={uid:'oficina-uid'};
+ let result=await service.change({auth,data:{id:'t_task0001',action:'reply',text:'Revisado, me encargo.'}});
+ assert.equal(result.item.replies.length,1);
+ assert.equal(result.item.replies[0].from,'oficina');
+ assert.equal(result.item.status,'acknowledged');
+ assert.ok(result.item.acknowledgedAt);
+ result=await service.change({auth,data:{id:'t_task0001',action:'dismiss'}});
+ assert.ok(task.hiddenFor.includes(auth.uid));
+ assert.equal(result.item.replies[0].text,'Revisado, me encargo.');
+ const inbox=await service.list({auth,data:{}});
+ assert.equal(inbox.items.length,0,'La tarea archivada no debe reaparecer al recargar');
+ // El emisor conserva la tarea en su propia bandeja.
+ profile={estado:'aprobado',userKey:'jefe'};
+ const sender=await service.list({auth:{uid:'ceo-uid'},data:{plant:'ceo'}});
+ assert.equal(sender.items.length,1);
+ assert.equal(sender.items[0].replies[0].text,'Revisado, me encargo.');
+});
+test('responder exige participación y no permite falsear el autor',async()=>{
+ let profile={estado:'aprobado',userKey:'comercial1'};
+ const task={teamId:'andrei',from:'ceo',to:'oficina',status:'pending',priority:'normal'};
+ const db={
+  doc:path=>({path,get:async()=>({data:()=>profile})}),
+  runTransaction:async job=>job({get:async()=>({data:()=>task}),update:()=>{throw Error('No debe escribir')}}),
+  collection:()=>({doc:id=>({id})})
+ };
+ const ctx={module:{exports:{}},require:name=>name==='firebase-admin/firestore'?{getFirestore:()=>db}:stub[name]??require(name),Date,Number,Set,Map,Promise};
+ vm.runInNewContext(source,ctx);
+ await assert.rejects(
+  ctx.module.exports.__test.change({auth:{uid:'comercial-uid'},data:{id:'t_task0001',action:'reply',text:'Suplantación'}}),
+  /No tienes acceso/
+ );
 });

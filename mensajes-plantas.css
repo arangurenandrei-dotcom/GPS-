@@ -26,3 +26,13 @@ textarea.kpm-field{min-height:86px;resize:vertical}
 
 #cnvHome .cnv-plant-messages-link{display:block;width:100%;max-width:640px;box-sizing:border-box;margin:1px auto 0;min-height:47px;border-radius:16px;border:1px solid rgba(213,225,239,.95);background:rgba(255,255,255,.8);box-shadow:0 5px 18px rgba(31,51,70,.045);color:#324d68;font:inherit;font-size:13px;font-weight:720;text-align:center}
 #cnvHome .cnv-plant-messages-link:active{transform:scale(.99)}
+
+/* Respuestas por hilo: misma jerarquía visual limpia de los avisos. */
+.kpm-thread{display:flex;flex-direction:column;gap:8px;padding:9px 0;border-top:1px solid #e7edf4}
+.kpm-reply{display:flex;flex-direction:column;gap:4px;border-radius:14px;background:#f2f6fb;border:1px solid #e5ebf2;padding:11px 12px}
+.kpm-reply strong{font-size:11px;color:#344b66}
+.kpm-reply span{font-size:13px;line-height:1.5;color:#293b51;white-space:pre-wrap;overflow-wrap:anywhere}
+.kpm-reply small{font-size:10px;color:#8190a3}
+.kpm-reply-editor{display:flex;flex-direction:column;gap:8px}
+.kpm-reply-editor textarea{resize:vertical;min-height:75px}
+.kpm-secondary{background:#f0f4f9!important;color:#465d79!important}
