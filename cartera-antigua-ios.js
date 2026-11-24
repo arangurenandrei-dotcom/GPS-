@@ -4,6 +4,7 @@
 if(window.openKonsorLegacyPortfolio)return;
 const ID="konsorLegacyPortfolio";
 let editorMode="guided";
+let returnAfterEdit=null;
 const E=(tag,cls,txt,parent)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=String(txt);if(parent)parent.append(n);return n;};
 const B=(txt,fn,primary=false)=>{const b=E("button","kha-btn"+(primary?" primary":""),txt);b.type="button";b.onclick=fn;return b;};
 const N=x=>String(x??"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ");
@@ -69,7 +70,7 @@ function start(){
  let page=root.querySelector(".kha-page");if(!page)page=E("div","kha-page",undefined,root);page.replaceChildren();
  const top=E("div","kha-row",undefined,page),name=E("div","",undefined,top);
  E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Clientes",name);
- top.append(B("Cerrar",()=>root.remove()));return page;
+ top.append(B("Cerrar",()=>{root.remove();const back=returnAfterEdit;returnAfterEdit=null;back?.();}));return page;
 }
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
 function card(parent,title,desc){const c=E("section","kha-card",undefined,parent);E("h3","",title,c);if(desc)p(c,desc);return c;}
@@ -172,7 +173,10 @@ function validateReady(d){
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
  if(currentEdit&&(!z||!c||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
- page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
+ page.append(B("‹ Volver",()=>{
+  if(returnAfterEdit){document.getElementById(ID)?.remove();const back=returnAfterEdit;returnAfterEdit=null;back();return;}
+  screen="list";notice="";render();
+ }));
  const box=card(page,c?"Ficha ID · "+String(c.clientUid||"").slice(-8).toUpperCase():"Nuevo cliente","Una ficha única. No hace falta crear sector para registrar clientes.");
  const switcher=E("div","kha-mode-switch",undefined,box);
  const guidedBtn=B("Proceso guiado",()=>setMode("guided"),true);
@@ -437,7 +441,9 @@ function editor(page){
   await commit(data);
   screen="list";currentEdit=null;
   notice=ready?"Cliente guardado y listo para llamadas.":"Ficha guardada. Puedes completar lo pendiente después.";
-  activeTown=N(d.locality);activeStreet=streetBase(d.street).key;render();
+  activeTown=N(d.locality);activeStreet=streetBase(d.street).key;
+  if(returnAfterEdit){document.getElementById(ID)?.remove();const back=returnAfterEdit;returnAfterEdit=null;back();return;}
+  render();
  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
 }
  if(c){
@@ -642,7 +648,7 @@ function render(){
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
 window.openKonsorLegacyPortfolio=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
-window.openKonsorFichaOriginal=function(clientUid){
+window.openKonsorFichaOriginal=function(clientUid,onReturn){
  const uid=String(clientUid||"");
  let entry=null;
  zs().some((z,zi)=>{
@@ -652,9 +658,10 @@ window.openKonsorFichaOriginal=function(clientUid){
   entry={z,zi,ci,c:z.clients[ci]};return true;
  });
  if(!entry){notice="Ficha no disponible en la sesión actual. Actualiza KONSOR.";screen="list";render();return false;}
- screen="edit";editorMode="full";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
+ screen="edit";editorMode="full";returnAfterEdit=typeof onReturn==="function"?onReturn:null;
+ currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
 };
 window.openKonsorLegacyClient=window.openKonsorFichaOriginal;
-window.openKonsorNewClient=function(mode="guided"){screen="edit";currentEdit=null;editorMode=mode==="full"?"full":"guided";notice="";render();};
+window.openKonsorNewClient=function(mode="guided"){screen="edit";currentEdit=null;returnAfterEdit=null;editorMode=mode==="full"?"full":"guided";notice="";render();};
 
 })();
