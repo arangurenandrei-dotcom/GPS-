@@ -613,7 +613,7 @@ function draw(opts={}){
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
   body.append(button("Editar ficha completa · Catastro y datos",()=>{
    r.classList.remove("active");
-   const opened=window.openKonsorFichaOriginal?.(c.clientUid);
+   const opened=window.openKonsorFichaOriginal?.(c.clientUid,()=>{r.classList.add("active");draw();});
    if(!opened){r.classList.add("active");alert("La ficha no se puede editar desde esta sesión. Actualiza KONSOR e inténtalo de nuevo.");}
   },"koc-quiet"));
   if(!complete(item)){
