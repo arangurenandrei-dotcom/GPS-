@@ -35,7 +35,7 @@ test('el guardado permite exclusivamente vivienda individual sin dibujar sector'
  const ctx={module:{exports:null},savedZones:original,window:{KonsorBridge:{save:async(g,data)=>{writes.push({g,data});}}},
   syncState:()=>({kind:'ready'}),zs:()=>original,current:()=> 'Andrei (Jefe)',
   isSectorless:z=>!!(z?.isSingleHouse&&z?.isSectorlessCapture)};
- vm.runInNewContext(isolate(cartera,'async function commit(candidate){','function portfolioEntries(){')+'\nmodule.exports=commit;',ctx);
+ vm.runInNewContext(isolate(cartera,'async function commit(candidate){','function f(parent')+'\nmodule.exports=commit;',ctx);
  const saved=[...original,zone({id:24})];
  await ctx.module.exports(saved);
  assert.equal(writes.length,1);assert.equal(writes[0].g,'comercial_custom_zones');
