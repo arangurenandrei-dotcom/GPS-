@@ -45,13 +45,15 @@ async function main(){
      visible:!!home&&home.getClientRects().length>0,
      next:home?.querySelector('.cnv-home-hero h2')?.textContent||'',
      tiles:home?.querySelectorAll('.cnv-home-grid .cnv-tile').length||0,
-     direction:!!home?.querySelector('.cnv-home-management'),
+     direction:!!Array.from(home?.querySelectorAll('.cnv-home-grid .cnv-tile')||[]).find(x=>x.textContent.includes("Dirección")),
+      oldDirection:!!home?.querySelector('.cnv-home-management'),
      overflow:home?home.scrollWidth-home.clientWidth:1000
     };
    },{user,role});
    assert.ok(data.visible,label+' no muestra Inicio');
    assert.ok(data.next,label+' no muestra recomendación');
-   assert.equal(data.tiles,5,label+' debe mostrar los cuatro accesos originales y Mensajes entre plantas');
+   assert.equal(data.tiles,role==='jefe'?6:5,label+' debe mostrar la sexta tarjeta Dirección solo al responsable');
+   assert.equal(data.oldDirection,false,label+' conserva bloque Dirección antiguo');
    assert.equal(data.direction,role==='jefe',label+' permisos visuales Dirección');
    assert.ok(data.overflow<12,label+' desbordamiento lateral '+data.overflow);
    const resultados=await page.evaluate(()=>{
