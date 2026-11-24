@@ -109,19 +109,22 @@ test('permite revisión nueva si solo cambiaron observaciones y no pisa esos dat
  assert.equal(t.docs['fichas/f_test'].datos.observaciones,'Nueva fotografía aportada mientras se consultaba Calendar');
 });
 test('si la instalación ya ocurrió, vincula evento original y contabiliza realizada',async()=>{
- const t=fixture();
- t.request.data.markCompleted=true;
+ const today={...event,start:{dateTime:'2026-11-24T17:00:00+01:00'},end:{dateTime:'2026-11-24T19:00:00+01:00'}};
+ const t=fixture({eventList:[today]});
+ t.request.data.date='2026-11-24';t.request.data.markCompleted=true;
  const result=await t.link(t.request);
  assert.equal(result.ok,true);
  assert.equal(result.completed,true);
  assert.equal(t.docs['fichas/f_test'].datos.obraStatus,'realizada');
- assert.equal(t.docs['fichas/f_test'].datos.obraRealizadaDate,'2026-11-28');
+ assert.equal(t.docs['fichas/f_test'].datos.obraRealizadaDate,'2026-11-24');
  assert.ok(t.docs['fichas/f_test'].datos.obraRealizadaAt>0);
  assert.equal(t.writes.filter(x=>x[0]==='create').length,1);
  assert.ok(!t.writes.some(x=>x[1].startsWith('reservas/')));
 });
 test('reintentar evento ya vinculado puede registrar finalización sin duplicarlo',async()=>{
- const t=fixture(),first=await t.link(t.request);
+ const today={...event,start:{dateTime:'2026-11-24T17:00:00+01:00'},end:{dateTime:'2026-11-24T19:00:00+01:00'}};
+ const t=fixture({eventList:[today]});t.request.data.date='2026-11-24';
+ const first=await t.link(t.request);
  assert.equal(first.completed,false);
  t.request.data.markCompleted=true;
  const second=await t.link(t.request);
