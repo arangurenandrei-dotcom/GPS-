@@ -103,7 +103,7 @@ function showHome(){
  const messageLink=tile(grid,"Mensajes entre plantas","Solicitudes, avisos y confirmaciones","office",()=>window.KonsorPlantMessages?.open?.("comercial"));
  window.KonsorIndicators?.bind?.(messageLink,"comercial");
  if(boss()){
-  tile(grid,"Dirección","Planificación, equipo y resultados","users",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.());
+  tile(grid,"Dirección","Planificación, equipo y resultados","direction",()=>andrei()?window.openKonsorDirection?.():window.konsorPlanificador?.open?.());
  }
  const footer=el("div","cnv-home-footer",undefined,section);
  el("span","","KONSOR",footer);
