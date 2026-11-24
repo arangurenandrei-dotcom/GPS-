@@ -611,6 +611,12 @@ function draw(opts={}){
   if(group.length>1){const hint=card(body);e("strong","","Oportunidad · Misma calle",hint);e("p","koc-muted",group.length+" viviendas por llamar en esta calle. Conviene proponer franjas del mismo día y equipo antes de abrir otra ruta.",hint);hint.append(button("Ver jornada con estos clientes",()=>startGroup(item),"koc-quiet"));}
   if(plannedChoice?.key===item.key){const suggestion=card(body);e("strong","","Franja que intentamos completar",suggestion);e("p","koc-muted",plannedChoice.date+" · "+plannedChoice.time+" · Equipo "+plannedChoice.team+" (sin reservar). Propón este horario durante la llamada.",suggestion);}
   if(c.phone){const a=e("a","koc-btn koc-primary","Llamar al cliente",body);a.href="tel:"+String(c.phone).replace(/[^\d+]/g,"");}
+  body.append(button("Editar ficha completa · Catastro y datos",()=>{
+   r.classList.remove("active");
+   if(typeof window.openKonsorLegacyClient==="function"&&(c.legacyPortfolio||c.isLegacyClient||c.importedLegacy||c.importedCsv||z.isSectorlessCapture||z.isLegacyPortfolio))
+    window.openKonsorLegacyClient(c.clientUid);
+   else window.openKonsorClientDetail?.(item.zi,item.ci);
+  },"koc-quiet"));
   if(!complete(item)){
    body.append(show("Ficha pendiente: falta nombre, calle, teléfono o localidad, o tiene el teléfono marcado como no válido."));
    body.append(button("Completar ficha original",()=>{
@@ -676,7 +682,14 @@ function draw(opts={}){
     message.textContent="Introduce un enlace de evento de Google Calendar válido o deja el campo vacío.";return;
    }
    if(!check.checked){message.textContent="Confirma primero que el evento corresponde a esta vivienda.";return;}
-   const row=resolve();if(!row||booked(row)){message.textContent="La ficha ha cambiado o ya tiene una obra. Actualiza los datos.";return;}
+   const refreshed=await window.KonsorBridge?.refresh?.(true).catch(()=>false);
+    if(refreshed!==true){
+     message.textContent="No se ha podido comprobar la versión actual de la ficha en Firebase. Actualiza antes de vincular.";return;
+    }
+    const row=resolve();if(!row||booked(row)){message.textContent="La ficha ha cambiado o ya tiene una obra. Actualiza los datos.";return;}
+    if(!Number.isSafeInteger(Number(row.c.rev))||Number(row.c.rev)<1){
+     message.textContent="La ficha no tiene revisión válida en Firebase. Guarda la ficha original y vuelve a actualizar.";return;
+    }
    const other=all().find(x=>x.key!==row.key&&booked(x)&&
      ((url&&x.c.calendarEventUrl===url)||
      (x.c.obraDate===when&&x.c.obraTime===slot&&Number(x.c.obraEquipoInstalacion)===crew)));
@@ -701,7 +714,7 @@ function draw(opts={}){
     view="whatsapp";draw();
    }catch(err){
     message.textContent="No se pudo confirmar la vinculación: "+(err.message||"Error")+
-     ". No cambies de equipo ni repitas una reserva nueva.";
+     ". Comprueba que el evento de Calendar incluya teléfono y dirección exacta del cliente. No cambies de equipo ni repitas una reserva nueva.";
    }finally{busy=false;}
   },"koc-primary"));
   return;
