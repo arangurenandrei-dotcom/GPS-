@@ -58,7 +58,7 @@ function start(){
  if(!root){root=E("div","",undefined,document.body);root.id=ID;E("style","",CSS,root);root.onclick=ev=>{if(ev.target===root)root.remove();};}
  let page=root.querySelector(".kha-page");if(!page)page=E("div","kha-page",undefined,root);page.replaceChildren();
  const top=E("div","kha-row",undefined,page),name=E("div","",undefined,top);
- E("small","kha-muted","KONSOR · CRM",name);E("h2","","Clientes antiguos",name);
+ E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Clientes",name);
  top.append(B("Cerrar",()=>root.remove()));return page;
 }
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
@@ -161,7 +161,7 @@ function validateReady(d){
 }
 function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
- if(currentEdit&&(!z||!c||!access(z)||!(inPortfolio(c)||isPort(z)||isSectorless(z))||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
+ if(currentEdit&&(!z||!c||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
  const box=card(page,c?"Editar ficha":"Añadir cliente","Completa los datos del cliente. Se guarda en su ficha original.");
  const fields=E("div","kha-grid",undefined,box);
@@ -310,10 +310,13 @@ function editor(page){
   const data=structuredClone(zs()),stamp=Date.now();
   if(c){
    const oldZone=data[currentEdit.zi],oldClient=oldZone?.clients?.[currentEdit.ci];
-   if(!oldClient||!access(oldZone)||!(inPortfolio(oldClient)||isPort(oldZone)||isSectorless(oldZone))||
+   if(!oldClient||!access(oldZone)||
       String(oldZone.id)!==String(currentEdit.zoneId)||String(oldClient.clientUid)!==String(currentEdit.uid))
     throw Error("La ficha ha cambiado. Vuelve a abrirla.");
-   if(isSectorless(oldZone)){
+   if(!isSectorless(oldZone)&&!isPort(oldZone)&&!inPortfolio(oldClient)){
+    // Edición de ficha ordinaria: no crear una importación histórica ni alterar estado.
+    oldZone.clients[currentEdit.ci]={...oldClient,...d,updatedAt:stamp};
+   }else if(isSectorless(oldZone)){
     // Una vivienda sin sector conserva el mismo modelo de ficha normal.
     // No se marca como «histórica» a efectos de estadísticas.
     const update={...oldClient,...d,sectorlessCapture:true,
@@ -356,8 +359,14 @@ function editor(page){
   activeTown=N(d.locality);activeStreet=streetBase(d.street).key;render();
  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
 }
- actions.append(B("Guardar pendiente",function(){save(false,this);}));
- actions.append(B("Guardar y habilitar llamadas",function(){save(true,this);},true));
+ if(c){
+  actions.append(B("Guardar cambios",function(){save(false,this);},true));
+  if(!booked(c)&&c.legacyReviewStatus==="pendiente")
+   actions.append(B("Habilitar llamadas",function(){save(true,this);}));
+ }else{
+  actions.append(B("Guardar pendiente",function(){save(false,this);}));
+  actions.append(B("Guardar y habilitar llamadas",function(){save(true,this);},true));
+ }
 }
 function moveScreen(page){
  page.append(B("‹ Volver",()=>{screen="list";render();}));
@@ -546,9 +555,17 @@ function render(){
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
 window.openKonsorLegacyPortfolio=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
-window.openKonsorLegacyClient=function(clientUid){
- const entry=portfolioEntries().find(x=>String(x.c.clientUid)===String(clientUid));
- if(!entry){screen="list";notice="La ficha antigua no se encuentra; actualiza la lista.";render();return;}
- screen="edit";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();
+window.openKonsorFichaOriginal=function(clientUid){
+ const uid=String(clientUid||"");
+ let entry=null;
+ zs().some((z,zi)=>{
+  if(!access(z))return false;
+  const ci=(z.clients||[]).findIndex(c=>String(c.clientUid||"")===uid);
+  if(ci<0)return false;
+  entry={z,zi,ci,c:z.clients[ci]};return true;
+ });
+ if(!entry){notice="Ficha no disponible en la sesión actual. Actualiza KONSOR.";screen="list";render();return false;}
+ screen="edit";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
 };
+window.openKonsorLegacyClient=window.openKonsorFichaOriginal;
 })();
