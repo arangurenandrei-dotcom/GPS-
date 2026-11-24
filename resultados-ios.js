@@ -27,20 +27,34 @@ function stat(parent,label,value,detail){
  const c=$("div","kr-stat",undefined,parent);$("small","",label,c);$("strong","",value,c);$("span","",detail,c);return c;
 }
 function caption(parent,text){return $("p","kr-note",text,parent);}
+function bookingArea(c){
+ // Misma prioridad que el motor de fichas: m² útiles ya calculados; si solo
+ // existe superficie total catastral, aplicar una sola vez la deducción de 5 m².
+ const parse=v=>{
+  if(v===null||v===undefined||String(v).trim()==="")return NaN;
+  const n=Number(String(v).trim().replace(",","."));
+  return Number.isFinite(n)&&n>0?n:NaN;
+ };
+ const useful=parse(c.m2);
+ if(Number.isFinite(useful))return useful;
+ const total=parse(c.m2Total);
+ return Number.isFinite(total)?Math.max(0,total-5):null;
+}
 function scheduledOpen(zones,users){
  const names=new Set(users),seen=new Set();
- let count=0,area=0;
+ let count=0,area=0,withoutArea=0;
  for(const z of Array.isArray(zones)?zones:[]){
   if(!names.has(z?.comercial)||z.isNoAptoZone||z.isHotMission)continue;
   for(const [i,c] of (z.clients||[]).entries()){
    if(!c||!["agendada","agendada_historica"].includes(c.obraStatus))continue;
-   const key=String(z.id)+":"+String(c.clientUid||i);
+   const key=c.clientUid?String(c.clientUid):String(z.id)+":"+i;
    if(seen.has(key))continue;seen.add(key);count++;
-   const surface=Number(String(c.m2||"").replace(",","."));
-   if(Number.isFinite(surface)&&surface>0)area+=surface;
+   const surface=bookingArea(c);
+   if(surface===null)withoutArea++;
+   else area+=surface;
   }
  }
- return {count,area};
+ return {count,area,withoutArea};
 }
 function open(which="mine"){
  if(!date)date=today();
@@ -117,8 +131,8 @@ function render(){
  const grid=$("div","kr-grid",undefined,main);
  stat(grid,"Captaciones",fmt(m.validas),"fichas no descartadas");
  stat(grid,"Superficie captada",fmt(m.m2Captado)+" m²","estimación de fichas");
- stat(grid,"Obras agendadas",fmt(ownJobs.count),"Pendientes · "+fmt(m.citas)+" este período · "+fmt(m.m2Citas)+" m² previstos");
- if(ownJobs.count!==m.citas)caption(main,"Las obras pendientes se cuentan sin limitar su fecha al mes seleccionado. Las cifras de producción prevista sí respetan el filtro del período.");
+ stat(grid,"Obras agendadas",fmt(ownJobs.count),fmt(ownJobs.area)+" m² pendientes"+(ownJobs.withoutArea?" · "+ownJobs.withoutArea+" sin m²":""));
+ if(ownJobs.count!==m.citas)caption(main,"Las obras pendientes se cuentan sin limitar su fecha al mes seleccionado; los indicadores de captación y ejecución mantienen el período elegido.");
  if(scope==="me"&&teamAllowed()&&teamJobs.count>ownJobs.count)caption(main,"En tu nombre hay "+ownJobs.count+" obra(s) pendiente(s) y en el equipo "+teamJobs.count+". Pulsa «Mi equipo» para consultar todas.");
  stat(grid,"Obras realizadas",fmt(m.hechas),fmt(m.m2Hechas)+" m² ejecutados");
  const chart=$("section","kr-panel",undefined,main);
@@ -166,10 +180,12 @@ function render(){
  const moneyGrid=$("div","kr-grid",undefined,money);
  // Potencial, previsto y generado son fases solapadas, no importes sumables.
  stat(moneyGrid,"Potencial",cash(m.potencial),"Captaciones");
- stat(moneyGrid,"Previsto",cash(m.previsto),"Obras pendientes");
+ stat(moneyGrid,"Previsto",ownJobs.withoutArea?cash(ownJobs.area)+" calculados":cash(ownJobs.area),
+  ownJobs.count+" obra(s) pendiente(s) · "+fmt(ownJobs.area)+" m² × 1 €/m²"+
+  (ownJobs.withoutArea?" · "+ownJobs.withoutArea+" sin superficie":""));
  stat(moneyGrid,"Generado",cash(m.generado),"Obras realizadas");
  stat(moneyGrid,"Cobrado","Sin registro","No se registran pagos");
- caption(money,"Las fases se solapan. No se suman y no representan salario neto. Las cifras usan el motor actual de la aplicación.");
+ caption(money,"El previsto suma los m² útiles de las obras pendientes a 1 €/m², sin importar el mes de ejecución. Potencial, previsto y generado son fases distintas; no se suman ni equivalen a dinero cobrado.");
  const extras=$("details","kr-panel",undefined,main);
  $("summary","","Más datos de actividad",extras);
  const dat=$("div","kr-details",undefined,extras);
