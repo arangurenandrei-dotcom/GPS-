@@ -674,7 +674,10 @@ function draw(opts={}){
   const label=e("label","","",form);
   const check=e("input","",undefined,label);check.type="checkbox";
   e("span",""," He comprobado en Google Calendar que es la misma vivienda, fecha, hora y equipo.",label);
-  const message=e("p","koc-muted","El evento seguirá siendo el original de Google Calendar. Esta operación solo actualiza la ficha en KONSOR.",form);
+  const completedLabel=e("label","koc-completed-toggle",undefined,form);
+  const completedCheck=e("input","",undefined,completedLabel);completedCheck.type="checkbox";
+  e("span","","La instalación ya se ha realizado (contabilizar como obra terminada)",completedLabel);
+  const message=e("p","koc-muted","El evento seguirá siendo el original de Google Calendar. Solo se actualizará la ficha de KONSOR.",form);
   form.append(button("Asociar esta obra a la ficha",async()=>{
    if(busy)return;
    const url=ref.value.trim(),when=date.value,slot=time.value,crew=Number(team.value);
@@ -706,7 +709,7 @@ function draw(opts={}){
    try{
     const response=await window.vincularObraExistenteKonsor({
      clientUid:row.c.clientUid,zoneId:row.z.id,rev:row.c.rev,
-     date:when,time:slot,team:crew,
+     date:when,time:slot,team:crew,markCompleted:completedCheck.checked,
      phone:row.c.phone,street:row.c.street,town:row.z.town,eventUrl:url
     });
     if(response.data?.ok!==true||!response.data.eventId)throw Error("El servidor no ha confirmado el vínculo.");
@@ -714,10 +717,13 @@ function draw(opts={}){
     if(synced!==true)throw Error("El vínculo está confirmado en el servidor, pero la pantalla no se pudo actualizar. Cierra y abre KONSOR sin repetir la operación.");
     const updated=resolve();
     if(!updated||!booked(updated))throw Error("El vínculo está confirmado en el servidor. Vuelve a abrir la ficha para cargarlo.");
-    view="whatsapp";draw();
+    if(completedCheck.checked){
+     if(updated.c.obraStatus!=="realizada")throw Error("La cita se ha vinculado, pero la ejecución aún no se refleja. Actualiza antes de intentarlo otra vez.");
+     view="client";draw();
+    }else{view="whatsapp";draw();}
    }catch(err){
     message.textContent="No se pudo confirmar la vinculación: "+(err.message||"Error")+
-     ". Comprueba que el evento de Calendar incluya teléfono y dirección exacta del cliente. No cambies de equipo ni repitas una reserva nueva.";
+     ". No cambies de equipo ni crees una segunda reserva. Si aparece el error 409, actualiza la ficha y vuelve a intentarlo.";
    }finally{busy=false;}
   },"koc-primary"));
   return;
