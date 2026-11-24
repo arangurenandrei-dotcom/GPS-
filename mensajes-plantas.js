@@ -92,7 +92,7 @@ function open(plant){
  function render(rows){
   body.querySelector('.kpm-results')?.remove();
   const section=E('section','kpm-results',undefined,body);
-  const pending=rows.filter(x=>x.status!=='completed');
+  const pending=rows.filter(x=>x.status!=='completed'&&x.to===plant);
   const summary=E('div','kpm-summary',undefined,section);
   E('strong','',pending.length+' pendientes',summary);
   E('small','',rows.length+' movimientos registrados',summary);
@@ -105,15 +105,43 @@ function open(plant){
    if(item.detail)E('p','kpm-help',item.detail,box);
    E('small','',item.priority==='critical'?'CRÍTICO':item.priority==='important'?'IMPORTANTE':'NORMAL',box);
    E('small','','Límite: '+readable(item.dueAt),box);
+   if(item.replies?.length){
+    const thread=E('div','kpm-thread',undefined,box);
+    for(const reply of item.replies){
+     const line=E('div','kpm-reply',undefined,thread);
+     E('strong','',names[reply.from]||reply.from,line);
+     E('span','',reply.text,line);
+     E('small','',new Date(reply.at).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'}),line);
+    }
+   }
    const actions=E('div','kpm-actions',undefined,box);
    // Ver una planta como CEO no concede su identidad ni permiso de confirmación.
    const owner=plant===item.to&&!(w.konsorDesigner?.permitted?.()&&plant!=='ceo');
-   if(owner&&item.status==='pending')actions.append(btn('Confirmar recibido',async()=>{
+   if(owner&&item.status==='pending')actions.append(btn('Marcar como leído',async()=>{
     await call('actualizarMensajePlantaKonsor',{id:item.id,action:'ack'});await refresh();
    }));
    if(owner&&item.status!=='completed')actions.append(btn('Marcar completada',async()=>{
     await call('actualizarMensajePlantaKonsor',{id:item.id,action:'complete'});await refresh();
    }));
+   if(item.from===plant||item.to===plant){
+    actions.append(btn('Responder',async()=>{
+     if(box.querySelector('.kpm-reply-editor'))return;
+     const editor=E('div','kpm-reply-editor',undefined,box);
+     const input=E('textarea','kpm-field',undefined,editor);
+     input.rows=3;input.maxLength=1200;input.placeholder='Escribe una respuesta…';
+     const tools=E('div','kpm-actions',undefined,editor);
+     const send=btn('Enviar respuesta',async()=>{
+      if(!input.value.trim())throw Error('Escribe una respuesta.');
+      await call('actualizarMensajePlantaKonsor',{id:item.id,action:'reply',text:input.value.trim()});
+      await refresh();
+     });
+     tools.append(send,B('Cancelar',()=>editor.remove(),'kpm-button kpm-secondary'));
+     input.focus();
+    }));
+    actions.append(btn('Quitar de mi bandeja',async()=>{
+     await call('actualizarMensajePlantaKonsor',{id:item.id,action:'dismiss'});await refresh();
+    }));
+   }
   });
  }
  const actions=E('div','kpm-actions',undefined,body);
