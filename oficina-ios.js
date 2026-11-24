@@ -12,7 +12,7 @@ function zones(){
 function clientRows(){
  return zones().flatMap(({z,idx})=>(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).map(c=>({c,z,idx})));
 }
-const booked=c=>["agendada","realizada"].includes(c.obraStatus);
+const booked=c=>["agendada","agendada_historica","realizada"].includes(c.obraStatus);
 const excluded=c=>(!!(c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")||c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado","pendiente_visita"].includes(c.callStatus)||["no","ausente","papelito"].includes(c.captacionRespuesta);
 const complete=c=>!!(String(c.name||"").trim()&&String(c.phone||"").trim()&&String(c.street||"").trim());
 function state(){
@@ -25,7 +25,7 @@ function state(){
  const pending=cc.filter(x=>!booked(x.c)&&!excluded(x.c));
  const incomplete=pending.filter(x=>!complete(x.c));
  const invalid=cc.filter(x=>x.c.captacionInvalida);
- return {zz,cc,open,late,unuploaded:ordered,streetFinished,pending,incomplete,invalid,booked:cc.filter(x=>booked(x.c)),scheduled:cc.filter(x=>x.c.obraStatus==="agendada")};
+ return {zz,cc,open,late,unuploaded:ordered,streetFinished,pending,incomplete,invalid,booked:cc.filter(x=>booked(x.c)),scheduled:cc.filter(x=>["agendada","agendada_historica"].includes(x.c.obraStatus))};
 }
 function root(){
  let r=document.getElementById("cnOficina");if(r)return r;
