@@ -45,3 +45,11 @@ test('los recursos y cambios de estilos se cargan desde la versión actualizada'
  const css=read('ios-unified.css');
  assert.ok(css.includes('.cn-office-home-grid'));
 });
+
+test('repositorio sin laboratorios históricos y sin scripts locales cargados dos veces',()=>{
+ assert.ok(!fs.existsSync(path.join(root,'konsor-laboratorio')),'Demos antiguas no deben permanecer en producción');
+ const html=read('index.html');
+ const sources=[...html.matchAll(/<script[^>]*src=["']([^"']+)["']/g)]
+  .map(m=>m[1].split('?')[0]).filter(x=>!x.startsWith('http'));
+ assert.equal(new Set(sources).size,sources.length,'No cargar dos veces los mismos scripts');
+});
