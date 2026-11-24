@@ -27,6 +27,21 @@ function stat(parent,label,value,detail){
  const c=$("div","kr-stat",undefined,parent);$("small","",label,c);$("strong","",value,c);$("span","",detail,c);return c;
 }
 function caption(parent,text){return $("p","kr-note",text,parent);}
+function scheduledOpen(zones,users){
+ const names=new Set(users),seen=new Set();
+ let count=0,area=0;
+ for(const z of Array.isArray(zones)?zones:[]){
+  if(!names.has(z?.comercial)||z.isNoAptoZone||z.isHotMission)continue;
+  for(const [i,c] of (z.clients||[]).entries()){
+   if(!c||!["agendada","agendada_historica"].includes(c.obraStatus))continue;
+   const key=String(z.id)+":"+String(c.clientUid||i);
+   if(seen.has(key))continue;seen.add(key);count++;
+   const surface=Number(String(c.m2||"").replace(",","."));
+   if(Number.isFinite(surface)&&surface>0)area+=surface;
+  }
+ }
+ return {count,area};
+}
 function open(which="mine"){
  if(!date)date=today();
  tab=which==="league"?"league":"mine";
@@ -158,6 +173,7 @@ window.openCnResults=()=>{if(typeof isMikelTeamMember==="function"&&isMikelTeamM
 window.openKonsorResults=window.openCnResults;
 window.openKonsorTeamResults=()=>{scope="team";open("mine");};
 window.openKonsorLeague=()=>open("league");
+window.KonsorResultsScheduled=Object.freeze({scheduledOpen});
 window.openCommercialStatsModal=window.openCnResults;
 window.openLeagueRankingModal=window.openKonsorLeague;
 })();
