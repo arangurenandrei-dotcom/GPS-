@@ -297,7 +297,7 @@ function editor(page){
   finally{cadastralBtn.disabled=false;}
  });
  geoActions.append(cadastralBtn);
- const answer=sel(box,"Respuesta comercial",c?.captacionRespuesta||"si",[["si","Sí, interesado"],["no","No interesado"],["ausente","Ausente"],["papelito","Papelito"]]);
+ const answer=sel(box,"Respuesta comercial",c?.captacionRespuesta||"",[["","Pendiente de respuesta"],["si","Sí, interesado"],["no","No interesado"],["ausente","Ausente"],["papelito","Papelito"]]);
  const note=f(box,"Observaciones",c?.observaciones||"","textarea");
  const result=E("div","kha-net-inline",undefined,box);
  E("span","","Superficie útil",result);
@@ -395,14 +395,14 @@ function editor(page){
     // No se marca como «histórica» a efectos de estadísticas.
     const update={...oldClient,...d,sectorlessCapture:true,
       callStatus:ready?(oldClient.callStatus==="bloqueada"?"pendiente":oldClient.callStatus||"pendiente")
-        :(oldClient.callStatus==="pendiente"?"bloqueada":oldClient.callStatus||"bloqueada"),
+        :(oldClient.callStatus||"bloqueada"),
       updatedAt:stamp};
     oldZone.clients[currentEdit.ci]=update;
     oldZone.town=d.locality;oldZone.date=d.captureDate;oldZone.dumpDate=d.captureDate;
     oldZone.sectorName="🏠 "+d.street;oldZone.stats=captureStats(d.captacionRespuesta);
    }else{
     // Compatibilidad con fichas antiguas que ya estaban guardadas en sectores.
-    const updated={...oldClient,...d,legacyPortfolio:true,importedLegacy:true,legacyReviewStatus:ready?"lista":"pendiente",
+    const updated={...oldClient,...d,legacyPortfolio:true,importedLegacy:true,legacyReviewStatus:ready?"lista":oldClient.legacyReviewStatus||"pendiente",
       legacyReviewedAt:ready?stamp:oldClient.legacyReviewedAt,legacyReviewedBy:ready?current():oldClient.legacyReviewedBy,updatedAt:stamp};
     if(!d.m2Total&&!oldClient.m2Total)delete updated.m2Total;
     if(ready&&(!oldClient.callStatus||["pendiente_visita","no_interesado","descartado"].includes(oldClient.callStatus)))updated.callStatus="pendiente";
@@ -419,7 +419,7 @@ function editor(page){
    // genera porcentajes de cobertura ni conteos de sectores.
    let id=Date.now();while(data.some(z=>String(z.id)===String(id)))id++;
    const client={...d,clientUid:"f_"+crypto.randomUUID(),sectorlessCapture:true,
-     origen:"puerta",callStatus:ready?"pendiente":"bloqueada",
+     origen:"contacto_directo",callStatus:ready?"pendiente":"bloqueada",
      createdAt:Date.parse(d.captureDate+"T12:00:00"),updatedAt:stamp,statusChangedAt:stamp};
    data.push({id,isSingleHouse:true,isSectorlessCapture:true,singlePoint:null,
      date:d.captureDate,dumpDate:d.captureDate,town:d.locality,
@@ -429,7 +429,7 @@ function editor(page){
   }
   await commit(data);
   screen="list";currentEdit=null;
-  notice=ready?"Captación guardada y habilitada para llamadas.":"Captación guardada, datos pendientes.";
+  notice=ready?"Cliente guardado y listo para llamadas.":"Ficha guardada. Puedes completar lo pendiente después.";
   activeTown=N(d.locality);activeStreet=streetBase(d.street).key;render();
  }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
 }
