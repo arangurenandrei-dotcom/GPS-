@@ -191,7 +191,7 @@ function openOfficeGuide(){
   const c=card(body,step===2?"SEGUIMIENTO PRIORITARIO":"LLAMADAS POR ANTIGÜEDAD",items.length+" contactos por resolver",
    step===2?"Hay personas esperando respuesta o una nueva llamada. Revisa primero la que corresponda hoy.":"La gestión de clientes existente agrupa llamadas por calle y conserva las reservas individuales.");
   E("p","km-muted","Primero: "+(first.c.name||"Sin nombre")+" · "+first.z.town+" · "+first.z.sectorName,c);
-  B(actions(c),"Organizar pueblo y huecos de instalación",()=>leaveOffice(()=>window.openKonsorCallPlanner?.()||openCalls()),"primary");
+  B(actions(c),"Organizar pueblo y huecos de instalación",()=>leaveOffice(()=>{if(window.openKonsorCallPlanner)window.openKonsorCallPlanner();else openCalls();}),"primary");
   B(actions(c),"Ver clientes para llamar",()=>leaveOffice(openCalls));
  }else{
   const c=card(body,"AL DÍA","Recorrido principal completado","Los seguimientos futuros se conservan para la fecha fijada; no se consideran atrasados.");
@@ -242,7 +242,7 @@ function openDayGuide(){
   const office=card(body,"TRABAJO DE OFICINA",pending?pending+" clientes para gestionar":"Revisa tus clientes",
    o.cc.length+" fichas visibles · "+bookedCount+" obras agendadas. No hay sectores pendientes de calle.");
   if(topTown)E("p","km-muted","Pueblo con más oportunidades registradas: "+topTown.name,office);
-  B(actions(office),"Organizar llamadas y obras",()=>safeOpen(()=>window.openKonsorCallPlanner?.()||openCalls()),"primary");
+  B(actions(office),"Organizar llamadas y obras",()=>safeOpen(()=>{if(window.openKonsorCallPlanner)window.openKonsorCallPlanner();else openCalls();}),"primary");
   B(actions(office),"Revisar clientes",()=>safeOpen(openCalls));
  }
  const list=card(body,"TODOS LOS SECTORES","Tu planificación y pendientes","También puedes consultar los demás sectores o la zona de trabajo sin salir del recorrido.");
