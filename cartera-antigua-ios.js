@@ -3,6 +3,7 @@
 "use strict";
 if(window.openKonsorLegacyPortfolio)return;
 const ID="konsorLegacyPortfolio";
+let editorMode="guided";
 const E=(tag,cls,txt,parent)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=String(txt);if(parent)parent.append(n);return n;};
 const B=(txt,fn,primary=false)=>{const b=E("button","kha-btn"+(primary?" primary":""),txt);b.type="button";b.onclick=fn;return b;};
 const N=x=>String(x??"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ");
@@ -52,7 +53,16 @@ const portId=(owner,town)=>{
  return "hist_"+slug+"_"+hash.toString(16).padStart(8,"0");
 };
 let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="",activeTown="",activeStreet="";
-const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}\n#konsorLegacyPortfolio .kha-advanced{background:#fff;border:1px solid #e0e6ef;border-radius:15px;padding:13px;margin:12px 0}\n#konsorLegacyPortfolio .kha-advanced>summary{cursor:pointer;font-weight:650;color:#3e516b}\n#konsorLegacyPortfolio .kha-net-inline{display:flex;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:13px;background:#eff3f8;font-size:14px;color:#51657b}\n#konsorLegacyPortfolio .kha-net-inline strong{color:#26394d}\n';
+const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}\n#konsorLegacyPortfolio .kha-advanced{background:#fff;border:1px solid #e0e6ef;border-radius:15px;padding:13px;margin:12px 0}\n#konsorLegacyPortfolio .kha-advanced>summary{cursor:pointer;font-weight:650;color:#3e516b}\n#konsorLegacyPortfolio .kha-net-inline{display:flex;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:13px;background:#eff3f8;font-size:14px;color:#51657b}\n#konsorLegacyPortfolio .kha-net-inline strong{color:#26394d}\n
+#konsorLegacyPortfolio [hidden]{display:none!important}
+#konsorLegacyPortfolio .kha-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+#konsorLegacyPortfolio .kha-mode-switch .kha-btn{min-width:0;padding:8px;font-size:13px}
+#konsorLegacyPortfolio .kha-guide-bar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+#konsorLegacyPortfolio .kha-guide-bar>.kha-btn{flex:1;padding:7px;font-size:12px}
+#konsorLegacyPortfolio .kha-guide-bar>.kha-muted{flex:0 0 100%}
+#konsorLegacyPortfolio .kha-guide-nav{display:flex;gap:8px;flex:0 0 100%;flex-wrap:wrap}
+#konsorLegacyPortfolio .kha-home{padding:12px;margin:10px 0;border:1px solid #e3e9ef;border-radius:13px;background:#f9fbfe}
+';
 function start(){
  let root=document.getElementById(ID);
  if(!root){root=E("div","",undefined,document.body);root.id=ID;E("style","",CSS,root);root.onclick=ev=>{if(ev.target===root)root.remove();};}
@@ -163,7 +173,12 @@ function editor(page){
  const z=currentEdit?zs()[currentEdit.zi]:null,c=z?.clients?.[currentEdit?.ci];
  if(currentEdit&&(!z||!c||!access(z)||z.id!==currentEdit.zoneId||String(c.clientUid)!==String(currentEdit.uid))){screen="list";notice="La ficha ha cambiado. Ábrela de nuevo.";render();return;}
  page.append(B("‹ Volver a la cartera",()=>{screen="list";notice="";render();}));
- const box=card(page,c?"Editar ficha":"Añadir cliente","Completa los datos del cliente. Se guarda en su ficha original.");
+ const box=card(page,c?"Ficha · "+(c.clientUid||""):"Nuevo cliente","Una ficha única. No hace falta crear sector para registrar clientes.");
+ const switcher=E("div","kha-mode-switch",undefined,box);
+ const guidedBtn=B("Proceso guiado",()=>setMode("guided"),true);
+ const fullBtn=B("Ficha completa",()=>setMode("full"));
+ switcher.append(guidedBtn,fullBtn);
+ const guideBar=E("div","kha-guide-bar",undefined,box);
  const fields=E("div","kha-grid",undefined,box);
  const name=f(fields,"Nombre y apellidos",c?.name||"");
  const telephone=f(fields,"Teléfono",c?.phone||"","tel");
@@ -290,6 +305,57 @@ function editor(page){
  const refresh=()=>{const value=net(total.value);amount.textContent=value===null?"Pendiente de introducir superficie total":value+" m²";};
  total.oninput=refresh;refresh();
  if(c?.m2&&!c?.m2Total)amount.textContent=String(c.m2)+" m²";
+ const guidedSteps=[
+  {title:"Contacto",help:"Introduce los datos de contacto. Puedes continuar si algún dato todavía falta.",nodes:[name,telephone,dni,email,captured,answer,note]},
+  {title:"Vivienda",help:"Datos del inmueble. El CP y la CTE se buscarán automáticamente al completar la dirección.",nodes:[town,street,postal,year,total,zone]},
+  {title:"Revisión",help:"Comprueba lo introducido. Los datos incompletos quedarán pendientes de completar.",nodes:[]}
+ ];
+ let activeStep=0;
+ const extra=E("details","kha-advanced",undefined,box);
+ E("summary","","Varias viviendas en este expediente",extra);
+ E("p","kha-muted","Si una misma obra incluye varias viviendas, identifica cada vivienda aquí. Los datos de cliente y documentos comunes siguen en una única ficha.",extra);
+ const homeList=E("div","kha-homes",undefined,extra);
+ const extraHomes=Array.isArray(c?.viviendas)?c.viviendas.map(v=>({...v})):[];
+ function homeEditor(){
+  homeList.replaceChildren();
+  extraHomes.forEach((v,i)=>{
+   const pane=E("div","kha-home",undefined,homeList);
+   E("strong","","Vivienda "+(i+1),pane);
+   const address=f(pane,"Dirección o referencia",v.direccion||"");address.oninput=()=>{v.direccion=address.value;};
+   const area=f(pane,"Superficie total (m²)",v.m2Total??"","number");area.min="0";area.step="0.1";area.oninput=()=>{v.m2Total=area.value;};
+   const note=f(pane,"Observaciones vivienda",v.notas||"");note.oninput=()=>{v.notas=note.value;};
+   pane.append(B("Eliminar esta vivienda",()=>{extraHomes.splice(i,1);homeEditor();}));
+  });
+ }
+ homeEditor();
+ extra.append(B("Añadir otra vivienda",()=>{
+  if(extraHomes.length>=49)return;
+  extraHomes.push({id:"v"+(extraHomes.length+1)+"_"+Date.now(),direccion:"",m2Total:"",notas:""});
+  homeEditor();
+ }));
+ function setMode(mode){
+  editorMode=mode;
+  guidedBtn.classList.toggle("primary",mode==="guided");
+  fullBtn.classList.toggle("primary",mode==="full");
+  guideBar.replaceChildren();
+  const everything=[...guidedSteps.flatMap(s=>s.nodes.map(n=>n.closest(".kha-field"))),geoPanel,result,extra].filter(Boolean);
+  if(mode==="full"){everything.forEach(n=>n.hidden=false);return;}
+  guidedSteps.forEach((step,i)=>{
+   const b=B((i+1)+". "+step.title,()=>{activeStep=i;setMode("guided");},i===activeStep);
+   guideBar.append(b);
+  });
+  everything.forEach(n=>n.hidden=true);
+  guidedSteps[activeStep].nodes.forEach(n=>{if(n?.closest(".kha-field"))n.closest(".kha-field").hidden=false;});
+  if(activeStep===1){geoPanel.hidden=false;result.hidden=false;extra.hidden=false;}
+  const help=E("p","kha-muted",guidedSteps[activeStep].help,guideBar);
+  const nav=E("div","kha-guide-nav",undefined,guideBar);
+  if(activeStep>0)nav.append(B("‹ Anterior",()=>{activeStep--;setMode("guided");}));
+  if(activeStep<2)nav.append(B("Siguiente ›",()=>{activeStep++;setMode("guided");},true));
+  if(activeStep===2){
+   E("p","kha-muted","Guarda la ficha cuando quieras. Podrás abrirla y completarla desde llamadas, Oficina o Técnicos.",nav);
+  }
+ }
+ setMode(editorMode);
  if(notice)p(box,notice,"kha-alert");
  const actions=buttons(box);
  const showError=message=>{let slot=box.querySelector(".kha-live-error");if(!slot)slot=E("p","kha-alert kha-live-error",undefined,box);slot.textContent=message;};
@@ -298,6 +364,10 @@ function editor(page){
   postalCode:postal.value.trim(),buildYear:year.value.trim(),m2Total:total.value.trim(),cteZone:zone.value,
   captureDate:captured.value.trim(),captacionRespuesta:answer.value,observaciones:note.value.trim(),
   m2:net(total.value),type:c?.type||"vivienda",obraStatus:c?.obraStatus||"a_poner"};
+  if(extraHomes.length){
+   try{d.viviendas=window.KonsorExpediente.validateHomes(extraHomes);}
+   catch(e){showError(e.message||"Revisa las viviendas.");return;}
+  }else if(Array.isArray(c?.viviendas)){d.viviendas=[];}
  if(!(d.name||d.phone||d.street)){showError("Introduce al menos nombre, teléfono o dirección.");return;}
  if(d.dni&&typeof isValidDni==="function"&&!isValidDni(d.dni)){showError("DNI/NIE no válido.");return;}
  if(d.email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(d.email)){showError("Correo electrónico incorrecto.");return;}
@@ -439,7 +509,8 @@ function navButton(parent,text,action){
 function listScreen(page){
  const groups=groupsByTown(),total=groups.reduce((n,g)=>n+g.clients.length,0);
  const actions=buttons(page);
- actions.append(B("Añadir cliente",()=>{screen="edit";currentEdit=null;notice="";render();},true));
+ actions.append(B("Añadir cliente",()=>{screen="edit";currentEdit=null;editorMode="guided";notice="";render();},true));
+ actions.append(B("Nueva ficha completa",()=>{screen="edit";currentEdit=null;editorMode="full";notice="";render();}));
  const advanced=E("details","kha-advanced",undefined,page);
  E("summary","","Importar y organizar fichas",advanced);
  advanced.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
@@ -569,7 +640,9 @@ window.openKonsorFichaOriginal=function(clientUid){
   entry={z,zi,ci,c:z.clients[ci]};return true;
  });
  if(!entry){notice="Ficha no disponible en la sesión actual. Actualiza KONSOR.";screen="list";render();return false;}
- screen="edit";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
+ screen="edit";editorMode="full";currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
 };
 window.openKonsorLegacyClient=window.openKonsorFichaOriginal;
+window.openKonsorNewClient=function(mode="guided"){screen="edit";currentEdit=null;editorMode=mode==="full"?"full":"guided";notice="";render();};
+
 })();
