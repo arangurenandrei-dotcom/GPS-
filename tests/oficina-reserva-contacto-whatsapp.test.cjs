@@ -53,7 +53,7 @@ test('el mensaje de llamada sin respuesta identifica al comercial y no simula un
  assert.match(unanswered,/María/);assert.match(unanswered,/Andrei Aranguren/);
  assert.match(unanswered,/KONSOR Energía/);assert.match(unanswered,/prefieres que te llame/);
  const confirmation=vmctx.confirm(c,{town:'Ayegui'});
- for(const part of ['Andrei Aranguren','KONSOR Energía','Mayor 2','Ayegui','09:00','01'])
+ for(const part of ['Andrei Aranguren','KONSOR Energía','Mayor 2','Ayegui','09:00','diciembre'])
   assert.ok(confirmation.includes(part),part);
  assert.ok(!confirmation.includes(c.dni)&&!confirmation.includes(c.email));
  const view=slice('if(view==="noAnswer"){','if(view==="waiting"){');
