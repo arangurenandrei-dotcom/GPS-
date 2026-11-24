@@ -22,7 +22,11 @@ function info(){
  const old=open.filter(z=>z.date&&z.date<today).length;
  const next=open.filter(z=>!z.date||z.date>today).length;
  const shift=typeof getTodayShift==="function"?getTodayShift(me()):null;
- return {todayCount,old,next,shift,waitingDump};
+ const office=window.konsorMotor?.officeState?.();
+ const totalClients=office?.cc?.length||0;
+ const callsDue=(office?.calls?.length||0)+(office?.waits?.length||0);
+ const bookedJobs=(office?.cc||[]).filter(x=>["agendada","agendada_historica"].includes(x.c.obraStatus)).length;
+ return {todayCount,old,next,shift,waitingDump,totalClients,callsDue,bookedJobs};
 }
 function root(){
  let root=document.getElementById("cnvHome");
@@ -56,6 +60,7 @@ function nextAction(data){
   'jornada.sector':openDay,
   'jornada.iniciar':openDay,
   'oficina.volcados':openOffice,
+  'oficina.llamar':()=>{if(window.konsorMotor?.openOffice)window.konsorMotor.openOffice();else window.openKonsorOfficeClients?.();},
   'resultados.consultar':()=>window.openCnResults?.()
  };
  const action=actions[recommendation.id];

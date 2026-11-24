@@ -1,4 +1,4 @@
-/* KONSOR: cartera histórica virtual. Se conserva cada ficha en su zona de Firebase. */
+/* KONSOR: cartera unificada. Cada ficha permanece en su zona original de Firebase. */
 (function(){
 "use strict";
 if(window.openKonsorLegacyPortfolio)return;
@@ -13,32 +13,15 @@ const chief=()=>typeof currentUserRole!=="undefined"&&currentUserRole==="jefe";
 const mikel=name=>typeof isMikelTeamMember==="function"?isMikelTeamMember(name):String(name||"").startsWith("Mikel");
 const access=z=>z&&mikel(z.comercial)===mikel(current())&&(chief()||z.comercial===current());
 const zs=()=>typeof savedZones!=="undefined"&&Array.isArray(savedZones)?savedZones:[];
-const historical=c=>!!(c?.importedCsv||c?.importedLegacy||c?.origenHoja||c?.legacyReviewStatus);
+const historical=c=>false; // Etiquetas importadas: procedencia técnica, no clase de cliente.
 const isPort=z=>!!z?.isLegacyPortfolio;
 const isSectorless=z=>!!(z?.isSingleHouse&&z?.isSectorlessCapture);
 const captureStats=r=>({si:r==="si"?1:0,no:r==="no"?1:0,ausente:r==="ausente"?1:0,papelito:r==="papelito"?1:0});
-const callable=x=>isSectorless(x.z)?x.c.callStatus!=="bloqueada"&&x.c.captacionRespuesta==="si":x.c.legacyReviewStatus==="lista";
-const inPortfolio=c=>historical(c)||!!c?.legacyPortfolio||!!c?.isLegacyClient;
-window.konsorIsHistoricalClient=c=>inPortfolio(c);
-window.konsorIsHistoricalOnlySector=z=>!!z&&!z.isSingleHouse&&Array.isArray(z.clients)&&z.clients.length>0&&z.clients.every(inPortfolio);
-window.konsorPerformanceStats=z=>{
- const raw=z?.stats||{};
- if(!Array.isArray(z?.clients)||!z.clients.some(inPortfolio))return raw;
- // Un sector formado solo por históricos no representa captación nueva.
- if(window.konsorIsHistoricalOnlySector(z)){
-  const empty={...raw};
-  for(const k of ["si","no","ausente","papelito","yaAislado","siContactables","siNoContactables"])
-   empty[k]=0;
-  return empty;
- }
- const stats={...raw};
- const tally={si:0,no:0,ausente:0,papelito:0};
- for(const c of z.clients)if(inPortfolio(c)&&Object.hasOwn(tally,c.captacionRespuesta))tally[c.captacionRespuesta]++;
- for(const [field,count] of Object.entries(tally))stats[field]=Math.max(0,Number(stats[field]||0)-count);
- stats.siContactables=Math.min(Number(stats.siContactables||0),stats.si);
- stats.siNoContactables=Math.min(Number(stats.siNoContactables||0),stats.si);
- return stats;
-};
+const callable=x=>!booked(x.c)&&x.c.obraStatus!=="no_apto"&&!["no_interesado","descartado"].includes(x.c.callStatus)&&!!x.c.name&&!!x.c.phone&&!!x.c.street&&x.c.callStatus!=="bloqueada";
+const inPortfolio=c=>false; // No existen categorías funcionales de clientes antiguos.
+window.konsorIsHistoricalClient=()=>false;
+window.konsorIsHistoricalOnlySector=z=>!!(z?.isLegacyPortfolio&&!z?.isSingleHouse);
+window.konsorPerformanceStats=z=>z?.stats||{};
 const booked=c=>["agendada","realizada","agendada_historica"].includes(c?.obraStatus);
 const numeric=x=>{if(x===null||x===undefined||String(x).trim()==="")return null;const n=Number(String(x).replace(",","."));return Number.isFinite(n)&&n>=0?n:null;};
 const net=x=>{const n=numeric(x);return n===null?null:Math.round(Math.max(0,n-5)*100)/100;};
@@ -54,7 +37,7 @@ const portId=(owner,town)=>{
  return "hist_"+slug+"_"+hash.toString(16).padStart(8,"0");
 };
 let screen="list",selection=new Set(),includeManual=false,currentEdit=null,query="",notice="",activeTown="",activeStreet="";
-const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}\n#konsorLegacyPortfolio .kha-advanced{background:#fff;border:1px solid #e0e6ef;border-radius:15px;padding:13px;margin:12px 0}\n#konsorLegacyPortfolio .kha-advanced>summary{cursor:pointer;font-weight:650;color:#3e516b}\n#konsorLegacyPortfolio .kha-net-inline{display:flex;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:13px;background:#eff3f8;font-size:14px;color:#51657b}\n#konsorLegacyPortfolio .kha-net-inline strong{color:#26394d}\n
+const CSS=`#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;display:flex;justify-content:center;align-items:center;background:#14253a77;backdrop-filter:blur(9px);padding:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#253449}#konsorLegacyPortfolio *{box-sizing:border-box}#konsorLegacyPortfolio .kha-page{width:min(100%,700px);max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px;background:#f5f7fa;padding:18px;box-shadow:0 25px 65px #15223855}#konsorLegacyPortfolio h2{font-size:24px;margin:3px 0 10px;letter-spacing:-.4px}#konsorLegacyPortfolio h3{font-size:17px;margin:0 0 7px}#konsorLegacyPortfolio p{font-size:13px;line-height:1.45;color:#66788b;margin:7px 0}#konsorLegacyPortfolio .kha-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}#konsorLegacyPortfolio .kha-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}#konsorLegacyPortfolio .kha-card{background:white;border:1px solid #e0e5ec;border-radius:17px;margin:10px 0;padding:15px}#konsorLegacyPortfolio .kha-btn{min-height:43px;border:1px solid #dce3ec;border-radius:12px;padding:10px 13px;background:white;font-size:14px;color:#253449;font-weight:600}#konsorLegacyPortfolio .kha-btn.primary{background:#243e57;color:white;border-color:#243e57}#konsorLegacyPortfolio .kha-btn:disabled{opacity:.4}#konsorLegacyPortfolio .kha-tag{display:inline-block;margin:6px 0;background:#f0f4f8;color:#3d536b;border-radius:20px;padding:5px 9px;font-size:12px}#konsorLegacyPortfolio .kha-tag.good{background:#e9f6ed;color:#137446}#konsorLegacyPortfolio .kha-field{display:block;font-size:13px;font-weight:600;margin-bottom:12px}#konsorLegacyPortfolio .kha-field input,#konsorLegacyPortfolio .kha-field select,#konsorLegacyPortfolio .kha-field textarea,#konsorLegacyPortfolio .kha-search{width:100%;border:1px solid #d5dfeb;background:#f9fbfd;border-radius:12px;padding:11px;font:inherit;font-size:16px;color:#253449;margin-top:5px;min-height:44px}#konsorLegacyPortfolio .kha-field textarea{min-height:70px}#konsorLegacyPortfolio .kha-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}#konsorLegacyPortfolio .kha-choose{display:flex;align-items:flex-start;gap:10px;border-top:1px solid #e9eef3;padding:11px 0;font-size:14px}#konsorLegacyPortfolio .kha-choose input{width:19px;height:19px;flex:none}#konsorLegacyPortfolio .kha-alert{background:#fff6e9;color:#885d24;border:1px solid #f3ddbb;border-radius:11px;padding:10px}#konsorLegacyPortfolio .kha-muted{font-size:12px;color:#8090a4}@media(max-width:450px){#konsorLegacyPortfolio{padding:0}#konsorLegacyPortfolio .kha-page{width:100%;height:100dvh;max-height:100dvh;border-radius:0;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(18px,env(safe-area-inset-bottom))}#konsorLegacyPortfolio .kha-grid{grid-template-columns:1fr}}#konsorLegacyPortfolio .kha-tabs{display:flex;overflow-x:auto;gap:7px;padding:5px 0 12px;scrollbar-width:none}#konsorLegacyPortfolio .kha-tab{flex:none;min-height:39px;border:1px solid #dae2ec;border-radius:24px;background:white;color:#42546a;padding:9px 12px;font-size:13px;font-weight:650}#konsorLegacyPortfolio .kha-tab.selected{background:#24425e;color:white;border-color:#24425e}#konsorLegacyPortfolio .kha-rowitem{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:11px;padding:14px;border-radius:14px;background:#fff;border:1px solid #e1e7ee;margin:8px 0;font-size:15px;color:#273b51}#konsorLegacyPortfolio .kha-stat{color:#718096;font-size:12px;font-weight:500}#konsorLegacyPortfolio .kha-confirm{font-size:12px;color:#768599}#konsorLegacyPortfolio .kha-actions>a{display:inline-block;padding:12px 14px;border-radius:12px;color:#fff;background:#25425d;font-size:14px;font-weight:650;text-decoration:none}\n#konsorLegacyPortfolio .kha-advanced{background:#fff;border:1px solid #e0e6ef;border-radius:15px;padding:13px;margin:12px 0}\n#konsorLegacyPortfolio .kha-advanced>summary{cursor:pointer;font-weight:650;color:#3e516b}\n#konsorLegacyPortfolio .kha-net-inline{display:flex;justify-content:space-between;gap:12px;margin:12px 0;padding:12px 14px;border-radius:13px;background:#eff3f8;font-size:14px;color:#51657b}\n#konsorLegacyPortfolio .kha-net-inline strong{color:#26394d}\n
 #konsorLegacyPortfolio [hidden]{display:none!important}
 #konsorLegacyPortfolio .kha-mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
 #konsorLegacyPortfolio .kha-mode-switch .kha-btn{min-width:0;padding:8px;font-size:13px}
@@ -63,13 +46,13 @@ const CSS='#konsorLegacyPortfolio{position:fixed;inset:0;z-index:2147483000;disp
 #konsorLegacyPortfolio .kha-guide-bar>.kha-muted{flex:0 0 100%}
 #konsorLegacyPortfolio .kha-guide-nav{display:flex;gap:8px;flex:0 0 100%;flex-wrap:wrap}
 #konsorLegacyPortfolio .kha-home{padding:12px;margin:10px 0;border:1px solid #e3e9ef;border-radius:13px;background:#f9fbfe}
-';
+`;
 function start(){
  let root=document.getElementById(ID);
  if(!root){root=E("div","",undefined,document.body);root.id=ID;E("style","",CSS,root);root.onclick=ev=>{if(ev.target===root)root.remove();};}
  let page=root.querySelector(".kha-page");if(!page)page=E("div","kha-page",undefined,root);page.replaceChildren();
  const top=E("div","kha-row",undefined,page),name=E("div","",undefined,top);
- E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Clientes",name);
+ E("small","kha-muted","KONSOR · CRM",name);E("h2","",screen==="edit"&&currentEdit?"Editar ficha":"Todos los clientes",name);
  top.append(B("Cerrar",()=>{root.remove();const back=returnAfterEdit;returnAfterEdit=null;back?.();}));return page;
 }
 const p=(parent,text,cls="")=>E("p",cls,text,parent);
@@ -111,8 +94,13 @@ async function commit(candidate){
  try{window.refreshCnTerritory?.();window.cnvRefreshHome?.();if(typeof renderAllSavedZones==="function"&&typeof map!=="undefined"&&map)renderAllSavedZones();}catch(_){}
 }
 function portfolioEntries(){
- const out=[];zs().forEach((z,zi)=>{if(!access(z))return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&(inPortfolio(c)||isPort(z)||isSectorless(z)))out.push({z,zi,c,ci});});});
- return out.sort((a,b)=>(a.c.legacyReviewStatus==="lista")-(b.c.legacyReviewStatus==="lista")||String(a.z.town).localeCompare(String(b.z.town),"es"));
+ const out=[];
+ zs().forEach((z,zi)=>{
+  if(!access(z)||z.isNoAptoZone||z.isHotMission)return;
+  (z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c))out.push({z,zi,c,ci});});
+ });
+ return out.sort((a,b)=>String(a.z.town).localeCompare(String(b.z.town),"es")||
+  String(a.c.name||"").localeCompare(String(b.c.name||""),"es"));
 }
 function sourceEntries(){
  const out=[];zs().forEach((z,zi)=>{if(isPort(z)||isSectorless(z)||!access(z)||z.isNoAptoZone||z.isHotMission)return;(z.clients||[]).forEach((c,ci)=>{if(hasIdentity(c)&&!inPortfolio(c))out.push({z,zi,c,ci,detected:historical(c)});});});return out;
@@ -121,7 +109,7 @@ function key(x){return String(x.z.id)+"|"+String(x.c.clientUid||x.c.konsorImport
 function showBackup(selected){
  const rows=selected.map(x=>({pueblo:x.z.town,sector:x.z.sectorName,responsable:x.z.comercial,ficha:x.c}));
  const blob=new Blob([JSON.stringify({origen:"KONSOR",exportado:new Date().toISOString(),registros:rows},null,2)],{type:"application/json"});
- const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="konsor-copia-clientes-antiguos.json";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+ const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="konsor-copia-clientes.json";document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 async function migrate(){
  const chosen=sourceEntries().filter(x=>selection.has(key(x)));
@@ -529,10 +517,7 @@ function listScreen(page){
   document.getElementById(ID)?.remove();
   window.openSelectZoneToDump();
  }));
- const advanced=E("details","kha-advanced",undefined,page);
- E("summary","","Importar y organizar fichas",advanced);
- advanced.append(B("Incorporar ficha manual",()=>{screen="move";includeManual=true;notice="";selection.clear();render();}));
- const summary=card(page,"Clientes",total+" fichas en "+groups.length+" pueblos");
+ const summary=card(page,"Cartera de clientes",total+" fichas en "+groups.length+" pueblos · con o sin sector");
  if(notice)p(summary,notice,"kha-alert");
  const stats=E("div","kha-row",undefined,summary);
  E("span","kha-tag","Pendientes: "+portfolioEntries().filter(x=>!callable(x)).length,stats);
@@ -542,7 +527,7 @@ function listScreen(page){
  const body=E("div","",undefined,page);
  const renderGroups=()=>{
   query=search.value;body.replaceChildren();
-  if(!groups.length){p(body,"Los clientes importados por CSV aparecerán aquí directamente, sin traslado. También puedes incorporar fichas manuales.");return;}
+  if(!groups.length){p(body,"Todavía no hay clientes guardados en tu cartera.");return;}
   const q=N(query);
   let available=groups;
   if(q){
@@ -602,7 +587,7 @@ function listScreen(page){
     }
     if(changed)await commit(data);
     notice="Revisadas "+selected.length+" · completadas "+changed+" · sin coincidencia "+unknown+
-      " · ambiguas "+ambiguous+". Los históricos no suman nuevas captaciones.";
+      " · ambiguas "+ambiguous+".";
     if(withoutPostal.length>25)notice+=" Hay más fichas para una segunda pasada.";
     render();
    }catch(e){auto.disabled=false;feedback.textContent="Sin confirmar el guardado: "+(e.message||e);}
@@ -647,7 +632,7 @@ function render(){
  if(!current()){p(page,"Inicia sesión para acceder a los clientes.");return;}
  if(screen==="move")moveScreen(page);else if(screen==="edit")editor(page);else listScreen(page);
 }
-window.openKonsorLegacyPortfolio=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
+window.openKonsorClients=function(){screen="list";activeTown="";activeStreet="";query="";notice="";render();};
 window.openKonsorFichaOriginal=function(clientUid,onReturn){
  const uid=String(clientUid||"");
  let entry=null;
@@ -661,6 +646,7 @@ window.openKonsorFichaOriginal=function(clientUid,onReturn){
  screen="edit";editorMode="full";returnAfterEdit=typeof onReturn==="function"?onReturn:null;
  currentEdit={zi:entry.zi,ci:entry.ci,zoneId:entry.z.id,uid:entry.c.clientUid};notice="";render();return true;
 };
+window.openKonsorLegacyPortfolio=window.openKonsorClients;
 window.openKonsorLegacyClient=window.openKonsorFichaOriginal;
 window.openKonsorNewClient=function(mode="guided"){screen="edit";currentEdit=null;returnAfterEdit=null;editorMode=mode==="full"?"full":"guided";notice="";render();};
 

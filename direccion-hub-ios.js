@@ -50,7 +50,7 @@ function open(){
  const secondary=el("div","kd-nav-secondary",undefined,other);
  tile(secondary,"Resultados del equipo","Captación, obras y rendimiento.",()=>launch(r,()=>window.openKonsorTeamResults?.()));
  tile(secondary,"Clientes","Fichas y seguimiento de obras.",()=>launch(r,()=>window.openCnClients?.()));
- tile(secondary,"Clientes antiguos","Recuperar y completar fichas.",()=>launch(r,()=>window.openKonsorLegacyPortfolio?.()));
+ tile(secondary,"Cartera de clientes","Buscar y completar fichas existentes.",()=>launch(r,()=>window.openKonsorClients?.()));
  tile(secondary,"Volcado de sectores","Importar hojas de captación.",()=>launch(r,()=>window.abrirImportadorTerritorialKonsor?.()));
  const messages=tile(secondary,"Mensajes entre plantas","Encargos y avisos importantes.",()=>launch(r,()=>window.KonsorPlantMessages?.open?.("ceo")));
  window.KonsorIndicators?.bind?.(messages,"ceo");

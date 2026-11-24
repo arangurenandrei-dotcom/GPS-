@@ -56,7 +56,7 @@ test('agendar, aplazar y finalizar generan eventos destinados a la planta apropi
  assert.equal(api.autoId('f_123',a[0]),api.autoId('f_123',a[0]));
 });
 test('la UI conecta los módulos sin alterar el flujo comercial',()=>{
- assert.ok(index.includes('mensajes-plantas.js?v=3'));
+ assert.ok(index.includes('mensajes-plantas.js?v=4'));
  assert.ok(index.indexOf('mensajes-plantas.js')<index.indexOf('designer-role-preview.js'));
  assert.ok(client.includes('listarMensajesPlantaKonsor'));
  assert.ok(client.includes('actualizarMensajePlantaKonsor'));
@@ -144,6 +144,27 @@ test('responder confirma lectura, conserva hilo y quitar archiva solo para su us
  const sender=await service.list({auth:{uid:'ceo-uid'},data:{plant:'ceo'}});
  assert.equal(sender.items.length,1);
  assert.equal(sender.items[0].replies[0].text,'Revisado, me encargo.');
+});
+test('CEO puede archivar globalmente sin borrar el registro; Comercial no puede',async()=>{
+ let profile={estado:'aprobado',userKey:'comercial1'};
+ let record={teamId:'andrei',from:'oficina',to:'comercial',title:'Prueba',
+  priority:'normal',status:'pending',createdAt:100,updatedAt:100};
+ const db={
+  doc:()=>({get:async()=>({data:()=>profile})}),
+  runTransaction:async fn=>fn({get:async()=>({data:()=>({...record})}),
+   update:(_ref,patch)=>{record={...record,...patch};}}),
+  collection:()=>({doc:id=>({id}),where:()=>({limit:()=>({get:async()=>({docs:[{id:'t_archive0001',data:()=>record}]})})})})
+ };
+ const st={...stub,'firebase-admin/firestore':{getFirestore:()=>db}};
+ const ctx={module:{exports:{}},require:name=>st[name]??require(name),Date,Number,Set,Map,Promise};
+ vm.runInNewContext(source,ctx);
+ const service=ctx.module.exports.__test;
+ await assert.rejects(service.change({auth:{uid:'comercial-id'},data:{id:'t_archive0001',action:'archive'}}),/Solo Dirección/);
+ profile={estado:'aprobado',userKey:'jefe'};
+ const result=await service.change({auth:{uid:'ceo-id'},data:{id:'t_archive0001',action:'archive'}});
+ assert.ok(result.ok);assert.equal(record.archivedBy,'ceo-id');assert.ok(record.archivedAt);
+ const inbox=await service.list({auth:{uid:'ceo-id'},data:{plant:'comercial'}});
+ assert.equal(inbox.items.length,0,'Un mensaje archivado globalmente no reaparece');
 });
 test('responder exige participación y no permite falsear el autor',async()=>{
  let profile={estado:'aprobado',userKey:'comercial1'};

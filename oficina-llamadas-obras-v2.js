@@ -5,7 +5,7 @@ const ID="konsorOfficeCallV2";
 const SLOTS=[["09:00","11:00"],["11:00","13:00"],["15:00","17:00"],["17:00","19:00"]];
 let current=null, view="list", scope="team", chosenDate="", selectedSlot="", selectedTeam=0, busy=false, seq=0;
 let clusterFocus=null,clusterDate="",clusterTeam=2,clusterSeq=0,clusterReturn=false,plannedChoice=null,clusterAutoSearch=false,clusterSearchSeq=0,clusterPlanNotice="";
-let bookingContact=null;
+let bookingContact=null,returnToPlanner=false;
 const e=(t,c,txt,p)=>{let x=document.createElement(t);if(c)x.className=c;if(txt!==undefined)x.textContent=String(txt);if(p)p.append(x);return x;};
 const button=(label,fn,kind="")=>{const b=e("button","koc-btn "+kind,label);b.type="button";b.onclick=fn;return b;};
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");};
@@ -43,11 +43,11 @@ function all(){
  }
  return result.sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.zi-b.zi||a.ci-b.ci);
 }
-const booked=i=>["agendada","realizada"].includes(i.c.obraStatus);
+const booked=i=>["agendada","agendada_historica","realizada"].includes(i.c.obraStatus);
 const done=i=>booked(i)||["no_interesado","descartado"].includes(i.c.callStatus);
 // La revisión técnica no debe impedir la PRIMERA llamada a un captado en puerta.
 // El estado de llamada es independiente del año, m² y zona CTE.
-const legacyNeedsReview=c=>!!(c?.importedCsv||c?.importedLegacy||c?.legacyReviewStatus)&&c.legacyReviewStatus!=="lista";
+const legacyNeedsReview=c=>false; // Las importaciones son clientes normales.
 const pending=i=>!done(i)&&i.c.obraStatus!=="no_apto"&&
  !["no","ausente","papelito"].includes(i.c.captacionRespuesta)&&
  (["","pendiente","bloqueada","pendiente_visita"].includes(i.c.callStatus||"")||
@@ -116,8 +116,8 @@ function clusterStatus(item){
  if(!callable(item))return "deferred";
  return "ready";
 }
-function preferGroupDate(item,date,time,team){
- plannedChoice={key:item.key,date,time,team};clusterReturn=true;
+function preferGroupDate(item,date,time,team,planner=false){
+ plannedChoice={key:item.key,date,time,team};clusterReturn=!planner;returnToPlanner=planner;
  current={key:item.key};view="client";draw();
 }
 function groupDateLabel(date){
@@ -503,7 +503,7 @@ function nav(body,label,fn){
  body.append(back);
 }
 function open(item){if(plannedChoice?.key!==item.key)plannedChoice=null;current={key:item.key};bookingContact=null;view="client";draw();}
-function next(){if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const oldest=remaining[0]?.date||"";const eligible=remaining.filter(i=>(i.date||"")===oldest);const row=(origin&&eligible.find(i=>sameStreet(origin,i)))||(origin&&eligible.find(i=>sameTown(origin,i)))||eligible[0]||remaining[0];if(row)open(row);else{view="list";draw();}}
+function next(){if(returnToPlanner){returnToPlanner=false;plannedChoice=null;view="planner";draw();return;}if(clusterFocus){plannedChoice=null;view="group";draw();return;}const remaining=all().filter(i=>callable(i)&&i.key!==current?.key);const origin=resolve();const oldest=remaining[0]?.date||"";const eligible=remaining.filter(i=>(i.date||"")===oldest);const row=(origin&&eligible.find(i=>sameStreet(origin,i)))||(origin&&eligible.find(i=>sameTown(origin,i)))||eligible[0]||remaining[0];if(row)open(row);else{view="list";draw();}}
 function row(body,item){const b=button("",()=>open(item),"koc-row");
  const txt=e("span","koc-row-text",undefined,b);e("strong","",item.c.name||"Sin nombre",txt);
  e("small","",(item.z.town||"Sin municipio")+" · "+(item.c.street||"Sin calle"),txt);
@@ -553,8 +553,8 @@ function draw(opts={}){
   controls.append(button("Añadir cliente sin sector",()=>{
    r.classList.remove("active");window.openKonsorNewClient?.("guided");
   },"koc-quiet"));
-  controls.append(button("Clientes antiguos · revisar",()=>{
-   r.classList.remove("active");window.openKonsorLegacyPortfolio?.();
+  controls.append(button("Cartera de clientes",()=>{
+   r.classList.remove("active");window.openKonsorClients?.();
   },"koc-quiet"));
   if(currentUserRole==="jefe"){
     const switcher=e("div","koc-scope-picker",undefined,body);
@@ -606,7 +606,7 @@ function draw(opts={}){
  const item=resolve();if(!item){view="list";current=null;draw();return;}
  const {z,c}=item;
  if(view==="client"){
-  nav(body,clusterFocus?"Volver a la jornada":"Volver a clientes",()=>{view=clusterFocus?"group":"list";draw();});
+  nav(body,returnToPlanner?"Volver al plan de obras":clusterFocus?"Volver a la jornada":"Volver a clientes",()=>{view=returnToPlanner?"planner":clusterFocus?"group":"list";returnToPlanner=false;draw();});
   title(body,c.name||"Cliente sin nombre",(z.town||"Sin localidad")+" · "+(c.street||"Dirección no registrada"));
   const sheet=card(body);
   const facts=[["Teléfono",c.phone||"Sin teléfono"],["Captación",item.date||"Sin fecha"],["Superficie",c.m2?String(c.m2)+" m²":"Sin superficie"],["Estado",booked(item)?"Obra agendada":c.callStatus||"Por llamar"]];
@@ -854,6 +854,7 @@ function draw(opts={}){
 // Planificación global: propuestas para toda la cartera pendiente, nunca reservas.
 async function fillAvailableCalendar(container,dayCount=7){
  const token=++clusterSearchSeq,pending=all().filter(candidateOf);
+ const townCounts=new Map();for(const p of pending)townCounts.set(town(p),(townCounts.get(town(p))||0)+1);
  const status=e("p","koc-muted","Comprobando ambos equipos y la cartera de clientes…",container);
  const board=e("div","koc-plan-board",undefined,container);
  if(!pending.length){status.textContent="No hay clientes pendientes con ficha completa.";return;}
@@ -881,17 +882,23 @@ async function fillAvailableCalendar(container,dayCount=7){
      if(!fit.ok)continue;
      possible.push({item,date,team,idx,from,to,fit,
       street:existing.filter(x=>sameStreet(x,item)).length,
-      near:existing.filter(x=>sameTown(x,item)).length});
+      near:existing.filter(x=>sameTown(x,item)).length,
+      townCount:townCounts.get(town(item))||0});
     }
    }
    // La proximidad prevalece sobre el número del equipo. Cada hueco y cliente
    // aparece una sola vez en el plan, y solo como propuesta sin reservar.
    possible.sort((a,b)=>b.street-a.street||b.near-a.near||
-    a.fit.category-b.fit.category||a.from.localeCompare(b.from)||a.team-b.team);
-   const usedSlots=new Set(),options=[];
+    b.townCount-a.townCount||a.fit.category-b.fit.category||a.from.localeCompare(b.from)||a.team-b.team);
+   const usedSlots=new Set(),options=[],chosenTownByTeam=new Map();
+   // Agrupar por municipio durante una jornada; cuatro franjas por equipo y día.
+   // Cuando una ruta existente fija municipio, no se propone una localidad incompatible.
    for(const proposal of possible){
     const slot=proposal.team+"|"+proposal.idx;
     if(usedSlots.has(slot)||assignedClients.has(proposal.item.key))continue;
+    const locked=chosenTownByTeam.get(proposal.team);
+    if(locked&&locked!==town(proposal.item))continue;
+    if(!locked)chosenTownByTeam.set(proposal.team,town(proposal.item));
     usedSlots.add(slot);assignedClients.add(proposal.item.key);options.push(proposal);
    }
    if(!options.length)continue;
@@ -900,7 +907,7 @@ async function fillAvailableCalendar(container,dayCount=7){
    title(section,groupDateLabel(date),options.length+" propuestas compatibles · sin reservar");
    for(const choice of options){
     const label=choice.from+"–"+choice.to+" · Equipo "+choice.team+" · "+choice.item.z.town;
-    const action=button(label,()=>preferGroupDate(choice.item,date,choice.from,choice.team),"koc-suggestion");
+    const action=button(label,()=>preferGroupDate(choice.item,date,choice.from,choice.team,true),"koc-suggestion");
     e("small","",choice.item.c.name+" · "+choice.item.c.street+
       " · "+(choice.near?"Ya hay obra en el municipio":"Disponibilidad verificada"),action);
     section.append(action);
@@ -1097,6 +1104,10 @@ async function markWhatsApp(kind="confirmation"){
  }catch(err){row.c[field]=old;row.z._updatedAt=oldZ;alert(err.message||"No se ha guardado el envío.");}
  finally{busy=false;draw();}
 }
+ window.openKonsorCallPlanner=function(){
+  clusterFocus=null;clusterReturn=false;plannedChoice=null;returnToPlanner=false;
+  scope=currentUserRole==="jefe"?"team":"mine";bookingContact=null;view="planner";draw();
+ };
  window.openCnCallQueue=function(){clusterFocus=null;clusterReturn=false;plannedChoice=null;scope=currentUserRole==="jefe"?"team":"mine";bookingContact=null;view="list";draw();};
 // Navegación desde el buscador a la ficha EXISTENTE, sin duplicar cliente.
 window.konsorOpenExistingClientInOffice=function(zoneId,clientUid){

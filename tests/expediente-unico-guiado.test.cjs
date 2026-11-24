@@ -35,6 +35,6 @@ test('tres entradas, pasos guiados y ficha original con guardado real',()=>{
 });
 test('editar sin sector no bloquea por defecto una ficha ya habilitada',()=>{
  assert.ok(src.includes(':(oldClient.callStatus||"bloqueada")'));
- assert.ok(src.includes('ready?"lista":oldClient.legacyReviewStatus||"pendiente"'));
+ assert.ok(src.includes('window.openKonsorClients=function()'));
  assert.ok(src.includes('["","Pendiente de respuesta"]'));
 });

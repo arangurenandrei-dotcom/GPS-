@@ -21,9 +21,9 @@ const workZones=team=>zones().filter(z=>z&&!z.isNoAptoZone&&!z.isHotMission&&
 const validClient=c=>!!c&&(c.name||c.phone||c.street);
 const clients=team=>workZones(team).flatMap(z=>(z.clients||[]).filter(validClient).map(c=>({c,z})));
 const shift=()=>typeof getTodayShift==="function"?getTodayShift(me()):null;
-const booked=c=>["agendada","realizada"].includes(c.obraStatus);
+const booked=c=>["agendada","agendada_historica","realizada"].includes(c.obraStatus);
 const rejected=c=>c.obraStatus==="no_apto"||["no_interesado","descartado"].includes(c.callStatus);
-const isContact=c=>!c.captacionRespuesta||c.captacionRespuesta==="si";
+const isContact=c=>!["no","papelito"].includes(c.captacionRespuesta);
 const validPhone=c=>/^[6789]\d{8}$/.test(String(c.phone||"").replace(/\D/g,"").replace(/^34(?=\d{9}$)/,""));
 const incomplete=c=>isContact(c)&&(!c.name?.trim()||!c.street?.trim()||!validPhone(c)||!!c.captacionInvalida);
 const waitDue=c=>c.callStatus==="esperando_confirmacion"&&(!Number(c.nextContactAt)||Number(c.nextContactAt)<=Date.now());
@@ -167,8 +167,9 @@ async function leagueSummary(){
 }
 
 function openOfficeGuide(){
- const s=officeState();const step=s.pending.length?0:s.needFix.length?1:s.waits.length?2:s.calls.length?3:4;
- const phases=["Volcar hojas","Revisar fichas","Resolver esperas","Llamar y agendar","Balance"];
+ const s=officeState();const hasField=!!nextSector();
+ const step=hasField&&s.pending.length?0:s.needFix.length?1:s.waits.length?2:s.calls.length?3:4;
+ const phases=["Volcar si hay sector","Completar fichas","Seguimientos","Llamar y agendar","Balance"];
  const body=shell("OFICINA · RECORRIDO GUIADO",phases[step],step<4?"Continuamos automáticamente con la primera tarea pendiente. Los datos se comprueban de nuevo cada vez que abres esta guía.":"No quedan tareas vencidas del circuito principal.");
  const top=E("div","km-progress",undefined,body);phases.forEach((name,i)=>{const b=E("span",i<step?"done":i===step?"active":"",String(i+1),top);b.title=name;});
  const totals=E("div","km-stats",undefined,body);stat(totals,"Por volcar",s.pending.length);stat(totals,"Fichas incompletas",s.needFix.length);stat(totals,"Llamadas pendientes",s.waits.length+s.calls.length);
@@ -190,7 +191,8 @@ function openOfficeGuide(){
   const c=card(body,step===2?"SEGUIMIENTO PRIORITARIO":"LLAMADAS POR ANTIGÜEDAD",items.length+" contactos por resolver",
    step===2?"Hay personas esperando respuesta o una nueva llamada. Revisa primero la que corresponda hoy.":"La gestión de clientes existente agrupa llamadas por calle y conserva las reservas individuales.");
   E("p","km-muted","Primero: "+(first.c.name||"Sin nombre")+" · "+first.z.town+" · "+first.z.sectorName,c);
-  B(actions(c),"Continuar llamadas y citas",()=>leaveOffice(openCalls),"primary");
+  B(actions(c),"Organizar pueblo y huecos de instalación",()=>leaveOffice(()=>{if(window.openKonsorCallPlanner)window.openKonsorCallPlanner();else openCalls();}),"primary");
+  B(actions(c),"Ver clientes para llamar",()=>leaveOffice(openCalls));
  }else{
   const c=card(body,"AL DÍA","Recorrido principal completado","Los seguimientos futuros se conservan para la fecha fijada; no se consideran atrasados.");
   if(s.deferred.length)E("p","km-muted",s.deferred.length+" seguimientos están previstos para una fecha posterior.",c);
@@ -231,6 +233,17 @@ function openDayGuide(){
    else B(buttons,clock?"Reanudar tiempo de calle":"He llegado · Empezar calle",async()=>{try{await street(z.id,"start");openDayGuide();}catch(e){alert(e.message||e);}},"primary");
    B(buttons,"Terminar visitas del sector",async()=>{try{if(await street(z.id,"finish"))openDayGuide();}catch(e){alert(e.message||e);}});
   }
+ }
+ if(!z){
+  const o=officeState();
+  const pending=o.calls.length+o.waits.length;
+  const bookedCount=o.cc.filter(x=>["agendada","agendada_historica"].includes(x.c.obraStatus)).length;
+  const topTown=o.town.slice().sort((a,b)=>b.yes-a.yes)[0];
+  const office=card(body,"TRABAJO DE OFICINA",pending?pending+" clientes para gestionar":"Revisa tus clientes",
+   o.cc.length+" fichas visibles · "+bookedCount+" obras agendadas. No hay sectores pendientes de calle.");
+  if(topTown)E("p","km-muted","Pueblo con más oportunidades registradas: "+topTown.name,office);
+  B(actions(office),"Organizar llamadas y obras",()=>safeOpen(()=>{if(window.openKonsorCallPlanner)window.openKonsorCallPlanner();else openCalls();}),"primary");
+  B(actions(office),"Revisar clientes",()=>safeOpen(openCalls));
  }
  const list=card(body,"TODOS LOS SECTORES","Tu planificación y pendientes","También puedes consultar los demás sectores o la zona de trabajo sin salir del recorrido.");
  B(actions(list),"Abrir Mi jornada",()=>safeOpen(()=>window.openCnDay?.()),"");

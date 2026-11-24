@@ -37,7 +37,7 @@ function open(plant){
   if(tag==='input')n.type='text';return n;
  };
  async function refresh(){
-  if(!valid()){report('No hay una sesión sincronizada con Firebase.',true);return;}
+  if(!valid()){report('La sesión o la sincronización con Firebase no están preparadas. Comprueba que has iniciado sesión y actualiza.',true);return;}
   report('Consultando tareas del servidor…');
   const r=await call('listarMensajesPlantaKonsor',{plant});
   if(!overlay.isConnected)return;
@@ -116,14 +116,15 @@ function open(plant){
    }
    const actions=E('div','kpm-actions',undefined,box);
    // Ver una planta como CEO no concede su identidad ni permiso de confirmación.
-   const owner=plant===item.to&&!(w.konsorDesigner?.permitted?.()&&plant!=='ceo');
+   const inspecting=!!w.konsorDesigner?.permitted?.()&&plant!=='ceo';
+   const owner=plant===item.to&&!inspecting;
    if(owner&&item.status==='pending')actions.append(btn('Marcar como leído',async()=>{
     await call('actualizarMensajePlantaKonsor',{id:item.id,action:'ack'});await refresh();
    }));
    if(owner&&item.status!=='completed')actions.append(btn('Marcar completada',async()=>{
     await call('actualizarMensajePlantaKonsor',{id:item.id,action:'complete'});await refresh();
    }));
-   if(item.from===plant||item.to===plant){
+   if(!inspecting&&(item.from===plant||item.to===plant)){
     actions.append(btn('Responder',async()=>{
      if(box.querySelector('.kpm-reply-editor'))return;
      const editor=E('div','kpm-reply-editor',undefined,box);
@@ -140,6 +141,14 @@ function open(plant){
     }));
     actions.append(btn('Quitar de mi bandeja',async()=>{
      await call('actualizarMensajePlantaKonsor',{id:item.id,action:'dismiss'});await refresh();
+    }));
+   }
+   // La Dirección puede retirar pruebas del circuito sin borrar el histórico.
+   if(plant==='ceo'||inspecting){
+    actions.append(btn('Archivar de todas las plantas',async()=>{
+     if(!window.confirm('¿Retirar este mensaje de todas las bandejas? Quedará registrado en Firebase.'))return;
+     await call('actualizarMensajePlantaKonsor',{id:item.id,action:'archive'});
+     await refresh();
     }));
    }
   });
