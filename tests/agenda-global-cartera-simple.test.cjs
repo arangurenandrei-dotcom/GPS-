@@ -27,7 +27,7 @@ test('calendario mensual y planificación global usan disponibilidad de ambos eq
 test('editar ficha original está disponible en el flujo de llamadas',()=>{
  assert.match(calls,/Editar ficha completa · Catastro y datos/);
  assert.match(calls,/openKonsorLegacyClient/);
- assert.match(calls,/openKonsorClientDetail/);
+ assert.match(calls,/openKonsorFichaOriginal/);
 });
 test('la vinculación fuerza lectura de revisión actual y no duplica reservas',()=>{
  const a=calls.indexOf('if(view==="existingCalendar"){'),b=calls.indexOf('if(view==="waiting"){');
@@ -44,4 +44,24 @@ test('cartera antigua mantiene datos, elimina paso manual CP/CTE y reduce ruido 
  assert.ok(!old.includes('const postalBtn=B("Detectar CP y zona CTE"'));
  assert.match(old,/searchPostal\(false\)/);
  assert.match(old,/Consultar Catastro oficial/);
+});
+
+test('editor universal utiliza misma ficha y no la convierte en historial',()=>{
+ const start=old.indexOf('if(!isSectorless(oldZone)&&!isPort(oldZone)&&!inPortfolio(oldClient))');
+ const stop=old.indexOf('}else if(isSectorless(oldZone))',start);
+ assert.ok(start>=0&&stop>start);
+ const edit=old.slice(start,stop);
+ assert.ok(edit.includes('{...oldClient,...d,updatedAt:stamp}'));
+ assert.ok(!edit.includes('importedLegacy:true'));
+ assert.ok(!edit.includes('legacyPortfolio:true'));
+ assert.ok(old.includes('window.openKonsorFichaOriginal=function(clientUid)'));
+ assert.ok(old.includes('Guardar cambios'));
+ for(const field of ['DNI / NIE','Correo electrónico','Año de construcción','Superficie total (m²)','Código postal','Zona CTE'])
+  assert.ok(old.includes(field),field);
+});
+test('Oficina y Técnicos pueden abrir la ficha original',()=>{
+ for(const file of ['oficina-vista.js','tecnicos-vista.js']){
+  const js=fs.readFileSync(path.join(root,file),'utf8');
+  assert.match(js,/openKonsorFichaOriginal\?\.\(job\.id\)/);
+ }
 });
