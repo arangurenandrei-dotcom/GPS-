@@ -119,6 +119,7 @@ test('responder confirma lectura, conserva hilo y quitar archiva solo para su us
    update:(_ref,patch)=>{task={...task,...patch};}
   }),
   collection:()=>({
+   doc:id=>({id}),
    where:()=>({limit:()=>({get:async()=>({docs:[{id:'t_task0001',data:()=>task}]})})})
   })
  };
@@ -149,7 +150,8 @@ test('responder exige participación y no permite falsear el autor',async()=>{
  const task={teamId:'andrei',from:'ceo',to:'oficina',status:'pending',priority:'normal'};
  const db={
   doc:path=>({path,get:async()=>({data:()=>profile})}),
-  runTransaction:async job=>job({get:async()=>({data:()=>task}),update:()=>{throw Error('No debe escribir')}})
+  runTransaction:async job=>job({get:async()=>({data:()=>task}),update:()=>{throw Error('No debe escribir')}}),
+  collection:()=>({doc:id=>({id})})
  };
  const ctx={module:{exports:{}},require:name=>name==='firebase-admin/firestore'?{getFirestore:()=>db}:stub[name]??require(name),Date,Number,Set,Map,Promise};
  vm.runInNewContext(source,ctx);
