@@ -13,7 +13,7 @@ function clientRows(){
  return zones().flatMap(({z,idx})=>(z.clients||[]).filter(c=>c&&(c.name||c.phone||c.street)).map(c=>({c,z,idx})));
 }
 const booked=c=>["agendada","agendada_historica","realizada"].includes(c.obraStatus);
-const excluded=c=>(!!(c.importedCsv||c.importedLegacy||c.legacyReviewStatus)&&c.legacyReviewStatus!=="lista")||c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado","pendiente_visita"].includes(c.callStatus)||["no","ausente","papelito"].includes(c.captacionRespuesta);
+const excluded=c=>c.captacionInvalida||c.obraStatus==="no_apto"||["no_interesado","descartado","pendiente_visita"].includes(c.callStatus)||["no","ausente","papelito"].includes(c.captacionRespuesta);
 const complete=c=>!!(String(c.name||"").trim()&&String(c.phone||"").trim()&&String(c.street||"").trim());
 function state(){
  const zz=zones(),cc=clientRows(),open=zz.filter(x=>!window.konsorIsHistoricalOnlySector?.(x.z)&&x.z.status!=="completada");
@@ -49,7 +49,13 @@ function line(parent,main,detail,action,fn){
 }
 function openSheet(idx){root().classList.remove("active");if(typeof openDumpModal==="function")openDumpModal(idx);}
 function openCalls(){root().classList.remove("active");window.openKonsorOfficeClients?.();}
-function openSearch(){root().classList.remove("active");window.openCnClients?.();}
+function openSearch(){root().classList.remove("active");(window.openKonsorClients||window.openCnClients)?.();}
+function openNewClient(mode){
+ const open=window.openKonsorNewClient;
+ if(typeof open!=="function"){window.alert("El formulario no está disponible. Actualiza KONSOR desde el inicio.");return;}
+ root().classList.remove("active");
+ try{open(mode);}catch(err){root().classList.add("active");window.alert("No se pudo abrir la ficha: "+(err.message||err));}
+}
 function nav(body){body.append(btn("‹ Volver a Oficina",()=>{section="home";render();},"subtle"));}
 function render(){
  const body=root().querySelector(".cn-office-body");body.replaceChildren();
@@ -72,13 +78,13 @@ function render(){
    grid.append(item);
   });
   const create=card(body,"ALTA DE CLIENTES","Nuevo cliente","El sector es opcional. Una única ficha que podrás completar después.");
-  create.append(btn("Proceso guiado",()=>{root().classList.remove("active");window.openKonsorNewClient?.("guided");},"primary"));
-  create.append(btn("Ficha completa",()=>{root().classList.remove("active");window.openKonsorNewClient?.("full");},"subtle"));
+  create.append(btn("Proceso guiado",()=>openNewClient("guided"),"primary"));
+  create.append(btn("Ficha completa",()=>openNewClient("full"),"subtle"));
   const other=el("details","cn-office-more",undefined,body);
   el("summary","","Volcados y herramientas de gestión",other);
   const advanced=el("div","cn-office-more-body",undefined,other);
   advanced.append(btn("Volcar hojas de sectores",()=>{section="volcados";render();},"subtle"));
-  advanced.append(btn("Clientes antiguos",()=>{root().classList.remove("active");window.openKonsorLegacyPortfolio?.();},"subtle"));
+  advanced.append(btn("Cartera de clientes",()=>{root().classList.remove("active");window.openKonsorClients?.();},"subtle"));
   advanced.append(btn("Comunidades",()=>{root().classList.remove("active");window.openKonsorComunidades?.();},"subtle"));
   advanced.append(btn("Revisar pendientes y cierre",()=>{section="review";render();},"subtle"));
  }else if(section==="volcados"){
