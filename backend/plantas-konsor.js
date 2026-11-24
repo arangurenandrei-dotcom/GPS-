@@ -31,7 +31,8 @@ function safeTask(d,id){return {
  status:d.status,kind:d.kind||'task',dueAt:d.dueAt??null,
  createdAt:d.createdAt,updatedAt:d.updatedAt,
  sourceId:d.sourceId||'',acknowledgedAt:d.acknowledgedAt||null,
- completedAt:d.completedAt||null,escalatedFrom:d.escalatedFrom||''
+ completedAt:d.completedAt||null,escalatedFrom:d.escalatedFrom||'',
+ replies:Array.isArray(d.replies)?d.replies.slice(-30).map(r=>({from:r.from,text:r.text,at:r.at})):[]
 };}
 async function post(req){
  const me=await identity(req),d=req.data||{};
@@ -60,22 +61,49 @@ async function list(req){
  ]);
  const rows=new Map();
  for(const doc of [...received.docs,...sent.docs]){
-  const item=doc.data();if(viewAllowed(to,item))rows.set(doc.id,safeTask(item,doc.id));
+  const item=doc.data();if(viewAllowed(to,item)&&!((item.hiddenFor||[]).includes(me.uid)))rows.set(doc.id,safeTask(item,doc.id));
  }
  return {ok:true,items:[...rows.values()].sort((a,b)=>b.createdAt-a.createdAt).slice(0,200)};
 }
+/* Confirmar recepción, responder en el mismo hilo o retirar de MI bandeja.
+ * Archivar no borra la tarea ni el historial ni altera otras cuentas.
+ */
 async function change(req){
  const me=await identity(req),id=trim(req.data?.id),action=trim(req.data?.action);
- if(!allowedId(id)||!['ack','complete'].includes(action))invalid('Acción o tarea no válida.');
+ if(!allowedId(id)||!['ack','complete','reply','dismiss'].includes(action))
+  invalid('Acción o tarea no válida.');
+ const replyText=trim(req.data?.text);
+ if(action==='reply'&&(!replyText||replyText.length>1200))
+  invalid('La respuesta debe contener entre 1 y 1200 caracteres.');
  let out;
  await getFirestore().runTransaction(async tx=>{
   const ref=taskRef(id),snap=await tx.get(ref),d=snap.data();
   if(!d||!viewAllowed(me.plant,d))invalid('No tienes acceso a esta tarea.','permission-denied');
-  if(d.to!==me.plant)invalid('Solo la planta destinataria puede confirmar o cerrar.','permission-denied');
-  if(d.status==='completed'){out=safeTask(d,id);return;}
-  const now=Date.now(),patch=action==='ack'?
-   {status:'acknowledged',acknowledgedAt:d.acknowledgedAt||now,updatedAt:now}:
-   {status:'completed',acknowledgedAt:d.acknowledgedAt||now,completedAt:now,updatedAt:now};
+  const participant=d.from===me.plant||d.to===me.plant;
+  if(!participant)invalid('No participas en esta conversación.','permission-denied');
+  if((action==='ack'||action==='complete')&&d.to!==me.plant)
+   invalid('Solo la planta destinataria puede confirmar o finalizar.','permission-denied');
+  const now=Date.now();let patch;
+  if(action==='reply'){
+   const previous=Array.isArray(d.replies)?d.replies:[];
+   if(previous.length>=30)invalid('Este hilo ha alcanzado el límite de respuestas. Abre una nueva solicitud.','failed-precondition');
+   patch={replies:[...previous,{from:me.plant,text:replyText,at:now}],updatedAt:now};
+   // Responder desde la planta receptora equivale a confirmar que se ha leído.
+   if(d.to===me.plant&&d.status==='pending')
+    Object.assign(patch,{status:'acknowledged',acknowledgedAt:d.acknowledgedAt||now});
+  }else if(action==='dismiss'){
+   // El aviso desaparece solo para quien lo archiva. Si lo archiva su destinatario,
+   // deja constancia de recepción, sin marcar ejecución como completada.
+   patch={hiddenFor:[...new Set([...(Array.isArray(d.hiddenFor)?d.hiddenFor:[]),me.uid])],updatedAt:now};
+   if(d.to===me.plant&&d.status==='pending')
+    Object.assign(patch,{status:'acknowledged',acknowledgedAt:d.acknowledgedAt||now});
+  }else if(d.status==='completed'){
+   out=safeTask(d,id);return;
+  }else if(action==='ack'){
+   patch={status:'acknowledged',acknowledgedAt:d.acknowledgedAt||now,updatedAt:now};
+  }else{
+   patch={status:'completed',acknowledgedAt:d.acknowledgedAt||now,completedAt:now,updatedAt:now};
+  }
   tx.update(ref,patch);out=safeTask({...d,...patch},id);
  });
  return {ok:true,item:out};
