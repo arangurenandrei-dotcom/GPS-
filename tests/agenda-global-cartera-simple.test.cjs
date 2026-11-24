@@ -21,7 +21,7 @@ test('calendario mensual y planificación global usan disponibilidad de ambos eq
  assert.match(calls,/for\(const team of \[2,3\]\)/);
  assert.match(calls,/consultarKonsorFecha\(date\)/);
  assert.match(calls,/view==="planner"/);
- assert.match(calls,/preferGroupDate\(choice\.item,date,choice\.from,choice\.team\)/);
+ assert.match(calls,/preferGroupDate\(choice\.item,date,choice\.from,choice\.team,true\)/);
  assert.match(calls,/slotRouteFit\(item,date,team,idx,remote,records\)/);
 });
 test('editar ficha original está disponible en el flujo de llamadas',()=>{
