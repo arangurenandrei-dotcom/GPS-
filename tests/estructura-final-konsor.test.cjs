@@ -41,7 +41,7 @@ test('Resultados Comercial no puede cambiar por selector a todo el equipo',()=>{
 });
 test('los recursos y cambios de estilos se cargan desde la versión actualizada',()=>{
  const html=read('index.html');
- for(const suffix of ['oficina-ios.js?v=15','direccion-hub-ios.js?v=18','resultados-ios.js?v=9','ios-unified.css?v=15'])
+ for(const suffix of ['oficina-ios.js?v=15','direccion-hub-ios.js?v=19','resultados-ios.js?v=9','ios-unified.css?v=15'])
   assert.ok(html.includes(suffix),suffix);
  const css=read('ios-unified.css');
  assert.ok(css.includes('.cn-office-home-grid'));
