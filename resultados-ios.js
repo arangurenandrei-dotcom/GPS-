@@ -21,7 +21,7 @@ function panel(){
 }
 function segment(container,items,selected,fn){
  const row=$("div","kr-segment",undefined,container);
- items.forEach(([v,label])=>row.append(btn(label,()=>{fn(v);render();},v===selected?"on":"")));
+ items.forEach(([v,label])=>{const choice=btn(label,()=>{fn(v);render();},v===selected?"on":"");choice.setAttribute("aria-pressed",String(v===selected));row.append(choice);});
 }
 function stat(parent,label,value,detail){
  const c=$("div","kr-stat",undefined,parent);$("small","",label,c);$("strong","",value,c);$("span","",detail,c);return c;
@@ -99,7 +99,11 @@ function render(){
  const picker=$("input","kr-date",undefined,filters);picker.type="date";picker.value=date;picker.max=today();picker.setAttribute("aria-label","Fecha de referencia");
  picker.onchange=()=>{if(picker.value&&picker.value<=today()){date=picker.value;render();}};
  if(tab==="league"){league(main);return;}
- if(teamAllowed())segment(filters,[["me","Yo"],["team","Mi equipo"]],scope,v=>scope=v);
+ if(teamAllowed()){
+  const scopeBox=$("div","kr-scope-picker",undefined,filters);
+  $("small","kr-scope-label","MOSTRAR RESULTADOS DE",scopeBox);
+  segment(scopeBox,[["me","Mis resultados"],["team","Todo mi equipo"]],scope,v=>scope=v);
+ }
  const r=range();
  const users=scope==="team"&&teamAllowed()?getActiveTeamUsers(false):[currentUserName];
  const m=users.map(n=>personalStatsMetrics(n,...r)).reduce((sum,v)=>{Object.keys(v).forEach(k=>{if(typeof v[k]==="number")sum[k]=(sum[k]||0)+v[k];});return sum;},{});
