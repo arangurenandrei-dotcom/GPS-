@@ -17,8 +17,8 @@ test('Oficina tiene exactamente cuatro módulos principales, y altas sin sector'
  const a=src.indexOf('const shortcuts=['),b=src.indexOf('];',a);
  const shortcuts=src.slice(a,b);
  assert.deepEqual([...shortcuts.matchAll(/\["(Clientes|Llamadas|Calendario|Obras)"/g)].map(m=>m[1]),['Clientes','Llamadas','Calendario','Obras']);
- assert.ok(src.includes('openKonsorNewClient?.("guided")'));
- assert.ok(src.includes('openKonsorNewClient?.("full")'));
+ assert.ok(src.includes('openNewClient("guided")'));
+ assert.ok(src.includes('openNewClient("full")'));
  assert.ok(src.includes('cn-office-more'));
  assert.ok(!src.includes('!z.isSingleHouse'));
  assert.ok(!src.includes('!z.isLegacyPortfolio'));
@@ -41,7 +41,7 @@ test('Resultados Comercial no puede cambiar por selector a todo el equipo',()=>{
 });
 test('los recursos y cambios de estilos se cargan desde la versión actualizada',()=>{
  const html=read('index.html');
- for(const suffix of ['oficina-ios.js?v=14','direccion-hub-ios.js?v=18','resultados-ios.js?v=9','ios-unified.css?v=15'])
+ for(const suffix of ['oficina-ios.js?v=15','direccion-hub-ios.js?v=18','resultados-ios.js?v=9','ios-unified.css?v=15'])
   assert.ok(html.includes(suffix),suffix);
  const css=read('ios-unified.css');
  assert.ok(css.includes('.cn-office-home-grid'));
