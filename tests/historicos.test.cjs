@@ -14,6 +14,18 @@ test('labelled external identity works without exposing full calendar to app',()
  assert.equal(selectEvent([{...event,description:'ID Euro Aisla: EA-123',location:''}],data).eventId,event.id);
  assert.throws(()=>selectEvent([{...event,description:'Something EA-123',location:''}],data));
 });
+test('permite evento antiguo sin teléfono SOLO con nombre, dirección y municipio completos',()=>{
+ const appointment={...event,summary:'Equipo 2 · Pamplona · Rosa',description:'Instalación de aislamiento'};
+ const info={...data,name:'Rosa'};
+ assert.equal(selectEvent([appointment],info).eventId,event.id);
+ for(const patch of [
+  {name:'María'},{street:'Mayor 10'},{crmKonsorTown:'Tudela'}
+ ])assert.throws(()=>selectEvent([appointment],{...info,...patch}));
+ // Si hay teléfono contradictorio, un nombre correcto nunca justifica el vínculo.
+ assert.throws(()=>selectEvent([{...appointment,description:'Teléfono: 600 999 999'}],info));
+ // Un evento sin nombre, dirección o teléfono nunca acredita identidad.
+ assert.throws(()=>selectEvent([{...appointment,summary:'Equipo 2'}],info));
+});
 test('occupied slot alone never proves identity',()=>{
  for(const override of [{phone:'600111111'},{street:'Mayor 10'},{crmKonsorTown:'Tudela'}])assert.throws(()=>selectEvent([event],{...data,...override}));
 });
