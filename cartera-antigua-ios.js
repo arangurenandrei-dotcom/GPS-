@@ -479,19 +479,24 @@ function editor(page){
   if(linkRequested){
    staged=true;
    if(await window.KonsorBridge.refresh(true)!==true)throw Error("No se ha podido verificar la ficha guardada en Firebase.");
-   const linkedZone=zs().find(x=>String(x.id)===String(stagedZone));
-   const linkedClient=linkedZone?.clients?.find(x=>String(x.clientUid)===String(stagedUid));
-   if(!linkedClient||!Number.isSafeInteger(Number(linkedClient.rev))||Number(linkedClient.rev)<1)
+   // La copia local puede conservar la revisión anterior después de guardar.
+   // Lee el documento confirmado por el servidor, también para una ficha nueva.
+   const fresh=(await window.readWorkV2({})).data;
+   const linkedZone=fresh?.docs?.find(x=>x.col==="zonas"&&String(x.id)===String(stagedZone));
+   const linkedClient=fresh?.docs?.find(x=>x.col==="fichas"&&String(x.id)===String(stagedUid)&&String(x.zona)===String(stagedZone));
+   if(!linkedZone||!linkedClient?.datos||!Number.isSafeInteger(linkedClient.rev)||linkedClient.rev<1)
     throw Error("No se ha encontrado la revisión de la ficha guardada.");
+   const saved=linkedClient.datos;
    const response=await window.vincularObraExistenteKonsor({
-    clientUid:linkedClient.clientUid,zoneId:String(linkedZone.id),rev:Number(linkedClient.rev),
-    ...desiredBooking,phone:linkedClient.phone,street:linkedClient.street,
-    town:linkedZone.town||linkedClient.locality,eventId:linkedClient.crmKonsorEventId||""
+    clientUid:linkedClient.id,zoneId:String(linkedZone.id),rev:linkedClient.rev,
+    ...desiredBooking,phone:saved.phone,street:saved.street,
+    town:linkedZone.datos?.town||saved.locality,eventId:saved.crmKonsorEventId||""
    });
    if(response.data?.ok!==true||!response.data.eventId)throw Error("El servidor no ha confirmado la vinculación.");
    if(await window.KonsorBridge.refresh(true)!==true)throw Error("El vínculo está confirmado en el servidor; vuelve a abrir la ficha para comprobar su estado.");
    const verified=zs().find(x=>String(x.id)===String(stagedZone))?.clients?.find(x=>String(x.clientUid)===String(stagedUid));
    if(verified?.obraStatus!==newState)throw Error("El servidor confirmó el vínculo, pero el estado todavía no se refleja. Vuelve a abrir la ficha.");
+   crmFilter=newState;
    try{window.cnvRefreshHome?.();}catch(_){}
   }
   screen="list";currentEdit=null;
