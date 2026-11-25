@@ -1,0 +1,20 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const source=fs.readFileSync(path.join(__dirname,'../cartera-antigua-ios.js'),'utf8');
+test('la ficha unificada permite vincular una obra existente sin solicitar una reserva nueva',()=>{
+ assert.match(source,/Esta obra ya existe en Google Calendar/);
+ const start=source.indexOf('const linkRequested='),stop=source.indexOf('button.disabled=true;',start);
+ const pre=source.slice(start,stop);
+ assert.ok(pre.includes('delete d[key]'));
+ assert.ok(pre.includes('obraStatus:"a_poner"'));
+ assert.ok(pre.includes('markCompleted:newState==="realizada"'));
+ const first=source.indexOf('await commit(data);',stop),last=source.indexOf('screen="list";currentEdit=null;',first);
+ const flow=source.slice(first,last);
+ assert.ok(flow.includes('window.vincularObraExistenteKonsor('));
+ assert.ok(flow.includes('window.KonsorBridge.refresh(true)'));
+ assert.ok(flow.includes('verified?.obraStatus!==newState'));
+ assert.ok(!flow.includes('elegirEquipoInstaladorKonsor'));
+ assert.doesNotThrow(()=>new Function(source));
+});

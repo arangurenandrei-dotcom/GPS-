@@ -356,6 +356,16 @@ function editor(page){
  const appointmentTeam=sel(bookingCard,"Equipo",String(c?.obraEquipoInstalacion||""),
   [["","Por asignar"],["2","Equipo 2"],["3","Equipo 3"]]);
  p(bookingCard,"Registrar la cita en esta ficha no crea ni modifica un evento de Google Calendar. Las reservas del calendario siguen su propio sistema.","kha-muted");
+ // El formulario unificado debe distinguir una reserva nueva de una cita externa ya existente.
+ const canLink=chief()&&!mikel(current())&&(!c||
+  (!["agendada","agendada_historica","realizada","no_apto"].includes(c.obraStatus)&&!c.crmKonsorEventId)||
+  (c.obraStatus==="agendada"&&c.calendarBookingOrigin==="google_calendar_existing"&&!!c.crmKonsorEventId));
+ const linkLabel=E("label","kha-choose",undefined,bookingCard);
+ const linkExisting=E("input","",undefined,linkLabel);linkExisting.type="checkbox";
+ E("span","","Esta obra ya existe en Google Calendar. He comprobado que corresponde a esta vivienda, fecha, franja y equipo.",linkLabel);
+ linkLabel.hidden=!canLink;
+ if(canLink)p(bookingCard,"Marca esta opción si la cita ya está reservada en Calendar. Al guardar se verificará y asociará el evento original; no se reservará un segundo hueco.","kha-muted");
+
  [name,telephone,dni,email,captured,answer,note].forEach(n=>contactCard.append(n.closest(".kha-field")));
  [town,street,postal,year,total,zone].forEach(n=>housingCard.append(n.closest(".kha-field")));
  housingCard.append(geoPanel,result,extra);
@@ -404,7 +414,25 @@ function editor(page){
  if(c&&["agendada","agendada_historica","realizada"].includes(c.obraStatus)&&
   !["agendada","realizada"].includes(newState)&&
   !confirm("Esta ficha tiene una obra registrada. Cambiar el estado del CRM no elimina la cita de Google Calendar. ¿Continuar?"))return;
+ const linkRequested=canLink&&linkExisting.checked;
+ const desiredBooking={date:d.obraDate,time:d.obraTime,team:d.obraEquipoInstalacion,markCompleted:newState==="realizada"};
+ if(linkRequested){
+  if(!["agendada","realizada"].includes(newState)){showError("Selecciona Agendada u Obra realizada para vincular una cita existente.");return;}
+  if(typeof window.vincularObraExistenteKonsor!=="function"){showError("La vinculación de Calendar no está disponible. No se ha guardado nada.");return;}
+  if(c?.crmKonsorEventId&&(c.obraDate!==desiredBooking.date||c.obraTime!==desiredBooking.time||
+      Number(c.obraEquipoInstalacion)!==desiredBooking.team)){
+   showError("La ficha ya está vinculada: conserva la fecha, hora y equipo del evento original.");return;
+  }
+  // Guarda primero los datos de contacto y vivienda sin intentar reservar una franja.
+  if(c){
+   for(const key of ["crmEstado","obraStatus","obraDate","obraTime","obraEquipoInstalacion","callStatus","captacionInvalida","obraRealizadaDate","obraRealizadaAt"])delete d[key];
+  }else{
+   Object.assign(d,{crmEstado:"por_llamar",obraStatus:"a_poner",obraDate:"",obraTime:"",obraEquipoInstalacion:null,callStatus:"pendiente",captacionInvalida:false});
+   delete d.obraRealizadaDate;delete d.obraRealizadaAt;
+  }
+ }
  button.disabled=true;
+ let stagedUid=c?.clientUid||"",stagedZone=z?.id,staged=false;
  try{
   const data=structuredClone(zs()),stamp=Date.now();
   if(c){
@@ -440,6 +468,7 @@ function editor(page){
    const client={...d,clientUid:"f_"+crypto.randomUUID(),sectorlessCapture:true,
      origen:"contacto_directo",
      createdAt:Date.parse(d.captureDate+"T12:00:00"),updatedAt:stamp,statusChangedAt:stamp};
+   stagedUid=client.clientUid;stagedZone=id;
    data.push({id,isSingleHouse:true,isSectorlessCapture:true,singlePoint:null,
      date:d.captureDate,dumpDate:d.captureDate,town:d.locality,
      sectorName:"🏠 "+d.street,comercial:current(),bossNote:"",pendingNote:"",
@@ -447,12 +476,38 @@ function editor(page){
      clients:[client],_updatedAt:stamp});
   }
   await commit(data);
+  if(linkRequested){
+   staged=true;
+   if(await window.KonsorBridge.refresh(true)!==true)throw Error("No se ha podido verificar la ficha guardada en Firebase.");
+   const linkedZone=zs().find(x=>String(x.id)===String(stagedZone));
+   const linkedClient=linkedZone?.clients?.find(x=>String(x.clientUid)===String(stagedUid));
+   if(!linkedClient||!Number.isSafeInteger(Number(linkedClient.rev))||Number(linkedClient.rev)<1)
+    throw Error("No se ha encontrado la revisión de la ficha guardada.");
+   const response=await window.vincularObraExistenteKonsor({
+    clientUid:linkedClient.clientUid,zoneId:String(linkedZone.id),rev:Number(linkedClient.rev),
+    ...desiredBooking,phone:linkedClient.phone,street:linkedClient.street,
+    town:linkedZone.town||linkedClient.locality,eventId:linkedClient.crmKonsorEventId||""
+   });
+   if(response.data?.ok!==true||!response.data.eventId)throw Error("El servidor no ha confirmado la vinculación.");
+   if(await window.KonsorBridge.refresh(true)!==true)throw Error("El vínculo está confirmado en el servidor; vuelve a abrir la ficha para comprobar su estado.");
+   const verified=zs().find(x=>String(x.id)===String(stagedZone))?.clients?.find(x=>String(x.clientUid)===String(stagedUid));
+   if(verified?.obraStatus!==newState)throw Error("El servidor confirmó el vínculo, pero el estado todavía no se refleja. Vuelve a abrir la ficha.");
+   try{window.cnvRefreshHome?.();}catch(_){}
+  }
   screen="list";currentEdit=null;
   notice="Ficha guardada · "+window.KonsorCRM.labels[newState]+".";
   crmTown=N(d.locality);
   if(returnAfterEdit){document.getElementById(ID)?.remove();const back=returnAfterEdit;returnAfterEdit=null;back();return;}
   render();
- }catch(err){button.disabled=false;showError("No se ha confirmado el guardado: "+(err.message||err));}
+ }catch(err){
+  button.disabled=false;
+  if(staged){
+   screen="list";currentEdit=null;crmFilter="todos";crmTown=N(d.locality);
+   notice="Los datos de la ficha se han guardado. No se pudo confirmar el estado de la obra: "+(err.message||err)+". Abre la ficha para revisar su estado antes de repetir la vinculación.";
+   render();return;
+  }
+  showError("No se ha confirmado el guardado: "+(err.message||err));
+ }
 }
  actions.append(B(c?"Guardar cambios":"Crear cliente",function(){save(false,this);},true));
 }
