@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>KONSOR · Exportación para migración</title><style>
+body{font:16px system-ui,sans-serif;background:#f5f7fa;color:#142033;margin:0;padding:24px}main{max-width:660px;margin:32px auto;background:white;border:1px solid #dce3eb;border-radius:18px;padding:28px}h1{font-size:25px}button{font:inherit;background:#142033;color:white;border:0;border-radius:10px;padding:14px 22px;cursor:pointer}button:disabled{opacity:.45;cursor:default}pre{white-space:pre-wrap;background:#f0f3f6;border-radius:12px;padding:14px}a{color:#23486e}p{line-height:1.55}
+</style></head>
+<body><main><h1>Exportar registros de KONSOR</h1><p>Copia de solo lectura para trasladar los datos a KONSOR CRM 2.0. Se utilizan los permisos de tu sesión actual. No se modifica ni elimina ningún registro.</p><p id="status" role="status">Comprobando sesión…</p><button id="export" disabled>Descargar copia de migración</button><p><a href="./index.html">Volver a la aplicación antigua</a></p><pre id="report" hidden></pre><p>El archivo puede contener datos personales de clientes. Guárdalo en un lugar privado. No lo publiques ni lo subas a GitHub.</p></main>
+<script type="module">
+import "./app/legacy/firebase-init.js";
+import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
+const status=document.getElementById("status"), btn=document.getElementById("export"), report=document.getElementById("report");
+let authorized=null, profile=null, generation=0;
+const setStatus=s=>status.textContent=s;
+onAuthStateChanged(window.auth,async user=>{
+ const current=++generation;authorized=null;profile=null;btn.disabled=true;
+ if(!user){setStatus("Inicia sesión en la aplicación antigua con tu cuenta de jefe y vuelve a abrir esta página.");return}
+ try{
+  const p=await window.authApi.getProfile(user.uid);
+  if(current!==generation)return;
+  if(!p||!["jefe","jefe_mikel"].includes(p.userKey)){setStatus("Se requiere una cuenta autorizada de jefe de equipo.");return}
+  authorized=user.uid;profile=p;btn.disabled=false;setStatus("Sesión de jefe verificada. La copia incluirá los registros que Firebase autoriza para esta cuenta.");
+ }catch{if(current===generation)setStatus("No se ha podido verificar la sesión.")}
+});
+btn.addEventListener("click",async()=>{
+ const uid=authorized,p=profile,current=generation;if(!uid||!p||window.auth.currentUser?.uid!==uid)return;
+ btn.disabled=true;report.hidden=true;setStatus("Leyendo registros originales de Firebase…");
+ try{
+  const calls=[["trabajo",window.readWorkV2({})],["perimetros",window.leerPerimetrosPueblo({})]];
+  if(p.userKey==="jefe")calls.push(["supervision_mikel",window.consultarSectoresMikel({})]);
+  const results=await Promise.allSettled(calls.map(x=>x[1]));
+  if(current!==generation||window.auth.currentUser?.uid!==uid)throw Error("La sesión ha cambiado.");
+  if(results[0].status!=="fulfilled")throw Error("No se han podido leer los registros principales.");
+  const work=results[0].value.data;
+  if(!work||work.key!==p.userKey||!Array.isArray(work.docs))throw Error("Respuesta de Firebase inválida o de otro perfil.");
+  const ids=new Set(),counts={};
+  for(const d of work.docs){
+   if(typeof d.col!=="string"||typeof d.id!=="string"||!d.datos||!Number.isSafeInteger(d.rev)||d.rev<1)throw Error("Se ha encontrado un documento sin identificador o revisión válida.");
+   const k=d.col+"/"+d.id;if(ids.has(k))throw Error("Hay identificadores duplicados. No se ha exportado una copia incompleta.");
+   ids.add(k);counts[d.col]=(counts[d.col]||0)+1;
+  }
+  const extras={},warnings=[];
+  for(let i=1;i<calls.length;i++){
+   const r=results[i];if(r.status==="fulfilled")extras[calls[i][0]]=r.value.data;else warnings.push("No disponible: "+calls[i][0]);
+  }
+  warnings.push("La copia corresponde al alcance autorizado de esta sesión. La supervisión del otro equipo no equivale a una copia completa de su cartera. Archivos adjuntos, otras colecciones y agenda externa requieren comprobación independiente.");
+  const payload={format:"konsor-firebase-migration-v1",project:"gestion-comercial-navarr-3b028",exported_at:new Date().toISOString(),scope:p.userKey,counts,work,extras,warnings};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download="KONSOR-migracion-"+p.userKey+"-"+new Date().toISOString().slice(0,10)+".json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  report.textContent=Object.entries(counts).map(([k,n])=>k+": "+n).join("\n")+"\n\n"+warnings.join("\n");report.hidden=false;setStatus("Copia descargada. Los registros de Firebase no se han modificado.");
+ }catch(e){if(current===generation)setStatus("Exportación no completada: "+(e instanceof Error?e.message:"error de lectura"))}
+ finally{if(current===generation&&authorized)btn.disabled=false}
+});
+</script></body></html>
